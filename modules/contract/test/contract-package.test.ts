@@ -184,6 +184,69 @@ describe("contract package baseline", () => {
     });
   });
 
+  it("publishes task CRUD operations in the shared OpenAPI document", () => {
+    const tasksPathItem = contractModule.openApiDocument.paths["/tasks"] as
+      | {
+          get?: {
+            parameters?: Array<Record<string, unknown>>;
+          };
+          post?: {
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const taskByIdPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}"
+    ] as
+      | {
+          delete?: {
+            responses: Record<string, unknown>;
+          };
+          get?: {
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const taskQueryParameters = (
+      tasksPathItem?.get?.parameters ?? []
+    ).map((parameter) => {
+      if ("$ref" in parameter && typeof parameter.$ref === "string") {
+        return parameter.$ref;
+      }
+
+      return parameter.name;
+    });
+
+    expect(tasksPathItem).toBeDefined();
+    expect(taskByIdPathItem).toBeDefined();
+    expect(tasksPathItem?.post?.responses["201"]).toBeDefined();
+    expect(taskQueryParameters).toEqual(
+      expect.arrayContaining([
+        "#/components/parameters/TaskStatusQueryParameter",
+        "#/components/parameters/TaskDoneQueryParameter",
+        "#/components/parameters/TaskSessionIdQueryParameter",
+      ]),
+    );
+    expect(taskByIdPathItem?.delete?.responses["204"]).toBeDefined();
+    expect(taskByIdPathItem?.get?.responses["404"]).toBeDefined();
+  });
+
+  it("publishes task CRUD schemas in the shared OpenAPI document", () => {
+    expect(contractModule.openApiDocument.components.schemas.Task).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.CreateTaskRequest,
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.PatchTaskRequest,
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.TaskListResponse,
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.ErrorResponse,
+    ).toBeDefined();
+  });
+
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
     expect(rootPackage.scripts["openapi:generate"]).toBeDefined();
     expect(rootPackage.scripts["openapi:generate"]).toContain(
