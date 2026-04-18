@@ -74,6 +74,10 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 
 ## 面向开发者的仓库入口
 
+当前仓库承载的是 AIM 方法论与调度语义所依赖的现有基线；上文提到的 server / GUI / CLI / OpenAPI 是 AIM 的目标产品形态，不应读成这些表面都已在本仓库内完整落地。今天开始阅读时，优先从当前模块与验证入口进入。
+
+- 当前基线模块入口：[`modules/contract`](modules/contract)、[`modules/api`](modules/api)、[`modules/web`](modules/web)、[`modules/cli`](modules/cli)
+- 当前验证入口：[`docs/architecture/validation.md`](docs/architecture/validation.md)
 - 调度定义与任务成功语义：[`docs/scheduler.md`](docs/scheduler.md)
 - API 文档入口说明：[`docs/api/README.md`](docs/api/README.md)
 - 架构文档目录：[`docs/architecture/`](docs/architecture/)
