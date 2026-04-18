@@ -109,7 +109,7 @@ describe("contract package baseline", () => {
   it("keeps CI wired to the package-local test entrypoints", () => {
     expect(ciWorkflowSource).toContain("run: pnpm run test:repo");
     expect(ciWorkflowSource).toContain(
-      "pnpm --filter=!@cz-stack/web -r --workspace-concurrency=1 --if-present run test",
+      "pnpm --filter=!@aim-ai/web -r --workspace-concurrency=1 --if-present run test",
     );
     expect(ciWorkflowSource).toContain("run: pnpm smoke");
     expect(ciWorkflowSource).toContain("run: pnpm test:web");
@@ -122,7 +122,7 @@ describe("contract package baseline", () => {
   });
 
   it("publishes the expected package export contract", () => {
-    expect(contractPackage.name).toBe("@cz-stack/contract");
+    expect(contractPackage.name).toBe("@aim-ai/contract");
     expect(contractPackage.exports["."]).toEqual({
       import: "./dist/index.mjs",
       require: "./dist/index.cjs",

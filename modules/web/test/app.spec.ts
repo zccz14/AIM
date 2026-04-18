@@ -28,7 +28,7 @@ test.describe("web app", () => {
     );
     const importSpecifiers = getImportSpecifiers(apiClientSource);
 
-    expect(importSpecifiers).toContain("@cz-stack/contract");
+    expect(importSpecifiers).toContain("@aim-ai/contract");
     expect(
       importSpecifiers.some((specifier) =>
         specifier.includes("contract/generated"),
@@ -37,7 +37,7 @@ test.describe("web app", () => {
     expect(
       importSpecifiers.every(
         (specifier) =>
-          specifier === "@cz-stack/contract" || specifier.startsWith("."),
+          specifier === "@aim-ai/contract" || specifier.startsWith("."),
       ),
     ).toBe(true);
     expect(
