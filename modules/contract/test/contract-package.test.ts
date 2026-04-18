@@ -232,19 +232,50 @@ describe("contract package baseline", () => {
   });
 
   it("publishes task CRUD schemas in the shared OpenAPI document", () => {
+    const createTaskRequestSchema =
+      contractModule.openApiDocument.components.schemas.CreateTaskRequest;
+    const taskListResponseSchema =
+      contractModule.openApiDocument.components.schemas.TaskListResponse;
+
     expect(contractModule.openApiDocument.components.schemas.Task).toBeDefined();
-    expect(
-      contractModule.openApiDocument.components.schemas.CreateTaskRequest,
-    ).toBeDefined();
+    expect(createTaskRequestSchema).toBeDefined();
     expect(
       contractModule.openApiDocument.components.schemas.PatchTaskRequest,
     ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.components.schemas.TaskListResponse,
-    ).toBeDefined();
+    expect(taskListResponseSchema).toBeDefined();
     expect(
       contractModule.openApiDocument.components.schemas.ErrorResponse,
     ).toBeDefined();
+
+    expect(createTaskRequestSchema).toMatchObject({
+      required: ["task_spec"],
+    });
+    expect(
+      Object.keys(
+        (createTaskRequestSchema as { properties: Record<string, unknown> })
+          .properties,
+      ).sort(),
+    ).toEqual([
+      "dependencies",
+      "pull_request_url",
+      "session_id",
+      "status",
+      "task_spec",
+      "worktree_path",
+    ]);
+    expect(taskListResponseSchema).toEqual({
+      type: "object",
+      additionalProperties: false,
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Task",
+          },
+        },
+      },
+    });
   });
 
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {

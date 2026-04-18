@@ -275,6 +275,29 @@ components:
           items:
             type: string
             minLength: 1
+        session_id:
+          type:
+            - string
+            - "null"
+        worktree_path:
+          type:
+            - string
+            - "null"
+        pull_request_url:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - created
+            - waiting_assumptions
+            - running
+            - outbound
+            - pr_following
+            - closing
+            - succeeded
+            - failed
     PatchTaskRequest:
       type: object
       additionalProperties: false
@@ -314,9 +337,9 @@ components:
       type: object
       additionalProperties: false
       required:
-        - tasks
+        - items
       properties:
-        tasks:
+        items:
           type: array
           items:
             $ref: "#/components/schemas/Task"
