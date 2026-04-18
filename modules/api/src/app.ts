@@ -1,4 +1,4 @@
-import { openApiDocument } from "@cz-stack/contract";
+import { openApiDocument } from "@aim-ai/contract";
 import { Hono } from "hono";
 
 import { registerHealthRoute } from "./routes/health.js";

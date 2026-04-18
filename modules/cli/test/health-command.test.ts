@@ -76,12 +76,12 @@ describe("cli package baseline", () => {
       };
     };
 
-    expect(cliPackage.name).toBe("@cz-stack/cli");
+    expect(cliPackage.name).toBe("@aim-ai/cli");
     expect(cliPackage.bin).toEqual({
-      "cz-stack": "bin/dev.js",
+      aim: "bin/dev.js",
     });
     expect(cliPackage.oclif).toEqual({
-      bin: "cz-stack",
+      bin: "aim",
       commands: {
         identifier: "commands",
         strategy: "explicit",
@@ -102,7 +102,7 @@ describe("cli package baseline", () => {
     const commandSource = await readFile(cliCommandSourceUrl, "utf8");
     const importSpecifiers = getImportSpecifiers(commandSource);
 
-    expect(importSpecifiers).toContain("@cz-stack/contract");
+    expect(importSpecifiers).toContain("@aim-ai/contract");
     expect(
       importSpecifiers.some((specifier) =>
         specifier.includes("contract/generated"),

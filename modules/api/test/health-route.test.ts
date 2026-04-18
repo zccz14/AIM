@@ -43,7 +43,7 @@ beforeAll(async () => {
 
 describe("api package baseline", () => {
   it("publishes the expected api package boundary", () => {
-    expect(apiPackage.name).toBe("@cz-stack/api");
+    expect(apiPackage.name).toBe("@aim-ai/api");
     expect(apiPackage.exports["."]).toEqual({
       import: "./dist/app.mjs",
       require: "./dist/app.cjs",
@@ -100,7 +100,7 @@ describe("api package baseline", () => {
     const apiSource = await readFile(apiSourceUrl, "utf8");
 
     expect(apiSource).toContain(
-      'import { openApiDocument } from "@cz-stack/contract";',
+      'import { openApiDocument } from "@aim-ai/contract";',
     );
     expect(apiSource).toContain(
       'app.get("/openapi.json", (context) => context.json(openApiDocument, 200));',

@@ -1,4 +1,4 @@
-import { ContractClientError, type HealthError } from "@cz-stack/contract";
+import { ContractClientError, type HealthError } from "@aim-ai/contract";
 import { queryOptions } from "@tanstack/react-query";
 
 import { createWebApiClient } from "../../lib/api-client.js";

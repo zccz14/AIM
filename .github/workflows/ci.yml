@@ -26,7 +26,7 @@ jobs:
         run: pnpm lint
 
       - name: Package-local tests
-        run: pnpm run test:repo && pnpm --filter=!@cz-stack/web -r --workspace-concurrency=1 --if-present run test
+        run: pnpm run test:repo && pnpm --filter=!@aim-ai/web -r --workspace-concurrency=1 --if-present run test
 
       - name: Build
         run: pnpm build

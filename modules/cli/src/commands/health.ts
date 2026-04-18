@@ -2,7 +2,7 @@ import {
   ContractClientError,
   createContractClient,
   type HealthError,
-} from "@cz-stack/contract";
+} from "@aim-ai/contract";
 import { Command, Flags } from "@oclif/core";
 
 export type CliHealthSuccess = {

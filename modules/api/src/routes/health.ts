@@ -2,7 +2,7 @@ import {
   type HealthResponse,
   healthPath,
   healthResponseSchema,
-} from "@cz-stack/contract";
+} from "@aim-ai/contract";
 import type { Hono } from "hono";
 
 export const registerHealthRoute = (app: Hono) => {

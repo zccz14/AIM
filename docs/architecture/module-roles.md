@@ -12,7 +12,7 @@
 - 允许依赖：仅允许依赖极少量与协议表达直接相关的基础库。
 - 被谁依赖：`api-service`、`web-app`、`cli-tool`、`tooling-package`，以及任何仓库外文档展示入口。
 - 禁止：反向依赖任何应用层、服务层、数据库层或文档展示实现。
-- 当前落地要求：`@cz-stack/contract` 必须继续作为 OpenAPI、Zod 与共享 client 的单一协议事实源；其中 `modules/contract/openapi/openapi.yaml` 是唯一可手工维护的事实源，`/openapi.yaml` 与 `/openapi.json` 都只能是它的发布/导出形态。
+- 当前落地要求：`@aim-ai/contract` 必须继续作为 OpenAPI、Zod 与共享 client 的单一协议事实源；其中 `modules/contract/openapi/openapi.yaml` 是唯一可手工维护的事实源，`/openapi.yaml` 与 `/openapi.json` 都只能是它的发布/导出形态。
 
 ### `api-service`
 
@@ -20,7 +20,7 @@
 - 允许依赖：`contract-package`、必要的 `tooling-package`。
 - 被谁依赖：通常只被运行入口、测试与部署配置消费。
 - 禁止：要求 `contract-package` 反向依赖服务实现；禁止把 Web/CLI 运行时逻辑下沉进 API 服务。
-- 当前落地要求：`@cz-stack/api` 已提供 `/health` 与 `/openapi.json`；其中 `/openapi.json` 必须继续由 contract 同源驱动，但它只是 JSON 导出结果，不是事实源。
+- 当前落地要求：`@aim-ai/api` 已提供 `/health` 与 `/openapi.json`；其中 `/openapi.json` 必须继续由 contract 同源驱动，但它只是 JSON 导出结果，不是事实源。
 
 ### `web-app`
 
@@ -28,7 +28,7 @@
 - 允许依赖：`contract-package`、必要的 `tooling-package`。
 - 被谁依赖：通常只被前端构建与测试入口消费。
 - 禁止：反向驱动 `contract-package` 或 `api-service` 的设计。
-- 当前落地要求：`@cz-stack/web` 应继续通过共享 contract / client 接入 API，而不是在前端手写一套独立协议类型。
+- 当前落地要求：`@aim-ai/web` 应继续通过共享 contract / client 接入 API，而不是在前端手写一套独立协议类型。
 
 ### `cli-tool`
 
@@ -36,7 +36,7 @@
 - 允许依赖：`contract-package`、必要的 `tooling-package`。
 - 被谁依赖：通常只被 CLI 运行入口、测试与发布流程消费。
 - 禁止：要求 API 或 contract 为 CLI 专门维护第二套协议定义。
-- 当前落地要求：`@cz-stack/cli` 的 health 命令必须继续复用共享 client / contract，不得演化出与 API / Web 脱节的命令协议。
+- 当前落地要求：`@aim-ai/cli` 的 `aim health` 命令必须继续复用共享 client / contract，不得演化出与 API / Web 脱节的命令协议。
 
 ### `tooling-package`
 
