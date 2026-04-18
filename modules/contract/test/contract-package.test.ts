@@ -205,6 +205,22 @@ describe("contract package baseline", () => {
           get?: {
             responses: Record<string, unknown>;
           };
+          patch?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<string, {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            }>;
+          };
         }
       | undefined;
     const taskQueryParameters = (
@@ -227,6 +243,33 @@ describe("contract package baseline", () => {
         "#/components/parameters/TaskSessionIdQueryParameter",
       ]),
     );
+    expect(
+      taskByIdPathItem?.patch?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/PatchTaskRequest",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["200"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/Task",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["400"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["404"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
     expect(taskByIdPathItem?.delete?.responses["204"]).toBeDefined();
     expect(taskByIdPathItem?.get?.responses["404"]).toBeDefined();
   });
@@ -263,6 +306,45 @@ describe("contract package baseline", () => {
       "task_spec",
       "worktree_path",
     ]);
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.session_id,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.worktree_path,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.pull_request_url,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.status,
+    ).toMatchObject({
+      enum: [
+        "created",
+        "waiting_assumptions",
+        "running",
+        "outbound",
+        "pr_following",
+        "closing",
+        "succeeded",
+        "failed",
+      ],
+    });
     expect(taskListResponseSchema).toEqual({
       type: "object",
       additionalProperties: false,
