@@ -1,4 +1,4 @@
-import { createContractClient } from "@cz-stack/contract";
+import { createContractClient } from "@aim-ai/contract";
 
 const resolveApiBaseUrl = () => {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();

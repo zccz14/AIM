@@ -38,7 +38,7 @@ importers:
 
   modules/api:
     dependencies:
-      '@cz-stack/contract':
+      '@aim-ai/contract':
         specifier: workspace:*
         version: link:../contract
       '@hono/node-server':
@@ -54,7 +54,7 @@ importers:
 
   modules/cli:
     dependencies:
-      '@cz-stack/contract':
+      '@aim-ai/contract':
         specifier: workspace:*
         version: link:../contract
       '@oclif/core':
@@ -79,7 +79,7 @@ importers:
 
   modules/web:
     dependencies:
-      '@cz-stack/contract':
+      '@aim-ai/contract':
         specifier: workspace:*
         version: link:../contract
       '@tanstack/react-query':
