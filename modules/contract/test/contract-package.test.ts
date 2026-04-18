@@ -56,10 +56,45 @@ type RootPackageManifest = {
 };
 
 type ContractPackageModule = typeof import("../src/index.js");
+type ContractPackageConsumerModule = typeof import("../dist/index.mjs");
+type GeneratedClientModule = typeof import("../generated/client.js");
+type GeneratedTypesModule = typeof import("../generated/types.js");
+
+type Assert<T extends true> = T;
+type HasExport<Module, Key extends PropertyKey> = Key extends keyof Module
+  ? true
+  : false;
+
+type _consumerExportsTask = Assert<
+  HasExport<ContractPackageConsumerModule, "Task">
+>;
+type _consumerExportsCreateTaskRequest = Assert<
+  HasExport<ContractPackageConsumerModule, "CreateTaskRequest">
+>;
+type _consumerExportsTaskStatus = Assert<
+  HasExport<ContractPackageConsumerModule, "TaskStatus">
+>;
+type _consumerExportsOpenApiDocument = Assert<
+  HasExport<ContractPackageConsumerModule, "OpenApiDocument">
+>;
+type _generatedClientExportsTaskCrud = Assert<
+  HasExport<GeneratedClientModule, "listTasks"> &
+    HasExport<GeneratedClientModule, "createTask"> &
+    HasExport<GeneratedClientModule, "getTaskById"> &
+    HasExport<GeneratedClientModule, "patchTaskById"> &
+    HasExport<GeneratedClientModule, "deleteTaskById">
+>;
+type _generatedTypesExportTaskCrud = Assert<
+  HasExport<GeneratedTypesModule, "Task"> &
+    HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
+    HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
+    HasExport<GeneratedTypesModule, "TaskListResponse">
+>;
 
 let contractPackage: ContractPackageManifest;
 let rootPackage: RootPackageManifest;
 let contractModule: ContractPackageModule;
+let generatedClientModule: GeneratedClientModule;
 let playwrightConfigSource: string;
 let ciWorkflowSource: string;
 
@@ -75,6 +110,9 @@ beforeAll(async () => {
   contractModule = (await import(
     pathToFileURL(fileURLToPath(contractEntryUrl)).href
   )) as ContractPackageModule;
+  generatedClientModule = (await import(
+    "../generated/client.js"
+  )) as GeneratedClientModule;
 });
 
 describe("contract package baseline", () => {
@@ -473,9 +511,20 @@ describe("contract package baseline", () => {
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(
       "node_modules",
     );
+    await expect(readFile(generatedTypesUrl, "utf8")).resolves.toContain(
+      'export * from "./_types/types.gen.js";',
+    );
     await expect(
       readFile(generatedTypeDefinitionsUrl, "utf8"),
     ).resolves.toContain("TaskListResponse");
+    await expect(generatedClientModule.listTasks).toBeTypeOf("function");
+    await expect(generatedClientModule.createTask).toBeTypeOf("function");
+    await expect(generatedClientModule.getTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.patchTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
+    await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
+      'export * from "./_client/index.js";',
+    );
     await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
       "listTasks",
     );
