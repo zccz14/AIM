@@ -29,7 +29,7 @@
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/contract/package.json modules/contract/src modules/contract/test",
-    "test": "pnpm run test:type && pnpm run test:lint && pnpm run build && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
+    "test": "pnpm run build && pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.96.0",

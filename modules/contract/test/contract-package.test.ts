@@ -506,6 +506,9 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.build).toContain("pnpm run generate");
+    expect(contractPackage.scripts?.test).toContain(
+      "pnpm run build && pnpm run test:type",
+    );
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
     expect(contractPackage.devDependencies?.yaml).toBe("^2.8.3");
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(
