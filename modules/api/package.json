@@ -1,0 +1,40 @@
+{
+  "name": "@cz-stack/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/app.cjs",
+  "module": "./dist/app.mjs",
+  "types": "./dist/app.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/app.d.mts",
+      "import": "./dist/app.mjs",
+      "require": "./dist/app.cjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "pnpm exec tsx watch src/server.ts",
+    "build": "pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/api/src/app.ts --entry modules/api/src/server.ts --out-dir modules/api/dist",
+    "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
+    "test:type": "pnpm run typecheck",
+    "test:lint": "pnpm --dir ../.. exec biome check modules/api/package.json modules/api/src modules/api/test",
+    "test": "pnpm run test:type && pnpm run test:lint && pnpm --filter @cz-stack/contract run build && pnpm run build && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api"
+  },
+  "dependencies": {
+    "@cz-stack/contract": "workspace:*",
+    "@hono/node-server": "^1.19.6",
+    "hono": "^4.10.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

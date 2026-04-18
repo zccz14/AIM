@@ -1,0 +1,42 @@
+{
+  "name": "@cz-stack/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "generated",
+    "openapi"
+  ],
+  "scripts": {
+    "generate:openapi": "pnpm exec node --input-type=module --eval \"import { mkdir, readFile, writeFile } from 'node:fs/promises'; import { parse } from 'yaml'; const source = await readFile('./openapi/openapi.yaml', 'utf8'); const document = parse(source); const output = '// This file is auto-generated from the /health OpenAPI contract.\\n' + 'export const openApiDocument = ' + JSON.stringify(document, null, 2) + ' as const;\\n'; await mkdir('./generated', { recursive: true }); await writeFile('./generated/openapi.ts', output, 'utf8');\"",
+    "generate:types": "mkdir -p ./generated && rm -rf ./generated/types.ts ./generated/_types && pnpm exec openapi-ts --input ./openapi/openapi.yaml --output ./generated/_types && printf '%s\n' '// This file is auto-generated from the /health OpenAPI contract.' 'export * from \"./_types/types.gen.js\";' > ./generated/types.ts",
+    "generate:client": "mkdir -p ./generated && rm -rf ./generated/client.ts ./generated/_client && pnpm exec openapi-ts --input ./openapi/openapi.yaml --output ./generated/_client --client @hey-api/client-fetch && printf '%s\n' '// This file is auto-generated from the /health OpenAPI contract.' 'export * from \"./_client/index.js\";' > ./generated/client.ts",
+    "generate:zod": "mkdir -p ./generated && rm -f ./openapi/openapi.yaml.client.ts && pnpm exec openapi-zod-client ./openapi/openapi.yaml -o ./generated/zod.ts --template ./openapi/templates/schemas-only.hbs --export-schemas",
+    "generate": "pnpm run generate:openapi && pnpm run generate:types && pnpm run generate:client && pnpm run generate:zod",
+    "generate:check": "pnpm run generate && git diff --exit-code -- generated openapi/openapi.yaml",
+    "build": "pnpm run generate && pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/contract/src/index.ts --out-dir modules/contract/dist",
+    "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
+    "test:type": "pnpm run typecheck",
+    "test:lint": "pnpm --dir ../.. exec biome check modules/contract/package.json modules/contract/src modules/contract/test",
+    "test": "pnpm run test:type && pnpm run test:lint && pnpm run build && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "^0.96.0",
+    "openapi-zod-client": "^1.18.3",
+    "yaml": "^2.8.3"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  }
+}

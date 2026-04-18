@@ -1,0 +1,48 @@
+{
+  "name": "cz-stack",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.15.0"
+  },
+  "scripts": {
+    "bootstrap": "pnpm install --ignore-scripts",
+    "changeset": "pnpm exec changeset",
+    "changeset:check": "node ./scripts/changeset-check.mjs",
+    "prepare": "husky",
+    "precommit": "lint-staged",
+    "lint": "pnpm exec biome check package.json pnpm-workspace.yaml tsconfig.base.json biome.json tsdown.config.ts .npmrc .gitignore",
+    "openapi:generate": "pnpm --filter ./modules/contract generate",
+    "openapi:check": "pnpm --filter ./modules/contract generate:check && pnpm --filter ./modules/contract build && node --input-type=module --eval \"import { pathToFileURL } from 'node:url'; const contractModule = await import(pathToFileURL(process.cwd() + '/modules/contract/dist/index.mjs').href); if (contractModule.openApiDocument.openapi !== '3.1.0') throw new Error('expected OpenAPI 3.1.0 document'); if (!contractModule.openApiDocument.paths[contractModule.healthPath]) throw new Error('expected health path in OpenAPI document');\"",
+    "release:check": "pnpm test:type && pnpm test:lint && pnpm test && pnpm build && pnpm openapi:check",
+    "typecheck": "pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck --types node tsdown.config.ts && pnpm -r --if-present typecheck",
+    "test:build-fixtures": "pnpm --filter ./modules/contract build && pnpm --filter ./modules/api build && pnpm --filter ./modules/cli build",
+    "test:repo": "pnpm exec vitest run --config vitest.workspace.ts --project repo",
+    "test:type": "pnpm run typecheck && pnpm -r --if-present run test:type",
+    "test:lint": "pnpm run lint && pnpm -r --if-present run test:lint",
+    "test:smoke": "pnpm -r --if-present run test:smoke",
+    "test:web": "pnpm -r --if-present run test:web",
+    "test": "pnpm run test:repo && pnpm -r --workspace-concurrency=1 --if-present run test",
+    "build": "pnpm -r --if-present build",
+    "gcm": "git fetch origin && git checkout origin/main",
+    "smoke": "pnpm run test:smoke",
+    "validate": "pnpm run test:type && pnpm run test:lint && pnpm run test && pnpm run build && pnpm run openapi:check",
+    "version-packages": "pnpm exec changeset version"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@changesets/cli": "^2.30.0",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^24.9.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "tsdown": "^0.21.8",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,tsx,json,jsonc,md}": "pnpm exec biome check --write --no-errors-on-unmatched"
+  }
+}

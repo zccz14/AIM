@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "./dist",
+    "exactOptionalPropertyTypes": false,
+    "paths": {
+      "@cz-stack/contract": ["../contract/src/index.ts"]
+    },
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

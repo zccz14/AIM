@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Package-local tests
+        run: pnpm run test:repo && pnpm --filter=!@cz-stack/web -r --workspace-concurrency=1 --if-present run test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify OpenAPI baseline
+        run: pnpm openapi:check
+
+      - name: Validate changeset policy for releaseable packages
+        run: pnpm changeset:check
+
+      - name: CLI smoke
+        run: pnpm smoke
+
+  playwright:
+    name: Playwright
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright system dependencies
+        run: pnpm exec playwright install-deps chromium firefox
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium firefox
+
+      - name: Run Playwright suite
+        run: pnpm test:web
