@@ -2,10 +2,10 @@
 
 CZ-Stack 的 API 文档必须与 `contract-package` **同源生成**，而不是维护第二份手写规范。
 
-当前仓库已经落地 `@cz-stack/contract` 与 `@cz-stack/api`：
+当前仓库已经落地 `@aim-ai/contract` 与 `@aim-ai/api`：
 
-- `@cz-stack/contract` 维护 OpenAPI 文档、Zod schema 与共享 client。
-- `@cz-stack/api` 提供 `/openapi.json` 作为 JSON 导出入口，不再内置 `/docs` 展示页面。
+- `@aim-ai/contract` 维护 OpenAPI 文档、Zod schema 与共享 client。
+- `@aim-ai/api` 提供 `/openapi.json` 作为 JSON 导出入口，不再内置 `/docs` 展示页面。
 
 因此，本文说明的是**当前基线如何维护 API 文档事实源与导出入口**，以及为什么仓库不再内置 docs 项目或文档站点构建流程。
 

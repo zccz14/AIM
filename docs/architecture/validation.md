@@ -51,7 +51,7 @@
 ### `pnpm smoke`
 
 - 目的：确认 CLI 最小主路径仍可运行。
-- 预期结果：CLI smoke 返回 0，并输出 health 成功结果。
+- 预期结果：`aim health` 这条 CLI smoke 主路径返回 0，并输出 health 成功结果。
 - 失败先看：`modules/cli/bin/dev.js`、`modules/cli/src/index.ts`、`modules/cli/src/commands/health.ts` 与 contract client 调用链。
 
 ### `pnpm openapi:check`
