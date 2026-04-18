@@ -22,6 +22,67 @@ export type HealthError = {
     message: string;
 };
 
+export type Task = {
+    readonly task_id: string;
+    task_spec: string;
+    session_id: string | null;
+    worktree_path: string | null;
+    pull_request_url: string | null;
+    dependencies: Array<string>;
+    readonly done: boolean;
+    status: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+    readonly created_at: string;
+    readonly updated_at: string;
+};
+
+export type CreateTaskRequest = {
+    task_spec: string;
+    dependencies?: Array<string>;
+    session_id?: string | null;
+    worktree_path?: string | null;
+    pull_request_url?: string | null;
+    status?: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+};
+
+export type PatchTaskRequest = {
+    task_spec?: string;
+    session_id?: string | null;
+    worktree_path?: string | null;
+    pull_request_url?: string | null;
+    dependencies?: Array<string>;
+    status?: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+};
+
+export type TaskListResponse = {
+    items: Array<Task>;
+};
+
+export type ErrorResponse = {
+    code: 'TASK_NOT_FOUND' | 'TASK_CONFLICT' | 'TASK_VALIDATION_ERROR' | 'TASK_UNSUPPORTED_STATUS';
+    message: string;
+};
+
+export type TaskWritable = {
+    task_spec: string;
+    session_id: string | null;
+    worktree_path: string | null;
+    pull_request_url: string | null;
+    dependencies: Array<string>;
+    status: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+};
+
+export type TaskListResponseWritable = {
+    items: Array<TaskWritable>;
+};
+
+export type TaskIdPathParameter = string;
+
+export type TaskStatusQueryParameter = 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+
+export type TaskDoneQueryParameter = boolean;
+
+export type TaskSessionIdQueryParameter = string;
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -46,3 +107,142 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListTasksData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+        done?: boolean;
+        session_id?: string;
+    };
+    url: '/tasks';
+};
+
+export type ListTasksErrors = {
+    /**
+     * Invalid task filter
+     */
+    400: ErrorResponse;
+};
+
+export type ListTasksError = ListTasksErrors[keyof ListTasksErrors];
+
+export type ListTasksResponses = {
+    /**
+     * Task collection
+     */
+    200: TaskListResponse;
+};
+
+export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
+
+export type CreateTaskData = {
+    body: CreateTaskRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks';
+};
+
+export type CreateTaskErrors = {
+    /**
+     * Invalid task payload
+     */
+    400: ErrorResponse;
+};
+
+export type CreateTaskError = CreateTaskErrors[keyof CreateTaskErrors];
+
+export type CreateTaskResponses = {
+    /**
+     * Created task
+     */
+    201: Task;
+};
+
+export type CreateTaskResponse = CreateTaskResponses[keyof CreateTaskResponses];
+
+export type DeleteTaskByIdData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/tasks/{taskId}';
+};
+
+export type DeleteTaskByIdErrors = {
+    /**
+     * Task not found
+     */
+    404: ErrorResponse;
+};
+
+export type DeleteTaskByIdError = DeleteTaskByIdErrors[keyof DeleteTaskByIdErrors];
+
+export type DeleteTaskByIdResponses = {
+    /**
+     * Task deleted
+     */
+    204: void;
+};
+
+export type DeleteTaskByIdResponse = DeleteTaskByIdResponses[keyof DeleteTaskByIdResponses];
+
+export type GetTaskByIdData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/tasks/{taskId}';
+};
+
+export type GetTaskByIdErrors = {
+    /**
+     * Task not found
+     */
+    404: ErrorResponse;
+};
+
+export type GetTaskByIdError = GetTaskByIdErrors[keyof GetTaskByIdErrors];
+
+export type GetTaskByIdResponses = {
+    /**
+     * Task detail
+     */
+    200: Task;
+};
+
+export type GetTaskByIdResponse = GetTaskByIdResponses[keyof GetTaskByIdResponses];
+
+export type PatchTaskByIdData = {
+    body: PatchTaskRequest;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/tasks/{taskId}';
+};
+
+export type PatchTaskByIdErrors = {
+    /**
+     * Invalid task patch
+     */
+    400: ErrorResponse;
+    /**
+     * Task not found
+     */
+    404: ErrorResponse;
+};
+
+export type PatchTaskByIdError = PatchTaskByIdErrors[keyof PatchTaskByIdErrors];
+
+export type PatchTaskByIdResponses = {
+    /**
+     * Updated task
+     */
+    200: Task;
+};
+
+export type PatchTaskByIdResponse = PatchTaskByIdResponses[keyof PatchTaskByIdResponses];

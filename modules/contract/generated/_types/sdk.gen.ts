@@ -2,7 +2,7 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import type { GetHealthData, GetHealthErrors, GetHealthResponses } from './types.gen.js';
+import type { CreateTaskData, CreateTaskErrors, CreateTaskResponses, DeleteTaskByIdData, DeleteTaskByIdErrors, DeleteTaskByIdResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetTaskByIdData, GetTaskByIdErrors, GetTaskByIdResponses, ListTasksData, ListTasksErrors, ListTasksResponses, PatchTaskByIdData, PatchTaskByIdErrors, PatchTaskByIdResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -22,3 +22,42 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Read service health status
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({ url: '/health', ...options });
+
+/**
+ * List tasks
+ */
+export const listTasks = <ThrowOnError extends boolean = false>(options?: Options<ListTasksData, ThrowOnError>) => (options?.client ?? client).get<ListTasksResponses, ListTasksErrors, ThrowOnError>({ url: '/tasks', ...options });
+
+/**
+ * Create a task
+ */
+export const createTask = <ThrowOnError extends boolean = false>(options: Options<CreateTaskData, ThrowOnError>) => (options.client ?? client).post<CreateTaskResponses, CreateTaskErrors, ThrowOnError>({
+    url: '/tasks',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a task
+ */
+export const deleteTaskById = <ThrowOnError extends boolean = false>(options: Options<DeleteTaskByIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteTaskByIdResponses, DeleteTaskByIdErrors, ThrowOnError>({ url: '/tasks/{taskId}', ...options });
+
+/**
+ * Read a task
+ */
+export const getTaskById = <ThrowOnError extends boolean = false>(options: Options<GetTaskByIdData, ThrowOnError>) => (options.client ?? client).get<GetTaskByIdResponses, GetTaskByIdErrors, ThrowOnError>({ url: '/tasks/{taskId}', ...options });
+
+/**
+ * Update a task
+ */
+export const patchTaskById = <ThrowOnError extends boolean = false>(options: Options<PatchTaskByIdData, ThrowOnError>) => (options.client ?? client).patch<PatchTaskByIdResponses, PatchTaskByIdErrors, ThrowOnError>({
+    url: '/tasks/{taskId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

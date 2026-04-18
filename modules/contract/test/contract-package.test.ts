@@ -13,7 +13,15 @@ const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractOpenApiSourceUrl = new URL("../src/openapi.ts", import.meta.url);
 const contractIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
 const generatedClientUrl = new URL("../generated/client.ts", import.meta.url);
+const generatedClientSdkUrl = new URL(
+  "../generated/_client/sdk.gen.ts",
+  import.meta.url,
+);
 const generatedTypesUrl = new URL("../generated/types.ts", import.meta.url);
+const generatedTypeDefinitionsUrl = new URL(
+  "../generated/_types/types.gen.ts",
+  import.meta.url,
+);
 const generatedZodUrl = new URL("../generated/zod.ts", import.meta.url);
 const rootPackageUrl = new URL("../../../package.json", import.meta.url);
 const vitestWorkspaceUrl = new URL(
@@ -131,15 +139,30 @@ describe("contract package baseline", () => {
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
       "createContractClient",
+      "createTaskRequestSchema",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
       "healthResponseSchema",
       "healthStatusSchema",
       "openApiDocument",
+      "patchTaskRequestSchema",
+      "taskByIdPath",
+      "taskErrorCodeSchema",
+      "taskErrorSchema",
+      "taskListResponseSchema",
+      "taskSchema",
+      "taskStatusSchema",
+      "tasksPath",
     ]);
     expect(
       contractModule.openApiDocument.paths[contractModule.healthPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.tasksPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskByIdPath],
     ).toBeDefined();
   });
 
@@ -160,6 +183,79 @@ describe("contract package baseline", () => {
     ).toEqual({
       code: "UNAVAILABLE",
       message: "offline",
+    });
+  });
+
+  it("exports task paths and task schemas from the built package boundary", () => {
+    expect(contractModule.tasksPath).toBe("/tasks");
+    expect(contractModule.taskByIdPath).toBe("/tasks/{taskId}");
+    expect(contractModule.taskStatusSchema.parse("running")).toBe("running");
+    expect(contractModule.taskErrorCodeSchema.parse("TASK_NOT_FOUND")).toBe(
+      "TASK_NOT_FOUND",
+    );
+    expect(
+      contractModule.createTaskRequestSchema.parse({
+        task_spec: "Ship contract",
+      }),
+    ).toEqual({
+      task_spec: "Ship contract",
+    });
+    expect(
+      contractModule.patchTaskRequestSchema.parse({
+        status: "succeeded",
+      }),
+    ).toEqual({
+      status: "succeeded",
+    });
+    expect(
+      contractModule.taskSchema.parse({
+        task_id: "task-1",
+        task_spec: "Ship contract",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+        done: false,
+        status: "running",
+        created_at: "2026-04-19T00:00:00.000Z",
+        updated_at: "2026-04-19T00:00:00.000Z",
+      }),
+    ).toMatchObject({
+      task_id: "task-1",
+      status: "running",
+    });
+    expect(
+      contractModule.taskListResponseSchema.parse({
+        items: [
+          {
+            task_id: "task-1",
+            task_spec: "Ship contract",
+            session_id: null,
+            worktree_path: null,
+            pull_request_url: null,
+            dependencies: [],
+            done: false,
+            status: "running",
+            created_at: "2026-04-19T00:00:00.000Z",
+            updated_at: "2026-04-19T00:00:00.000Z",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      items: [
+        {
+          task_id: "task-1",
+        },
+      ],
+    });
+    expect(
+      contractModule.taskErrorSchema.parse({
+        code: "TASK_VALIDATION_ERROR",
+        message: "bad input",
+      }),
+    ).toEqual({
+      code: "TASK_VALIDATION_ERROR",
+      message: "bad input",
     });
   });
 
@@ -213,25 +309,28 @@ describe("contract package baseline", () => {
                 };
               };
             };
-            responses: Record<string, {
-              content?: {
-                "application/json"?: {
-                  schema?: Record<string, unknown>;
+            responses: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
                 };
-              };
-            }>;
+              }
+            >;
           };
         }
       | undefined;
-    const taskQueryParameters = (
-      tasksPathItem?.get?.parameters ?? []
-    ).map((parameter) => {
-      if ("$ref" in parameter && typeof parameter.$ref === "string") {
-        return parameter.$ref;
-      }
+    const taskQueryParameters = (tasksPathItem?.get?.parameters ?? []).map(
+      (parameter) => {
+        if ("$ref" in parameter && typeof parameter.$ref === "string") {
+          return parameter.$ref;
+        }
 
-      return parameter.name;
-    });
+        return parameter.name;
+      },
+    );
 
     expect(tasksPathItem).toBeDefined();
     expect(taskByIdPathItem).toBeDefined();
@@ -250,23 +349,20 @@ describe("contract package baseline", () => {
       $ref: "#/components/schemas/PatchTaskRequest",
     });
     expect(
-      taskByIdPathItem?.patch?.responses["200"]?.content?.[
-        "application/json"
-      ]?.schema,
+      taskByIdPathItem?.patch?.responses["200"]?.content?.["application/json"]
+        ?.schema,
     ).toEqual({
       $ref: "#/components/schemas/Task",
     });
     expect(
-      taskByIdPathItem?.patch?.responses["400"]?.content?.[
-        "application/json"
-      ]?.schema,
+      taskByIdPathItem?.patch?.responses["400"]?.content?.["application/json"]
+        ?.schema,
     ).toEqual({
       $ref: "#/components/schemas/ErrorResponse",
     });
     expect(
-      taskByIdPathItem?.patch?.responses["404"]?.content?.[
-        "application/json"
-      ]?.schema,
+      taskByIdPathItem?.patch?.responses["404"]?.content?.["application/json"]
+        ?.schema,
     ).toEqual({
       $ref: "#/components/schemas/ErrorResponse",
     });
@@ -280,7 +376,9 @@ describe("contract package baseline", () => {
     const taskListResponseSchema =
       contractModule.openApiDocument.components.schemas.TaskListResponse;
 
-    expect(contractModule.openApiDocument.components.schemas.Task).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.Task,
+    ).toBeDefined();
     expect(createTaskRequestSchema).toBeDefined();
     expect(
       contractModule.openApiDocument.components.schemas.PatchTaskRequest,
@@ -366,6 +464,8 @@ describe("contract package baseline", () => {
       "modules/contract",
     );
     expect(rootPackage.scripts["openapi:check"]).toContain("generate:check");
+    expect(rootPackage.scripts["openapi:check"]).toContain("tasksPath");
+    expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.build).toContain("pnpm run generate");
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
@@ -373,15 +473,31 @@ describe("contract package baseline", () => {
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(
       "node_modules",
     );
-    await expect(readFile(generatedTypesUrl, "utf8")).resolves.toContain(
-      "health",
-    );
-    await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
-      "health",
+    await expect(
+      readFile(generatedTypeDefinitionsUrl, "utf8"),
+    ).resolves.toContain("TaskListResponse");
+    await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
+      "listTasks",
     );
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(
-      "HealthResponse",
+      "CreateTaskRequest",
     );
+  });
+
+  it("uses generic OpenAPI banners for generated contract entrypoints", async () => {
+    const [generatedClientSource, generatedTypesSource] = await Promise.all([
+      readFile(generatedClientUrl, "utf8"),
+      readFile(generatedTypesUrl, "utf8"),
+    ]);
+
+    expect(generatedClientSource).toContain(
+      "This file is auto-generated from the OpenAPI contract.",
+    );
+    expect(generatedTypesSource).toContain(
+      "This file is auto-generated from the OpenAPI contract.",
+    );
+    expect(generatedClientSource).not.toContain("/health OpenAPI contract");
+    expect(generatedTypesSource).not.toContain("/health OpenAPI contract");
   });
 
   it("keeps generated zod artifacts free of undeclared runtime imports", async () => {
