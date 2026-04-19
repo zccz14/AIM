@@ -44,6 +44,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.6
         version: 1.19.14(hono@4.12.12)
+      '@opencode-ai/sdk':
+        specifier: ^1.14.18
+        version: 1.14.18
       hono:
         specifier: ^4.10.5
         version: 4.12.12
@@ -647,6 +650,9 @@ packages:
   '@oclif/core@4.10.5':
     resolution: {integrity: sha512-qcdCF7NrdWPfme6Kr34wwljRCXbCVpL1WVxiNy0Ep6vbWKjxAjFQwuhqkoyL0yjI+KdwtLcOCGn5z2yzdijc8w==}
     engines: {node: '>=18.0.0'}
+
+  '@opencode-ai/sdk@1.14.18':
+    resolution: {integrity: sha512-E0QiiB+9rv/TPH0a1GunKl6LnuXDRHDiJaIFHOPaBL364rQx+3ClHwHkz78/KBsjhjeLrC2CaLgK+CoxV/XUIQ==}
 
   '@oxc-project/types@0.124.0':
     resolution: {integrity: sha512-VBFWMTBvHxS11Z5Lvlr3IWgrwhMTXV+Md+EQF0Xf60+wAdsGFTBx7X7K/hP4pi8N7dcm1RvcHwDxZ16Qx8keUg==}
@@ -3416,6 +3422,10 @@ snapshots:
       widest-line: 3.1.0
       wordwrap: 1.0.0
       wrap-ansi: 7.0.0
+
+  '@opencode-ai/sdk@1.14.18':
+    dependencies:
+      cross-spawn: 7.0.6
 
   '@oxc-project/types@0.124.0': {}
 

@@ -1,5 +1,7 @@
 import type { Task } from "@aim-ai/contract";
 
+import { createOpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
+
 export type TaskSessionState = "idle" | "running";
 
 export type TaskSessionCoordinatorConfig = {
@@ -24,9 +26,6 @@ export type TaskSessionCoordinator = {
   sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
-const unavailableError = (action: string) =>
-  new Error(`Task session coordinator is unavailable for ${action}`);
-
 const actionError = (action: string, cause: unknown) =>
   new Error(`Task session coordinator failed during ${action}`, { cause });
 
@@ -39,21 +38,9 @@ const requireNonEmpty = (
   }
 };
 
-const createUnavailableAdapter = (): TaskSessionCoordinatorAdapter => ({
-  async createSession() {
-    throw unavailableError("createSession");
-  },
-  async getSession() {
-    throw unavailableError("getSessionState");
-  },
-  async sendPrompt() {
-    throw unavailableError("sendContinuePrompt");
-  },
-});
-
 export const createTaskSessionCoordinator = (
   config: TaskSessionCoordinatorConfig,
-  adapter: TaskSessionCoordinatorAdapter = createUnavailableAdapter(),
+  adapter: TaskSessionCoordinatorAdapter = createOpenCodeSdkAdapter(config),
 ): TaskSessionCoordinator => {
   requireNonEmpty(config.baseUrl, "baseUrl");
   requireNonEmpty(config.modelId, "modelId");
@@ -81,11 +68,15 @@ export const createTaskSessionCoordinator = (
       const status =
         typeof session === "object" && session !== null && "status" in session
           ? session.status
-          : undefined;
+          : typeof session === "object" && session !== null && "type" in session
+            ? session.type
+            : undefined;
 
       switch (status) {
         case "idle":
           return "idle";
+        case "busy":
+        case "retry":
         case "running":
           return "running";
         default:
