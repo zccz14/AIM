@@ -327,7 +327,7 @@ test("shows a clear error state when the task request fails", async ({
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
-test("falls back to the default remote SERVER_BASE_URL when local storage is empty", async ({
+test("falls back to the default localhost SERVER_BASE_URL when local storage is empty", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -337,7 +337,7 @@ test("falls back to the default remote SERVER_BASE_URL when local storage is emp
   await page.goto("/");
 
   await expect(page.getByLabel("SERVER_BASE_URL")).toHaveValue(
-    "https://aim.zccz14.com",
+    "http://localhost:8192",
   );
 });
 

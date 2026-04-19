@@ -54,7 +54,7 @@ test("keeps task dashboard data behind adapter and local config boundaries", asy
   );
   expect(apiClientSource).toContain("readServerBaseUrl");
   expect(apiClientSource).not.toContain("https://aim.zccz14.com");
-  expect(configSource).toContain("https://aim.zccz14.com");
+  expect(configSource).toContain("http://localhost:8192");
   expect(adapterSource).toContain("toDashboardStatus");
   expect(adapterSource).toContain("created");
   expect(adapterSource).toContain("waiting_assumptions");
