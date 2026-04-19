@@ -65,6 +65,20 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
 
+test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByAltText("AIM icon")).toBeVisible();
+  await expect(page.getByText("AIM")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Task Dashboard" }),
+  ).toBeVisible();
+
+  await expect(
+    page.locator('head link[rel="icon"][href="/favicon.svg"]'),
+  ).toHaveCount(1);
+});
+
 test("renders the task table with core columns", async ({ page }) => {
   await page.goto("/");
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-labelledby="aimIconTitle aimIconDesc">
+  <title id="aimIconTitle">AIM icon</title>
+  <desc id="aimIconDesc">Geometric target mark expressing convergence and precise execution.</desc>
+  <circle cx="32" cy="32" r="30" fill="#E11D48" />
+  <circle cx="32" cy="32" r="20" fill="#FFF7ED" />
+  <circle cx="32" cy="32" r="11" fill="#E11D48" />
+  <circle cx="32" cy="32" r="6" fill="#0F172A" />
+  <path d="M41 9L55 9L55 23L49 23L49 16.24L43.24 22L39 17.76L44.76 12H41V9Z" fill="#0F172A" />
+</svg>
