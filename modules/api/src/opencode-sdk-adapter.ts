@@ -1,0 +1,71 @@
+import type { Task } from "@aim-ai/contract";
+import { createOpencodeClient } from "@opencode-ai/sdk";
+
+import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js";
+
+export type OpenCodeSdkAdapter = {
+  createSession(task: Task): Promise<{ id: string }>;
+  getSession(sessionId: string): Promise<unknown>;
+  sendPrompt(sessionId: string, prompt: string): Promise<void>;
+};
+
+const buildTaskPrompt = (action: "continue" | "start", task: Task) =>
+  `${action === "start" ? "Start" : "Continue"} the assigned task session.
+
+task_id: ${task.task_id}
+task_spec: ${task.task_spec}
+status: ${task.status}
+worktree_path: ${task.worktree_path ?? "null"}
+pull_request_url: ${task.pull_request_url ?? "null"}
+
+${
+  action === "start"
+    ? "Start this task from scratch and follow the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true."
+    : "Continue this task from its current state through the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true."
+}`;
+
+export const createOpenCodeSdkAdapter = (
+  config: TaskSessionCoordinatorConfig,
+): OpenCodeSdkAdapter => {
+  const client = createOpencodeClient({
+    baseUrl: config.baseUrl,
+  });
+
+  return {
+    async createSession(task) {
+      const session = await client.session.create({ throwOnError: true });
+
+      await client.session.promptAsync({
+        body: {
+          model: {
+            modelID: config.modelId,
+            providerID: config.providerId,
+          },
+          parts: [{ text: buildTaskPrompt("start", task), type: "text" }],
+        },
+        path: { id: session.data.id },
+        throwOnError: true,
+      });
+
+      return { id: session.data.id };
+    },
+    async getSession(sessionId) {
+      const response = await client.session.status({ throwOnError: true });
+
+      return response.data[sessionId];
+    },
+    async sendPrompt(sessionId, prompt) {
+      await client.session.promptAsync({
+        body: {
+          model: {
+            modelID: config.modelId,
+            providerID: config.providerId,
+          },
+          parts: [{ text: prompt, type: "text" }],
+        },
+        path: { id: sessionId },
+        throwOnError: true,
+      });
+    },
+  };
+};

@@ -89,7 +89,9 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).resolves.toBe("idle");
+    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
+      "idle",
+    );
   });
 
   it("maps remote running sessions to the running state", async () => {
@@ -104,16 +106,15 @@ describe("task session coordinator", () => {
     );
   });
 
-  it("wraps unavailable getSessionState failures with coordinator context", async () => {
-    const coordinator = createTaskSessionCoordinator(config);
+  it("maps remote retry sessions to the running state", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ type: "retry" }),
+      sendPrompt: vi.fn(),
+    });
 
-    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
-      {
-        cause: expect.objectContaining({
-          message: "Task session coordinator is unavailable for getSessionState",
-        }),
-        message: "Task session coordinator failed during getSessionState",
-      },
+    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
+      "running",
     );
   });
 
@@ -137,12 +138,12 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
-      {
-        cause: adapterError,
-        message: "Task session coordinator failed during getSessionState",
-      },
-    );
+    await expect(
+      coordinator.getSessionState("session-1"),
+    ).rejects.toMatchObject({
+      cause: adapterError,
+      message: "Task session coordinator failed during getSessionState",
+    });
   });
 
   it("wraps synchronous getSession throws with coordinator context", async () => {
@@ -155,12 +156,12 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
-      {
-        cause: adapterError,
-        message: "Task session coordinator failed during getSessionState",
-      },
-    );
+    await expect(
+      coordinator.getSessionState("session-1"),
+    ).rejects.toMatchObject({
+      cause: adapterError,
+      message: "Task session coordinator failed during getSessionState",
+    });
   });
 
   it("delegates continue prompts and resolves without a payload", async () => {
