@@ -30,18 +30,12 @@ const unavailableError = (action: string) =>
 const actionError = (action: string, cause: unknown) =>
   new Error(`Task session coordinator failed during ${action}`, { cause });
 
-const isUnavailableError = (action: string, error: unknown) =>
-  error instanceof Error &&
-  error.message === unavailableError(action).message;
-
 const requireNonEmpty = (
   value: string,
   field: keyof TaskSessionCoordinatorConfig,
 ) => {
   if (!value.trim()) {
-    throw new Error(
-      `Task session coordinator requires a non-empty ${field}`,
-    );
+    throw new Error(`Task session coordinator requires a non-empty ${field}`);
   }
 };
 
@@ -72,10 +66,6 @@ export const createTaskSessionCoordinator = (
 
         return { sessionId: session.id };
       } catch (error) {
-        if (isUnavailableError("createSession", error)) {
-          throw error;
-        }
-
         throw actionError("createSession", error);
       }
     },
@@ -86,10 +76,6 @@ export const createTaskSessionCoordinator = (
       try {
         await adapter.sendPrompt(sessionId, prompt);
       } catch (error) {
-        if (isUnavailableError("sendContinuePrompt", error)) {
-          throw error;
-        }
-
         throw actionError("sendContinuePrompt", error);
       }
     },
