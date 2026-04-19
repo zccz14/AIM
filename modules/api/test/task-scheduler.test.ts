@@ -277,6 +277,51 @@ describe("task scheduler", () => {
     vi.useRealTimers();
   });
 
+  it("logs and isolates round-level scan failures in the polling loop", async () => {
+    vi.useFakeTimers();
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
+    const listUnfinishedTasks = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("database offline"))
+      .mockResolvedValueOnce([]);
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks,
+      },
+    });
+
+    scheduler.start({ intervalMs: 1_000 });
+
+    await vi.waitFor(() => {
+      expect(logger.error).toHaveBeenCalledWith(
+        "Task scheduler failed while scanning unfinished tasks",
+        expect.objectContaining({ error: expect.any(Error) }),
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
+    scheduler.stop();
+    vi.useRealTimers();
+  });
+
+  it("keeps scheduler startup disabled until explicitly enabled", () => {
+    const serverSource = readFileSync(
+      new URL("../src/server.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(serverSource).toContain("TASK_SCHEDULER_ENABLED");
+    expect(serverSource).toMatch(/if \(isTaskSchedulerEnabled\)/);
+  });
+
   it("keeps OpenCode integration behind task-session-coordinator", () => {
     const schedulerSource = readFileSync(
       new URL("../src/task-scheduler.ts", import.meta.url),

@@ -70,6 +70,14 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   let intervalHandle: NodeJS.Timeout | undefined;
   let roundPromise: Promise<void> | null = null;
 
+  const startRound = () => {
+    void beginRound().catch((error) => {
+      logger.error("Task scheduler failed while scanning unfinished tasks", {
+        error,
+      });
+    });
+  };
+
   const runTask = async (
     task: Task,
     duplicateSessionIds: ReadonlySet<string>,
@@ -191,9 +199,9 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         return;
       }
 
-      void beginRound();
+      startRound();
       intervalHandle = setInterval(() => {
-        void beginRound();
+        startRound();
       }, startOptions.intervalMs);
     },
     stop() {
