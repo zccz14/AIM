@@ -13,6 +13,18 @@ const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractOpenApiSourceUrl = new URL("../src/openapi.ts", import.meta.url);
 const contractIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
 const generatedClientUrl = new URL("../generated/client.ts", import.meta.url);
+const generatedClientDefinitionUrl = new URL(
+  "../generated/_client/client.gen.ts",
+  import.meta.url,
+);
+const generatedClientBundledAuthUrl = new URL(
+  "../generated/_client/core/auth.gen.ts",
+  import.meta.url,
+);
+const generatedClientRawAuthUrl = new URL(
+  "../generated/_client/core/auth.ts",
+  import.meta.url,
+);
 const generatedClientSdkUrl = new URL(
   "../generated/_client/sdk.gen.ts",
   import.meta.url,
@@ -550,6 +562,19 @@ describe("contract package baseline", () => {
     );
     expect(generatedClientSource).not.toContain("/health OpenAPI contract");
     expect(generatedTypesSource).not.toContain("/health OpenAPI contract");
+  });
+
+  it("keeps generated client runtime artifacts stable", async () => {
+    await expect(
+      readFile(generatedClientDefinitionUrl, "utf8"),
+    ).resolves.toContain("./client/index.js");
+    await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
+      "./client/index.js",
+    );
+    await expect(
+      access(generatedClientBundledAuthUrl),
+    ).resolves.toBeUndefined();
+    await expect(access(generatedClientRawAuthUrl)).rejects.toBeDefined();
   });
 
   it("keeps generated zod artifacts free of undeclared runtime imports", async () => {
