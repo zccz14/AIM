@@ -762,16 +762,16 @@ describe("contract package baseline", () => {
             url.pathname === "/tasks/task-1" &&
             bodyText === JSON.stringify({ status: "running" })
           ) {
-            return new Response(JSON.stringify({ ...task, status: "running" }), {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            });
+            return new Response(
+              JSON.stringify({ ...task, status: "running" }),
+              {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              },
+            );
           }
 
-          if (
-            request.method === "DELETE" &&
-            url.pathname === "/tasks/task-1"
-          ) {
+          if (request.method === "DELETE" && url.pathname === "/tasks/task-1") {
             return new Response(null, { status: 204 });
           }
 

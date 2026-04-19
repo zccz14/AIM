@@ -12,6 +12,7 @@ import type {
   CreateTaskRequest,
   CreateTaskResponse,
   DeleteTaskByIdError,
+  ErrorResponse,
   GetHealthError,
   GetHealthResponse,
   GetTaskByIdError,
@@ -21,11 +22,10 @@ import type {
   ListTasksError,
   ListTasksResponse,
   PatchTaskByIdError,
-  PatchTaskRequest,
   PatchTaskByIdResponse,
+  PatchTaskRequest,
   Task,
   TaskListResponse,
-  ErrorResponse,
 } from "../generated/types.js";
 import { schemas } from "../generated/zod.js";
 
