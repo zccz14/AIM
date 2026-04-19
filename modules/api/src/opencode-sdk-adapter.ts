@@ -33,7 +33,10 @@ export const createOpenCodeSdkAdapter = (
 
   return {
     async createSession(task) {
-      const session = await client.session.create({ throwOnError: true });
+      const session = await client.session.create({
+        query: { directory: task.worktree_path ?? undefined },
+        throwOnError: true,
+      });
 
       await client.session.promptAsync({
         body: {
