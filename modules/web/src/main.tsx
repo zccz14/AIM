@@ -1,3 +1,7 @@
+import "@mantine/core/styles.css";
+import "reactflow/dist/style.css";
+
+import { MantineProvider } from "@mantine/core";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -13,8 +17,10 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <QueryClientProvider client={webQueryClient}>
-      <App />
-    </QueryClientProvider>
+    <MantineProvider>
+      <QueryClientProvider client={webQueryClient}>
+        <App />
+      </QueryClientProvider>
+    </MantineProvider>
   </StrictMode>,
 );
