@@ -6,7 +6,11 @@ import {
   saveServerBaseUrl,
 } from "../../../lib/server-base-url.js";
 
-export const ServerBaseUrlForm = () => {
+export const ServerBaseUrlForm = ({
+  onSave,
+}: {
+  onSave?: () => Promise<unknown> | unknown;
+}) => {
   const [value, setValue] = useState(() => readServerBaseUrl());
   const [savedValue, setSavedValue] = useState<string | null>(null);
 
@@ -20,7 +24,12 @@ export const ServerBaseUrlForm = () => {
           setSavedValue(null);
         }}
       />
-      <Button onClick={() => setSavedValue(saveServerBaseUrl(value))}>
+      <Button
+        onClick={async () => {
+          setSavedValue(saveServerBaseUrl(value));
+          await onSave?.();
+        }}
+      >
         Save
       </Button>
       {savedValue ? <Text size="sm">Saved: {savedValue}</Text> : null}

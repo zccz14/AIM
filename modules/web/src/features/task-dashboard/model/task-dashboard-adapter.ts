@@ -27,6 +27,11 @@ export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
 const countTasksByStatus = (tasks: DashboardTask[], status: DashboardStatus) =>
   tasks.filter((task) => task.dashboardStatus === status).length;
 
+const isActiveTask = (task: DashboardTask) =>
+  task.dashboardStatus === "ready" ||
+  task.dashboardStatus === "running" ||
+  task.dashboardStatus === "blocked";
+
 export const adaptTaskDashboard = (
   response: TaskListResponse,
 ): TaskDashboardViewModel => {
@@ -97,7 +102,8 @@ export const adaptTaskDashboard = (
         label: task.updatedAt.slice(0, 10),
         value: index + 1,
       })),
-    recentTasks: [...tasks]
+    recentTasks: tasks
+      .filter(isActiveTask)
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, 5),
   };

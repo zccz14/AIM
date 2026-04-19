@@ -23,7 +23,7 @@ export const DashboardPage = () => {
       <AppShell.Main>
         <Stack gap="lg">
           <Title order={1}>Task Dashboard</Title>
-          <ServerBaseUrlForm />
+          <ServerBaseUrlForm onSave={() => dashboardQuery.refetch()} />
 
           {dashboardQuery.isPending ? (
             <Center mih={240}>
