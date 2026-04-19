@@ -20,3 +20,32 @@ test("boots the dashboard app with Mantine and query providers", async () => {
   expect(appSource).not.toContain("useHealthQuery");
   expect(appSource).not.toContain("CZ-Stack Web");
 });
+
+test("keeps task dashboard data behind adapter and local config boundaries", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const appSource = await readFile(
+    `${process.cwd()}/modules/web/src/app.tsx`,
+    "utf8",
+  );
+  const apiClientSource = await readFile(
+    `${process.cwd()}/modules/web/src/lib/api-client.ts`,
+    "utf8",
+  );
+  const configSource = await readFile(
+    `${process.cwd()}/modules/web/src/lib/server-base-url.ts`,
+    "utf8",
+  );
+  const adapterSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/model/task-dashboard-adapter.ts`,
+    "utf8",
+  );
+
+  expect(appSource).not.toContain("task_spec");
+  expect(appSource).not.toContain("waiting_assumptions");
+  expect(apiClientSource).toContain("readServerBaseUrl");
+  expect(apiClientSource).not.toContain("https://aim.zccz14.com");
+  expect(configSource).toContain("https://aim.zccz14.com");
+  expect(adapterSource).toContain("toDashboardStatus");
+  expect(adapterSource).toContain("created");
+  expect(adapterSource).toContain("waiting_assumptions");
+});

@@ -1,14 +1,14 @@
-import { createContractClient } from "@aim-ai/contract";
+import {
+  ContractClientError,
+  createContractClient,
+  type TaskError,
+  type TaskListResponse,
+  taskErrorSchema,
+  taskListResponseSchema,
+  tasksPath,
+} from "@aim-ai/contract";
 
-const resolveApiBaseUrl = () => {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-
-  if (configuredBaseUrl) {
-    return configuredBaseUrl;
-  }
-
-  return "/api";
-};
+import { readServerBaseUrl } from "./server-base-url.js";
 
 const normalizeBaseUrl = (baseUrl: URL) => {
   const normalizedBaseUrl = new URL(baseUrl);
@@ -54,11 +54,41 @@ const toAbsoluteRequest = (
   return new Request(resolvedUrl, init);
 };
 
-export const createWebApiClient = (baseUrl = resolveApiBaseUrl()) => {
-  const resolvedBaseUrl = new URL(baseUrl, window.location.origin);
+type WebApiClient = ReturnType<typeof createContractClient> & {
+  listTasks(): Promise<TaskListResponse>;
+};
 
-  return createContractClient({
+export const createWebApiClient = (
+  baseUrl = readServerBaseUrl(),
+): WebApiClient => {
+  const resolvedBaseUrl = new URL(baseUrl, window.location.origin);
+  const contractClient = createContractClient({
     fetch: (input, init) =>
       fetch(toAbsoluteRequest(resolvedBaseUrl, input, init)),
   });
+
+  return {
+    ...contractClient,
+    async listTasks() {
+      const response = await fetch(
+        toAbsoluteRequest(resolvedBaseUrl, tasksPath),
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return taskListResponseSchema.parse(
+        (await response.json()) as TaskListResponse,
+      );
+    },
+  };
 };
