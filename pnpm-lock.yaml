@@ -44,6 +44,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.6
         version: 1.19.14(hono@4.12.12)
+      '@opencode-ai/sdk':
+        specifier: ^1.14.18
+        version: 1.14.18
       hono:
         specifier: ^4.10.5
         version: 4.12.12
@@ -694,7 +697,6 @@ packages:
         optional: true
       '@opentui/solid':
         optional: true
-
   '@opencode-ai/sdk@1.14.18':
     resolution: {integrity: sha512-E0QiiB+9rv/TPH0a1GunKl6LnuXDRHDiJaIFHOPaBL364rQx+3ClHwHkz78/KBsjhjeLrC2CaLgK+CoxV/XUIQ==}
 
@@ -3535,7 +3537,6 @@ snapshots:
       '@opencode-ai/sdk': 1.14.18
       effect: 4.0.0-beta.48
       zod: 4.1.8
-
   '@opencode-ai/sdk@1.14.18':
     dependencies:
       cross-spawn: 7.0.6
