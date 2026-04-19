@@ -699,66 +699,99 @@ describe("contract package baseline", () => {
       created_at: "2026-04-20T00:00:00.000Z",
       updated_at: "2026-04-20T00:00:00.000Z",
     };
+    const requests: Array<{
+      body: unknown;
+      method: string;
+      pathname: string;
+      searchParams: Record<string, string>;
+    }> = [];
     const fetcher = vi.fn(
       (
         input: Parameters<typeof fetch>[0],
         init?: Parameters<typeof fetch>[1],
-      ) => {
-        const request =
-          input instanceof Request
-            ? input
-            : new Request(new URL(String(input), "http://contract.test"), init);
-        const url = new URL(request.url, "http://contract.test");
+      ) =>
+        (async () => {
+          const request =
+            input instanceof Request
+              ? input
+              : new Request(
+                  new URL(String(input), "http://contract.test"),
+                  init,
+                );
+          const url = new URL(request.url, "http://contract.test");
+          const bodyText =
+            request.method === "POST" || request.method === "PATCH"
+              ? await request.text()
+              : undefined;
 
-        if (request.method === "GET" && url.pathname === "/tasks") {
-          return Promise.resolve(
-            new Response(JSON.stringify({ items: [] }), {
+          requests.push({
+            body: bodyText ? JSON.parse(bodyText) : undefined,
+            method: request.method,
+            pathname: url.pathname,
+            searchParams: Object.fromEntries(url.searchParams.entries()),
+          });
+
+          if (request.method === "GET" && url.pathname === "/tasks") {
+            return new Response(JSON.stringify({ items: [] }), {
               status: 200,
               headers: { "content-type": "application/json" },
-            }),
-          );
-        }
+            });
+          }
 
-        if (request.method === "POST" && url.pathname === "/tasks") {
-          return Promise.resolve(
-            new Response(JSON.stringify(task), {
+          if (
+            request.method === "POST" &&
+            url.pathname === "/tasks" &&
+            bodyText ===
+              JSON.stringify({ task_spec: "write spec", dependencies: [] })
+          ) {
+            return new Response(JSON.stringify(task), {
               status: 201,
               headers: { "content-type": "application/json" },
-            }),
-          );
-        }
+            });
+          }
 
-        if (request.method === "GET" && url.pathname === "/tasks/task-1") {
-          return Promise.resolve(
-            new Response(JSON.stringify(task), {
+          if (request.method === "GET" && url.pathname === "/tasks/task-1") {
+            return new Response(JSON.stringify(task), {
               status: 200,
               headers: { "content-type": "application/json" },
-            }),
-          );
-        }
+            });
+          }
 
-        if (request.method === "PATCH" && url.pathname === "/tasks/task-1") {
-          return Promise.resolve(
-            new Response(JSON.stringify({ ...task, status: "running" }), {
+          if (
+            request.method === "PATCH" &&
+            url.pathname === "/tasks/task-1" &&
+            bodyText === JSON.stringify({ status: "running" })
+          ) {
+            return new Response(JSON.stringify({ ...task, status: "running" }), {
               status: 200,
               headers: { "content-type": "application/json" },
-            }),
+            });
+          }
+
+          if (
+            request.method === "DELETE" &&
+            url.pathname === "/tasks/task-1"
+          ) {
+            return new Response(null, { status: 204 });
+          }
+
+          throw new Error(
+            `unexpected request: ${request.method} ${url.pathname}${url.search}`,
           );
-        }
-
-        if (request.method === "DELETE" && url.pathname === "/tasks/task-1") {
-          return Promise.resolve(new Response(null, { status: 204 }));
-        }
-
-        throw new Error(`unexpected request: ${request.method} ${url.pathname}`);
-      },
+        })(),
     );
 
     const client = contractModule.createContractClient({
       fetch: fetcher,
     });
 
-    await expect(client.listTasks({ status: "created" })).resolves.toEqual({
+    await expect(
+      client.listTasks({
+        done: false,
+        session_id: "session-1",
+        status: "created",
+      }),
+    ).resolves.toEqual({
       items: [],
     });
     await expect(
@@ -780,12 +813,41 @@ describe("contract package baseline", () => {
     await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
 
     expect(fetcher.mock.calls).toHaveLength(5);
-    expect(fetcher.mock.calls.map(([input]) => getRequestedPath(input))).toEqual([
-      contractModule.tasksPath,
-      contractModule.tasksPath,
-      "/tasks/task-1",
-      "/tasks/task-1",
-      "/tasks/task-1",
+    expect(requests).toEqual([
+      {
+        body: undefined,
+        method: "GET",
+        pathname: contractModule.tasksPath,
+        searchParams: {
+          done: "false",
+          session_id: "session-1",
+          status: "created",
+        },
+      },
+      {
+        body: { task_spec: "write spec", dependencies: [] },
+        method: "POST",
+        pathname: contractModule.tasksPath,
+        searchParams: {},
+      },
+      {
+        body: undefined,
+        method: "GET",
+        pathname: "/tasks/task-1",
+        searchParams: {},
+      },
+      {
+        body: { status: "running" },
+        method: "PATCH",
+        pathname: "/tasks/task-1",
+        searchParams: {},
+      },
+      {
+        body: undefined,
+        method: "DELETE",
+        pathname: "/tasks/task-1",
+        searchParams: {},
+      },
     ]);
   });
 
@@ -812,6 +874,38 @@ describe("contract package baseline", () => {
     await expect(result).rejects.toMatchObject({
       status: 404,
       error: { code: "TASK_NOT_FOUND", message: "missing task" },
+    });
+  });
+
+  it("throws ContractClientError with task error payloads for createTask validation errors", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "TASK_VALIDATION_ERROR",
+          message: "task_spec is required",
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const client = contractModule.createContractClient({
+      fetch: fetcher,
+    });
+
+    const result = client.createTask({ task_spec: "" });
+
+    await expect(result).rejects.toBeInstanceOf(
+      contractModule.ContractClientError,
+    );
+    await expect(result).rejects.toMatchObject({
+      status: 400,
+      error: {
+        code: "TASK_VALIDATION_ERROR",
+        message: "task_spec is required",
+      },
     });
   });
 
