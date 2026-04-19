@@ -174,11 +174,29 @@ test("opens and closes the create task drawer from the dashboard header", async 
 });
 
 test("submits only task_spec to the existing task API", async ({ page }) => {
-  let createRequestBody: unknown = null;
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    const capturedTaskCreateBodies: unknown[] = [];
+
+    Object.assign(window, { __capturedTaskCreateBodies: capturedTaskCreateBodies });
+
+    window.fetch = async (input, init) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      if (
+        request.method === "POST" &&
+        new URL(request.url, window.location.href).pathname === "/api/tasks"
+      ) {
+        capturedTaskCreateBodies.push(await request.clone().json());
+      }
+
+      return originalFetch(input, init);
+    };
+  });
 
   await page.route("**/tasks", async (route) => {
     if (route.request().method() === "POST") {
-      createRequestBody = route.request().postDataJSON();
       await route.fulfill({
         status: 201,
         contentType: "application/json",
@@ -204,10 +222,14 @@ test("submits only task_spec to the existing task API", async ({ page }) => {
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
   await expect
-    .poll(() => createRequestBody)
-    .toEqual({
-      task_spec: "Ship create flow",
-    });
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __capturedTaskCreateBodies?: unknown[] })
+            .__capturedTaskCreateBodies ?? [],
+      ),
+    )
+    .toEqual([{ task_spec: "Ship create flow" }]);
 });
 
 test("shows a local create error when the task API rejects the request", async ({
