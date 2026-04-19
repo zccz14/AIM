@@ -31,6 +31,26 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
   });
+
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "stub task spec",
+            taskId: "task-123",
+          }),
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "blocked task spec",
+            status: "waiting_assumptions",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
 });
 
 test("renders the overview landing view", async ({ page }) => {
