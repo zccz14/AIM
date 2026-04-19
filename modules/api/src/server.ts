@@ -4,7 +4,7 @@ import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.js";
 
-const defaultPort = 3000;
+const defaultPort = 8192;
 const parsedPort = Number.parseInt(process.env.PORT ?? `${defaultPort}`, 10);
 const port = Number.isNaN(parsedPort) ? defaultPort : parsedPort;
 
