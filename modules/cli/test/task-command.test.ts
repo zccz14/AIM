@@ -8,6 +8,10 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
 const cliIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
+const taskCommandHelperSourceUrl = new URL(
+  "../src/lib/task-command.ts",
+  import.meta.url,
+);
 
 type RecordedRequest = {
   method: string;
@@ -266,15 +270,90 @@ describe("task cli command baseline", () => {
     });
   });
 
+  it("returns a JSON usage error before making a request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli(["task", "create", "--task-spec", "write spec"]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --base-url"}}\n',
+    );
+    expect(server.requests).toEqual([]);
+  });
+
+  it("returns a JSON invalid base url error before creating a client", async () => {
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      "not-a-url",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_BASE_URL",
+        message: "invalid --base-url value: not-a-url",
+      },
+    });
+  });
+
+  it("returns a JSON invalid flag error for unsupported filter values", async () => {
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      "http://127.0.0.1:9999",
+      "--done",
+      "maybe",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_FLAG_VALUE",
+        message: "invalid --done value: expected true or false",
+      },
+    });
+  });
+
+  it("returns a JSON invalid flag error for unsupported status values", async () => {
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      "http://127.0.0.1:9999",
+      "--status",
+      "unknown",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_FLAG_VALUE",
+        message: "invalid --status value: unknown",
+      },
+    });
+  });
+
   it("keeps task CLI sources on the contract root boundary", async () => {
-    const indexSource = await readFile(cliIndexSourceUrl, "utf8");
+    const [indexSource, helperSource] = await Promise.all([
+      readFile(cliIndexSourceUrl, "utf8"),
+      readFile(taskCommandHelperSourceUrl, "utf8"),
+    ]);
     const importSpecifiers = getImportSpecifiers(indexSource);
 
     expect(indexSource).toContain('"task:create"');
     expect(indexSource).toContain('"task:list"');
     expect(indexSource).toContain('"task:get"');
-    expect(indexSource).toContain("task command not implemented");
     expect(indexSource).not.toContain("contract/generated");
+    expect(helperSource).toContain("@aim-ai/contract");
+    expect(helperSource).not.toContain("contract/generated");
     expect(
       importSpecifiers.some((specifier) =>
         specifier.includes("contract/generated"),

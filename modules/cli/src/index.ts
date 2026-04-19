@@ -1,6 +1,9 @@
 import { Command, Flags, execute, settings } from "@oclif/core";
 
 import HealthCommand from "./commands/health.js";
+import TaskCreateCommand from "./commands/task/create.js";
+import TaskGetCommand from "./commands/task/get.js";
+import TaskListCommand from "./commands/task/list.js";
 
 const placeholderFailure = {
   ok: false,
@@ -39,40 +42,6 @@ class TaskPlaceholderCommand extends Command {
   public async run(): Promise<void> {
     writePlaceholderFailureAndExit(this);
   }
-}
-
-class TaskCreateCommand extends TaskPlaceholderCommand {
-  static override description = "Temporary placeholder for task create";
-
-  static override flags = {
-    "base-url": baseUrlFlag,
-    "task-spec": Flags.string({ description: "Task specification" }),
-    dependency: Flags.string({ description: "Task dependency", multiple: true }),
-    "pull-request-url": Flags.string({
-      description: "Pull request URL",
-      multiple: true,
-    }),
-  };
-}
-
-class TaskListCommand extends TaskPlaceholderCommand {
-  static override description = "Temporary placeholder for task list";
-
-  static override flags = {
-    "base-url": baseUrlFlag,
-    status: Flags.string({ description: "Task status" }),
-    done: Flags.string({ description: "Task completion state" }),
-    "session-id": Flags.string({ description: "Task session id" }),
-  };
-}
-
-class TaskGetCommand extends TaskPlaceholderCommand {
-  static override description = "Temporary placeholder for task get";
-
-  static override flags = {
-    "base-url": baseUrlFlag,
-    "task-id": taskIdFlag,
-  };
 }
 
 class TaskUpdateCommand extends TaskPlaceholderCommand {
