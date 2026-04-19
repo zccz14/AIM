@@ -144,3 +144,9 @@ vite.config.ts.timestamp-*
 .worktrees/
 playwright-report/
 test-results/
+
+# Worktrees
+/.worktrees/
+
+# SQLite database files
+*.sqlite
