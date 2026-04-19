@@ -1,0 +1,216 @@
+import type { Task } from "@aim-ai/contract";
+
+import { buildContinuePrompt } from "./task-continue-prompt.js";
+import type {
+  TaskSessionCoordinator,
+  TaskSessionState,
+} from "./task-session-coordinator.js";
+
+export type SessionState = TaskSessionState;
+
+type SchedulerTaskRepository = {
+  assignSessionIfUnassigned(
+    taskId: string,
+    sessionId: string,
+  ): Promise<null | Task>;
+  listUnfinishedTasks(): Promise<Task[]>;
+};
+
+type CreateTaskSchedulerOptions = {
+  coordinator: TaskSessionCoordinator;
+  concurrency?: number;
+  logger?: Pick<Console, "error" | "warn">;
+  taskRepository: SchedulerTaskRepository;
+};
+
+type StartOptions = {
+  intervalMs: number;
+};
+
+const getEffectiveConcurrency = (concurrency?: number) => {
+  if (
+    !Number.isFinite(concurrency) ||
+    concurrency === undefined ||
+    concurrency < 1
+  ) {
+    return 1;
+  }
+
+  return Math.floor(concurrency);
+};
+
+const runWithConcurrency = async (
+  items: Task[],
+  concurrency: number,
+  worker: (task: Task) => Promise<void>,
+) => {
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        const task = items[currentIndex];
+        nextIndex += 1;
+
+        if (!task) {
+          return;
+        }
+
+        await worker(task);
+      }
+    }),
+  );
+};
+
+export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
+  const concurrency = getEffectiveConcurrency(options.concurrency);
+  const logger = options.logger ?? console;
+  let intervalHandle: NodeJS.Timeout | undefined;
+  let roundPromise: Promise<void> | null = null;
+
+  const startRound = () => {
+    void beginRound().catch((error) => {
+      logger.error("Task scheduler failed while scanning unfinished tasks", {
+        error,
+      });
+    });
+  };
+
+  const runTask = async (
+    task: Task,
+    duplicateSessionIds: ReadonlySet<string>,
+    roundSessionIds: Set<string>,
+  ) => {
+    try {
+      let latestTask = task;
+
+      if (!latestTask.session_id) {
+        const { sessionId } =
+          await options.coordinator.createSession(latestTask);
+        const assignedTask =
+          await options.taskRepository.assignSessionIfUnassigned(
+            latestTask.task_id,
+            sessionId,
+          );
+
+        if (!assignedTask?.session_id) {
+          return;
+        }
+
+        latestTask = assignedTask;
+      }
+
+      const sessionId = latestTask.session_id;
+
+      if (!sessionId || latestTask.done) {
+        return;
+      }
+
+      if (duplicateSessionIds.has(sessionId)) {
+        logger.warn(
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
+          {
+            sessionId,
+            taskId: latestTask.task_id,
+          },
+        );
+        return;
+      }
+
+      if (roundSessionIds.has(sessionId)) {
+        logger.warn(
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
+          {
+            sessionId,
+            taskId: latestTask.task_id,
+          },
+        );
+        return;
+      }
+
+      roundSessionIds.add(sessionId);
+
+      const sessionState = await options.coordinator.getSessionState(sessionId);
+
+      if (sessionState !== "idle") {
+        return;
+      }
+
+      await options.coordinator.sendContinuePrompt(
+        sessionId,
+        buildContinuePrompt(latestTask),
+      );
+    } catch (error) {
+      logger.error(
+        `Task scheduler failed while processing task ${task.task_id}`,
+        {
+          error,
+          taskId: task.task_id,
+        },
+      );
+    }
+  };
+
+  const beginRound = () => {
+    if (roundPromise) {
+      return roundPromise;
+    }
+
+    roundPromise = (async () => {
+      const tasks = await options.taskRepository.listUnfinishedTasks();
+      const sessionCounts = new Map<string, number>();
+
+      for (const task of tasks) {
+        if (!task.session_id) {
+          continue;
+        }
+
+        sessionCounts.set(
+          task.session_id,
+          (sessionCounts.get(task.session_id) ?? 0) + 1,
+        );
+      }
+
+      const duplicateSessionIds = new Set(
+        [...sessionCounts.entries()]
+          .filter(([, count]) => count > 1)
+          .map(([sessionId]) => sessionId),
+      );
+      const roundSessionIds = new Set<string>();
+
+      await runWithConcurrency(tasks, concurrency, async (task) => {
+        await runTask(task, duplicateSessionIds, roundSessionIds);
+      });
+    })().finally(() => {
+      roundPromise = null;
+    });
+
+    return roundPromise;
+  };
+
+  return {
+    runRound() {
+      return beginRound();
+    },
+    start(startOptions: StartOptions) {
+      if (intervalHandle) {
+        return;
+      }
+
+      startRound();
+      intervalHandle = setInterval(() => {
+        startRound();
+      }, startOptions.intervalMs);
+    },
+    stop() {
+      if (!intervalHandle) {
+        return;
+      }
+
+      clearInterval(intervalHandle);
+      intervalHandle = undefined;
+    },
+  };
+};

@@ -3,13 +3,63 @@ import { pathToFileURL } from "node:url";
 import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.js";
+import { createTaskRepository } from "./task-repository.js";
+import { createTaskScheduler } from "./task-scheduler.js";
+import { createTaskSessionCoordinator } from "./task-session-coordinator.js";
 
 const defaultPort = 8192;
+const defaultSchedulerIntervalMs = 5_000;
 const parsedPort = Number.parseInt(process.env.PORT ?? `${defaultPort}`, 10);
 const port = Number.isNaN(parsedPort) ? defaultPort : parsedPort;
+const parsedSchedulerIntervalMs = Number.parseInt(
+  process.env.TASK_SCHEDULER_INTERVAL_MS ?? `${defaultSchedulerIntervalMs}`,
+  10,
+);
+const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
+  ? defaultSchedulerIntervalMs
+  : parsedSchedulerIntervalMs;
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
-export const startServer = () => serve({ fetch: createApp().fetch, port });
+export const startServer = () => {
+  const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED === "true";
+  let scheduler: ReturnType<typeof createTaskScheduler> | undefined;
+  let stopScheduler: (() => void) | undefined;
+
+  if (isTaskSchedulerEnabled) {
+    const taskRepository = createTaskRepository({
+      projectRoot: process.env.AIM_PROJECT_ROOT,
+    });
+    const taskScheduler = createTaskScheduler({
+      coordinator: createTaskSessionCoordinator(),
+      taskRepository,
+    });
+
+    scheduler = taskScheduler;
+    stopScheduler = () => taskScheduler.stop();
+  }
+
+  const server = serve({ fetch: createApp().fetch, port });
+
+  try {
+    if (scheduler && stopScheduler) {
+      scheduler.start({ intervalMs: schedulerIntervalMs });
+
+      process.once("SIGINT", stopScheduler);
+      process.once("SIGTERM", stopScheduler);
+      server.once("close", () => {
+        process.off("SIGINT", stopScheduler);
+        process.off("SIGTERM", stopScheduler);
+        stopScheduler();
+      });
+    }
+  } catch (error) {
+    stopScheduler?.();
+    server.close();
+    throw error;
+  }
+
+  return server;
+};
 
 if (
   process.argv[1] &&

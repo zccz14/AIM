@@ -207,6 +207,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const deleteTaskStatement = database.prepare(
     `DELETE FROM ${tasksTableName} WHERE task_id = ?`,
   );
+  const assignSessionIfUnassignedStatement = database.prepare(`
+    UPDATE ${tasksTableName}
+    SET session_id = ?, updated_at = ?
+    WHERE task_id = ? AND session_id IS NULL AND done = 0
+  `);
 
   return {
     createTask(input: CreateTaskRequest): Promise<Task> {
@@ -294,6 +299,21 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         .all(...parameters) as TaskRow[];
 
       return Promise.resolve(rows.map(mapTaskRow));
+    },
+    listUnfinishedTasks(): Promise<Task[]> {
+      return this.listTasks({ done: false });
+    },
+    async assignSessionIfUnassigned(
+      taskId: string,
+      sessionId: string,
+    ): Promise<null | Task> {
+      assignSessionIfUnassignedStatement.run(
+        sessionId,
+        new Date().toISOString(),
+        taskId,
+      );
+
+      return this.getTaskById(taskId);
     },
     async updateTask(
       taskId: string,
