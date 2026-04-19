@@ -69,8 +69,28 @@ export const createTaskSessionCoordinator = (
         throw actionError("createSession", error);
       }
     },
-    async getSessionState() {
-      throw unavailableError("getSessionState");
+    async getSessionState(sessionId) {
+      let session: unknown;
+
+      try {
+        session = await adapter.getSession(sessionId);
+      } catch (error) {
+        throw actionError("getSessionState", error);
+      }
+
+      const status =
+        typeof session === "object" && session !== null && "status" in session
+          ? session.status
+          : undefined;
+
+      switch (status) {
+        case "idle":
+          return "idle";
+        case "running":
+          return "running";
+        default:
+          throw new Error(`Unknown OpenCode session status: ${String(status)}`);
+      }
     },
     async sendContinuePrompt(sessionId, prompt) {
       try {
