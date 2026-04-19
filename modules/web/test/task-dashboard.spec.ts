@@ -151,7 +151,13 @@ test("renders the dependency graph with status-colored nodes", async ({
     "border-color",
     "rgb(240, 140, 0)",
   );
-  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await expect(page.getByTestId("rf__edge-task-123-task-456")).toHaveCount(1);
+  await expect(page.getByLabel("Edge from task-123 to task-456")).toHaveCount(
+    1,
+  );
+  await expect(page.getByLabel("Edge from task-456 to task-123")).toHaveCount(
+    0,
+  );
 });
 
 test("lays out prerequisites to the left of dependents", async ({ page }) => {
@@ -187,6 +193,66 @@ test("lays out prerequisites to the left of dependents", async ({ page }) => {
   }
 
   expect(prerequisiteBox.x).toBeLessThan(dependentBox.x);
+});
+
+test("lays out branching dependencies by depth across multiple columns", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            dependencies: ["task-456", "task-789"],
+            spec: "Release task",
+            taskId: "task-999",
+          }),
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "Backend task",
+            taskId: "task-456",
+          }),
+          buildTask({
+            spec: "Root task",
+            taskId: "task-123",
+          }),
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "Frontend task",
+            taskId: "task-789",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const rootBox = await page.getByTestId("graph-node-task-123").boundingBox();
+  const backendBox = await page
+    .getByTestId("graph-node-task-456")
+    .boundingBox();
+  const frontendBox = await page
+    .getByTestId("graph-node-task-789")
+    .boundingBox();
+  const releaseBox = await page
+    .getByTestId("graph-node-task-999")
+    .boundingBox();
+
+  if (
+    rootBox === null ||
+    backendBox === null ||
+    frontendBox === null ||
+    releaseBox === null
+  ) {
+    throw new Error("Expected graph nodes to have visible bounding boxes");
+  }
+
+  expect(rootBox.x).toBeLessThan(backendBox.x);
+  expect(rootBox.x).toBeLessThan(frontendBox.x);
+  expect(backendBox.x).toBeLessThan(releaseBox.x);
+  expect(frontendBox.x).toBeLessThan(releaseBox.x);
 });
 
 test("opens the shared task drawer from a graph node", async ({ page }) => {
