@@ -32,6 +32,7 @@
   "dependencies": {
     "@aim-ai/contract": "workspace:*",
     "@hono/node-server": "^1.19.6",
+    "@opencode-ai/sdk": "^1.14.18",
     "hono": "^4.10.5"
   },
   "devDependencies": {
