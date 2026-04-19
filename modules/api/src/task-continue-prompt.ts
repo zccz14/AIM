@@ -13,4 +13,4 @@ status: ${task.status}
 ${formatOptionalField("worktree_path", task.worktree_path)}
 ${formatOptionalField("pull_request_url", task.pull_request_url)}
 
-Continue this task from its current state. Update the task's DB state yourself through the session's normal task workflow as progress changes.`;
+Continue this task from its current state through the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true.`;

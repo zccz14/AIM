@@ -106,9 +106,14 @@ describe("task scheduler", () => {
       .fn()
       .mockRejectedValueOnce(new Error("session unavailable"))
       .mockResolvedValueOnce(undefined);
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
     const scheduler = createTaskScheduler({
       createSession: vi.fn(),
       getSessionState: vi.fn().mockResolvedValue("idle"),
+      logger,
       sendContinuePrompt,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -118,6 +123,14 @@ describe("task scheduler", () => {
 
     await expect(scheduler.runRound()).resolves.toBeUndefined();
     expect(sendContinuePrompt).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining(firstTask.task_id),
+      expect.objectContaining({
+        error: expect.any(Error),
+        taskId: firstTask.task_id,
+      }),
+    );
   });
 
   it("refuses duplicate unfinished tasks that share one session_id", async () => {
@@ -130,10 +143,15 @@ describe("task scheduler", () => {
       session_id: "shared-session",
     });
     const getSessionState = vi.fn();
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
     const sendContinuePrompt = vi.fn();
     const scheduler = createTaskScheduler({
       createSession: vi.fn(),
       getSessionState,
+      logger,
       sendContinuePrompt,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -145,6 +163,57 @@ describe("task scheduler", () => {
 
     expect(getSessionState).not.toHaveBeenCalled();
     expect(sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("shared-session"),
+      expect.objectContaining({ sessionId: "shared-session" }),
+    );
+  });
+
+  it("warns and skips when assignment returns a duplicate session snapshot", async () => {
+    const firstTask = createTask({
+      task_id: "task-1",
+      session_id: "shared-session",
+    });
+    const secondTask = createTask({
+      task_id: "task-2",
+    });
+    const latestSnapshot = createTask({
+      task_id: "task-2",
+      session_id: "shared-session",
+    });
+    const logger = {
+      error: vi.fn(),
+      warn: vi.fn(),
+    };
+    const getSessionState = vi.fn().mockResolvedValue("idle");
+    const sendContinuePrompt = vi.fn();
+    const scheduler = createTaskScheduler({
+      createSession: vi.fn().mockResolvedValue("new-session"),
+      getSessionState,
+      logger,
+      sendContinuePrompt,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn().mockResolvedValue(latestSnapshot),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
+      },
+    });
+
+    await scheduler.runRound();
+
+    expect(getSessionState).toHaveBeenCalledTimes(1);
+    expect(getSessionState).toHaveBeenCalledWith("shared-session");
+    expect(sendContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(sendContinuePrompt).toHaveBeenCalledWith(
+      "shared-session",
+      expect.stringContaining(firstTask.task_id),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("shared-session"),
+      expect.objectContaining({
+        sessionId: "shared-session",
+        taskId: secondTask.task_id,
+      }),
+    );
   });
 
   it("does not allow overlapping rounds after start", async () => {
@@ -180,7 +249,7 @@ describe("task scheduler", () => {
     vi.useRealTimers();
   });
 
-  it("continue prompt contains task_id, task_spec, status and avoids database implementation details", () => {
+  it("continue prompt contains task metadata and terminal ownership without storage wording", () => {
     const prompt = buildContinuePrompt(
       createTask({
         pull_request_url: "https://example.test/pr/123",
@@ -195,8 +264,16 @@ describe("task scheduler", () => {
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
+    expect(prompt).toContain("If you cannot continue");
+    expect(prompt).toContain("write the task's failure state");
+    expect(prompt).toContain("When the task is complete");
+    expect(prompt).toContain("write done=true");
     expect(prompt).not.toMatch(/aim\.sqlite/i);
+    expect(prompt).not.toMatch(/\bdb\b/i);
+    expect(prompt).not.toMatch(/database/i);
     expect(prompt).not.toMatch(/\bSELECT\b/i);
     expect(prompt).not.toMatch(/\bUPDATE tasks\b/i);
+    expect(prompt).not.toMatch(/storage/i);
+    expect(prompt).not.toMatch(/persist/i);
   });
 });

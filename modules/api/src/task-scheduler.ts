@@ -16,6 +16,7 @@ type CreateTaskSchedulerOptions = {
   concurrency?: number;
   createSession(task: Task): Promise<string>;
   getSessionState(sessionId: string): Promise<SessionState>;
+  logger?: Pick<Console, "error" | "warn">;
   sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
   taskRepository: SchedulerTaskRepository;
 };
@@ -63,12 +64,14 @@ const runWithConcurrency = async (
 
 export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   const concurrency = getEffectiveConcurrency(options.concurrency);
+  const logger = options.logger ?? console;
   let intervalHandle: NodeJS.Timeout | undefined;
   let roundPromise: Promise<void> | null = null;
 
   const runTask = async (
     task: Task,
     duplicateSessionIds: ReadonlySet<string>,
+    roundSessionIds: Set<string>,
   ) => {
     try {
       let latestTask = task;
@@ -95,8 +98,28 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       }
 
       if (duplicateSessionIds.has(sessionId)) {
+        logger.warn(
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
+          {
+            sessionId,
+            taskId: latestTask.task_id,
+          },
+        );
         return;
       }
+
+      if (roundSessionIds.has(sessionId)) {
+        logger.warn(
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
+          {
+            sessionId,
+            taskId: latestTask.task_id,
+          },
+        );
+        return;
+      }
+
+      roundSessionIds.add(sessionId);
 
       const sessionState = await options.getSessionState(sessionId);
 
@@ -108,8 +131,14 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         sessionId,
         buildContinuePrompt(latestTask),
       );
-    } catch {
-      // Isolate per-task failures so the current scan can continue.
+    } catch (error) {
+      logger.error(
+        `Task scheduler failed while processing task ${task.task_id}`,
+        {
+          error,
+          taskId: task.task_id,
+        },
+      );
     }
   };
 
@@ -138,9 +167,10 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
           .filter(([, count]) => count > 1)
           .map(([sessionId]) => sessionId),
       );
+      const roundSessionIds = new Set<string>();
 
       await runWithConcurrency(tasks, concurrency, async (task) => {
-        await runTask(task, duplicateSessionIds);
+        await runTask(task, duplicateSessionIds, roundSessionIds);
       });
     })().finally(() => {
       roundPromise = null;
