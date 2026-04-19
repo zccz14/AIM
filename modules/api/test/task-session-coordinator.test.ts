@@ -82,6 +82,56 @@ describe("task session coordinator", () => {
     );
   });
 
+  it("maps remote idle sessions to the idle state", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ status: "idle" }),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.getSessionState("session-1")).resolves.toBe("idle");
+  });
+
+  it("maps remote running sessions to the running state", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ status: "running" }),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
+      "running",
+    );
+  });
+
+  it("throws unknown session statuses directly", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ status: "paused" }),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.getSessionState("session-1")).rejects.toThrow(
+      "Unknown OpenCode session status: paused",
+    );
+  });
+
+  it("wraps adapter getSessionState failures with coordinator context", async () => {
+    const adapterError = new Error("adapter blew up");
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockRejectedValue(adapterError),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
+      {
+        cause: adapterError,
+        message: "Task session coordinator failed during getSessionState",
+      },
+    );
+  });
+
   it("delegates continue prompts and resolves without a payload", async () => {
     const sendPrompt = vi.fn().mockResolvedValue({ ok: true });
     const coordinator = createTaskSessionCoordinator(config, {
