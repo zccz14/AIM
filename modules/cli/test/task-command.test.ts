@@ -1,0 +1,250 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+
+import { afterEach, describe, expect, it } from "vitest";
+
+const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
+const cliRootUrl = new URL("../", import.meta.url);
+const cliIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
+const cliTaskHelperSourceUrl = new URL(
+  "../src/lib/task-command.ts",
+  import.meta.url,
+);
+
+type RecordedRequest = {
+  method: string;
+  path: string;
+  json: unknown;
+};
+
+const runningServers = new Set<ReturnType<typeof createServer>>();
+
+const getImportSpecifiers = (source: string) =>
+  [...source.matchAll(/from\s+["']([^"']+)["']/g)].map(
+    ([, specifier]) => specifier,
+  );
+
+afterEach(async () => {
+  await Promise.all(
+    [...runningServers].map(async (server) => {
+      runningServers.delete(server);
+      server.close();
+      await once(server, "close");
+    }),
+  );
+});
+
+const startTaskServer = async () => {
+  const requests: RecordedRequest[] = [];
+  const task = {
+    task_id: "task-1",
+    task_spec: "write spec",
+    session_id: "session-1",
+    worktree_path: null,
+    pull_request_url: "https://example.test/pr/2",
+    dependencies: ["task-a", "task-b"],
+    done: false,
+    status: "created",
+    created_at: "2026-04-20T00:00:00.000Z",
+    updated_at: "2026-04-20T00:00:00.000Z",
+  };
+
+  const server = createServer(async (request, response) => {
+    const chunks: Buffer[] = [];
+
+    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    await once(request, "end");
+
+    const path = request.url ?? "";
+    const bodyText = Buffer.concat(chunks).toString("utf8");
+    const json = bodyText ? JSON.parse(bodyText) : null;
+
+    requests.push({
+      method: request.method ?? "GET",
+      path,
+      json,
+    });
+
+    if (request.method === "POST" && path === "/api/tasks") {
+      response.writeHead(201, { "content-type": "application/json" });
+      response.end(JSON.stringify(task));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === "/api/tasks?status=running&done=false&session_id=session-1"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ items: [task] }));
+      return;
+    }
+
+    if (request.method === "GET" && path === "/api/tasks/task-1") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(task));
+      return;
+    }
+
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ code: "UNAVAILABLE", message: "not found" }));
+  });
+
+  runningServers.add(server);
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+
+  const address = server.address();
+
+  if (!address || typeof address === "string") {
+    throw new Error("expected tcp server address");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    requests,
+  };
+};
+
+const runCli = async (args: string[]) => {
+  const child = spawn(process.execPath, [cliBinUrl.pathname, ...args], {
+    cwd: cliRootUrl,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+
+  child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
+  child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+
+  const [exitCode] = (await once(child, "close")) as [number | null];
+
+  return {
+    exitCode,
+    stdout: Buffer.concat(stdout).toString("utf8"),
+    stderr: Buffer.concat(stderr).toString("utf8"),
+  };
+};
+
+describe("task cli command baseline", () => {
+  it("registers task create with the expected request mapping", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "create",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-spec",
+      "write spec",
+      "--dependency",
+      "task-a",
+      "--dependency",
+      "task-b",
+      "--pull-request-url",
+      "https://example.test/pr/1",
+      "--pull-request-url",
+      "https://example.test/pr/2",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(server.requests[0]).toMatchObject({
+      method: "POST",
+      path: "/api/tasks",
+      json: {
+        task_spec: "write spec",
+        dependencies: ["task-a", "task-b"],
+        pull_request_url: "https://example.test/pr/2",
+      },
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        task_id: "task-1",
+        task_spec: "write spec",
+      },
+    });
+  });
+
+  it("registers task list with the expected query mapping", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--status",
+      "running",
+      "--done",
+      "false",
+      "--session-id",
+      "session-1",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(server.requests[0]?.path).toBe(
+      "/api/tasks?status=running&done=false&session_id=session-1",
+    );
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        items: [
+          {
+            task_id: "task-1",
+          },
+        ],
+      },
+    });
+  });
+
+  it("registers task get and prints the success envelope", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "get",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(server.requests[0]?.path).toBe("/api/tasks/task-1");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        task_id: "task-1",
+        task_spec: "write spec",
+      },
+    });
+  });
+
+  it("keeps task CLI sources on the contract root boundary", async () => {
+    const [indexSource, helperSource] = await Promise.all([
+      readFile(cliIndexSourceUrl, "utf8"),
+      readFile(cliTaskHelperSourceUrl, "utf8"),
+    ]);
+
+    expect(indexSource).toContain('"task:create"');
+    expect(indexSource).toContain('"task:list"');
+    expect(indexSource).toContain('"task:get"');
+
+    const importSpecifiers = getImportSpecifiers(helperSource);
+
+    expect(importSpecifiers).toContain("@aim-ai/contract");
+    expect(
+      importSpecifiers.some((specifier) =>
+        specifier.includes("contract/generated"),
+      ),
+    ).toBe(false);
+  });
+});
