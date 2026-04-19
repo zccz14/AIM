@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 
+import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
+import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import {
   getTaskCreateErrorMessage,
   getTaskDashboardErrorMessage,
@@ -33,27 +35,35 @@ export const DashboardPage = () => {
   const createTaskMutation = useTaskCreateMutation();
   const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskFallback, setSelectedTaskFallback] =
+    useState<DashboardTask | null>(null);
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
-    null;
+    (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
 
   const handleCreateTask = async (taskSpec: string) => {
     createTaskMutation.reset();
 
     try {
       const createdTask = await createTaskMutation.mutateAsync(taskSpec);
+      const createdDashboardTaskFallback = adaptDashboardTask(createdTask);
 
       setCreateDrawerOpened(false);
+      setSelectedTaskFallback(createdDashboardTaskFallback);
 
-      const refreshedDashboard = await queryClient.fetchQuery(
-        taskDashboardQueryOptions,
+      const refreshedDashboard = await queryClient
+        .fetchQuery(taskDashboardQueryOptions)
+        .catch(() => null);
+      const createdDashboardTask = refreshedDashboard?.tasks.find(
+        (task) => task.id === createdTask.task_id,
       );
-      const createdDashboardTask =
-        refreshedDashboard.tasks.find(
-          (task) => task.id === createdTask.task_id,
-        ) ?? null;
 
-      setSelectedTaskId(createdDashboardTask?.id ?? createdTask.task_id);
+      setSelectedTaskFallback(
+        createdDashboardTask ?? createdDashboardTaskFallback,
+      );
+      setSelectedTaskId(
+        createdDashboardTask?.id ?? createdDashboardTaskFallback.id,
+      );
     } catch {
       return;
     }
@@ -146,7 +156,10 @@ export const DashboardPage = () => {
             opened={createDrawerOpened}
           />
           <TaskDetailsDrawer
-            onClose={() => setSelectedTaskId(null)}
+            onClose={() => {
+              setSelectedTaskId(null);
+              setSelectedTaskFallback(null);
+            }}
             opened={selectedTask !== null}
             task={selectedTask}
           />

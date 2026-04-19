@@ -341,20 +341,112 @@ test("closes the create drawer, refreshes the dashboard, and opens the new task 
   await expect.poll(() => listRequestCount).toBe(2);
 });
 
-test("derives task titles from task_spec inside the adapter", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const adapterSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/model/task-dashboard-adapter.ts`,
-    "utf8",
-  );
-  const taskTableSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-table-section.tsx`,
-    "utf8",
-  );
+test("opens created task details from the create response when the dashboard refresh fails", async ({
+  page,
+}) => {
+  let listRequestCount = 0;
 
-  expect(adapterSource).toContain("summarizeTaskSpec");
-  expect(adapterSource).toContain("task.task_spec");
-  expect(taskTableSource).not.toContain('split("\\n")');
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Fallback task title\n- still visible after refresh failure",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    listRequestCount += 1;
+
+    if (listRequestCount === 1) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            buildTask({
+              spec: "Existing task",
+              taskId: "task-existing",
+            }),
+          ],
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "TASK_VALIDATION_ERROR",
+        message: "refresh unavailable",
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page
+    .getByLabel("Task Spec")
+    .fill("Fallback task title\n- still visible after refresh failure");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+  await expect(page.getByText("Task ID: task-created")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Fallback task title" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Fallback task title\n- still visible after refresh failure",
+    ),
+  ).toBeVisible();
+  await expect.poll(() => listRequestCount).toBe(2);
+});
+
+test("uses the first task_spec line as the task title while keeping the full body in details", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Summary title\n- implementation detail\n- rollout detail",
+            taskId: "task-summary",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("row", { name: /Summary title/i })).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /implementation detail/i }),
+  ).toHaveCount(0);
+
+  await page.getByRole("row", { name: /Summary title/i }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Summary title" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Summary title\n- implementation detail\n- rollout detail",
+    ),
+  ).toBeVisible();
 });
 
 test("renders the dependency graph with status-colored nodes", async ({
