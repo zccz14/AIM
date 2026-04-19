@@ -149,6 +149,9 @@ test("routes task creation through feature-local api and mutation helpers", asyn
   expect(dashboardPageSource).toContain("useTaskCreateMutation");
   expect(dashboardPageSource).not.toContain('fetch("/tasks"');
   expect(apiSource).toContain("createTaskFromDashboard");
+  expect(apiSource).not.toContain("createContractClient");
+  expect(apiSource).not.toContain("readServerBaseUrl");
+  expect(apiSource).not.toContain("resolveContractUrl");
   expect(apiSource).toContain("client.createTask({ task_spec: taskSpec })");
   expect(mutationSource).toContain("useMutation");
 });
