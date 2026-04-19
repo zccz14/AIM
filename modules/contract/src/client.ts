@@ -139,7 +139,9 @@ export const createContractClient = ({
   const client = createGeneratedClient({
     baseUrl: generatedBaseUrl,
     fetch: async (input, init) => {
-      return fetchImpl(...(await adaptGeneratedRequestForPublicFetch(input, init)));
+      return fetchImpl(
+        ...(await adaptGeneratedRequestForPublicFetch(input, init)),
+      );
     },
   });
 

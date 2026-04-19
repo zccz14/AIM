@@ -923,7 +923,8 @@ describe("contract package baseline", () => {
       sourceRequestInit,
     );
 
-    const [input, init] = await adaptGeneratedRequestForPublicFetch(sourceRequest);
+    const [input, init] =
+      await adaptGeneratedRequestForPublicFetch(sourceRequest);
     const downstreamFetch = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
