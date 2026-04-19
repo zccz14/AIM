@@ -1,11 +1,11 @@
 import {
+  type ContractClient,
   ContractClientError,
   createContractClient,
-  taskStatusSchema,
-  type ContractClient,
   type HealthError,
   type TaskError,
   type TaskStatus,
+  taskStatusSchema,
 } from "@aim-ai/contract";
 import type { Command } from "@oclif/core";
 
@@ -79,7 +79,9 @@ export const parseBooleanFlag = (value: string | undefined) => {
   );
 };
 
-export const parseStatusFlag = (value: string | undefined): TaskStatus | undefined => {
+export const parseStatusFlag = (
+  value: string | undefined,
+): TaskStatus | undefined => {
   if (value === undefined) {
     return undefined;
   }
@@ -87,7 +89,10 @@ export const parseStatusFlag = (value: string | undefined): TaskStatus | undefin
   const parsed = taskStatusSchema.safeParse(value);
 
   if (!parsed.success) {
-    throw cliError("CLI_INVALID_FLAG_VALUE", `invalid --status value: ${value}`);
+    throw cliError(
+      "CLI_INVALID_FLAG_VALUE",
+      `invalid --status value: ${value}`,
+    );
   }
 
   return parsed.data;
@@ -159,11 +164,16 @@ export const parseBaseUrl = (rawBaseUrl: string) => {
   try {
     return new URL(rawBaseUrl);
   } catch {
-    throw cliError("CLI_INVALID_BASE_URL", `invalid --base-url value: ${rawBaseUrl}`);
+    throw cliError(
+      "CLI_INVALID_BASE_URL",
+      `invalid --base-url value: ${rawBaseUrl}`,
+    );
   }
 };
 
-export const createTaskContractClient = (rawBaseUrl: string): ContractClient => {
+export const createTaskContractClient = (
+  rawBaseUrl: string,
+): ContractClient => {
   const baseUrl = parseBaseUrl(rawBaseUrl);
 
   return createContractClient({
@@ -178,11 +188,12 @@ export const writeSuccess = <T>(command: Command, data: T) => {
 export const exitWithFailure = (command: Command, error: unknown): never => {
   const failure = {
     ok: false,
-    error: error instanceof ContractClientError
-      ? error.error
-      : isCliError(error)
-        ? error
-        : cliError("UNAVAILABLE", "unexpected error"),
+    error:
+      error instanceof ContractClientError
+        ? error.error
+        : isCliError(error)
+          ? error
+          : cliError("UNAVAILABLE", "unexpected error"),
   } satisfies CliFailure;
 
   process.stderr.write(`${JSON.stringify(failure)}\n`);

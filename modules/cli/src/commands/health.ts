@@ -2,6 +2,7 @@ import {
   ContractClientError,
   createContractClient,
   type HealthError,
+  type TaskError,
 } from "@aim-ai/contract";
 import { Command, Flags } from "@oclif/core";
 
@@ -14,7 +15,7 @@ export type CliHealthSuccess = {
 
 export type CliHealthFailure = {
   ok: false;
-  error: HealthError;
+  error: HealthError | TaskError;
 };
 
 const fallbackError: HealthError = {

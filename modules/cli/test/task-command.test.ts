@@ -100,15 +100,18 @@ const startTaskServer = async () => {
       return;
     }
 
-    if (
-      request.method === "GET" &&
-      url.pathname === "/api/tasks" &&
-      url.searchParams.get("status") === "running" &&
-      url.searchParams.get("done") === "false" &&
-      url.searchParams.get("session_id") === "session-1"
-    ) {
+    if (request.method === "GET" && url.pathname === "/api/tasks") {
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ items: [task] }));
+      response.end(
+        JSON.stringify({
+          items:
+            url.searchParams.get("status") === "running" &&
+            url.searchParams.get("done") === "false" &&
+            url.searchParams.get("session_id") === "session-1"
+              ? [task]
+              : [],
+        }),
+      );
       return;
     }
 
@@ -261,6 +264,24 @@ describe("task cli command baseline", () => {
           },
         ],
       },
+    });
+  });
+
+  it("boots task list from the published bin and prints JSON only", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: { items: expect.any(Array) },
     });
   });
 
@@ -453,7 +474,12 @@ describe("task cli command baseline", () => {
   it("returns a JSON usage error before making a request", async () => {
     const server = await startTaskServer();
 
-    const result = await runCli(["task", "create", "--task-spec", "write spec"]);
+    const result = await runCli([
+      "task",
+      "create",
+      "--task-spec",
+      "write spec",
+    ]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
@@ -500,12 +526,7 @@ describe("task cli command baseline", () => {
   });
 
   it("returns a JSON invalid base url error before creating a client", async () => {
-    const result = await runCli([
-      "task",
-      "list",
-      "--base-url",
-      "not-a-url",
-    ]);
+    const result = await runCli(["task", "list", "--base-url", "not-a-url"]);
 
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stderr)).toEqual({
