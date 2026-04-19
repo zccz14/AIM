@@ -118,6 +118,26 @@ const startTaskServer = async () => {
       return;
     }
 
+    if (request.method === "GET" && path === "/api/tasks/missing") {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({ code: "TASK_NOT_FOUND", message: "missing task" }),
+      );
+      return;
+    }
+
+    if (request.method === "PATCH" && path === "/api/tasks/task-1") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ...task, ...json }));
+      return;
+    }
+
+    if (request.method === "DELETE" && path === "/api/tasks/task-1") {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+
     response.writeHead(404, { "content-type": "application/json" });
     response.end(JSON.stringify({ code: "UNAVAILABLE", message: "not found" }));
   });
@@ -270,6 +290,166 @@ describe("task cli command baseline", () => {
     });
   });
 
+  it("maps task update flags to the expected patch request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+      "--task-spec",
+      "rewrite spec",
+      "--status",
+      "running",
+      "--clear-session-id",
+      "--clear-worktree-path",
+      "--clear-pull-request-url",
+      "--clear-dependencies",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "PATCH",
+      path: "/api/tasks/task-1",
+      json: {
+        task_spec: "rewrite spec",
+        status: "running",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+      },
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        task_id: "task-1",
+        task_spec: "rewrite spec",
+        status: "running",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+      },
+    });
+  });
+
+  it("returns a JSON usage error when task update has no patch flags", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"task update requires at least one patch flag"}}\n',
+    );
+    expect(server.requests).toEqual([]);
+  });
+
+  it("rejects conflicting update flags before any HTTP request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+      "--session-id",
+      "session-1",
+      "--clear-session-id",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_FLAG_VALUE",
+        message: "cannot combine --session-id with --clear-session-id",
+      },
+    });
+    expect(server.requests).toEqual([]);
+  });
+
+  it("preserves server task errors on stderr", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "get",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "missing",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: { code: "TASK_NOT_FOUND", message: "missing task" },
+    });
+  });
+
+  it("falls back to UNAVAILABLE when the server cannot be reached", async () => {
+    const result = await runCli([
+      "task",
+      "list",
+      "--base-url",
+      "http://127.0.0.1:1",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: { code: "UNAVAILABLE", message: "unexpected error" },
+    });
+  });
+
+  it("prints the delete success envelope without inventing extra fields", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "delete",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "DELETE",
+      path: "/api/tasks/task-1",
+      json: null,
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: { deleted: true, task_id: "task-1" },
+    });
+  });
+
   it("returns a JSON usage error before making a request", async () => {
     const server = await startTaskServer();
 
@@ -387,6 +567,8 @@ describe("task cli command baseline", () => {
     expect(indexSource).toContain('"task:create"');
     expect(indexSource).toContain('"task:list"');
     expect(indexSource).toContain('"task:get"');
+    expect(indexSource).toContain('"task:update"');
+    expect(indexSource).toContain('"task:delete"');
     expect(indexSource).not.toContain("contract/generated");
     expect(helperSource).toContain("@aim-ai/contract");
     expect(helperSource).not.toContain("contract/generated");

@@ -93,6 +93,24 @@ export const parseStatusFlag = (value: string | undefined): TaskStatus | undefin
   return parsed.data;
 };
 
+export const assertNoConflict = (
+  value: unknown,
+  clearSelected: boolean,
+  valueFlagName: string,
+  clearFlagName: string,
+) => {
+  if (value !== undefined && clearSelected) {
+    throw cliError(
+      "CLI_INVALID_FLAG_VALUE",
+      `cannot combine --${valueFlagName} with --${clearFlagName}`,
+    );
+  }
+};
+
+export const hasOwnPatchField = (patch: Record<string, unknown>) => {
+  return Object.keys(patch).length > 0;
+};
+
 export const normalizeBaseUrl = (baseUrl: URL) => {
   const normalizedBaseUrl = new URL(baseUrl);
 

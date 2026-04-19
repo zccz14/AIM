@@ -1,21 +1,11 @@
-import { Command, Flags, execute, settings } from "@oclif/core";
+import { execute, settings } from "@oclif/core";
 
 import HealthCommand from "./commands/health.js";
 import TaskCreateCommand from "./commands/task/create.js";
+import TaskDeleteCommand from "./commands/task/delete.js";
 import TaskGetCommand from "./commands/task/get.js";
 import TaskListCommand from "./commands/task/list.js";
-
-const placeholderFailure = {
-  ok: false,
-  error: {
-    code: "UNAVAILABLE",
-    message: "task command not implemented",
-  },
-} as const;
-
-const baseUrlFlag = Flags.string({ description: "API base URL" });
-
-const taskIdFlag = Flags.string({ description: "Task identifier" });
+import TaskUpdateCommand from "./commands/task/update.js";
 
 const taskCommandNames = new Set([
   "create",
@@ -32,35 +22,6 @@ const normalizeCommandArgs = (args: string[]) => {
 
   return args;
 };
-
-const writePlaceholderFailureAndExit = (command: Command) => {
-  process.stderr.write(`${JSON.stringify(placeholderFailure)}\n`);
-  command.exit(1);
-};
-
-class TaskPlaceholderCommand extends Command {
-  public async run(): Promise<void> {
-    writePlaceholderFailureAndExit(this);
-  }
-}
-
-class TaskUpdateCommand extends TaskPlaceholderCommand {
-  static override description = "Temporary placeholder for task update";
-
-  static override flags = {
-    "base-url": baseUrlFlag,
-    "task-id": taskIdFlag,
-  };
-}
-
-class TaskDeleteCommand extends TaskPlaceholderCommand {
-  static override description = "Temporary placeholder for task delete";
-
-  static override flags = {
-    "base-url": baseUrlFlag,
-    "task-id": taskIdFlag,
-  };
-}
 
 export const commands = {
   health: HealthCommand,
