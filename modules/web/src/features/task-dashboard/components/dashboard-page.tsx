@@ -9,23 +9,26 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 
 import {
   getTaskCreateErrorMessage,
   getTaskDashboardErrorMessage,
+  taskDashboardQueryOptions,
 } from "../queries.js";
 import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
+import { CreateTaskDrawer } from "./create-task-drawer.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
-import { CreateTaskDrawer } from "./create-task-drawer.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsDrawer } from "./task-details-drawer.js";
 import { TaskTableSection } from "./task-table-section.js";
 
 export const DashboardPage = () => {
+  const queryClient = useQueryClient();
   const dashboardQuery = useTaskDashboardQuery();
   const createTaskMutation = useTaskCreateMutation();
   const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
@@ -33,6 +36,28 @@ export const DashboardPage = () => {
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
     null;
+
+  const handleCreateTask = async (taskSpec: string) => {
+    createTaskMutation.reset();
+
+    try {
+      const createdTask = await createTaskMutation.mutateAsync(taskSpec);
+
+      setCreateDrawerOpened(false);
+
+      const refreshedDashboard = await queryClient.fetchQuery(
+        taskDashboardQueryOptions,
+      );
+      const createdDashboardTask =
+        refreshedDashboard.tasks.find(
+          (task) => task.id === createdTask.task_id,
+        ) ?? null;
+
+      setSelectedTaskId(createdDashboardTask?.id ?? createdTask.task_id);
+    } catch {
+      return;
+    }
+  };
 
   return (
     <AppShell padding="lg">
@@ -117,15 +142,7 @@ export const DashboardPage = () => {
               createTaskMutation.reset();
               setCreateDrawerOpened(false);
             }}
-            onSubmit={async (taskSpec) => {
-              createTaskMutation.reset();
-
-              try {
-                await createTaskMutation.mutateAsync(taskSpec);
-              } catch {
-                return;
-              }
-            }}
+            onSubmit={handleCreateTask}
             opened={createDrawerOpened}
           />
           <TaskDetailsDrawer

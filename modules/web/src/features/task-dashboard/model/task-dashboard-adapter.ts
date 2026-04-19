@@ -60,6 +60,16 @@ const isActiveTask = (task: DashboardTask) =>
   task.dashboardStatus === "running" ||
   task.dashboardStatus === "blocked";
 
+const summarizeTaskSpec = (taskSpec: string) => {
+  const [firstLine = ""] = taskSpec
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const summary = firstLine || taskSpec.trim();
+
+  return summary.length <= 72 ? summary : `${summary.slice(0, 69)}...`;
+};
+
 const getTaskDepth = (
   task: DashboardTask,
   tasksById: Map<string, DashboardTask>,
@@ -105,7 +115,8 @@ export const adaptTaskDashboard = (
 } => {
   const tasks = response.items.map<DashboardTask>((task) => ({
     id: task.task_id,
-    title: task.task_spec,
+    title: summarizeTaskSpec(task.task_spec),
+    taskSpec: task.task_spec,
     contractStatus: task.status,
     dashboardStatus: toDashboardStatus(task.status),
     sessionId: task.session_id,

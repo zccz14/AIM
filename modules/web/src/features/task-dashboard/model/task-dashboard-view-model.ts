@@ -8,6 +8,7 @@ export type DashboardStatus =
 export type DashboardTask = {
   id: string;
   title: string;
+  taskSpec: string;
   contractStatus: string;
   dashboardStatus: DashboardStatus;
   sessionId: string | null;

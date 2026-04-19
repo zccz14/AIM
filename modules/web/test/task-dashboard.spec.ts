@@ -158,18 +158,16 @@ test("opens and closes the create task drawer from the dashboard header", async 
 
   await headerCreateTaskButton.click();
 
-  await expect(
-    page.getByRole("dialog", { name: "Create Task" }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
   await expect(page.getByLabel("Task Spec")).toBeVisible();
   await expect(headerCreateTaskButton).toBeDisabled();
 
   await page.getByLabel("Task Spec").fill("Draft task spec");
 
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Create Task" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
 
   await headerCreateTaskButton.click();
   await expect(page.getByLabel("Task Spec")).toHaveValue("");
@@ -205,9 +203,11 @@ test("submits only task_spec to the existing task API", async ({ page }) => {
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
-  await expect.poll(() => createRequestBody).toEqual({
-    task_spec: "Ship create flow",
-  });
+  await expect
+    .poll(() => createRequestBody)
+    .toEqual({
+      task_spec: "Ship create flow",
+    });
 });
 
 test("shows a local create error when the task API rejects the request", async ({
@@ -263,9 +263,98 @@ test("shows a local create error when the task API rejects the request", async (
   await expect(
     page.getByText("Task creation failed: task_spec cannot be blank"),
   ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
+});
+
+test("closes the create drawer, refreshes the dashboard, and opens the new task details", async ({
+  page,
+}) => {
+  let listRequestCount = 0;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Create release checklist\n- draft notes\n- notify team",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    listRequestCount += 1;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          listRequestCount === 1
+            ? [
+                buildTask({
+                  spec: "Existing task",
+                  taskId: "task-existing",
+                }),
+              ]
+            : [
+                buildTask({
+                  spec: "Existing task",
+                  taskId: "task-existing",
+                }),
+                buildTask({
+                  spec: "Create release checklist\n- draft notes\n- notify team",
+                  taskId: "task-created",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page
+    .getByLabel("Task Spec")
+    .fill("Create release checklist\n- draft notes\n- notify team");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
   await expect(
-    page.getByRole("dialog", { name: "Create Task" }),
+    page.getByRole("dialog", { name: "Task Details" }),
   ).toBeVisible();
+  await expect(page.getByText("Task ID: task-created")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Create release checklist" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Create release checklist\n- draft notes\n- notify team",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Create release checklist/i }),
+  ).toBeVisible();
+  await expect.poll(() => listRequestCount).toBe(2);
+});
+
+test("derives task titles from task_spec inside the adapter", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const adapterSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/model/task-dashboard-adapter.ts`,
+    "utf8",
+  );
+  const taskTableSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-table-section.tsx`,
+    "utf8",
+  );
+
+  expect(adapterSource).toContain("summarizeTaskSpec");
+  expect(adapterSource).toContain("task.task_spec");
+  expect(taskTableSource).not.toContain('split("\\n")');
 });
 
 test("renders the dependency graph with status-colored nodes", async ({

@@ -39,6 +39,7 @@ const filterTask = (task: DashboardTask, filterValue: string) => {
 
   const searchText = [
     task.title,
+    task.taskSpec,
     task.id,
     task.contractStatus,
     task.dashboardStatus,
