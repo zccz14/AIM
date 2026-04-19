@@ -47,4 +47,47 @@ describe("task session coordinator", () => {
       sessionId: "session-1",
     });
   });
+
+  it("wraps adapter createSession failures with coordinator context", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn().mockRejectedValue(new Error("adapter blew up")),
+      getSession: vi.fn(),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.createSession(createTask())).rejects.toThrow(
+      "Task session coordinator failed during createSession",
+    );
+  });
+
+  it("delegates continue prompts and resolves without a payload", async () => {
+    const sendPrompt = vi.fn().mockResolvedValue({ ok: true });
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      sendPrompt,
+    });
+
+    await expect(
+      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
+    ).resolves.toBeUndefined();
+    expect(sendPrompt).toHaveBeenCalledWith(
+      "session-1",
+      "Continue implementing task 2",
+    );
+  });
+
+  it("wraps adapter sendContinuePrompt failures with coordinator context", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      sendPrompt: vi.fn().mockRejectedValue(new Error("adapter blew up")),
+    });
+
+    await expect(
+      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
+    ).rejects.toThrow(
+      "Task session coordinator failed during sendContinuePrompt",
+    );
+  });
 });

@@ -27,6 +27,9 @@ export type TaskSessionCoordinator = {
 const unavailableError = (action: string) =>
   new Error(`Task session coordinator is unavailable for ${action}`);
 
+const actionError = (action: string) =>
+  new Error(`Task session coordinator failed during ${action}`);
+
 const requireNonEmpty = (
   value: string,
   field: keyof TaskSessionCoordinatorConfig,
@@ -60,15 +63,19 @@ export const createTaskSessionCoordinator = (
 
   return {
     async createSession(task) {
-      const session = await adapter.createSession(task);
+      const session = await adapter
+        .createSession(task)
+        .catch(() => Promise.reject(actionError("createSession")));
 
       return { sessionId: session.id };
     },
     async getSessionState() {
       throw unavailableError("getSessionState");
     },
-    async sendContinuePrompt() {
-      throw unavailableError("sendContinuePrompt");
+    async sendContinuePrompt(sessionId, prompt) {
+      await adapter
+        .sendPrompt(sessionId, prompt)
+        .catch(() => Promise.reject(actionError("sendContinuePrompt")));
     },
   };
 };
