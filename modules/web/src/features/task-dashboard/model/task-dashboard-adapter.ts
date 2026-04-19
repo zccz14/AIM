@@ -60,6 +60,43 @@ const isActiveTask = (task: DashboardTask) =>
   task.dashboardStatus === "running" ||
   task.dashboardStatus === "blocked";
 
+const getTaskDepth = (
+  task: DashboardTask,
+  tasksById: Map<string, DashboardTask>,
+  depthByTaskId: Map<string, number>,
+  activeTaskIds: Set<string>,
+): number => {
+  const cachedDepth = depthByTaskId.get(task.id);
+
+  if (cachedDepth !== undefined) {
+    return cachedDepth;
+  }
+
+  if (activeTaskIds.has(task.id)) {
+    return 0;
+  }
+
+  activeTaskIds.add(task.id);
+
+  const dependencyDepths = task.dependencies
+    .map((dependencyId) => tasksById.get(dependencyId))
+    .filter(
+      (dependency): dependency is DashboardTask => dependency !== undefined,
+    )
+    .map((dependency) =>
+      getTaskDepth(dependency, tasksById, depthByTaskId, activeTaskIds),
+    );
+
+  activeTaskIds.delete(task.id);
+
+  const depth =
+    dependencyDepths.length === 0 ? 0 : Math.max(...dependencyDepths) + 1;
+
+  depthByTaskId.set(task.id, depth);
+
+  return depth;
+};
+
 export const adaptTaskDashboard = (
   response: TaskListResponse,
 ): TaskDashboardViewModel & {
@@ -79,19 +116,34 @@ export const adaptTaskDashboard = (
     updatedAt: task.updated_at,
     isDone: task.done,
   }));
-  const graphNodes = tasks.map<DashboardGraphNode>((task, index) => ({
-    id: task.id,
-    data: {
-      color: statusColorMap[task.dashboardStatus],
-      label: task.title,
-      status: task.dashboardStatus,
-      testId: `graph-node-${task.id}`,
-    },
-    position: {
-      x: (index % 3) * 240,
-      y: Math.floor(index / 3) * 140,
-    },
-  }));
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const depthByTaskId = new Map<string, number>();
+  const rowByDepth = new Map<number, number>();
+  const graphNodes = tasks.map<DashboardGraphNode>((task) => {
+    const depth = getTaskDepth(
+      task,
+      tasksById,
+      depthByTaskId,
+      new Set<string>(),
+    );
+    const row = rowByDepth.get(depth) ?? 0;
+
+    rowByDepth.set(depth, row + 1);
+
+    return {
+      id: task.id,
+      data: {
+        color: statusColorMap[task.dashboardStatus],
+        label: task.title,
+        status: task.dashboardStatus,
+        testId: `graph-node-${task.id}`,
+      },
+      position: {
+        x: depth * 240,
+        y: row * 140,
+      },
+    };
+  });
   const graphEdges = tasks.flatMap((task) =>
     task.dependencies.map<DashboardGraphEdge>((dependencyId) => ({
       id: `${dependencyId}-${task.id}`,

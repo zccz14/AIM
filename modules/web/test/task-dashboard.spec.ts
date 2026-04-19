@@ -151,6 +151,42 @@ test("renders the dependency graph with status-colored nodes", async ({
     "border-color",
     "rgb(240, 140, 0)",
   );
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+});
+
+test("lays out prerequisites to the left of dependents", async ({ page }) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "Dependent task",
+            taskId: "task-456",
+          }),
+          buildTask({
+            spec: "Prerequisite task",
+            taskId: "task-123",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const prerequisiteNode = page.getByTestId("graph-node-task-123");
+  const dependentNode = page.getByTestId("graph-node-task-456");
+
+  const prerequisiteBox = await prerequisiteNode.boundingBox();
+  const dependentBox = await dependentNode.boundingBox();
+
+  if (prerequisiteBox === null || dependentBox === null) {
+    throw new Error("Expected graph nodes to have visible bounding boxes");
+  }
+
+  expect(prerequisiteBox.x).toBeLessThan(dependentBox.x);
 });
 
 test("opens the shared task drawer from a graph node", async ({ page }) => {

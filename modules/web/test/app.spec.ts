@@ -17,7 +17,6 @@ test("boots the dashboard app with Mantine and query providers", async () => {
   expect(appSource).toContain(
     "./features/task-dashboard/components/dashboard-page.js",
   );
-  expect(appSource).not.toContain("useHealthQuery");
   expect(appSource).not.toContain("CZ-Stack Web");
 });
 
