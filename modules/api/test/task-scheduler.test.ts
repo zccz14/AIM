@@ -1,8 +1,15 @@
+import { readFileSync } from "node:fs";
 import type { Task } from "@aim-ai/contract";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildContinuePrompt } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
+
+const createCoordinator = () => ({
+  createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+  getSessionState: vi.fn().mockResolvedValue("idle"),
+  sendContinuePrompt: vi.fn().mockResolvedValue(undefined),
+});
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
@@ -26,58 +33,51 @@ describe("task scheduler", () => {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
       listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
     };
-    const createSession = vi.fn().mockResolvedValue("session-1");
-    const getSessionState = vi.fn().mockResolvedValue("idle");
-    const sendContinuePrompt = vi.fn().mockResolvedValue(undefined);
+    const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      createSession,
-      getSessionState,
-      sendContinuePrompt,
+      coordinator,
       taskRepository: repository,
     });
 
     await scheduler.runRound();
 
-    expect(createSession).toHaveBeenCalledWith(initialTask);
+    expect(coordinator.createSession).toHaveBeenCalledWith(initialTask);
     expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
       initialTask.task_id,
       "session-1",
     );
-    expect(getSessionState).toHaveBeenCalledWith("session-1");
-    expect(sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
-    expect(sendContinuePrompt.mock.calls[0]?.[1]).toContain(
+    expect(coordinator.getSessionState).toHaveBeenCalledWith("session-1");
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).toContain(
       initialTask.task_id,
     );
   });
 
   it("skips a task whose bound session is running", async () => {
     const task = createTask({ session_id: "session-1" });
-    const sendContinuePrompt = vi.fn();
     const repository = {
       assignSessionIfUnassigned: vi.fn(),
       listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
     };
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("running"),
-      sendContinuePrompt,
+      coordinator,
       taskRepository: repository,
     });
 
     await scheduler.runRound();
 
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
-    expect(sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("sends one continue prompt to an idle session", async () => {
     const task = createTask({ session_id: "session-1" });
-    const sendContinuePrompt = vi.fn().mockResolvedValue(undefined);
+    const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendContinuePrompt,
+      coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -86,8 +86,8 @@ describe("task scheduler", () => {
 
     await scheduler.runRound();
 
-    expect(sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(sendContinuePrompt).toHaveBeenCalledWith(
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
       expect.stringContaining(task.task_spec),
     );
@@ -110,11 +110,11 @@ describe("task scheduler", () => {
       error: vi.fn(),
       warn: vi.fn(),
     };
+    const coordinator = createCoordinator();
+    coordinator.sendContinuePrompt = sendContinuePrompt;
     const scheduler = createTaskScheduler({
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
+      coordinator,
       logger,
-      sendContinuePrompt,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
@@ -142,17 +142,14 @@ describe("task scheduler", () => {
       task_id: "task-2",
       session_id: "shared-session",
     });
-    const getSessionState = vi.fn();
     const logger = {
       error: vi.fn(),
       warn: vi.fn(),
     };
-    const sendContinuePrompt = vi.fn();
+    const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      createSession: vi.fn(),
-      getSessionState,
+      coordinator,
       logger,
-      sendContinuePrompt,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
@@ -161,8 +158,8 @@ describe("task scheduler", () => {
 
     await scheduler.runRound();
 
-    expect(getSessionState).not.toHaveBeenCalled();
-    expect(sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("shared-session"),
       expect.objectContaining({ sessionId: "shared-session" }),
@@ -185,13 +182,11 @@ describe("task scheduler", () => {
       error: vi.fn(),
       warn: vi.fn(),
     };
-    const getSessionState = vi.fn().mockResolvedValue("idle");
-    const sendContinuePrompt = vi.fn();
+    const coordinator = createCoordinator();
+    coordinator.createSession.mockResolvedValue({ sessionId: "new-session" });
     const scheduler = createTaskScheduler({
-      createSession: vi.fn().mockResolvedValue("new-session"),
-      getSessionState,
+      coordinator,
       logger,
-      sendContinuePrompt,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn().mockResolvedValue(latestSnapshot),
         listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
@@ -200,10 +195,10 @@ describe("task scheduler", () => {
 
     await scheduler.runRound();
 
-    expect(getSessionState).toHaveBeenCalledTimes(1);
-    expect(getSessionState).toHaveBeenCalledWith("shared-session");
-    expect(sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(sendContinuePrompt).toHaveBeenCalledWith(
+    expect(coordinator.getSessionState).toHaveBeenCalledTimes(1);
+    expect(coordinator.getSessionState).toHaveBeenCalledWith("shared-session");
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "shared-session",
       expect.stringContaining(firstTask.task_id),
     );
@@ -226,10 +221,10 @@ describe("task scheduler", () => {
           resolveList = () => resolve([task]);
         }),
     );
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("running"),
-      sendContinuePrompt: vi.fn(),
+      coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks,
@@ -247,6 +242,55 @@ describe("task scheduler", () => {
     await Promise.resolve();
     scheduler.stop();
     vi.useRealTimers();
+  });
+
+  it("starts polling immediately and stops cleanly without scheduling more rounds", async () => {
+    vi.useFakeTimers();
+    const task = createTask({ session_id: "session-1" });
+    let resolveList: (() => void) | undefined;
+    const listUnfinishedTasks = vi.fn(
+      () =>
+        new Promise<Task[]>((resolve) => {
+          resolveList = () => resolve([task]);
+        }),
+    );
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockResolvedValue("running");
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks,
+      },
+    });
+
+    scheduler.start({ intervalMs: 1_000 });
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
+
+    const stopPromise = scheduler.stop();
+    resolveList?.();
+    await stopPromise;
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("keeps OpenCode integration behind task-session-coordinator", () => {
+    const schedulerSource = readFileSync(
+      new URL("../src/task-scheduler.ts", import.meta.url),
+      "utf8",
+    );
+    const coordinatorSource = readFileSync(
+      new URL("../src/task-session-coordinator.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(schedulerSource).not.toMatch(/opencode/i);
+    expect(schedulerSource).not.toMatch(/spawn\(/i);
+    expect(schedulerSource).not.toMatch(/child_process/i);
+    expect(coordinatorSource).toContain("createTaskSessionCoordinator");
   });
 
   it("continue prompt contains task metadata and terminal ownership without storage wording", () => {

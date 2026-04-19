@@ -1,8 +1,12 @@
 import type { Task } from "@aim-ai/contract";
 
 import { buildContinuePrompt } from "./task-continue-prompt.js";
+import type {
+  TaskSessionCoordinator,
+  TaskSessionState,
+} from "./task-session-coordinator.js";
 
-export type SessionState = "idle" | "running";
+export type SessionState = TaskSessionState;
 
 type SchedulerTaskRepository = {
   assignSessionIfUnassigned(
@@ -13,11 +17,9 @@ type SchedulerTaskRepository = {
 };
 
 type CreateTaskSchedulerOptions = {
+  coordinator: TaskSessionCoordinator;
   concurrency?: number;
-  createSession(task: Task): Promise<string>;
-  getSessionState(sessionId: string): Promise<SessionState>;
   logger?: Pick<Console, "error" | "warn">;
-  sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
   taskRepository: SchedulerTaskRepository;
 };
 
@@ -77,7 +79,8 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       let latestTask = task;
 
       if (!latestTask.session_id) {
-        const sessionId = await options.createSession(latestTask);
+        const { sessionId } =
+          await options.coordinator.createSession(latestTask);
         const assignedTask =
           await options.taskRepository.assignSessionIfUnassigned(
             latestTask.task_id,
@@ -121,13 +124,13 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       roundSessionIds.add(sessionId);
 
-      const sessionState = await options.getSessionState(sessionId);
+      const sessionState = await options.coordinator.getSessionState(sessionId);
 
       if (sessionState !== "idle") {
         return;
       }
 
-      await options.sendContinuePrompt(
+      await options.coordinator.sendContinuePrompt(
         sessionId,
         buildContinuePrompt(latestTask),
       );
