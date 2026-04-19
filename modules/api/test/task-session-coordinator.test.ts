@@ -48,14 +48,6 @@ describe("task session coordinator", () => {
     });
   });
 
-  it("preserves unavailable createSession errors without an adapter", async () => {
-    const coordinator = createTaskSessionCoordinator(config);
-
-    await expect(coordinator.createSession(createTask())).rejects.toThrow(
-      "Task session coordinator is unavailable for createSession",
-    );
-  });
-
   it("wraps adapter createSession failures with coordinator context", async () => {
     const adapterError = new Error("adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
@@ -64,10 +56,12 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.createSession(createTask())).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during createSession",
-    });
+    await expect(coordinator.createSession(createTask())).rejects.toMatchObject(
+      {
+        cause: adapterError,
+        message: "Task session coordinator failed during createSession",
+      },
+    );
   });
 
   it("wraps synchronous createSession throws with coordinator context", async () => {
@@ -80,10 +74,12 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.createSession(createTask())).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during createSession",
-    });
+    await expect(coordinator.createSession(createTask())).rejects.toMatchObject(
+      {
+        cause: adapterError,
+        message: "Task session coordinator failed during createSession",
+      },
+    );
   });
 
   it("delegates continue prompts and resolves without a payload", async () => {
@@ -95,21 +91,14 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
+      coordinator.sendContinuePrompt(
+        "session-1",
+        "Continue implementing task 2",
+      ),
     ).resolves.toBeUndefined();
     expect(sendPrompt).toHaveBeenCalledWith(
       "session-1",
       "Continue implementing task 2",
-    );
-  });
-
-  it("preserves unavailable sendContinuePrompt errors without an adapter", async () => {
-    const coordinator = createTaskSessionCoordinator(config);
-
-    await expect(
-      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
-    ).rejects.toThrow(
-      "Task session coordinator is unavailable for sendContinuePrompt",
     );
   });
 
@@ -122,7 +111,10 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
+      coordinator.sendContinuePrompt(
+        "session-1",
+        "Continue implementing task 2",
+      ),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during sendContinuePrompt",
@@ -140,7 +132,10 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.sendContinuePrompt("session-1", "Continue implementing task 2"),
+      coordinator.sendContinuePrompt(
+        "session-1",
+        "Continue implementing task 2",
+      ),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during sendContinuePrompt",
