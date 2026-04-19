@@ -43,6 +43,74 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
 
+test("renders the task table with core columns", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByRole("columnheader", { name: "Task" })).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Status" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Dependencies" }),
+  ).toBeVisible();
+});
+
+test("filters tasks by free-text input", async ({ page }) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "stub task spec",
+            taskId: "task-123",
+          }),
+          buildTask({
+            spec: "another background task",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Filter Tasks").fill("stub task spec");
+
+  await expect(
+    page.getByRole("row", { name: /stub task spec/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /another background task/i }),
+  ).toHaveCount(0);
+  await expect(page.getByText("No matching tasks.")).toHaveCount(0);
+
+  await page.getByLabel("Filter Tasks").fill("missing task");
+
+  await expect(page.getByText("No matching tasks.")).toBeVisible();
+});
+
+test("opens the shared task drawer from overview and table", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page
+    .getByRole("button", { name: /stub task spec/i })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+  await expect(page.getByText("Contract Status")).toBeVisible();
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("row", { name: /stub task spec/i }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+});
+
 test("shows a clear error state when the task request fails", async ({
   page,
 }) => {

@@ -1,4 +1,12 @@
-import { Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import {
+  Button,
+  Card,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import {
   Area,
   AreaChart,
@@ -15,8 +23,10 @@ import { TaskStatusBadge } from "./task-status-badge.js";
 
 export const OverviewSection = ({
   dashboard,
+  onSelectTask,
 }: {
   dashboard: TaskDashboardViewModel;
+  onSelectTask: (taskId: string) => void;
 }) => (
   <Stack gap="lg">
     <SimpleGrid cols={{ base: 1, md: 4 }}>
@@ -66,7 +76,14 @@ export const OverviewSection = ({
         {dashboard.recentTasks.map((task) => (
           <Group justify="space-between" key={task.id}>
             <Stack gap={0}>
-              <Text fw={600}>{task.title}</Text>
+              <Button
+                justify="flex-start"
+                onClick={() => onSelectTask(task.id)}
+                p={0}
+                variant="subtle"
+              >
+                {task.title}
+              </Button>
               <Text c="dimmed" size="sm">
                 {task.id}
               </Text>

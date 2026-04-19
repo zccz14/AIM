@@ -9,14 +9,21 @@ import {
   Title,
 } from "@mantine/core";
 import { AlertCircle } from "lucide-react";
+import { useState } from "react";
 
 import { getTaskDashboardErrorMessage } from "../queries.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
+import { TaskDetailsDrawer } from "./task-details-drawer.js";
+import { TaskTableSection } from "./task-table-section.js";
 
 export const DashboardPage = () => {
   const dashboardQuery = useTaskDashboardQuery();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTask =
+    dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
+    null;
 
   return (
     <AppShell padding="lg">
@@ -57,7 +64,21 @@ export const DashboardPage = () => {
           ) : null}
 
           {dashboardQuery.isSuccess && dashboardQuery.data.tasks.length > 0 ? (
-            <OverviewSection dashboard={dashboardQuery.data} />
+            <>
+              <OverviewSection
+                dashboard={dashboardQuery.data}
+                onSelectTask={setSelectedTaskId}
+              />
+              <TaskTableSection
+                onSelectTask={setSelectedTaskId}
+                tasks={dashboardQuery.data.tasks}
+              />
+              <TaskDetailsDrawer
+                onClose={() => setSelectedTaskId(null)}
+                opened={selectedTask !== null}
+                task={selectedTask}
+              />
+            </>
           ) : null}
         </Stack>
       </AppShell.Main>
