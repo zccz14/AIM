@@ -3,6 +3,7 @@ import {
   AppShell,
   Button,
   Center,
+  Group,
   Loader,
   Stack,
   Text,
@@ -30,7 +31,15 @@ export const DashboardPage = () => {
     <AppShell padding="lg">
       <AppShell.Main>
         <Stack gap="lg">
-          <Title order={1}>Task Dashboard</Title>
+          <Group align="center" gap="sm">
+            <img alt="AIM icon" height={28} src="/aim-icon.svg" width={28} />
+            <div>
+              <Text fw={700} size="sm">
+                AIM
+              </Text>
+              <Title order={1}>Task Dashboard</Title>
+            </div>
+          </Group>
           <ServerBaseUrlForm onSave={() => dashboardQuery.refetch()} />
 
           {dashboardQuery.isPending ? (

@@ -1,5 +1,9 @@
 # AIM
 
+<p align="center">
+  <img src="docs/brand/aim-icon.svg" alt="AIM icon" width="96" height="96" />
+</p>
+
 > AI Agent 的 Manager：不是模板仓库、示例工程或 IDE 增强件，而是面向希望获得更多 AI 研发杠杆的决策者与负责人所设计的 Multi-Agent 研发调度与编排产品。
 
 ## 为什么需要 AIM
