@@ -152,6 +152,107 @@ describe("task repository", () => {
     await expect(repository.deleteTask(firstTask.task_id)).resolves.toBe(false);
   });
 
+  it("lists only unfinished tasks for the scheduler", async () => {
+    const projectRoot = await createProjectRoot("lists-unfinished-tasks");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const runningTask = await repository.createTask({
+      task_spec: "still running",
+      status: "running",
+    });
+    const createdTask = await repository.createTask({
+      task_spec: "queued",
+      status: "created",
+    });
+    await repository.createTask({
+      task_spec: "already done",
+      status: "succeeded",
+    });
+
+    await expect(repository.listUnfinishedTasks()).resolves.toEqual([
+      runningTask,
+      createdTask,
+    ]);
+  });
+
+  it("binds a session only when the task is still unassigned", async () => {
+    const projectRoot = await createProjectRoot(
+      "assigns-session-if-unassigned",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const task = await repository.createTask({
+      task_spec: "claim me once",
+      status: "created",
+    });
+
+    const claimedTask = await repository.assignSessionIfUnassigned(
+      task.task_id,
+      "session-a",
+    );
+    const rejectedClaim = await repository.assignSessionIfUnassigned(
+      task.task_id,
+      "session-b",
+    );
+
+    expect(claimedTask?.session_id).toBe("session-a");
+    expect(rejectedClaim).toEqual(claimedTask);
+  });
+
+  it("returns the latest snapshot after losing the session assignment race", async () => {
+    const projectRoot = await createProjectRoot(
+      "loses-session-assignment-race",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const task = await repository.createTask({
+      task_spec: "race me",
+      status: "created",
+    });
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare("UPDATE tasks SET session_id = ? WHERE task_id = ?")
+      .run("winning-session", task.task_id);
+    database.close();
+
+    await expect(
+      repository.assignSessionIfUnassigned(task.task_id, "losing-session"),
+    ).resolves.toMatchObject({
+      task_id: task.task_id,
+      session_id: "winning-session",
+    });
+  });
+
+  it("keeps duplicate session rows visible to the scheduler scan", async () => {
+    const projectRoot = await createProjectRoot("duplicate-session-visibility");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const firstTask = await repository.createTask({
+      task_spec: "shared session first",
+      session_id: "shared-session",
+      status: "running",
+    });
+    const secondTask = await repository.createTask({
+      task_spec: "shared session second",
+      session_id: "shared-session",
+      status: "created",
+    });
+
+    await expect(repository.listUnfinishedTasks()).resolves.toEqual([
+      firstTask,
+      secondTask,
+    ]);
+  });
+
   it("fails fast when the tasks table schema is incompatible", async () => {
     const projectRoot = await createProjectRoot("rejects-bad-schema");
     const databasePath = join(projectRoot, "aim.sqlite");
