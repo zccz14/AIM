@@ -59,6 +59,9 @@ describe("opencode sdk adapter", () => {
       baseUrl: config.baseUrl,
     });
     expect(create).toHaveBeenCalledWith({
+      query: {
+        directory: "/repo/.worktrees/task-1",
+      },
       throwOnError: true,
     });
     expect(promptAsync).toHaveBeenCalledWith({
