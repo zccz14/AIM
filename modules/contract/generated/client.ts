@@ -1,2 +1,2 @@
-// This file is auto-generated from the /health OpenAPI contract.
+// This file is auto-generated from the OpenAPI contract.
 export * from "./_client/index.js";

@@ -13,7 +13,27 @@ const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractOpenApiSourceUrl = new URL("../src/openapi.ts", import.meta.url);
 const contractIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
 const generatedClientUrl = new URL("../generated/client.ts", import.meta.url);
+const generatedClientDefinitionUrl = new URL(
+  "../generated/_client/client.gen.ts",
+  import.meta.url,
+);
+const generatedClientBundledAuthUrl = new URL(
+  "../generated/_client/core/auth.gen.ts",
+  import.meta.url,
+);
+const generatedClientRawAuthUrl = new URL(
+  "../generated/_client/core/auth.ts",
+  import.meta.url,
+);
+const generatedClientSdkUrl = new URL(
+  "../generated/_client/sdk.gen.ts",
+  import.meta.url,
+);
 const generatedTypesUrl = new URL("../generated/types.ts", import.meta.url);
+const generatedTypeDefinitionsUrl = new URL(
+  "../generated/_types/types.gen.ts",
+  import.meta.url,
+);
 const generatedZodUrl = new URL("../generated/zod.ts", import.meta.url);
 const rootPackageUrl = new URL("../../../package.json", import.meta.url);
 const vitestWorkspaceUrl = new URL(
@@ -48,10 +68,45 @@ type RootPackageManifest = {
 };
 
 type ContractPackageModule = typeof import("../src/index.js");
+type ContractPackageConsumerModule = typeof import("../dist/index.mjs");
+type GeneratedClientModule = typeof import("../generated/client.js");
+type GeneratedTypesModule = typeof import("../generated/types.js");
+
+type Assert<T extends true> = T;
+type HasExport<Module, Key extends PropertyKey> = Key extends keyof Module
+  ? true
+  : false;
+
+type _consumerExportsTask = Assert<
+  HasExport<ContractPackageConsumerModule, "Task">
+>;
+type _consumerExportsCreateTaskRequest = Assert<
+  HasExport<ContractPackageConsumerModule, "CreateTaskRequest">
+>;
+type _consumerExportsTaskStatus = Assert<
+  HasExport<ContractPackageConsumerModule, "TaskStatus">
+>;
+type _consumerExportsOpenApiDocument = Assert<
+  HasExport<ContractPackageConsumerModule, "OpenApiDocument">
+>;
+type _generatedClientExportsTaskCrud = Assert<
+  HasExport<GeneratedClientModule, "listTasks"> &
+    HasExport<GeneratedClientModule, "createTask"> &
+    HasExport<GeneratedClientModule, "getTaskById"> &
+    HasExport<GeneratedClientModule, "patchTaskById"> &
+    HasExport<GeneratedClientModule, "deleteTaskById">
+>;
+type _generatedTypesExportTaskCrud = Assert<
+  HasExport<GeneratedTypesModule, "Task"> &
+    HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
+    HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
+    HasExport<GeneratedTypesModule, "TaskListResponse">
+>;
 
 let contractPackage: ContractPackageManifest;
 let rootPackage: RootPackageManifest;
 let contractModule: ContractPackageModule;
+let generatedClientModule: GeneratedClientModule;
 let playwrightConfigSource: string;
 let ciWorkflowSource: string;
 
@@ -67,6 +122,9 @@ beforeAll(async () => {
   contractModule = (await import(
     pathToFileURL(fileURLToPath(contractEntryUrl)).href
   )) as ContractPackageModule;
+  generatedClientModule = (await import(
+    "../generated/client.js"
+  )) as GeneratedClientModule;
 });
 
 describe("contract package baseline", () => {
@@ -131,15 +189,30 @@ describe("contract package baseline", () => {
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
       "createContractClient",
+      "createTaskRequestSchema",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
       "healthResponseSchema",
       "healthStatusSchema",
       "openApiDocument",
+      "patchTaskRequestSchema",
+      "taskByIdPath",
+      "taskErrorCodeSchema",
+      "taskErrorSchema",
+      "taskListResponseSchema",
+      "taskSchema",
+      "taskStatusSchema",
+      "tasksPath",
     ]);
     expect(
       contractModule.openApiDocument.paths[contractModule.healthPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.tasksPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskByIdPath],
     ).toBeDefined();
   });
 
@@ -160,6 +233,79 @@ describe("contract package baseline", () => {
     ).toEqual({
       code: "UNAVAILABLE",
       message: "offline",
+    });
+  });
+
+  it("exports task paths and task schemas from the built package boundary", () => {
+    expect(contractModule.tasksPath).toBe("/tasks");
+    expect(contractModule.taskByIdPath).toBe("/tasks/{taskId}");
+    expect(contractModule.taskStatusSchema.parse("running")).toBe("running");
+    expect(contractModule.taskErrorCodeSchema.parse("TASK_NOT_FOUND")).toBe(
+      "TASK_NOT_FOUND",
+    );
+    expect(
+      contractModule.createTaskRequestSchema.parse({
+        task_spec: "Ship contract",
+      }),
+    ).toEqual({
+      task_spec: "Ship contract",
+    });
+    expect(
+      contractModule.patchTaskRequestSchema.parse({
+        status: "succeeded",
+      }),
+    ).toEqual({
+      status: "succeeded",
+    });
+    expect(
+      contractModule.taskSchema.parse({
+        task_id: "task-1",
+        task_spec: "Ship contract",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+        done: false,
+        status: "running",
+        created_at: "2026-04-19T00:00:00.000Z",
+        updated_at: "2026-04-19T00:00:00.000Z",
+      }),
+    ).toMatchObject({
+      task_id: "task-1",
+      status: "running",
+    });
+    expect(
+      contractModule.taskListResponseSchema.parse({
+        items: [
+          {
+            task_id: "task-1",
+            task_spec: "Ship contract",
+            session_id: null,
+            worktree_path: null,
+            pull_request_url: null,
+            dependencies: [],
+            done: false,
+            status: "running",
+            created_at: "2026-04-19T00:00:00.000Z",
+            updated_at: "2026-04-19T00:00:00.000Z",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      items: [
+        {
+          task_id: "task-1",
+        },
+      ],
+    });
+    expect(
+      contractModule.taskErrorSchema.parse({
+        code: "TASK_VALIDATION_ERROR",
+        message: "bad input",
+      }),
+    ).toEqual({
+      code: "TASK_VALIDATION_ERROR",
+      message: "bad input",
     });
   });
 
@@ -184,28 +330,251 @@ describe("contract package baseline", () => {
     });
   });
 
+  it("publishes task CRUD operations in the shared OpenAPI document", () => {
+    const tasksPathItem = contractModule.openApiDocument.paths["/tasks"] as
+      | {
+          get?: {
+            parameters?: Array<Record<string, unknown>>;
+          };
+          post?: {
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const taskByIdPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}"
+    ] as
+      | {
+          delete?: {
+            responses: Record<string, unknown>;
+          };
+          get?: {
+            responses: Record<string, unknown>;
+          };
+          patch?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
+    const taskQueryParameters = (tasksPathItem?.get?.parameters ?? []).map(
+      (parameter) => {
+        if ("$ref" in parameter && typeof parameter.$ref === "string") {
+          return parameter.$ref;
+        }
+
+        return parameter.name;
+      },
+    );
+
+    expect(tasksPathItem).toBeDefined();
+    expect(taskByIdPathItem).toBeDefined();
+    expect(tasksPathItem?.post?.responses["201"]).toBeDefined();
+    expect(taskQueryParameters).toEqual(
+      expect.arrayContaining([
+        "#/components/parameters/TaskStatusQueryParameter",
+        "#/components/parameters/TaskDoneQueryParameter",
+        "#/components/parameters/TaskSessionIdQueryParameter",
+      ]),
+    );
+    expect(
+      taskByIdPathItem?.patch?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/PatchTaskRequest",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["200"]?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/Task",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["400"]?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      taskByIdPathItem?.patch?.responses["404"]?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(taskByIdPathItem?.delete?.responses["204"]).toBeDefined();
+    expect(taskByIdPathItem?.get?.responses["404"]).toBeDefined();
+  });
+
+  it("publishes task CRUD schemas in the shared OpenAPI document", () => {
+    const createTaskRequestSchema =
+      contractModule.openApiDocument.components.schemas.CreateTaskRequest;
+    const taskListResponseSchema =
+      contractModule.openApiDocument.components.schemas.TaskListResponse;
+
+    expect(
+      contractModule.openApiDocument.components.schemas.Task,
+    ).toBeDefined();
+    expect(createTaskRequestSchema).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.PatchTaskRequest,
+    ).toBeDefined();
+    expect(taskListResponseSchema).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.ErrorResponse,
+    ).toBeDefined();
+
+    expect(createTaskRequestSchema).toMatchObject({
+      required: ["task_spec"],
+    });
+    expect(
+      Object.keys(
+        (createTaskRequestSchema as { properties: Record<string, unknown> })
+          .properties,
+      ).sort(),
+    ).toEqual([
+      "dependencies",
+      "pull_request_url",
+      "session_id",
+      "status",
+      "task_spec",
+      "worktree_path",
+    ]);
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.session_id,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.worktree_path,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.pull_request_url,
+    ).toMatchObject({ type: ["string", "null"] });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, { type?: unknown; enum?: string[] }>;
+        }
+      ).properties.status,
+    ).toMatchObject({
+      enum: [
+        "created",
+        "waiting_assumptions",
+        "running",
+        "outbound",
+        "pr_following",
+        "closing",
+        "succeeded",
+        "failed",
+      ],
+    });
+    expect(taskListResponseSchema).toEqual({
+      type: "object",
+      additionalProperties: false,
+      required: ["items"],
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Task",
+          },
+        },
+      },
+    });
+  });
+
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
     expect(rootPackage.scripts["openapi:generate"]).toBeDefined();
     expect(rootPackage.scripts["openapi:generate"]).toContain(
       "modules/contract",
     );
     expect(rootPackage.scripts["openapi:check"]).toContain("generate:check");
+    expect(rootPackage.scripts["openapi:check"]).toContain("tasksPath");
+    expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.build).toContain("pnpm run generate");
+    expect(contractPackage.scripts?.test).toContain(
+      "pnpm run build && pnpm run test:type",
+    );
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
     expect(contractPackage.devDependencies?.yaml).toBe("^2.8.3");
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(
       "node_modules",
     );
     await expect(readFile(generatedTypesUrl, "utf8")).resolves.toContain(
-      "health",
+      'export * from "./_types/types.gen.js";',
     );
+    await expect(
+      readFile(generatedTypeDefinitionsUrl, "utf8"),
+    ).resolves.toContain("TaskListResponse");
+    await expect(generatedClientModule.listTasks).toBeTypeOf("function");
+    await expect(generatedClientModule.createTask).toBeTypeOf("function");
+    await expect(generatedClientModule.getTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.patchTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
     await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
-      "health",
+      'export * from "./_client/index.js";',
+    );
+    await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
+      "listTasks",
     );
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(
-      "HealthResponse",
+      "CreateTaskRequest",
     );
+  });
+
+  it("uses generic OpenAPI banners for generated contract entrypoints", async () => {
+    const [generatedClientSource, generatedTypesSource] = await Promise.all([
+      readFile(generatedClientUrl, "utf8"),
+      readFile(generatedTypesUrl, "utf8"),
+    ]);
+
+    expect(generatedClientSource).toContain(
+      "This file is auto-generated from the OpenAPI contract.",
+    );
+    expect(generatedTypesSource).toContain(
+      "This file is auto-generated from the OpenAPI contract.",
+    );
+    expect(generatedClientSource).not.toContain("/health OpenAPI contract");
+    expect(generatedTypesSource).not.toContain("/health OpenAPI contract");
+  });
+
+  it("keeps generated client runtime artifacts stable", async () => {
+    await expect(
+      readFile(generatedClientDefinitionUrl, "utf8"),
+    ).resolves.toContain("./client/index.js");
+    await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
+      "./client/index.js",
+    );
+    await expect(
+      access(generatedClientBundledAuthUrl),
+    ).resolves.toBeUndefined();
+    await expect(access(generatedClientRawAuthUrl)).rejects.toBeDefined();
   });
 
   it("keeps generated zod artifacts free of undeclared runtime imports", async () => {
