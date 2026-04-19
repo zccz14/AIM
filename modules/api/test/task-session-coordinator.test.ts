@@ -104,11 +104,16 @@ describe("task session coordinator", () => {
     );
   });
 
-  it("keeps the unavailable getSessionState error unchanged", async () => {
+  it("wraps unavailable getSessionState failures with coordinator context", async () => {
     const coordinator = createTaskSessionCoordinator(config);
 
-    await expect(coordinator.getSessionState("session-1")).rejects.toThrow(
-      "Task session coordinator is unavailable for getSessionState",
+    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
+      {
+        cause: expect.objectContaining({
+          message: "Task session coordinator is unavailable for getSessionState",
+        }),
+        message: "Task session coordinator failed during getSessionState",
+      },
     );
   });
 
