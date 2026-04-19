@@ -7,6 +7,7 @@ import {
   taskErrorSchema,
   taskListResponseSchema,
   taskSchema,
+  taskStatusSchema,
   tasksPath,
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
@@ -42,10 +43,72 @@ const buildNotFoundError = (taskId: string) =>
     message: `Task ${taskId} was not found`,
   });
 
+const buildValidationError = (message: string) =>
+  taskErrorSchema.parse({
+    code: "TASK_VALIDATION_ERROR",
+    message,
+  });
+
 const requireTaskId = (taskId: string | undefined) => taskId ?? "task-unknown";
+const isMissingStubTask = (taskId: string) => taskId === "task-404";
+
+const parseListFilters = (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status");
+  const done = searchParams.get("done");
+  const sessionId = searchParams.get("session_id");
+
+  if (status !== null && !taskStatusSchema.safeParse(status).success) {
+    return buildValidationError("Invalid task status filter");
+  }
+
+  if (done !== null && done !== "true" && done !== "false") {
+    return buildValidationError("Invalid task done filter");
+  }
+
+  if (sessionId !== null && sessionId.length === 0) {
+    return buildValidationError("Invalid task session filter");
+  }
+
+  return null;
+};
+
+const parseCreateTaskRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = createTaskRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parsePatchTaskRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = patchTaskRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task patch"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
 
 export const registerTaskRoutes = (app: Hono) => {
   app.get(tasksPath, (context) => {
+    const validationError = parseListFilters(context.req.raw);
+
+    if (validationError) {
+      return context.json(validationError, 400);
+    }
+
     const payload = taskListResponseSchema.parse({
       items: [buildTask({ task_id: "task-123" })],
     });
@@ -54,15 +117,20 @@ export const registerTaskRoutes = (app: Hono) => {
   });
 
   app.post(tasksPath, async (context) => {
-    const input = createTaskRequestSchema.parse(await context.req.json());
+    const input = await parseCreateTaskRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
     const payload = buildTask({
       task_id: "task-123",
-      task_spec: input.task_spec,
-      session_id: input.session_id ?? null,
-      worktree_path: input.worktree_path ?? null,
-      pull_request_url: input.pull_request_url ?? null,
-      dependencies: input.dependencies ?? [],
-      status: input.status ?? "created",
+      task_spec: input.data.task_spec,
+      session_id: input.data.session_id ?? null,
+      worktree_path: input.data.worktree_path ?? null,
+      pull_request_url: input.data.pull_request_url ?? null,
+      dependencies: input.data.dependencies ?? [],
+      status: input.data.status ?? "created",
     });
 
     return context.json(payload, 201);
@@ -71,7 +139,7 @@ export const registerTaskRoutes = (app: Hono) => {
   app.get(taskByIdRoutePath, (context) => {
     const taskId = requireTaskId(context.req.param("taskId"));
 
-    if (taskId === "task-404") {
+    if (isMissingStubTask(taskId)) {
       return context.json(buildNotFoundError(taskId), 404);
     }
 
@@ -80,16 +148,34 @@ export const registerTaskRoutes = (app: Hono) => {
 
   app.patch(taskByIdRoutePath, async (context) => {
     const taskId = requireTaskId(context.req.param("taskId"));
-    const patch = patchTaskRequestSchema.parse(await context.req.json());
+
+    if (isMissingStubTask(taskId)) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    const patch = await parsePatchTaskRequest(context.req.raw);
+
+    if (!patch.ok) {
+      return context.json(patch.error, 400);
+    }
+
     const stubTask = buildTask({ task_id: taskId });
     const payload = buildTask({
       ...stubTask,
-      ...patch,
+      ...patch.data,
       task_id: taskId,
     });
 
     return context.json(payload, 200);
   });
 
-  app.delete(taskByIdRoutePath, () => new Response(null, { status: 204 }));
+  app.delete(taskByIdRoutePath, (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+
+    if (isMissingStubTask(taskId)) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return new Response(null, { status: 204 });
+  });
 };

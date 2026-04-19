@@ -52,6 +52,28 @@ describe("task routes", () => {
     expect(payload.done).toBe(true);
   });
 
+  it("returns a shared validation error for an invalid create payload", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+  });
+
   it("lists stub tasks from the shared contract", async () => {
     const app = apiModule.createApp();
     const response = await app.request(contractModule.tasksPath);
@@ -64,6 +86,22 @@ describe("task routes", () => {
       contractModule.taskListResponseSchema.safeParse(payload).success,
     ).toBe(true);
     expect(payload.items).toHaveLength(1);
+  });
+
+  it("returns a shared validation error for invalid list filters", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(
+      `${contractModule.tasksPath}?done=maybe`,
+    );
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 
   it("returns a shared not found error for the missing stub task", async () => {
@@ -104,6 +142,50 @@ describe("task routes", () => {
     expect(payload.done).toBe(true);
   });
 
+  it("returns a shared validation error for an invalid patch payload", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskByIdPath("task-123"), {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "not-a-status",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+  });
+
+  it("returns a shared not found error for patching the missing stub task", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskByIdPath("task-404"), {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "running",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_NOT_FOUND");
+  });
+
   it("deletes the stub task with an empty response body", async () => {
     const app = apiModule.createApp();
     const response = await app.request(resolveTaskByIdPath("task-123"), {
@@ -112,6 +194,22 @@ describe("task routes", () => {
 
     expect(response.status).toBe(204);
     await expect(response.text()).resolves.toBe("");
+  });
+
+  it("returns a shared not found error for deleting the missing stub task", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskByIdPath("task-404"), {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_NOT_FOUND");
   });
 
   it("keeps task route implementation on the public contract boundary", async () => {
