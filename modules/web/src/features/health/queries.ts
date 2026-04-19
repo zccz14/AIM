@@ -8,7 +8,7 @@ const fallbackError: HealthError = {
   message: "unexpected error",
 };
 
-const healthApiClient = createWebApiClient();
+const healthApiClient = createWebApiClient("/api");
 
 export const healthQueryKey = ["health"] as const;
 
