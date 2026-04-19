@@ -82,15 +82,15 @@ test("wires the shared AIM icon assets into web and README entry points", async 
     "utf8",
   );
 
-  expect(htmlSource).toContain('<title>AIM</title>');
+  expect(htmlSource).toContain("<title>AIM</title>");
   expect(htmlSource).toContain('rel="icon"');
   expect(htmlSource).toContain('href="/favicon.svg"');
 
   expect(appShellSource).toContain('alt="AIM icon"');
   expect(appShellSource).toContain('src="/aim-icon.svg"');
-  expect(appShellSource).toContain('AIM');
+  expect(appShellSource).toContain("AIM");
 
-  expect(readmeSource).toContain('docs/brand/aim-icon.svg');
+  expect(readmeSource).toContain("docs/brand/aim-icon.svg");
   expect(readmeSource).toContain('alt="AIM icon"');
 
   expect(iconSource).toContain('viewBox="0 0 64 64"');
