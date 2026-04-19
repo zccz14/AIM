@@ -34,7 +34,7 @@ modules/contract/openapi/openapi.yaml
 - API 文档展示：仓库内不再内置；如需展示层，应由仓库外或未来独立入口消费事实源/导出结果
 - 仓库导航入口：[`../../README.md`](../../README.md) 与 [`../architecture/validation.md`](../architecture/validation.md)
 
-如果需要本地检查当前 API 侧 JSON 导出，可先运行 `PORT=3100 pnpm --filter ./modules/api run dev`，再访问 `http://localhost:3100/openapi.json`。
+如果需要本地检查当前 API 侧 JSON 导出，可先运行 `PORT=8192 pnpm --filter ./modules/api run dev`，再访问 `http://localhost:8192/openapi.json`。
 
 ## 为什么不维护第二份手写规范
 
