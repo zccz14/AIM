@@ -126,6 +126,39 @@ test("filters tasks by free-text input", async ({ page }) => {
   await expect(page.getByText("No matching tasks.")).toBeVisible();
 });
 
+test("filters tasks by text that appears only in later task_spec lines", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Release checklist\n- follow-up search needle\n- notify team",
+            taskId: "task-123",
+          }),
+          buildTask({
+            spec: "Search needle title",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Filter Tasks").fill("follow-up search needle");
+
+  await expect(
+    page.getByRole("row", { name: /Release checklist/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Search needle title/i }),
+  ).toHaveCount(0);
+  await expect(page.getByText("No matching tasks.")).toHaveCount(0);
+});
+
 test("opens the shared task drawer from overview and table", async ({
   page,
 }) => {
