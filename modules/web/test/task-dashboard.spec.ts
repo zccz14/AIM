@@ -147,6 +147,27 @@ test("opens the shared task drawer from overview and table", async ({
   ).toBeVisible();
 });
 
+test("opens and closes the create task drawer from the dashboard header", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Create Task" }).click();
+
+  await expect(
+    page.getByRole("dialog", { name: "Create Task" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Task Spec")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create Task" }).nth(1),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Create Task" }),
+  ).toHaveCount(0);
+});
+
 test("renders the dependency graph with status-colored nodes", async ({
   page,
 }) => {

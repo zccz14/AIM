@@ -16,12 +16,14 @@ import { getTaskDashboardErrorMessage } from "../queries.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
+import { CreateTaskDrawer } from "./create-task-drawer.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsDrawer } from "./task-details-drawer.js";
 import { TaskTableSection } from "./task-table-section.js";
 
 export const DashboardPage = () => {
   const dashboardQuery = useTaskDashboardQuery();
+  const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
@@ -31,14 +33,22 @@ export const DashboardPage = () => {
     <AppShell padding="lg">
       <AppShell.Main>
         <Stack gap="lg">
-          <Group align="center" gap="sm">
-            <img alt="AIM icon" height={28} src="/aim-icon.svg" width={28} />
-            <div>
-              <Text fw={700} size="sm">
-                AIM
-              </Text>
-              <Title order={1}>Task Dashboard</Title>
-            </div>
+          <Group justify="space-between">
+            <Group align="center" gap="sm">
+              <img alt="AIM icon" height={28} src="/aim-icon.svg" width={28} />
+              <div>
+                <Text fw={700} size="sm">
+                  AIM
+                </Text>
+                <Title order={1}>Task Dashboard</Title>
+              </div>
+            </Group>
+            <Button
+              disabled={createDrawerOpened}
+              onClick={() => setCreateDrawerOpened(true)}
+            >
+              Create Task
+            </Button>
           </Group>
           <ServerBaseUrlForm onSave={() => dashboardQuery.refetch()} />
 
@@ -88,13 +98,19 @@ export const DashboardPage = () => {
                 onSelectTask={setSelectedTaskId}
                 tasks={dashboardQuery.data.tasks}
               />
-              <TaskDetailsDrawer
-                onClose={() => setSelectedTaskId(null)}
-                opened={selectedTask !== null}
-                task={selectedTask}
-              />
             </>
           ) : null}
+
+          <CreateTaskDrawer
+            onClose={() => setCreateDrawerOpened(false)}
+            onSubmit={async () => undefined}
+            opened={createDrawerOpened}
+          />
+          <TaskDetailsDrawer
+            onClose={() => setSelectedTaskId(null)}
+            opened={selectedTask !== null}
+            task={selectedTask}
+          />
         </Stack>
       </AppShell.Main>
     </AppShell>

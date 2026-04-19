@@ -112,3 +112,21 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(faviconSource).not.toContain('stroke-width="1"');
   expect(publicFaviconSource).toBe(faviconSource);
 });
+
+test("keeps task creation inside the dashboard shell", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
+    "utf8",
+  );
+  const createDrawerSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-drawer.tsx`,
+    "utf8",
+  );
+
+  expect(dashboardPageSource).toContain("Create Task");
+  expect(dashboardPageSource).toContain("<CreateTaskDrawer");
+  expect(dashboardPageSource).not.toContain("react-router");
+  expect(createDrawerSource).toContain('label="Task Spec"');
+  expect(createDrawerSource).not.toContain('label="Title"');
+});
