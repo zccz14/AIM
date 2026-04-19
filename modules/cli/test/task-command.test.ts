@@ -283,6 +283,42 @@ describe("task cli command baseline", () => {
     expect(server.requests).toEqual([]);
   });
 
+  it("returns a JSON usage error when task create is missing --task-spec", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "create",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --task-spec"}}\n',
+    );
+    expect(server.requests).toEqual([]);
+  });
+
+  it("returns a JSON usage error when task get is missing --task-id", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "get",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --task-id"}}\n',
+    );
+    expect(server.requests).toEqual([]);
+  });
+
   it("returns a JSON invalid base url error before creating a client", async () => {
     const result = await runCli([
       "task",

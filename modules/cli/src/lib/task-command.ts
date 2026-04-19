@@ -3,6 +3,7 @@ import {
   createContractClient,
   taskStatusSchema,
   type ContractClient,
+  type HealthError,
   type TaskError,
   type TaskStatus,
 } from "@aim-ai/contract";
@@ -15,15 +16,28 @@ export type CliSuccess<T> = {
 
 export type CliFailure = {
   ok: false;
-  error: TaskError;
+  error: CliError;
 };
 
-const cliError = (code: TaskError["code"], message: string): TaskError => ({
+export type CliLocalErrorCode =
+  | "CLI_USAGE_ERROR"
+  | "CLI_INVALID_BASE_URL"
+  | "CLI_INVALID_FLAG_VALUE"
+  | "UNAVAILABLE";
+
+export type CliLocalError = {
+  code: CliLocalErrorCode;
+  message: string;
+};
+
+export type CliError = CliLocalError | TaskError | HealthError;
+
+const cliError = (code: CliLocalErrorCode, message: string): CliLocalError => ({
   code,
   message,
 });
 
-const isTaskError = (value: unknown): value is TaskError => {
+const isCliError = (value: unknown): value is CliError => {
   return Boolean(
     value &&
       typeof value === "object" &&
@@ -148,7 +162,7 @@ export const exitWithFailure = (command: Command, error: unknown): never => {
     ok: false,
     error: error instanceof ContractClientError
       ? error.error
-      : isTaskError(error)
+      : isCliError(error)
         ? error
         : cliError("UNAVAILABLE", "unexpected error"),
   } satisfies CliFailure;
