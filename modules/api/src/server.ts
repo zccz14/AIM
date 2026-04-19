@@ -5,7 +5,10 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createTaskScheduler } from "./task-scheduler.js";
-import { createTaskSessionCoordinator } from "./task-session-coordinator.js";
+import {
+  createTaskSessionCoordinator,
+  type TaskSessionCoordinatorConfig,
+} from "./task-session-coordinator.js";
 
 const defaultPort = 8192;
 const defaultSchedulerIntervalMs = 5_000;
@@ -19,6 +22,18 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   ? defaultSchedulerIntervalMs
   : parsedSchedulerIntervalMs;
 
+const readRequiredEnv = (
+  name: "OPENCODE_BASE_URL" | "OPENCODE_MODEL_ID" | "OPENCODE_PROVIDER_ID",
+) => {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required when TASK_SCHEDULER_ENABLED=true`);
+  }
+
+  return value;
+};
+
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
   const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED === "true";
@@ -26,11 +41,16 @@ export const startServer = () => {
   let stopScheduler: (() => void) | undefined;
 
   if (isTaskSchedulerEnabled) {
+    const coordinatorConfig: TaskSessionCoordinatorConfig = {
+      baseUrl: readRequiredEnv("OPENCODE_BASE_URL"),
+      modelId: readRequiredEnv("OPENCODE_MODEL_ID"),
+      providerId: readRequiredEnv("OPENCODE_PROVIDER_ID"),
+    };
     const taskRepository = createTaskRepository({
       projectRoot: process.env.AIM_PROJECT_ROOT,
     });
     const taskScheduler = createTaskScheduler({
-      coordinator: createTaskSessionCoordinator(),
+      coordinator: createTaskSessionCoordinator(coordinatorConfig),
       taskRepository,
     });
 
