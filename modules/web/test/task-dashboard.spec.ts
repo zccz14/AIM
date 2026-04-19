@@ -178,7 +178,9 @@ test("submits only task_spec to the existing task API", async ({ page }) => {
     const originalFetch = window.fetch.bind(window);
     const capturedTaskCreateBodies: unknown[] = [];
 
-    Object.assign(window, { __capturedTaskCreateBodies: capturedTaskCreateBodies });
+    Object.assign(window, {
+      __capturedTaskCreateBodies: capturedTaskCreateBodies,
+    });
 
     window.fetch = async (input, init) => {
       const request =
