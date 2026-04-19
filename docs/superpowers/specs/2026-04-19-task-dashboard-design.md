@@ -11,6 +11,7 @@
 3. 前端技术栈固定为 React 19、Vite、`@tanstack/react-query`、Mantine、TanStack Table、React Flow、Recharts、Lucide Icons，本次不再评估替代方案。
 4. 本次只做读取型 orchestration console，不包含任务编辑、DAG 变更、PR 操作、鉴权或多页面路由。
 5. 前端展示层需要通过 adapter / view-model 层隔离 mock OpenAPI shape，避免组件直接绑定原始接口字段。
+6. 前端需要暴露一个仅限本地使用的 `SERVER_BASE_URL` 配置入口，配置值持久化到 Local Storage；若未配置，则默认使用 `https://aim.zccz14.com`。
 
 ## 背景 / 问题
 
@@ -25,6 +26,7 @@
 3. 用 React Query 管理读取状态，用 adapter / view-model 层把 mock OpenAPI 数据转换为前端稳定展示模型。
 4. 在列表、摘要卡片与依赖图节点之间复用同一个详情 drawer，让用户从任一入口查看统一的任务详情。
 5. 明确最小测试计划，覆盖 overview render、table render、filters、details drawer、graph render 与 error state。
+6. 提供前端本地可配置的 `SERVER_BASE_URL`，用于在不改代码的前提下切换接口基地址，并保证未配置时自动回退到 `https://aim.zccz14.com`。
 
 ## 非目标
 
@@ -33,6 +35,7 @@
 3. 不实现 PR 操作、GitHub 跟进动作或调度控制按钮。
 4. 不增加鉴权、用户体系或多页面路由结构。
 5. 不修改现有 Stub OpenAPI Mock 的契约、后端实现或数据生成方式。
+6. 不引入远程配置中心、环境切换面板、团队级共享配置或超出 `SERVER_BASE_URL` 的其他运行时配置项。
 
 ## 设计总览
 
@@ -51,6 +54,7 @@
 4. 用户切换到依赖图视图，查看任务之间的 DAG 关系与阻塞链路。
 5. 用户点击列表行、摘要中的任务入口或图节点后，统一打开右侧详情 drawer 查看单任务细节。
 6. 如果读取失败，页面需要提供明确 error state，而不是保留模板内容或静默空白。
+7. 用户需要切换接口基地址时，可在前端提供的本地配置入口设置 `SERVER_BASE_URL`；若 Local Storage 中没有值，应用自动使用 `https://aim.zccz14.com`。
 
 ## 信息架构
 
@@ -93,6 +97,7 @@ overview 是默认 landing view，至少包含：
 2. 展示层前必须经过 adapter / view-model 映射，把 mock OpenAPI shape 转成适合 summary、table、graph 与 drawer 消费的稳定结构。
 3. 列表、卡片与图节点共享同一份任务详情事实源，避免不同入口展示字段不一致。
 4. 当 mock 数据缺失部分展示字段时，应在 adapter 层定义稳定降级策略，而不是把空值处理散落到各组件。
+5. `SERVER_BASE_URL` 的读取与写入必须收敛为单一本地配置事实源，优先读取 Local Storage，缺省时回退到 `https://aim.zccz14.com`，避免把默认值散落在请求调用点。
 
 ## 详情 Drawer 约束
 
@@ -111,6 +116,7 @@ overview 是默认 landing view，至少包含：
 4. details drawer：从列表、卡片或图节点打开时均能显示统一详情。
 5. graph render：依赖图能正确渲染 DAG 与状态色。
 6. error state：mock 请求失败时页面能呈现明确错误状态。
+7. local config：`SERVER_BASE_URL` 在 Local Storage 有值与无值两种情况下都能得到预期基地址。
 
 ## Value Alignment
 
@@ -118,6 +124,7 @@ overview 是默认 landing view，至少包含：
 2. 与仓库当前事实对齐：直接复用现有 Stub OpenAPI Mock，缩短前端替换模板的落地路径。
 3. 与后续演进对齐：通过 adapter / view-model 隔离接口 shape，为未来 mock 向真实接口迁移保留缓冲层。
 4. 与 scope 控制对齐：页面只覆盖 dashboard、table、graph、drawer 与错误态，不借机扩展 auth、routing 或 PR 工作流。
+5. 与落地效率对齐：仅增加一个本地 `SERVER_BASE_URL` 配置能力，让联调环境切换保持轻量，不把问题升级为完整配置系统。
 
 ## 风险与边界保护
 
@@ -125,7 +132,8 @@ overview 是默认 landing view，至少包含：
 2. 若为不同入口分别实现详情面板，会导致状态解释和字段展示漂移；因此必须只保留一个共享 drawer。
 3. 若在依赖图中顺手加入编辑能力，会把只读观察台扩成编排工具；本次必须禁止。
 4. 若把 landing view 拆成多页面路由，会超出已批准 scope；本次保持单模块内聚合视图。
+5. 若把 `SERVER_BASE_URL` 默认值或读取逻辑分散到多个请求入口，后续调整会产生不一致；因此必须集中为单一本地配置边界，并明确默认值为 `https://aim.zccz14.com`。
 
 ## 实施边界提醒
 
-后续实现只能在 `@aim-ai/web` 现有模块中替换模板内容，并围绕 mock 数据落地 overview、tasks、dependencies 与共享 drawer。任何涉及写操作、路由扩展、鉴权接入、PR 动作或 mock 契约变更的方向，都属于超出本设计范围的 scope drift。
+后续实现只能在 `@aim-ai/web` 现有模块中替换模板内容，并围绕 mock 数据落地 overview、tasks、dependencies、共享 drawer 与单一 `SERVER_BASE_URL` 本地配置能力。任何涉及写操作、路由扩展、鉴权接入、PR 动作、mock 契约变更或泛化配置系统的方向，都属于超出本设计范围的 scope drift。
