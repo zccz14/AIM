@@ -62,6 +62,37 @@ describe("api package baseline", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok" });
   });
 
+  it("returns permissive CORS headers for normal API responses", async () => {
+    const app = apiModule.createApp();
+
+    const response = await app.request(contractModule.healthPath, {
+      headers: {
+        origin: "https://frontend.example",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+  });
+
+  it("answers CORS preflight requests with the same global policy", async () => {
+    const app = apiModule.createApp();
+
+    const response = await app.request(contractModule.healthPath, {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://frontend.example",
+        "access-control-request-method": "GET",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(response.headers.get("access-control-allow-methods")).toContain(
+      "GET",
+    );
+  });
+
   it("keeps the health payload valid against the shared contract schema", async () => {
     const app = apiModule.createApp();
 
