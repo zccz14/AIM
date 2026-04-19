@@ -118,6 +118,18 @@ describe("task routes", () => {
     expect(payload.code).toBe("TASK_NOT_FOUND");
   });
 
+  it("returns a stub task by id from the shared contract", async () => {
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskByIdPath("task-123"));
+
+    expect(response.status).toBe(200);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskSchema.safeParse(payload).success).toBe(true);
+    expect(payload.task_id).toBe("task-123");
+  });
+
   it("patches the stub task and derives done from the final status", async () => {
     const app = apiModule.createApp();
     const response = await app.request(resolveTaskByIdPath("task-123"), {

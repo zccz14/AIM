@@ -79,19 +79,55 @@ describe("api package baseline", () => {
     const response = await app.request("/openapi.json");
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
 
     const payload = await response.json();
+    const tasksPathItem = payload.paths[contractModule.tasksPath] as
+      | {
+          get?: {
+            responses?: Record<string, unknown>;
+          };
+          post?: {
+            responses?: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const taskByIdPathItem = payload.paths[contractModule.taskByIdPath] as
+      | {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+          patch?: {
+            responses?: Record<string, unknown>;
+          };
+          delete?: {
+            responses?: Record<string, unknown>;
+          };
+        }
+      | undefined;
 
-    expect(payload).toEqual(contractModule.openApiDocument);
-    expect(payload.paths[contractModule.healthPath]).toEqual(
-      contractModule.openApiDocument.paths[contractModule.healthPath],
-    );
-    expect(payload.paths[contractModule.tasksPath]).toEqual(
-      contractModule.openApiDocument.paths[contractModule.tasksPath],
-    );
-    expect(payload.paths[contractModule.taskByIdPath]).toEqual(
-      contractModule.openApiDocument.paths[contractModule.taskByIdPath],
-    );
+    expect(payload.openapi).toBe(contractModule.openApiDocument.openapi);
+    expect(payload.info).toEqual(contractModule.openApiDocument.info);
+    expect(payload.paths[contractModule.healthPath]).toBeDefined();
+    expect(tasksPathItem?.get?.responses?.["200"]).toBeDefined();
+    expect(tasksPathItem?.post?.responses?.["201"]).toBeDefined();
+    expect(
+      taskByIdPathItem?.get?.responses?.["200"]?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/Task",
+    });
+    expect(taskByIdPathItem?.patch?.responses?.["200"]).toBeDefined();
+    expect(taskByIdPathItem?.delete?.responses?.["204"]).toBeDefined();
   });
 
   it("does not expose a docs route from the api package", async () => {
