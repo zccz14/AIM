@@ -27,8 +27,12 @@ export type TaskSessionCoordinator = {
 const unavailableError = (action: string) =>
   new Error(`Task session coordinator is unavailable for ${action}`);
 
-const actionError = (action: string) =>
-  new Error(`Task session coordinator failed during ${action}`);
+const actionError = (action: string, cause: unknown) =>
+  new Error(`Task session coordinator failed during ${action}`, { cause });
+
+const isUnavailableError = (action: string, error: unknown) =>
+  error instanceof Error &&
+  error.message === unavailableError(action).message;
 
 const requireNonEmpty = (
   value: string,
@@ -63,19 +67,31 @@ export const createTaskSessionCoordinator = (
 
   return {
     async createSession(task) {
-      const session = await adapter
-        .createSession(task)
-        .catch(() => Promise.reject(actionError("createSession")));
+      try {
+        const session = await adapter.createSession(task);
 
-      return { sessionId: session.id };
+        return { sessionId: session.id };
+      } catch (error) {
+        if (isUnavailableError("createSession", error)) {
+          throw error;
+        }
+
+        throw actionError("createSession", error);
+      }
     },
     async getSessionState() {
       throw unavailableError("getSessionState");
     },
     async sendContinuePrompt(sessionId, prompt) {
-      await adapter
-        .sendPrompt(sessionId, prompt)
-        .catch(() => Promise.reject(actionError("sendContinuePrompt")));
+      try {
+        await adapter.sendPrompt(sessionId, prompt);
+      } catch (error) {
+        if (isUnavailableError("sendContinuePrompt", error)) {
+          throw error;
+        }
+
+        throw actionError("sendContinuePrompt", error);
+      }
     },
   };
 };
