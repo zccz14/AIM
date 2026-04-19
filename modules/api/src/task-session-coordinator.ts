@@ -62,6 +62,13 @@ export const createTaskSessionCoordinator = (
       try {
         session = await adapter.getSession(sessionId);
       } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === unavailableError("getSessionState").message
+        ) {
+          throw error;
+        }
+
         throw actionError("getSessionState", error);
       }
 
