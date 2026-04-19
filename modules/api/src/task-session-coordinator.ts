@@ -29,6 +29,7 @@ export type TaskSessionCoordinator = {
 const actionError = (action: string, cause: unknown) =>
   new Error(`Task session coordinator failed during ${action}`, { cause });
 
+
 const requireNonEmpty = (
   value: string,
   field: keyof TaskSessionCoordinatorConfig,

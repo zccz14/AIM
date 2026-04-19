@@ -163,7 +163,6 @@ describe("task session coordinator", () => {
       message: "Task session coordinator failed during getSessionState",
     });
   });
-
   it("delegates continue prompts and resolves without a payload", async () => {
     const sendPrompt = vi.fn().mockResolvedValue({ ok: true });
     const coordinator = createTaskSessionCoordinator(config, {
