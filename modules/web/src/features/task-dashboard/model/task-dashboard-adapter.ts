@@ -6,6 +6,34 @@ import type {
   TaskDashboardViewModel,
 } from "./task-dashboard-view-model.js";
 
+export type DashboardGraphNode = {
+  id: string;
+  data: {
+    color: string;
+    label: string;
+    status: DashboardStatus;
+    testId: string;
+  };
+  position: {
+    x: number;
+    y: number;
+  };
+};
+
+export type DashboardGraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+};
+
+const statusColorMap: Record<DashboardStatus, string> = {
+  ready: "#228be6",
+  running: "#fab005",
+  blocked: "#f08c00",
+  done: "#2f9e44",
+  failed: "#e03131",
+};
+
 export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
   switch (status) {
     case "created":
@@ -34,7 +62,10 @@ const isActiveTask = (task: DashboardTask) =>
 
 export const adaptTaskDashboard = (
   response: TaskListResponse,
-): TaskDashboardViewModel => {
+): TaskDashboardViewModel & {
+  graphEdges: DashboardGraphEdge[];
+  graphNodes: DashboardGraphNode[];
+} => {
   const tasks = response.items.map<DashboardTask>((task) => ({
     id: task.task_id,
     title: task.task_spec,
@@ -48,8 +79,30 @@ export const adaptTaskDashboard = (
     updatedAt: task.updated_at,
     isDone: task.done,
   }));
+  const graphNodes = tasks.map<DashboardGraphNode>((task, index) => ({
+    id: task.id,
+    data: {
+      color: statusColorMap[task.dashboardStatus],
+      label: task.title,
+      status: task.dashboardStatus,
+      testId: `graph-node-${task.id}`,
+    },
+    position: {
+      x: (index % 3) * 240,
+      y: Math.floor(index / 3) * 140,
+    },
+  }));
+  const graphEdges = tasks.flatMap((task) =>
+    task.dependencies.map<DashboardGraphEdge>((dependencyId) => ({
+      id: `${dependencyId}-${task.id}`,
+      source: dependencyId,
+      target: task.id,
+    })),
+  );
 
   return {
+    graphEdges,
+    graphNodes,
     tasks,
     summaryCards: [
       { key: "total", label: "Total Tasks", value: tasks.length },

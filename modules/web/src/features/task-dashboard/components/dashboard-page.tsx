@@ -13,6 +13,7 @@ import { useState } from "react";
 
 import { getTaskDashboardErrorMessage } from "../queries.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
+import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsDrawer } from "./task-details-drawer.js";
@@ -67,6 +68,11 @@ export const DashboardPage = () => {
             <>
               <OverviewSection
                 dashboard={dashboardQuery.data}
+                onSelectTask={setSelectedTaskId}
+              />
+              <DependencyGraphSection
+                graphEdges={dashboardQuery.data.graphEdges}
+                graphNodes={dashboardQuery.data.graphNodes}
                 onSelectTask={setSelectedTaskId}
               />
               <TaskTableSection

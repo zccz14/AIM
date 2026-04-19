@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 const buildTask = ({
+  dependencies = [],
   done = false,
   spec,
   status = "created",
   taskId,
   updatedAt = "2026-04-19T00:00:00.000Z",
 }: {
+  dependencies?: string[];
   done?: boolean;
   spec: string;
   status?: string;
@@ -18,7 +20,7 @@ const buildTask = ({
   session_id: null,
   worktree_path: null,
   pull_request_url: null,
-  dependencies: [],
+  dependencies,
   done,
   status,
   created_at: "2026-04-19T00:00:00.000Z",
@@ -111,6 +113,76 @@ test("opens the shared task drawer from overview and table", async ({
   ).toBeVisible();
 });
 
+test("renders the dependency graph with status-colored nodes", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Ready task",
+            taskId: "task-123",
+          }),
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "Blocked task",
+            status: "waiting_assumptions",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByText("Dependency Graph")).toBeVisible();
+  await expect(page.getByTestId("graph-node-task-123")).toContainText("Ready");
+  await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
+    "border-color",
+    "rgb(34, 139, 230)",
+  );
+  await expect(page.getByTestId("graph-node-task-456")).toContainText(
+    "Blocked",
+  );
+  await expect(page.getByTestId("graph-node-task-456")).toHaveCSS(
+    "border-color",
+    "rgb(240, 140, 0)",
+  );
+});
+
+test("opens the shared task drawer from a graph node", async ({ page }) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Ready task",
+            taskId: "task-123",
+          }),
+          buildTask({
+            dependencies: ["task-123"],
+            spec: "Blocked task",
+            status: "waiting_assumptions",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByTestId("graph-node-task-123").click();
+
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+  await expect(page.getByText("Task ID: task-123")).toBeVisible();
+});
+
 test("shows a clear error state when the task request fails", async ({
   page,
 }) => {
@@ -188,13 +260,19 @@ test("refetches the dashboard after saving a new SERVER_BASE_URL", async ({
 
   await page.goto("/");
 
-  await expect(page.getByText("Initial task")).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Initial task" }),
+  ).toBeVisible();
 
   await page.getByLabel("SERVER_BASE_URL").fill("/alt");
   await page.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByText("Updated task")).toBeVisible();
-  await expect(page.getByText("Initial task")).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Updated task" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Initial task" }),
+  ).toHaveCount(0);
 });
 
 test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
@@ -241,9 +319,19 @@ test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page.getByText("Ready task")).toBeVisible();
-  await expect(page.getByText("Running task")).toBeVisible();
-  await expect(page.getByText("Blocked task")).toBeVisible();
-  await expect(page.getByText("Done task")).not.toBeVisible();
-  await expect(page.getByText("Failed task")).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Ready task" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Running task" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Blocked task" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Done task" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { exact: true, name: "Failed task" }),
+  ).toHaveCount(0);
 });

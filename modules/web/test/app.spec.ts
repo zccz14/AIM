@@ -27,8 +27,8 @@ test("keeps task dashboard data behind adapter and local config boundaries", asy
     `${process.cwd()}/modules/web/src/app.tsx`,
     "utf8",
   );
-  const healthQuerySource = await readFile(
-    `${process.cwd()}/modules/web/src/features/health/queries.ts`,
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
     "utf8",
   );
   const apiClientSource = await readFile(
@@ -46,11 +46,14 @@ test("keeps task dashboard data behind adapter and local config boundaries", asy
 
   expect(appSource).not.toContain("task_spec");
   expect(appSource).not.toContain("waiting_assumptions");
-  expect(healthQuerySource).toContain('createWebApiClient("/api")');
+  expect(dashboardPageSource).toContain("DependencyGraphSection");
+  expect(dashboardPageSource).not.toContain("health");
   expect(apiClientSource).toContain("readServerBaseUrl");
   expect(apiClientSource).not.toContain("https://aim.zccz14.com");
   expect(configSource).toContain("https://aim.zccz14.com");
   expect(adapterSource).toContain("toDashboardStatus");
   expect(adapterSource).toContain("created");
   expect(adapterSource).toContain("waiting_assumptions");
+  expect(adapterSource).toContain("graphNodes");
+  expect(adapterSource).toContain("graphEdges");
 });
