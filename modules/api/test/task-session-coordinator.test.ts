@@ -117,7 +117,6 @@ describe("task session coordinator", () => {
       "running",
     );
   });
-
   it("throws unknown session statuses directly", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
