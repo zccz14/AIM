@@ -211,6 +211,29 @@ describe("task scheduler", () => {
     );
   });
 
+  it("does not continue a task that finished before the assignment snapshot returned", async () => {
+    const initialTask = createTask();
+    const completedTask = createTask({
+      done: true,
+      session_id: "session-1",
+      status: "succeeded",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn().mockResolvedValue(completedTask),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
+    };
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: repository,
+    });
+
+    await scheduler.runRound();
+
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+  });
+
   it("does not allow overlapping rounds after start", async () => {
     vi.useFakeTimers();
     const task = createTask({ session_id: "session-1" });

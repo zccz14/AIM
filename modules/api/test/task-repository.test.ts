@@ -230,6 +230,35 @@ describe("task repository", () => {
     });
   });
 
+  it("does not bind a session after the task finishes during the assignment race", async () => {
+    const projectRoot = await createProjectRoot(
+      "assignment-race-with-done-task",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const task = await repository.createTask({
+      task_spec: "finish before binding",
+      status: "created",
+    });
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare("UPDATE tasks SET done = 1, status = ? WHERE task_id = ?")
+      .run("succeeded", task.task_id);
+    database.close();
+
+    await expect(
+      repository.assignSessionIfUnassigned(task.task_id, "late-session"),
+    ).resolves.toMatchObject({
+      task_id: task.task_id,
+      done: true,
+      session_id: null,
+      status: "succeeded",
+    });
+  });
+
   it("keeps duplicate session rows visible to the scheduler scan", async () => {
     const projectRoot = await createProjectRoot("duplicate-session-visibility");
 

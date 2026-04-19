@@ -104,7 +104,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       const sessionId = latestTask.session_id;
 
-      if (!sessionId) {
+      if (!sessionId || latestTask.done) {
         return;
       }
 

@@ -210,7 +210,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const assignSessionIfUnassignedStatement = database.prepare(`
     UPDATE ${tasksTableName}
     SET session_id = ?, updated_at = ?
-    WHERE task_id = ? AND session_id IS NULL
+    WHERE task_id = ? AND session_id IS NULL AND done = 0
   `);
 
   return {

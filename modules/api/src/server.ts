@@ -22,29 +22,40 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
   const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED === "true";
-
-  const server = serve({ fetch: createApp().fetch, port });
+  let scheduler: ReturnType<typeof createTaskScheduler> | undefined;
+  let stopScheduler: (() => void) | undefined;
 
   if (isTaskSchedulerEnabled) {
     const taskRepository = createTaskRepository({
       projectRoot: process.env.AIM_PROJECT_ROOT,
     });
-    const scheduler = createTaskScheduler({
+    const taskScheduler = createTaskScheduler({
       coordinator: createTaskSessionCoordinator(),
       taskRepository,
     });
 
-    scheduler.start({ intervalMs: schedulerIntervalMs });
+    scheduler = taskScheduler;
+    stopScheduler = () => taskScheduler.stop();
+  }
 
-    const stopScheduler = () => scheduler.stop();
+  const server = serve({ fetch: createApp().fetch, port });
 
-    process.once("SIGINT", stopScheduler);
-    process.once("SIGTERM", stopScheduler);
-    server.once("close", () => {
-      process.off("SIGINT", stopScheduler);
-      process.off("SIGTERM", stopScheduler);
-      stopScheduler();
-    });
+  try {
+    if (scheduler && stopScheduler) {
+      scheduler.start({ intervalMs: schedulerIntervalMs });
+
+      process.once("SIGINT", stopScheduler);
+      process.once("SIGTERM", stopScheduler);
+      server.once("close", () => {
+        process.off("SIGINT", stopScheduler);
+        process.off("SIGTERM", stopScheduler);
+        stopScheduler();
+      });
+    }
+  } catch (error) {
+    stopScheduler?.();
+    server.close();
+    throw error;
   }
 
   return server;
