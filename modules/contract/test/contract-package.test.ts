@@ -909,7 +909,7 @@ describe("contract package baseline", () => {
     });
   });
 
-  it("adapts body-bearing generated requests to relative fetch args that survive downstream forwarding", async () => {
+  it("adapts JSON generated requests to relative fetch args without losing the body downstream", async () => {
     const sourceRequestInit: RequestInitWithDuplex = {
       body: JSON.stringify({ name: "widget" }),
       duplex: "half",
@@ -923,7 +923,7 @@ describe("contract package baseline", () => {
       sourceRequestInit,
     );
 
-    const [input, init] = adaptGeneratedRequestForPublicFetch(sourceRequest);
+    const [input, init] = await adaptGeneratedRequestForPublicFetch(sourceRequest);
     const downstreamFetch = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
@@ -942,6 +942,7 @@ describe("contract package baseline", () => {
     );
 
     expect(String(downstreamInput)).toBe("/widgets?draft=true");
+    expect(init?.body).toBe('{"name":"widget"}');
     expect(request.method).toBe("POST");
     expect(downstreamInit?.duplex).toBe("half");
     await expect(request.text()).resolves.toBe('{"name":"widget"}');

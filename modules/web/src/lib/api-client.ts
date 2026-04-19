@@ -49,14 +49,16 @@ type RequestInitWithDuplex = RequestInit & {
 };
 
 const toForwardedRequestBody = async (request: Request) => {
-  if (request.body === null) {
-    return undefined;
-  }
-
   const contentType = request.headers.get("content-type");
 
   if (contentType?.startsWith("application/json")) {
-    return request.text();
+    const bodyText = await request.text();
+
+    return bodyText === "" ? undefined : bodyText;
+  }
+
+  if (request.body === null) {
+    return undefined;
   }
 
   return request.body;

@@ -74,9 +74,25 @@ const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
-const toPublicFetchInit = (request: Request): RequestInit => {
+const toForwardedRequestBody = async (request: Request) => {
+  const contentType = request.headers.get("content-type");
+
+  if (contentType?.startsWith("application/json")) {
+    const bodyText = await request.text();
+
+    return bodyText === "" ? undefined : bodyText;
+  }
+
+  if (request.body === null) {
+    return undefined;
+  }
+
+  return request.body;
+};
+
+const toPublicFetchInit = async (request: Request): Promise<RequestInit> => {
   const init: RequestInitWithDuplex = {
-    body: request.body,
+    body: await toForwardedRequestBody(request),
     cache: request.cache,
     credentials: request.credentials,
     headers: request.headers,
@@ -99,10 +115,10 @@ const toPublicFetchInit = (request: Request): RequestInit => {
   return init;
 };
 
-export const adaptGeneratedRequestForPublicFetch = (
+export const adaptGeneratedRequestForPublicFetch = async (
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
-): [Parameters<typeof fetch>[0], Parameters<typeof fetch>[1]?] => {
+): Promise<[Parameters<typeof fetch>[0], Parameters<typeof fetch>[1]?]> => {
   const request =
     input instanceof Request ? input.clone() : new Request(input, init);
   const url = new URL(request.url);
@@ -113,7 +129,7 @@ export const adaptGeneratedRequestForPublicFetch = (
 
   return [
     `${url.pathname}${url.search}${url.hash}`,
-    toPublicFetchInit(request),
+    await toPublicFetchInit(request),
   ];
 };
 
@@ -123,7 +139,7 @@ export const createContractClient = ({
   const client = createGeneratedClient({
     baseUrl: generatedBaseUrl,
     fetch: async (input, init) => {
-      return fetchImpl(...adaptGeneratedRequestForPublicFetch(input, init));
+      return fetchImpl(...(await adaptGeneratedRequestForPublicFetch(input, init)));
     },
   });
 
