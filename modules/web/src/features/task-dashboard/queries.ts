@@ -11,6 +11,11 @@ export const getTaskDashboardErrorMessage = (error: unknown) =>
     ? `Task dashboard unavailable: ${error.error.message}`
     : "Task dashboard unavailable: unexpected error";
 
+export const getTaskCreateErrorMessage = (error: unknown) =>
+  error instanceof ContractClientError
+    ? `Task creation failed: ${error.error.message}`
+    : "Task creation failed: unexpected error";
+
 export const taskDashboardQueryOptions = queryOptions({
   queryKey: taskDashboardQueryKey,
   queryFn: async () => adaptTaskDashboard(await getTaskDashboard()),

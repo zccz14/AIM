@@ -175,6 +175,76 @@ test("opens and closes the create task drawer from the dashboard header", async 
   await expect(page.getByLabel("Task Spec")).toHaveValue("");
 });
 
+test("submits only task_spec to the existing task API", async ({ page }) => {
+  let createRequestBody: unknown = null;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      createRequestBody = route.request().postDataJSON();
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Ship create flow",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect.poll(() => createRequestBody).toEqual({
+    task_spec: "Ship create flow",
+  });
+});
+
+test("shows a local create error when the task API rejects the request", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "TASK_VALIDATION_ERROR",
+          message: "task_spec cannot be blank",
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect(
+    page.getByText("Task creation failed: task_spec cannot be blank"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Create Task" }),
+  ).toBeVisible();
+});
+
 test("renders the dependency graph with status-colored nodes", async ({
   page,
 }) => {

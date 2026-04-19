@@ -130,3 +130,25 @@ test("keeps task creation inside the dashboard shell", async () => {
   expect(createDrawerSource).toContain('label="Task Spec"');
   expect(createDrawerSource).not.toContain('label="Title"');
 });
+
+test("routes task creation through feature-local api and mutation helpers", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
+    "utf8",
+  );
+  const apiSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/api/task-dashboard-api.ts`,
+    "utf8",
+  );
+  const mutationSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/use-task-create-mutation.ts`,
+    "utf8",
+  );
+
+  expect(dashboardPageSource).toContain("useTaskCreateMutation");
+  expect(dashboardPageSource).not.toContain('fetch("/tasks"');
+  expect(apiSource).toContain("createTaskFromDashboard");
+  expect(apiSource).toContain("client.createTask({ task_spec: taskSpec })");
+  expect(mutationSource).toContain("useMutation");
+});

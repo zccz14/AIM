@@ -12,7 +12,11 @@ import {
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 
-import { getTaskDashboardErrorMessage } from "../queries.js";
+import {
+  getTaskCreateErrorMessage,
+  getTaskDashboardErrorMessage,
+} from "../queries.js";
+import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
@@ -23,6 +27,7 @@ import { TaskTableSection } from "./task-table-section.js";
 
 export const DashboardPage = () => {
   const dashboardQuery = useTaskDashboardQuery();
+  const createTaskMutation = useTaskCreateMutation();
   const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const selectedTask =
@@ -102,8 +107,25 @@ export const DashboardPage = () => {
           ) : null}
 
           <CreateTaskDrawer
-            onClose={() => setCreateDrawerOpened(false)}
-            onSubmit={async () => undefined}
+            errorMessage={
+              createTaskMutation.isError
+                ? getTaskCreateErrorMessage(createTaskMutation.error)
+                : null
+            }
+            isSubmitting={createTaskMutation.isPending}
+            onClose={() => {
+              createTaskMutation.reset();
+              setCreateDrawerOpened(false);
+            }}
+            onSubmit={async (taskSpec) => {
+              createTaskMutation.reset();
+
+              try {
+                await createTaskMutation.mutateAsync(taskSpec);
+              } catch {
+                return;
+              }
+            }}
             opened={createDrawerOpened}
           />
           <TaskDetailsDrawer
