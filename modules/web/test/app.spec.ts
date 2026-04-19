@@ -46,7 +46,12 @@ test("keeps task dashboard data behind adapter and local config boundaries", asy
   expect(appSource).not.toContain("task_spec");
   expect(appSource).not.toContain("waiting_assumptions");
   expect(dashboardPageSource).toContain("DependencyGraphSection");
-  expect(dashboardPageSource).not.toContain("health");
+  expect(dashboardPageSource).toContain(
+    "graphEdges={dashboardQuery.data.graphEdges}",
+  );
+  expect(dashboardPageSource).toContain(
+    "graphNodes={dashboardQuery.data.graphNodes}",
+  );
   expect(apiClientSource).toContain("readServerBaseUrl");
   expect(apiClientSource).not.toContain("https://aim.zccz14.com");
   expect(configSource).toContain("https://aim.zccz14.com");
