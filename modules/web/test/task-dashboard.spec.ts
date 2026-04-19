@@ -213,15 +213,22 @@ test("submits only task_spec to the existing task API", async ({ page }) => {
 test("shows a local create error when the task API rejects the request", async ({
   page,
 }) => {
+  let finishCreateRequest: null | (() => Promise<void>) = null;
+
   await page.route("**/tasks", async (route) => {
     if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 422,
-        contentType: "application/json",
-        body: JSON.stringify({
-          code: "TASK_VALIDATION_ERROR",
-          message: "task_spec cannot be blank",
-        }),
+      await new Promise<void>((resolve) => {
+        finishCreateRequest = async () => {
+          await route.fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({
+              code: "TASK_VALIDATION_ERROR",
+              message: "task_spec cannot be blank",
+            }),
+          });
+          resolve();
+        };
       });
       return;
     }
@@ -236,6 +243,22 @@ test("shows a local create error when the task API rejects the request", async (
   await page.getByRole("button", { name: "Create Task" }).click();
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  const createTaskDialog = page.getByRole("dialog", { name: "Create Task" });
+  await expect(createTaskDialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close" })).toBeDisabled();
+
+  await page.keyboard.press("Escape");
+  await expect(createTaskDialog).toBeVisible();
+
+  await page.mouse.click(8, 8);
+  await expect(createTaskDialog).toBeVisible();
+
+  if (finishCreateRequest === null) {
+    throw new Error("Expected the create request to be pending");
+  }
+
+  await finishCreateRequest();
 
   await expect(
     page.getByText("Task creation failed: task_spec cannot be blank"),

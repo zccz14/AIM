@@ -48,6 +48,20 @@ type RequestInitWithDuplex = RequestInit & {
   duplex?: "half";
 };
 
+const toForwardedRequestBody = async (request: Request) => {
+  if (request.body === null) {
+    return undefined;
+  }
+
+  const contentType = request.headers.get("content-type");
+
+  if (contentType?.startsWith("application/json")) {
+    return request.text();
+  }
+
+  return request.body;
+};
+
 const toAbsoluteRequestInit = async (
   baseUrl: URL,
   input: Parameters<typeof fetch>[0],
@@ -59,7 +73,7 @@ const toAbsoluteRequestInit = async (
       ? new Request(input, init)
       : new Request(resolvedUrl, init);
   const requestInit: RequestInitWithDuplex = {
-    body: request.body === null ? undefined : await request.text(),
+    body: await toForwardedRequestBody(request),
     cache: request.cache,
     credentials: request.credentials,
     headers: request.headers,

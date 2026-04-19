@@ -26,7 +26,9 @@ export const CreateTaskDrawer = ({
 
   return (
     <Drawer
-      closeButtonProps={{ "aria-label": "Close" }}
+      closeButtonProps={{ "aria-label": "Close", disabled: isSubmitting }}
+      closeOnClickOutside={!isSubmitting}
+      closeOnEscape={!isSubmitting}
       onClose={onClose}
       opened={opened}
       position="right"

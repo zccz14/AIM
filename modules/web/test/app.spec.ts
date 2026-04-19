@@ -141,6 +141,10 @@ test("routes task creation through feature-local api and mutation helpers", asyn
     `${process.cwd()}/modules/web/src/features/task-dashboard/api/task-dashboard-api.ts`,
     "utf8",
   );
+  const apiClientSource = await readFile(
+    `${process.cwd()}/modules/web/src/lib/api-client.ts`,
+    "utf8",
+  );
   const mutationSource = await readFile(
     `${process.cwd()}/modules/web/src/features/task-dashboard/use-task-create-mutation.ts`,
     "utf8",
@@ -153,5 +157,10 @@ test("routes task creation through feature-local api and mutation helpers", asyn
   expect(apiSource).not.toContain("readServerBaseUrl");
   expect(apiSource).not.toContain("resolveContractUrl");
   expect(apiSource).toContain("client.createTask({ task_spec: taskSpec })");
+  expect(apiClientSource).toContain('request.headers.get("content-type")');
+  expect(apiClientSource).toContain("request.body");
+  expect(apiClientSource).not.toContain(
+    "body: request.body === null ? undefined : await request.text()",
+  );
   expect(mutationSource).toContain("useMutation");
 });
