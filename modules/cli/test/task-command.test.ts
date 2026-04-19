@@ -3,19 +3,21 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
 const cliIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
-const cliTaskHelperSourceUrl = new URL(
-  "../src/lib/task-command.ts",
+const cliHealthCommandSourceUrl = new URL(
+  "../src/commands/health.ts",
   import.meta.url,
 );
 
 type RecordedRequest = {
   method: string;
   path: string;
+  pathname: string;
+  searchParams: Record<string, string>;
   json: unknown;
 };
 
@@ -34,6 +36,28 @@ afterEach(async () => {
       await once(server, "close");
     }),
   );
+});
+
+beforeAll(async () => {
+  const child = spawn("pnpm", ["run", "build"], {
+    cwd: cliRootUrl,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+
+  child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
+  child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+
+  const [exitCode] = (await once(child, "close")) as [number | null];
+
+  expect({
+    exitCode,
+    stdout: Buffer.concat(stdout).toString("utf8"),
+    stderr: Buffer.concat(stderr).toString("utf8"),
+  }).toMatchObject({ exitCode: 0 });
 });
 
 const startTaskServer = async () => {
@@ -57,13 +81,16 @@ const startTaskServer = async () => {
     request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     await once(request, "end");
 
-    const path = request.url ?? "";
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const path = `${url.pathname}${url.search}`;
     const bodyText = Buffer.concat(chunks).toString("utf8");
     const json = bodyText ? JSON.parse(bodyText) : null;
 
     requests.push({
       method: request.method ?? "GET",
       path,
+      pathname: url.pathname,
+      searchParams: Object.fromEntries(url.searchParams),
       json,
     });
 
@@ -75,7 +102,10 @@ const startTaskServer = async () => {
 
     if (
       request.method === "GET" &&
-      path === "/api/tasks?status=running&done=false&session_id=session-1"
+      url.pathname === "/api/tasks" &&
+      url.searchParams.get("status") === "running" &&
+      url.searchParams.get("done") === "false" &&
+      url.searchParams.get("session_id") === "session-1"
     ) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ items: [task] }));
@@ -151,8 +181,10 @@ describe("task cli command baseline", () => {
       "https://example.test/pr/2",
     ]);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
     expect(server.requests[0]).toMatchObject({
       method: "POST",
       path: "/api/tasks",
@@ -187,11 +219,19 @@ describe("task cli command baseline", () => {
       "session-1",
     ]);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(server.requests[0]?.path).toBe(
-      "/api/tasks?status=running&done=false&session_id=session-1",
-    );
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      pathname: "/api/tasks",
+      searchParams: {
+        status: "running",
+        done: "false",
+        session_id: "session-1",
+      },
+    });
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: true,
       data: {
@@ -216,8 +256,10 @@ describe("task cli command baseline", () => {
       "task-1",
     ]);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
     expect(server.requests[0]?.path).toBe("/api/tasks/task-1");
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: true,
@@ -229,16 +271,17 @@ describe("task cli command baseline", () => {
   });
 
   it("keeps task CLI sources on the contract root boundary", async () => {
-    const [indexSource, helperSource] = await Promise.all([
+    const [indexSource, healthCommandSource] = await Promise.all([
       readFile(cliIndexSourceUrl, "utf8"),
-      readFile(cliTaskHelperSourceUrl, "utf8"),
+      readFile(cliHealthCommandSourceUrl, "utf8"),
     ]);
 
     expect(indexSource).toContain('"task:create"');
     expect(indexSource).toContain('"task:list"');
     expect(indexSource).toContain('"task:get"');
+    expect(indexSource).not.toContain("contract/generated");
 
-    const importSpecifiers = getImportSpecifiers(helperSource);
+    const importSpecifiers = getImportSpecifiers(healthCommandSource);
 
     expect(importSpecifiers).toContain("@aim-ai/contract");
     expect(
