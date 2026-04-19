@@ -126,6 +126,39 @@ test("filters tasks by free-text input", async ({ page }) => {
   await expect(page.getByText("No matching tasks.")).toBeVisible();
 });
 
+test("filters tasks by text that appears only in later task_spec lines", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Release checklist\n- follow-up search needle\n- notify team",
+            taskId: "task-123",
+          }),
+          buildTask({
+            spec: "Search needle title",
+            taskId: "task-456",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Filter Tasks").fill("follow-up search needle");
+
+  await expect(
+    page.getByRole("row", { name: /Release checklist/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Search needle title/i }),
+  ).toHaveCount(0);
+  await expect(page.getByText("No matching tasks.")).toHaveCount(0);
+});
+
 test("opens the shared task drawer from overview and table", async ({
   page,
 }) => {
@@ -144,6 +177,307 @@ test("opens the shared task drawer from overview and table", async ({
   await page.getByRole("row", { name: /stub task spec/i }).click();
   await expect(
     page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+});
+
+test("opens and closes the create task drawer from the dashboard header", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const headerCreateTaskButton = page
+    .getByRole("button", { name: "Create Task" })
+    .first();
+
+  await headerCreateTaskButton.click();
+
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
+  await expect(page.getByLabel("Task Spec")).toBeVisible();
+  await expect(headerCreateTaskButton).toBeDisabled();
+
+  await page.getByLabel("Task Spec").fill("Draft task spec");
+
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
+
+  await headerCreateTaskButton.click();
+  await expect(page.getByLabel("Task Spec")).toHaveValue("");
+});
+
+test("submits only task_spec to the existing task API", async ({ page }) => {
+  let createRequestBodyText: null | string = null;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      createRequestBodyText = route.request().postData();
+
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Ship create flow",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect
+    .poll(() => createRequestBodyText)
+    .toEqual(JSON.stringify({ task_spec: "Ship create flow" }));
+});
+
+test("shows a local create error when the task API rejects the request", async ({
+  page,
+}) => {
+  let finishCreateRequest: null | (() => Promise<void>) = null;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await new Promise<void>((resolve) => {
+        finishCreateRequest = async () => {
+          await route.fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({
+              code: "TASK_VALIDATION_ERROR",
+              message: "task_spec cannot be blank",
+            }),
+          });
+          resolve();
+        };
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  const createTaskDialog = page.getByRole("dialog", { name: "Create Task" });
+  await expect(createTaskDialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close" })).toBeDisabled();
+
+  await page.keyboard.press("Escape");
+  await expect(createTaskDialog).toBeVisible();
+
+  await page.mouse.click(8, 8);
+  await expect(createTaskDialog).toBeVisible();
+
+  if (finishCreateRequest === null) {
+    throw new Error("Expected the create request to be pending");
+  }
+
+  await finishCreateRequest();
+
+  await expect(
+    page.getByText("Task creation failed: task_spec cannot be blank"),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
+});
+
+test("closes the create drawer, refreshes the dashboard, and opens the new task details", async ({
+  page,
+}) => {
+  let listRequestCount = 0;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Create release checklist\n- draft notes\n- notify team",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    listRequestCount += 1;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          listRequestCount === 1
+            ? [
+                buildTask({
+                  spec: "Existing task",
+                  taskId: "task-existing",
+                }),
+              ]
+            : [
+                buildTask({
+                  spec: "Existing task",
+                  taskId: "task-existing",
+                }),
+                buildTask({
+                  spec: "Create release checklist\n- draft notes\n- notify team",
+                  taskId: "task-created",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page
+    .getByLabel("Task Spec")
+    .fill("Create release checklist\n- draft notes\n- notify team");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+  await expect(page.getByText("Task ID: task-created")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Create release checklist" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Create release checklist\n- draft notes\n- notify team",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Create release checklist/i }),
+  ).toBeVisible();
+  await expect.poll(() => listRequestCount).toBe(2);
+});
+
+test("opens created task details from the create response when the dashboard refresh fails", async ({
+  page,
+}) => {
+  let listRequestCount = 0;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTask({
+            spec: "Fallback task title\n- still visible after refresh failure",
+            taskId: "task-created",
+          }),
+        ),
+      });
+      return;
+    }
+
+    listRequestCount += 1;
+
+    if (listRequestCount === 1) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            buildTask({
+              spec: "Existing task",
+              taskId: "task-existing",
+            }),
+          ],
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "TASK_VALIDATION_ERROR",
+        message: "refresh unavailable",
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await page
+    .getByLabel("Task Spec")
+    .fill("Fallback task title\n- still visible after refresh failure");
+  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+
+  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("dialog", { name: "Task Details" }),
+  ).toBeVisible();
+  await expect(page.getByText("Task ID: task-created")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Fallback task title" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Fallback task title\n- still visible after refresh failure",
+    ),
+  ).toBeVisible();
+  await expect.poll(() => listRequestCount).toBe(2);
+});
+
+test("uses the first task_spec line as the task title while keeping the full body in details", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Summary title\n- implementation detail\n- rollout detail",
+            taskId: "task-summary",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("row", { name: /Summary title/i })).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /implementation detail/i }),
+  ).toHaveCount(0);
+
+  await page.getByRole("row", { name: /Summary title/i }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Summary title" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task Spec: Summary title\n- implementation detail\n- rollout detail",
+    ),
   ).toBeVisible();
 });
 

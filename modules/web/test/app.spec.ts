@@ -112,3 +112,55 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(faviconSource).not.toContain('stroke-width="1"');
   expect(publicFaviconSource).toBe(faviconSource);
 });
+
+test("keeps task creation inside the dashboard shell", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
+    "utf8",
+  );
+  const createDrawerSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-drawer.tsx`,
+    "utf8",
+  );
+
+  expect(dashboardPageSource).toContain("Create Task");
+  expect(dashboardPageSource).toContain("<CreateTaskDrawer");
+  expect(dashboardPageSource).not.toContain("react-router");
+  expect(createDrawerSource).toContain('label="Task Spec"');
+  expect(createDrawerSource).not.toContain('label="Title"');
+});
+
+test("routes task creation through feature-local api and mutation helpers", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
+    "utf8",
+  );
+  const apiSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/api/task-dashboard-api.ts`,
+    "utf8",
+  );
+  const apiClientSource = await readFile(
+    `${process.cwd()}/modules/web/src/lib/api-client.ts`,
+    "utf8",
+  );
+  const mutationSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/use-task-create-mutation.ts`,
+    "utf8",
+  );
+
+  expect(dashboardPageSource).toContain("useTaskCreateMutation");
+  expect(dashboardPageSource).not.toContain('fetch("/tasks"');
+  expect(apiSource).toContain("createTaskFromDashboard");
+  expect(apiSource).not.toContain("createContractClient");
+  expect(apiSource).not.toContain("readServerBaseUrl");
+  expect(apiSource).not.toContain("resolveContractUrl");
+  expect(apiSource).toContain("client.createTask({ task_spec: taskSpec })");
+  expect(apiClientSource).toContain('request.headers.get("content-type")');
+  expect(apiClientSource).toContain("request.body");
+  expect(apiClientSource).not.toContain(
+    "body: request.body === null ? undefined : await request.text()",
+  );
+  expect(mutationSource).toContain("useMutation");
+});

@@ -23,6 +23,9 @@ export const TaskDetailsDrawer = ({
     {task ? (
       <Stack gap="sm">
         <Title order={3}>{task.title}</Title>
+        <Text style={{ whiteSpace: "pre-wrap" }}>
+          Task Spec: {task.taskSpec}
+        </Text>
         <Text>Task ID: {task.id}</Text>
         <Text>Contract Status: {task.contractStatus}</Text>
         <Text>

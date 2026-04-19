@@ -1,4 +1,4 @@
-import type { TaskListResponse, TaskStatus } from "@aim-ai/contract";
+import type { Task, TaskListResponse, TaskStatus } from "@aim-ai/contract";
 
 import type {
   DashboardStatus,
@@ -60,6 +60,31 @@ const isActiveTask = (task: DashboardTask) =>
   task.dashboardStatus === "running" ||
   task.dashboardStatus === "blocked";
 
+export const summarizeTaskSpec = (taskSpec: string) => {
+  const [firstLine = ""] = taskSpec
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const summary = firstLine || taskSpec.trim();
+
+  return summary.length <= 72 ? summary : `${summary.slice(0, 69)}...`;
+};
+
+export const adaptDashboardTask = (task: Task): DashboardTask => ({
+  id: task.task_id,
+  title: summarizeTaskSpec(task.task_spec),
+  taskSpec: task.task_spec,
+  contractStatus: task.status,
+  dashboardStatus: toDashboardStatus(task.status),
+  sessionId: task.session_id,
+  worktreePath: task.worktree_path,
+  pullRequestUrl: task.pull_request_url,
+  dependencies: task.dependencies,
+  createdAt: task.created_at,
+  updatedAt: task.updated_at,
+  isDone: task.done,
+});
+
 const getTaskDepth = (
   task: DashboardTask,
   tasksById: Map<string, DashboardTask>,
@@ -103,19 +128,7 @@ export const adaptTaskDashboard = (
   graphEdges: DashboardGraphEdge[];
   graphNodes: DashboardGraphNode[];
 } => {
-  const tasks = response.items.map<DashboardTask>((task) => ({
-    id: task.task_id,
-    title: task.task_spec,
-    contractStatus: task.status,
-    dashboardStatus: toDashboardStatus(task.status),
-    sessionId: task.session_id,
-    worktreePath: task.worktree_path,
-    pullRequestUrl: task.pull_request_url,
-    dependencies: task.dependencies,
-    createdAt: task.created_at,
-    updatedAt: task.updated_at,
-    isDone: task.done,
-  }));
+  const tasks = response.items.map(adaptDashboardTask);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const depthByTaskId = new Map<string, number>();
   const rowByDepth = new Map<number, number>();

@@ -40,18 +40,61 @@ const resolveContractUrl = (
   );
 };
 
-const toAbsoluteRequest = (
+type RequestWithDuplex = Request & {
+  duplex?: "half";
+};
+
+type RequestInitWithDuplex = RequestInit & {
+  duplex?: "half";
+};
+
+const toForwardedRequestBody = async (request: Request) => {
+  const contentType = request.headers.get("content-type");
+
+  if (contentType?.startsWith("application/json")) {
+    const bodyText = await request.text();
+
+    return bodyText === "" ? undefined : bodyText;
+  }
+
+  if (request.body === null) {
+    return undefined;
+  }
+
+  return request.body;
+};
+
+const toAbsoluteRequestInit = async (
   baseUrl: URL,
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
 ) => {
   const resolvedUrl = resolveContractUrl(baseUrl, input);
+  const request =
+    input instanceof Request
+      ? new Request(input, init)
+      : new Request(resolvedUrl, init);
+  const requestInit: RequestInitWithDuplex = {
+    body: await toForwardedRequestBody(request),
+    cache: request.cache,
+    credentials: request.credentials,
+    headers: request.headers,
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+    method: request.method,
+    mode: request.mode,
+    redirect: request.redirect,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy,
+    signal: request.signal,
+  };
+  const requestWithDuplex = request as RequestWithDuplex;
 
-  if (input instanceof Request) {
-    return new Request(resolvedUrl, new Request(input, init));
+  if (request.body !== null && requestWithDuplex.duplex !== undefined) {
+    requestInit.duplex = requestWithDuplex.duplex;
   }
 
-  return new Request(resolvedUrl, init);
+  return [resolvedUrl, requestInit] as const;
 };
 
 type WebApiClient = ReturnType<typeof createContractClient> & {
@@ -63,21 +106,30 @@ export const createWebApiClient = (
 ): WebApiClient => {
   const resolvedBaseUrl = new URL(baseUrl, window.location.origin);
   const contractClient = createContractClient({
-    fetch: (input, init) =>
-      fetch(toAbsoluteRequest(resolvedBaseUrl, input, init)),
+    fetch: async (input, init) => {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        input,
+        init,
+      );
+
+      return fetch(requestInput, requestInit);
+    },
   });
 
   return {
     ...contractClient,
     async listTasks() {
-      const response = await fetch(
-        toAbsoluteRequest(resolvedBaseUrl, tasksPath),
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        tasksPath,
         {
           headers: {
             accept: "application/json",
           },
         },
       );
+      const response = await fetch(requestInput, requestInit);
 
       if (!response.ok) {
         throw new ContractClientError(
