@@ -101,7 +101,6 @@ describe("server startup", () => {
     expect(mockCreateTaskSessionCoordinator).not.toHaveBeenCalled();
     expect(mockCreateTaskScheduler).not.toHaveBeenCalled();
   });
-
   it("does not leave the server listening when scheduler startup fails", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
