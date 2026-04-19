@@ -10,6 +10,10 @@ const placeholderFailure = {
   },
 } as const;
 
+const baseUrlFlag = Flags.string({ description: "API base URL" });
+
+const taskIdFlag = Flags.string({ description: "Task identifier" });
+
 const taskCommandNames = new Set([
   "create",
   "list",
@@ -31,11 +35,17 @@ const writePlaceholderFailureAndExit = (command: Command) => {
   command.exit(1);
 };
 
-class TaskCreateCommand extends Command {
+class TaskPlaceholderCommand extends Command {
+  public async run(): Promise<void> {
+    writePlaceholderFailureAndExit(this);
+  }
+}
+
+class TaskCreateCommand extends TaskPlaceholderCommand {
   static override description = "Temporary placeholder for task create";
 
   static override flags = {
-    "base-url": Flags.string({ description: "API base URL" }),
+    "base-url": baseUrlFlag,
     "task-spec": Flags.string({ description: "Task specification" }),
     dependency: Flags.string({ description: "Task dependency", multiple: true }),
     "pull-request-url": Flags.string({
@@ -43,69 +53,44 @@ class TaskCreateCommand extends Command {
       multiple: true,
     }),
   };
-
-  public async run(): Promise<never> {
-    await this.parse(TaskCreateCommand);
-    writePlaceholderFailureAndExit(this);
-  }
 }
 
-class TaskListCommand extends Command {
+class TaskListCommand extends TaskPlaceholderCommand {
   static override description = "Temporary placeholder for task list";
 
   static override flags = {
-    "base-url": Flags.string({ description: "API base URL" }),
+    "base-url": baseUrlFlag,
     status: Flags.string({ description: "Task status" }),
     done: Flags.string({ description: "Task completion state" }),
     "session-id": Flags.string({ description: "Task session id" }),
   };
-
-  public async run(): Promise<never> {
-    await this.parse(TaskListCommand);
-    writePlaceholderFailureAndExit(this);
-  }
 }
 
-class TaskGetCommand extends Command {
+class TaskGetCommand extends TaskPlaceholderCommand {
   static override description = "Temporary placeholder for task get";
 
   static override flags = {
-    "base-url": Flags.string({ description: "API base URL" }),
-    "task-id": Flags.string({ description: "Task identifier" }),
+    "base-url": baseUrlFlag,
+    "task-id": taskIdFlag,
   };
-
-  public async run(): Promise<never> {
-    await this.parse(TaskGetCommand);
-    writePlaceholderFailureAndExit(this);
-  }
 }
 
-class TaskUpdateCommand extends Command {
+class TaskUpdateCommand extends TaskPlaceholderCommand {
   static override description = "Temporary placeholder for task update";
 
   static override flags = {
-    "base-url": Flags.string({ description: "API base URL" }),
-    "task-id": Flags.string({ description: "Task identifier" }),
+    "base-url": baseUrlFlag,
+    "task-id": taskIdFlag,
   };
-
-  public async run(): Promise<never> {
-    await this.parse(TaskUpdateCommand);
-    writePlaceholderFailureAndExit(this);
-  }
 }
 
-class TaskDeleteCommand extends Command {
+class TaskDeleteCommand extends TaskPlaceholderCommand {
   static override description = "Temporary placeholder for task delete";
 
   static override flags = {
-    "base-url": Flags.string({ description: "API base URL" }),
-    "task-id": Flags.string({ description: "Task identifier" }),
+    "base-url": baseUrlFlag,
+    "task-id": taskIdFlag,
   };
-
-  public async run(): Promise<never> {
-    await this.parse(TaskDeleteCommand);
-    writePlaceholderFailureAndExit(this);
-  }
 }
 
 export const commands = {

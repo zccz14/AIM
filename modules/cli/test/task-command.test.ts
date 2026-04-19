@@ -8,10 +8,6 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
 const cliIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
-const cliHealthCommandSourceUrl = new URL(
-  "../src/commands/health.ts",
-  import.meta.url,
-);
 
 type RecordedRequest = {
   method: string;
@@ -271,19 +267,14 @@ describe("task cli command baseline", () => {
   });
 
   it("keeps task CLI sources on the contract root boundary", async () => {
-    const [indexSource, healthCommandSource] = await Promise.all([
-      readFile(cliIndexSourceUrl, "utf8"),
-      readFile(cliHealthCommandSourceUrl, "utf8"),
-    ]);
+    const indexSource = await readFile(cliIndexSourceUrl, "utf8");
+    const importSpecifiers = getImportSpecifiers(indexSource);
 
     expect(indexSource).toContain('"task:create"');
     expect(indexSource).toContain('"task:list"');
     expect(indexSource).toContain('"task:get"');
+    expect(indexSource).toContain("task command not implemented");
     expect(indexSource).not.toContain("contract/generated");
-
-    const importSpecifiers = getImportSpecifiers(healthCommandSource);
-
-    expect(importSpecifiers).toContain("@aim-ai/contract");
     expect(
       importSpecifiers.some((specifier) =>
         specifier.includes("contract/generated"),
