@@ -104,6 +104,14 @@ describe("task session coordinator", () => {
     );
   });
 
+  it("keeps the unavailable getSessionState error unchanged", async () => {
+    const coordinator = createTaskSessionCoordinator(config);
+
+    await expect(coordinator.getSessionState("session-1")).rejects.toThrow(
+      "Task session coordinator is unavailable for getSessionState",
+    );
+  });
+
   it("throws unknown session statuses directly", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
@@ -121,6 +129,24 @@ describe("task session coordinator", () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
       getSession: vi.fn().mockRejectedValue(adapterError),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(coordinator.getSessionState("session-1")).rejects.toMatchObject(
+      {
+        cause: adapterError,
+        message: "Task session coordinator failed during getSessionState",
+      },
+    );
+  });
+
+  it("wraps synchronous getSession throws with coordinator context", async () => {
+    const adapterError = new Error("sync adapter blew up");
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn(() => {
+        throw adapterError;
+      }),
       sendPrompt: vi.fn(),
     });
 
