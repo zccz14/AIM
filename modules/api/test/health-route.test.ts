@@ -86,6 +86,12 @@ describe("api package baseline", () => {
     expect(payload.paths[contractModule.healthPath]).toEqual(
       contractModule.openApiDocument.paths[contractModule.healthPath],
     );
+    expect(payload.paths[contractModule.tasksPath]).toEqual(
+      contractModule.openApiDocument.paths[contractModule.tasksPath],
+    );
+    expect(payload.paths[contractModule.taskByIdPath]).toEqual(
+      contractModule.openApiDocument.paths[contractModule.taskByIdPath],
+    );
   });
 
   it("does not expose a docs route from the api package", async () => {
