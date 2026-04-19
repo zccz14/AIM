@@ -81,6 +81,14 @@ test("wires the shared AIM icon assets into web and README entry points", async 
     `${process.cwd()}/docs/brand/aim-icon-16.svg`,
     "utf8",
   );
+  const publicIconSource = await readFile(
+    `${process.cwd()}/modules/web/public/aim-icon.svg`,
+    "utf8",
+  );
+  const publicFaviconSource = await readFile(
+    `${process.cwd()}/modules/web/public/favicon.svg`,
+    "utf8",
+  );
 
   expect(htmlSource).toContain("<title>AIM</title>");
   expect(htmlSource).toContain('rel="icon"');
@@ -96,9 +104,11 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(iconSource).toContain('viewBox="0 0 64 64"');
   expect(iconSource).toContain('<circle cx="32" cy="32" r="30"');
   expect(iconSource).toContain('<circle cx="32" cy="32" r="6"');
+  expect(publicIconSource).toBe(iconSource);
 
   expect(faviconSource).toContain('viewBox="0 0 16 16"');
   expect(faviconSource).toContain('<circle cx="8" cy="8" r="7"');
   expect(faviconSource).toContain('<circle cx="8" cy="8" r="2"');
   expect(faviconSource).not.toContain('stroke-width="1"');
+  expect(publicFaviconSource).toBe(faviconSource);
 });
