@@ -152,20 +152,27 @@ test("opens and closes the create task drawer from the dashboard header", async 
 }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Create Task" }).click();
+  const headerCreateTaskButton = page
+    .getByRole("button", { name: "Create Task" })
+    .first();
+
+  await headerCreateTaskButton.click();
 
   await expect(
     page.getByRole("dialog", { name: "Create Task" }),
   ).toBeVisible();
   await expect(page.getByLabel("Task Spec")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Create Task" }).nth(1),
-  ).toBeDisabled();
+  await expect(headerCreateTaskButton).toBeDisabled();
+
+  await page.getByLabel("Task Spec").fill("Draft task spec");
 
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(
     page.getByRole("dialog", { name: "Create Task" }),
   ).toHaveCount(0);
+
+  await headerCreateTaskButton.click();
+  await expect(page.getByLabel("Task Spec")).toHaveValue("");
 });
 
 test("renders the dependency graph with status-colored nodes", async ({

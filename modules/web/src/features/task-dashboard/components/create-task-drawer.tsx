@@ -12,11 +12,15 @@ export const CreateTaskDrawer = ({
 }) => {
   const [taskSpec, setTaskSpec] = useState("");
   const trimmedTaskSpec = taskSpec.trim();
+  const handleClose = () => {
+    setTaskSpec("");
+    onClose();
+  };
 
   return (
     <Drawer
       closeButtonProps={{ "aria-label": "Close" }}
-      onClose={onClose}
+      onClose={handleClose}
       opened={opened}
       position="right"
       size="md"
@@ -32,7 +36,7 @@ export const CreateTaskDrawer = ({
           value={taskSpec}
         />
         <Group justify="flex-end">
-          <Button onClick={onClose} variant="default">
+          <Button onClick={handleClose} variant="default">
             Cancel
           </Button>
           <Button
