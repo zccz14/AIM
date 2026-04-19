@@ -686,6 +686,135 @@ describe("contract package baseline", () => {
     expect(request?.method ?? "GET").toBe("GET");
   });
 
+  it("creates typed task CRUD client helpers", async () => {
+    const task = {
+      task_id: "task-1",
+      task_spec: "write spec",
+      session_id: null,
+      worktree_path: null,
+      pull_request_url: null,
+      dependencies: [],
+      done: false,
+      status: "created",
+      created_at: "2026-04-20T00:00:00.000Z",
+      updated_at: "2026-04-20T00:00:00.000Z",
+    };
+    const fetcher = vi.fn(
+      (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1],
+      ) => {
+        const request =
+          input instanceof Request
+            ? input
+            : new Request(new URL(String(input), "http://contract.test"), init);
+        const url = new URL(request.url, "http://contract.test");
+
+        if (request.method === "GET" && url.pathname === "/tasks") {
+          return Promise.resolve(
+            new Response(JSON.stringify({ items: [] }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+          );
+        }
+
+        if (request.method === "POST" && url.pathname === "/tasks") {
+          return Promise.resolve(
+            new Response(JSON.stringify(task), {
+              status: 201,
+              headers: { "content-type": "application/json" },
+            }),
+          );
+        }
+
+        if (request.method === "GET" && url.pathname === "/tasks/task-1") {
+          return Promise.resolve(
+            new Response(JSON.stringify(task), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+          );
+        }
+
+        if (request.method === "PATCH" && url.pathname === "/tasks/task-1") {
+          return Promise.resolve(
+            new Response(JSON.stringify({ ...task, status: "running" }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+          );
+        }
+
+        if (request.method === "DELETE" && url.pathname === "/tasks/task-1") {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+
+        throw new Error(`unexpected request: ${request.method} ${url.pathname}`);
+      },
+    );
+
+    const client = contractModule.createContractClient({
+      fetch: fetcher,
+    });
+
+    await expect(client.listTasks({ status: "created" })).resolves.toEqual({
+      items: [],
+    });
+    await expect(
+      client.createTask({ task_spec: "write spec", dependencies: [] }),
+    ).resolves.toMatchObject({
+      task_id: "task-1",
+      task_spec: "write spec",
+      status: "created",
+    });
+    await expect(client.getTaskById("task-1")).resolves.toMatchObject({
+      task_id: "task-1",
+    });
+    await expect(
+      client.patchTaskById("task-1", { status: "running" }),
+    ).resolves.toMatchObject({
+      task_id: "task-1",
+      status: "running",
+    });
+    await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
+
+    expect(fetcher.mock.calls).toHaveLength(5);
+    expect(fetcher.mock.calls.map(([input]) => getRequestedPath(input))).toEqual([
+      contractModule.tasksPath,
+      contractModule.tasksPath,
+      "/tasks/task-1",
+      "/tasks/task-1",
+      "/tasks/task-1",
+    ]);
+  });
+
+  it("throws ContractClientError with task error payloads", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ code: "TASK_NOT_FOUND", message: "missing task" }),
+        {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const client = contractModule.createContractClient({
+      fetch: fetcher,
+    });
+
+    const result = client.getTaskById("missing");
+
+    await expect(result).rejects.toBeInstanceOf(
+      contractModule.ContractClientError,
+    );
+    await expect(result).rejects.toMatchObject({
+      status: 404,
+      error: { code: "TASK_NOT_FOUND", message: "missing task" },
+    });
+  });
+
   it("adapts body-bearing generated requests to relative fetch args that survive downstream forwarding", async () => {
     const sourceRequestInit: RequestInitWithDuplex = {
       body: JSON.stringify({ name: "widget" }),
