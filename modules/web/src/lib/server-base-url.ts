@@ -1,6 +1,6 @@
 const SERVER_BASE_URL_STORAGE_KEY = "aim.serverBaseUrl";
 
-export const DEFAULT_SERVER_BASE_URL = "https://aim.zccz14.com";
+export const DEFAULT_SERVER_BASE_URL = "http://localhost:8192";
 
 const normalizeServerBaseUrl = (value: string | null | undefined) => {
   const trimmedValue = value?.trim();
