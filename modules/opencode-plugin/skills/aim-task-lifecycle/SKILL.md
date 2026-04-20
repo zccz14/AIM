@@ -62,12 +62,7 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 
 `running -> closing` 不是标准的 v1 路径，不应被写作正常状态流转。
 
-### `done` 规则
-
-- 对于 `created`、`waiting_assumptions`、`running`、`outbound`、`pr_following` 和 `closing`，`done` 必须为 `false`。
-- 只有 `succeeded` 和 `failed` 的 `done` 必须为 `true`。
-- 绝不要在非终态状态下上报 `done = true`。
-- 终态写入一旦成功，不要再回退到非终态状态。
+终态写入一旦成功，不要再回退到非终态状态。
 
 ## 阶段映射
 
@@ -135,9 +130,8 @@ flowchart TD
 
 上报必须在生命周期过程中进行，不能拖延到只剩最终终态时才上报。
 
-1. 执行开始时：上报 `running`，并带上 `done = false`。
+1. 执行开始时：上报 `running`。
 2. worktree 创建后：在保持 `running` 的同时，上报已知的 `worktree_path`。
-<<<<<<< HEAD
 3. PR 创建后：上报 `outbound` 和 `done = false`；如果此时 `pull_request_url` 已知则一并带上。即使 auto-merge 还未成功启用，或 URL 还未拿到，也仍然先如实上报 `outbound`。
 4. 首次 follow-up 开始时：在完成 1 到 10 分钟的主动等待后，上报 `pr_following`、`done = false`，并保留已知的 `pull_request_url` / `worktree_path`。
 5. PR 跟进期间：如有 checks 失败、blocking review、merge conflict、auto-merge 阻塞或其他新的阶段事实，继续以上报 `pr_following` 为主，并保留所有已知事实。
@@ -149,7 +143,7 @@ flowchart TD
 
 ## API 调用格式
 
-每个 PATCH 都必须包含 `status` 和 `done`。只有在 `worktree_path` 和 `pull_request_url` 已知时，才添加这两个字段。
+非终态 PATCH 上报只使用受支持的局部更新字段：当生命周期阶段变化时再携带 `status`，并且只有在 `worktree_path` 和 `pull_request_url` 已知时才添加这两个字段。
 
 终态上报不使用 PATCH。对 `succeeded` 使用 `POST /resolve`，对 `failed` 使用 `POST /reject`，并在请求体中只发送一个必填且非空的 `result` 字符串字段。
 
@@ -163,8 +157,7 @@ flowchart TD
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   -H "Content-Type: application/json" \
   --data '{
-    "status": "running",
-    "done": false
+    "status": "running"
   }'
 ```
 
@@ -175,7 +168,6 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   -H "Content-Type: application/json" \
   --data '{
     "status": "outbound",
-    "done": false,
     "worktree_path": "/repo/.worktrees/task-123",
     "pull_request_url": "https://github.com/org/repo/pull/123"
   }'
@@ -205,7 +197,7 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject"
 
 - 只能使用 PATCH 来更新已存在 Task 的非终态事实。
 - 只能使用 `POST /resolve` 上报 `succeeded` 终态，且只能使用 `POST /reject` 上报 `failed` 终态。
-- 保持 `status` 和 `done` 与上述生命周期规则一致。
+- 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。
 - 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
 - 在后续非终态 PATCH 上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
 - 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
