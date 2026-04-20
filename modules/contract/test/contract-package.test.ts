@@ -71,6 +71,7 @@ type ContractPackageModule = typeof import("../src/index.js");
 type ContractPackageConsumerModule = typeof import("../dist/index.mjs");
 type GeneratedClientModule = typeof import("../generated/client.js");
 type GeneratedTypesModule = typeof import("../generated/types.js");
+type GeneratedZodModule = typeof import("../generated/zod.ts");
 
 type Assert<T extends true> = T;
 type HasExport<Module, Key extends PropertyKey> = Key extends keyof Module
@@ -107,6 +108,7 @@ let contractPackage: ContractPackageManifest;
 let rootPackage: RootPackageManifest;
 let contractModule: ContractPackageModule;
 let generatedClientModule: GeneratedClientModule;
+let generatedZodModule: GeneratedZodModule;
 let playwrightConfigSource: string;
 let ciWorkflowSource: string;
 
@@ -125,6 +127,9 @@ beforeAll(async () => {
   generatedClientModule = (await import(
     "../generated/client.js"
   )) as GeneratedClientModule;
+  generatedZodModule = (await import(
+    "../generated/zod.ts"
+  )) as GeneratedZodModule;
 });
 
 describe("contract package baseline", () => {
@@ -514,7 +519,8 @@ describe("contract package baseline", () => {
   });
 
   it("requires project_path in task responses and create requests", async () => {
-    const taskSchema = contractModule.openApiDocument.components.schemas.Task as {
+    const taskSchema = contractModule.openApiDocument.components.schemas
+      .Task as {
       properties: Record<string, unknown>;
       required: string[];
     };
@@ -571,12 +577,22 @@ describe("contract package baseline", () => {
     expect(patchSchema.additionalProperties).toBe(false);
     expect(patchSchema.properties.project_path).toBeUndefined();
     expect(
+      generatedZodModule.schemas.PatchTaskRequest.safeParse({
+        project_path: "/repo",
+      }).success,
+    ).toBe(false);
+    expect(
       contractModule.patchTaskRequestSchema.safeParse({
         project_path: "/repo",
       }).success,
     ).toBe(false);
     expect(generatedZodSource).toContain("const PatchTaskRequest");
-    expect(generatedZodSource).not.toMatch(/PatchTaskRequest[\s\S]*project_path/);
+    expect(generatedZodSource).toMatch(
+      /const PatchTaskRequest = z[\s\S]*\.strict\(\)/,
+    );
+    expect(generatedZodSource).not.toMatch(
+      /PatchTaskRequest[\s\S]*project_path/,
+    );
   });
 
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
