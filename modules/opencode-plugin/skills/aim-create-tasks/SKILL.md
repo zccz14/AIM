@@ -51,6 +51,7 @@ Do not collapse the proposal into title-only bullets, issue summaries, or implem
 
 Wait for explicit user approval before any create call.
 Discussion, refinement, or "looks close" is not approval.
+If the user requests changes, return to interview or proposal revision, update the candidate tasks, and wait for explicit approval again.
 Wait for explicit user approval before any create call.
 
 ### 5. Create tasks only after approval

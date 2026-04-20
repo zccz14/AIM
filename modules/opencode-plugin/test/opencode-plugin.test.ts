@@ -245,6 +245,17 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("documents task creation interview, approval, and boundary rules", () => {
+    expect(pluginCreateTasksSkillText).toContain(
+      "Review the latest baseline, related existing AIM Tasks, and nearby Task Specs or design docs before proposing new tasks.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "Candidate tasks must include the full five-part Task Spec:",
+    );
+    expect(pluginCreateTasksSkillText).toContain("- `Title`");
+    expect(pluginCreateTasksSkillText).toContain("- `Assumptions`");
+    expect(pluginCreateTasksSkillText).toContain("- `Goal vs Non-Goal`");
+    expect(pluginCreateTasksSkillText).toContain("- `Core Path`");
+    expect(pluginCreateTasksSkillText).toContain("- `Value Alignment`");
     expect(pluginCreateTasksSkillText).toMatch(
       /POST \$\{SERVER_BASE_URL:-http:\/\/localhost:8192\}\/tasks/,
     );
@@ -255,6 +266,9 @@ describe("opencode plugin package baseline", () => {
     );
     expect(pluginCreateTasksSkillText).toContain(
       "Wait for explicit user approval before any create call.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "If the user requests changes, return to interview or proposal revision, update the candidate tasks, and wait for explicit approval again.",
     );
     expect(pluginCreateTasksSkillText).toContain(
       "Do not guess `project_path`.",
