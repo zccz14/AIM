@@ -15,6 +15,7 @@ export default class TaskCreateCommand extends Command {
   static override flags = {
     "base-url": Flags.string({ description: "API base URL" }),
     "task-spec": Flags.string({ description: "Task spec string" }),
+    "project-path": Flags.string({ description: "Task project path" }),
     "session-id": Flags.string({ description: "Task session id" }),
     "worktree-path": Flags.string({ description: "Task worktree path" }),
     "pull-request-url": Flags.string({
@@ -37,6 +38,7 @@ export default class TaskCreateCommand extends Command {
       );
       const task = await client.createTask({
         task_spec: requireFlag(flags["task-spec"], "task-spec"),
+        project_path: requireFlag(flags["project-path"], "project-path"),
         session_id: flags["session-id"],
         worktree_path: flags["worktree-path"],
         pull_request_url: pickLastValue(flags["pull-request-url"]),

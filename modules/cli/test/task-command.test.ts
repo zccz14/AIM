@@ -65,6 +65,7 @@ const startTaskServer = async () => {
   const task = {
     task_id: "task-1",
     task_spec: "write spec",
+    project_path: "/repo/main",
     session_id: "session-1",
     worktree_path: null,
     pull_request_url: "https://example.test/pr/2",
@@ -194,6 +195,8 @@ describe("task cli command baseline", () => {
       `${server.baseUrl}/api`,
       "--task-spec",
       "write spec",
+      "--project-path",
+      "/repo/main",
       "--dependency",
       "task-a",
       "--dependency",
@@ -213,6 +216,7 @@ describe("task cli command baseline", () => {
       path: "/api/tasks",
       json: {
         task_spec: "write spec",
+        project_path: "/repo/main",
         dependencies: ["task-a", "task-b"],
         pull_request_url: "https://example.test/pr/2",
       },
@@ -503,6 +507,26 @@ describe("task cli command baseline", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr).toBe(
       '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --task-spec"}}\n',
+    );
+    expect(server.requests).toEqual([]);
+  });
+
+  it("returns a JSON usage error when task create is missing --project-path", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "create",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-spec",
+      "write spec",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --project-path"}}\n',
     );
     expect(server.requests).toEqual([]);
   });
