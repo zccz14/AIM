@@ -36,6 +36,7 @@ Do not use this skill to create tasks, replace repository AGENTS rules, or autom
 
 - `created -> running`
 - `created -> waiting_assumptions`
+- `running -> waiting_assumptions`
 - `waiting_assumptions -> running`
 - `running -> outbound`
 - `running -> failed`
