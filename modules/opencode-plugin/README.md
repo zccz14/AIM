@@ -5,8 +5,8 @@
 ## Scope
 
 - Registers the packaged `skills/` directory into OpenCode config.
-- Ships static `skills/` and `agents/` resources.
-- Does not inject bootstrap prompts, session context, or workflow automation.
+- Ships static `skills/` and `agents/` resources, including the `aim-task-lifecycle` packaged skill document.
+- Does not inject bootstrap prompts, session context, workflow automation, or runtime AIM reporting behavior.
 
 ## Usage
 

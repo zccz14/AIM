@@ -13,6 +13,12 @@ const pluginSkillPlaceholderUrl = new URL(
   "../skills/aim-placeholder/SKILL.md",
   import.meta.url,
 );
+const pluginLifecycleSkillUrl = new URL(
+  "../skills/aim-task-lifecycle/SKILL.md",
+  import.meta.url,
+);
+const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
+const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
   "../agents/aim-placeholder.md",
   import.meta.url,
@@ -34,36 +40,48 @@ type ConfigWithSkills = Config & {
 let pluginPackage: PluginPackageManifest;
 let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
+let pluginLifecycleSkillText: string;
+let pluginSkillsReadme: string;
+let pluginReadme: string;
+let packedFilesPromise: Promise<string[]> | undefined;
 const packagedSkillsPath = fileURLToPath(new URL("../skills/", pluginEntryUrl));
 const artifactsDirUrl = new URL("../.artifacts/test-pack/", import.meta.url);
 const execFileAsync = promisify(execFile);
 
 async function listPackedFiles() {
-  await rm(artifactsDirUrl, { force: true, recursive: true });
-  await mkdir(artifactsDirUrl, { recursive: true });
-
-  await execFileAsync(
-    "pnpm",
-    ["pack", "--pack-destination", fileURLToPath(artifactsDirUrl)],
-    {
-      cwd: fileURLToPath(new URL("..", import.meta.url)),
-    },
-  );
-
-  const [tarballName] = await readdir(artifactsDirUrl);
-
-  if (!tarballName) {
-    throw new Error("pnpm pack did not create a tarball");
+  if (packedFilesPromise) {
+    return packedFilesPromise;
   }
 
-  const tarballPath = fileURLToPath(new URL(tarballName, artifactsDirUrl));
-  const { stdout } = await execFileAsync("tar", ["-tf", tarballPath]);
+  packedFilesPromise = (async () => {
+    await rm(artifactsDirUrl, { force: true, recursive: true });
+    await mkdir(artifactsDirUrl, { recursive: true });
 
-  return stdout
-    .split("\n")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .sort();
+    await execFileAsync(
+      "pnpm",
+      ["pack", "--pack-destination", fileURLToPath(artifactsDirUrl)],
+      {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+      },
+    );
+
+    const [tarballName] = await readdir(artifactsDirUrl);
+
+    if (!tarballName) {
+      throw new Error("pnpm pack did not create a tarball");
+    }
+
+    const tarballPath = fileURLToPath(new URL(tarballName, artifactsDirUrl));
+    const { stdout } = await execFileAsync("tar", ["-tf", tarballPath]);
+
+    return stdout
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .sort();
+  })();
+
+  return packedFilesPromise;
 }
 
 async function loadPluginHooks() {
@@ -86,6 +104,9 @@ beforeAll(async () => {
     await readFile(pluginPackageUrl, "utf8"),
   ) as PluginPackageManifest;
   pluginSource = await readFile(pluginSourceUrl, "utf8");
+  pluginLifecycleSkillText = await readFile(pluginLifecycleSkillUrl, "utf8");
+  pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
+  pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
     pathToFileURL(fileURLToPath(pluginEntryUrl)).href
   )) as { default: { id?: string; server: unknown } };
@@ -109,6 +130,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAgentPlaceholderUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-task-lifecycle skill resource", async () => {
+    await expect(access(pluginLifecycleSkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -122,7 +147,68 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-placeholder/SKILL.md",
+      "package/skills/aim-task-lifecycle/SKILL.md",
     ]);
+  });
+
+  it("documents lifecycle reporting as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
+    expect(pluginSkillsReadme).toContain("Task via HTTP PATCH");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+    expect(pluginSkillsReadme).toContain("workflow automation");
+
+    expect(pluginReadme).toContain(
+      "Registers the packaged `skills/` directory",
+    );
+    expect(pluginReadme).toContain(
+      "Ships static `skills/` and `agents/` resources",
+    );
+    expect(pluginReadme).toContain("aim-task-lifecycle");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents lifecycle reporting rules and failure split", () => {
+    expect(pluginLifecycleSkillText).toMatch(
+      /`SERVER_BASE_URL` defaults to `http:\/\/localhost:8192`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Use PATCH only to update an existing Task\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /`done` must be `false` for `created`, `waiting_assumptions`, `running`, `outbound`, `pr_following`, and `closing`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /`done` must be `true` only for `succeeded` and `failed`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Never report `done = true` with a non-terminal status\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Separate task failure from reporting failure\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Task failure: .*report `status = failed` and `done = true`\./s,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Reporting failure: .*Do not convert this into a task failure\./s,
+    );
+
+    for (const requiredFragment of [
+      "waiting_assumptions",
+      "pr_following",
+      '"status": "outbound"',
+      '"status": "succeeded"',
+      "reporting blocker",
+    ]) {
+      expect(pluginLifecycleSkillText).toContain(requiredFragment);
+    }
+
+    expect(pluginLifecycleSkillText).not.toContain("TODO");
+    expect(pluginLifecycleSkillText).not.toContain("TBD");
   });
 
   it("exports a default plugin module from the built entry", () => {
