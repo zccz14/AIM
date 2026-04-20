@@ -15,6 +15,7 @@ const buildTaskPrompt = (action: "continue" | "start", task: Task) =>
 task_id: ${task.task_id}
 task_spec: ${task.task_spec}
 status: ${task.status}
+project_path: ${task.project_path}
 worktree_path: ${task.worktree_path ?? "null"}
 pull_request_url: ${task.pull_request_url ?? "null"}
 
@@ -34,7 +35,7 @@ export const createOpenCodeSdkAdapter = (
   return {
     async createSession(task) {
       const session = await client.session.create({
-        query: { directory: task.worktree_path ?? undefined },
+        query: { directory: task.project_path },
         throwOnError: true,
       });
 
