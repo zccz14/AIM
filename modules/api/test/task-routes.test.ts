@@ -15,6 +15,12 @@ let previousProjectRoot: string | undefined;
 const resolveTaskByIdPath = (taskId: string) =>
   contractModule.taskByIdPath.replace("{taskId}", taskId);
 
+const resolveTaskResolvePath = (taskId: string) =>
+  contractModule.taskResolvePath.replace("{taskId}", taskId);
+
+const resolveTaskRejectPath = (taskId: string) =>
+  contractModule.taskRejectPath.replace("{taskId}", taskId);
+
 const useProjectRoot = async (name: string) => {
   previousProjectRoot = process.env.AIM_PROJECT_ROOT;
 
@@ -365,6 +371,124 @@ describe("task routes", () => {
     expect(patchedTask.pull_request_url).toBeNull();
   });
 
+  it("resolves a task and preserves the result when PATCH omits it", async () => {
+    await useProjectRoot("resolves-task-and-preserves-result");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    await expect(resolveResponse.text()).resolves.toBe("");
+
+    const resolvedDetailResponse = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+    );
+
+    expect(resolvedDetailResponse.status).toBe(200);
+
+    const resolvedTask = await resolvedDetailResponse.json();
+
+    expect(resolvedTask.status).toBe("succeeded");
+    expect(resolvedTask.done).toBe(true);
+    expect(resolvedTask.result).toBe("ship it");
+
+    const patchResponse = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          task_spec: "resolved task",
+        }),
+      },
+    );
+
+    expect(patchResponse.status).toBe(200);
+
+    const patchedTask = await patchResponse.json();
+
+    expect(patchedTask.task_spec).toBe("resolved task");
+    expect(patchedTask.status).toBe("succeeded");
+    expect(patchedTask.done).toBe(true);
+    expect(patchedTask.result).toBe("ship it");
+  });
+
+  it("rejects a task and persists the failed result", async () => {
+    await useProjectRoot("rejects-task");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "reject me",
+        project_path: "/repo/reject-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const rejectResponse = await app.request(
+      resolveTaskRejectPath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "needs more work",
+        }),
+      },
+    );
+
+    expect(rejectResponse.status).toBe(204);
+    await expect(rejectResponse.text()).resolves.toBe("");
+
+    const detailResponse = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+    );
+
+    expect(detailResponse.status).toBe(200);
+
+    const rejectedTask = await detailResponse.json();
+
+    expect(rejectedTask.status).toBe("failed");
+    expect(rejectedTask.done).toBe(true);
+    expect(rejectedTask.result).toBe("needs more work");
+  });
+
   it("rejects PATCH /tasks/{id} when project_path is present", async () => {
     await useProjectRoot("rejects-project-path-patch");
 
@@ -531,6 +655,100 @@ describe("task routes", () => {
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 
+  it("returns a shared validation error for invalid resolve payloads", async () => {
+    await useProjectRoot("invalid-resolve-payload");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "resolve validation target",
+        project_path: "/repo/invalid-resolve",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+
+    for (const body of [
+      JSON.stringify({}),
+      JSON.stringify({ result: "" }),
+      JSON.stringify({ result: "   " }),
+      "{",
+    ]) {
+      const response = await app.request(
+        resolveTaskResolvePath(createdTask.task_id),
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body,
+        },
+      );
+
+      expect(response.status).toBe(400);
+
+      const payload = await response.json();
+
+      expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+        true,
+      );
+      expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    }
+  });
+
+  it("returns a shared validation error for invalid reject payloads", async () => {
+    await useProjectRoot("invalid-reject-payload");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "reject validation target",
+        project_path: "/repo/invalid-reject",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+
+    for (const body of [
+      JSON.stringify({}),
+      JSON.stringify({ result: "" }),
+      JSON.stringify({ result: "   " }),
+      "{",
+    ]) {
+      const response = await app.request(
+        resolveTaskRejectPath(createdTask.task_id),
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body,
+        },
+      );
+
+      expect(response.status).toBe(400);
+
+      const payload = await response.json();
+
+      expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+        true,
+      );
+      expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    }
+  });
+
   it("returns a shared not found error for patching a missing task", async () => {
     await useProjectRoot("missing-patch-target");
 
@@ -542,6 +760,54 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         status: "running",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_NOT_FOUND");
+  });
+
+  it("returns a shared not found error for resolving a missing task", async () => {
+    await useProjectRoot("missing-resolve-target");
+
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskResolvePath("task-404"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        result: "ship it",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_NOT_FOUND");
+  });
+
+  it("returns a shared not found error for rejecting a missing task", async () => {
+    await useProjectRoot("missing-reject-target");
+
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskRejectPath("task-404"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        result: "needs more work",
       }),
     });
 
