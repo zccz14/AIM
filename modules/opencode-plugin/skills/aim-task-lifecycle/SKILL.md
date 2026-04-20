@@ -3,36 +3,36 @@ name: aim-task-lifecycle
 description: Report AIM task lifecycle facts to the existing Task record via PATCH.
 ---
 
-## When to use
+## 何时使用
 
-Use this skill when the current work maps to an existing AIM Task and the agent must keep AIM updated with lifecycle facts as they happen.
+当当前工作对应到一个已存在的 AIM Task，并且 agent 必须在生命周期事实发生时持续把这些事实同步回 AIM 时，使用此技能。
 
-Do not use this skill to create tasks, replace repository AGENTS rules, or automate worktree / PR decisions.
+不要用此技能来创建任务、替代仓库 AGENTS 规则，或自动决定 worktree / PR 流程。
 
-## Required inputs
+## 必需输入
 
-- `task_id` for the existing AIM Task record. If it is missing, stop and expose the missing input instead of sending a request.
-- A current fact snapshot with the current lifecycle status plus any known `worktree_path` / `pull_request_url` values.
+- 已存在 AIM Task 记录的 `task_id`。如果缺失，必须停止，并暴露缺失的输入，而不是发送请求。
+- 当前事实快照：包含当前生命周期状态，以及任何已知的 `worktree_path` / `pull_request_url` 值。
 
-## Environment
+## 环境
 
-- `SERVER_BASE_URL` defaults to `http://localhost:8192`.
-- The only reporting target in v1 is `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`.
+- `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
+- v1 中唯一的上报目标是 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
 
-## Lifecycle statuses
+## 生命周期状态
 
-### Status meanings
+### 状态含义
 
-- `created`: the Task already exists, but execution has not started.
-- `waiting_assumptions`: execution is blocked on missing assumptions or user input; `done` must stay `false`.
-- `running`: work has started, but the task has not reached the PR outbound stage yet.
-- `outbound`: a PR exists and `pull_request_url` is known.
-- `pr_following`: the agent is following PR checks, reviews, mergeability, or auto-merge state.
-- `closing`: the task is in cleanup or final closing actions.
-- `succeeded`: the task finished successfully and must be reported with `done = true`.
-- `failed`: the task ended in a failure terminal state and must be reported with `done = true`.
+- `created`：Task 已存在，但执行尚未开始。
+- `waiting_assumptions`：执行因缺失前提假设或用户输入而阻塞；`done` 必须保持为 `false`。
+- `running`：工作已经开始，但任务尚未到达 PR 出站阶段。
+- `outbound`：PR 已存在，且 `pull_request_url` 已知。
+- `pr_following`：agent 正在跟进 PR checks、reviews、mergeability 或 auto-merge 状态。
+- `closing`：任务处于清理或最终关闭动作阶段。
+- `succeeded`：任务成功完成，且必须以 `done = true` 上报。
+- `failed`：任务以失败终态结束，且必须以 `done = true` 上报。
 
-### Allowed transitions
+### 允许的状态流转
 
 - `created -> running`
 - `created -> waiting_assumptions`
@@ -43,44 +43,44 @@ Do not use this skill to create tasks, replace repository AGENTS rules, or autom
 - `outbound -> pr_following`
 - `outbound -> closing`
 - `outbound -> failed`
-- `pr_following -> pr_following` for repeated follow-up reports while the task stays in the PR follow-up phase.
+- `pr_following -> pr_following`：当任务仍处于 PR 跟进阶段时，可用于重复的 follow-up 上报。
 - `pr_following -> closing`
 - `pr_following -> failed`
 - `closing -> succeeded`
 - `closing -> failed`
 
-`running -> closing` is not a standard v1 path and should not be documented as a normal transition.
+`running -> closing` 不是标准的 v1 路径，不应被写作正常状态流转。
 
-### `done` rules
+### `done` 规则
 
-- `done` must be `false` for `created`, `waiting_assumptions`, `running`, `outbound`, `pr_following`, and `closing`.
-- `done` must be `true` only for `succeeded` and `failed`.
-- Never report `done = true` with a non-terminal status.
-- After a successful terminal write, do not move back to a non-terminal status.
+- 对于 `created`、`waiting_assumptions`、`running`、`outbound`、`pr_following` 和 `closing`，`done` 必须为 `false`。
+- 只有 `succeeded` 和 `failed` 的 `done` 必须为 `true`。
+- 绝不要在非终态状态下上报 `done = true`。
+- 终态写入一旦成功，不要再回退到非终态状态。
 
-## Required reporting moments
+## 必须上报的时点
 
-Reporting must happen during the lifecycle and must not be deferred until only the final terminal state.
+上报必须在生命周期过程中进行，不能拖延到只剩最终终态时才上报。
 
-1. Start of execution: report `running` with `done = false`.
-2. After worktree creation: report the known `worktree_path` while staying in `running`.
-3. After PR creation: report `outbound`, `done = false`, and `pull_request_url`.
-4. During PR follow-up: report `pr_following`, `done = false`, and preserve known `pull_request_url` / `worktree_path`.
-5. During closing: report `closing`, `done = false`, and preserve all known facts.
-6. On success: report `succeeded`, `done = true`, and preserve all known facts.
-7. On failure: report `failed`, `done = true`, and preserve all known facts.
+1. 执行开始时：上报 `running`，并带上 `done = false`。
+2. worktree 创建后：在保持 `running` 的同时，上报已知的 `worktree_path`。
+3. PR 创建后：上报 `outbound`、`done = false` 和 `pull_request_url`。
+4. PR 跟进期间：上报 `pr_following`、`done = false`，并保留已知的 `pull_request_url` / `worktree_path`。
+5. closing 期间：上报 `closing`、`done = false`，并保留所有已知事实。
+6. 成功时：上报 `succeeded`、`done = true`，并保留所有已知事实。
+7. 失败时：上报 `failed`、`done = true`，并保留所有已知事实。
 
-Also report `waiting_assumptions` immediately when the task is blocked on missing assumptions or input.
+当任务因缺失前提假设或输入而被阻塞时，也要立即上报 `waiting_assumptions`。
 
-## API call format
+## API 调用格式
 
-Every PATCH must include `status` and `done`. Add `worktree_path` and `pull_request_url` only when they are already known.
+每个 PATCH 都必须包含 `status` 和 `done`。只有在 `worktree_path` 和 `pull_request_url` 已知时，才添加这两个字段。
 
-Unknown is not an empty string. Omit unknown fields instead of sending `""` or fabricated `null` placeholders.
+未知值不等于空字符串。对于未知字段，应省略，而不是发送 `""` 或伪造的 `null` 占位值。
 
-The first version does not require field-clearing behavior.
+第一个版本不要求支持清空字段的行为。
 
-### Running example
+### Running 示例
 
 ```bash
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
@@ -91,7 +91,7 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   }'
 ```
 
-### Outbound example
+### Outbound 示例
 
 ```bash
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
@@ -104,7 +104,7 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   }'
 ```
 
-### Terminal success example
+### 终态成功示例
 
 ```bash
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
@@ -117,21 +117,21 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   }'
 ```
 
-## Rules
+## 规则
 
-- Use PATCH only to update an existing Task.
-- Keep `status` and `done` aligned with the lifecycle rules above.
-- Continue carrying known `worktree_path` and `pull_request_url` in later reports when they are still true.
-- Do not claim AIM has the latest fact unless the PATCH actually succeeded.
-- This skill is a reporting discipline, not an execution orchestrator.
+- 只能使用 PATCH 来更新已存在的 Task。
+- 保持 `status` 和 `done` 与上述生命周期规则一致。
+- 在后续上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
+- 除非 PATCH 实际成功，否则不要声称 AIM 已拥有最新事实。
+- 这个技能是一种上报纪律，不是执行编排器。
 
-## Failure handling
+## 失败处理
 
-Separate task failure from reporting failure.
+要把任务失败与上报失败区分开。
 
-- Task failure: the work itself has failed, so report `status = failed` and `done = true`.
-- Reporting failure: the PATCH request failed due to network, timeout, connection, 5xx, or unexpected response problems. Do not convert this into a task failure.
+- 任务失败：工作本身失败，因此上报 `status = failed` 和 `done = true`。
+- 上报失败：PATCH 请求因为网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
 
-Use at most three attempts total for one reporting moment: the initial request plus up to two retries. A short retry pattern such as 1 second then 5 seconds is acceptable. If the server returns a clear 4xx input error, stop retrying and expose the input problem.
+对于单个上报时点，最多只进行三次尝试：首次请求加最多两次重试。可以采用简短的重试模式，例如先等 1 秒，再等 5 秒。如果服务端返回明确的 4xx 输入错误，则停止重试，并暴露输入问题。
 
-If all retries fail, explicitly surface the AIM reporting blocker with the task id, target URL, reporting moment, and the final error summary. State that the business fact happened but AIM was not successfully updated. After retry exhaustion, do not claim the phase was synced.
+如果所有重试都失败，必须明确暴露 AIM 上报阻塞，并附带 task id、目标 URL、上报时点以及最终错误摘要。要说明业务事实已经发生，但 AIM 未被成功更新。重试耗尽后，不要声称该阶段已经同步。

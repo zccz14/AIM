@@ -126,7 +126,9 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("ships placeholder skills and agents resources", async () => {
-    await expect(access(pluginSkillPlaceholderUrl)).resolves.toBeUndefined();
+    await expect(access(pluginSkillPlaceholderUrl)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     await expect(access(pluginAgentPlaceholderUrl)).resolves.toBeUndefined();
   });
 
@@ -146,13 +148,13 @@ describe("opencode plugin package baseline", () => {
       "package/dist/index.js.map",
       "package/package.json",
       "package/skills/README.md",
-      "package/skills/aim-placeholder/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
     ]);
   });
 
   it("documents lifecycle reporting as packaged documentation only", () => {
+    expect(pluginSkillsReadme).not.toContain("aim-placeholder");
     expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
     expect(pluginSkillsReadme).toContain("Task via HTTP PATCH");
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
@@ -171,31 +173,29 @@ describe("opencode plugin package baseline", () => {
 
   it("documents lifecycle reporting rules and failure split", () => {
     expect(pluginLifecycleSkillText).toMatch(
-      /`SERVER_BASE_URL` defaults to `http:\/\/localhost:8192`\./,
+      /`SERVER_BASE_URL` 默认为 `http:\/\/localhost:8192`。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
       /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /Use PATCH only to update an existing Task\./,
+      /只能使用 PATCH 来更新已存在的 Task。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /`done` must be `false` for `created`, `waiting_assumptions`, `running`, `outbound`, `pr_following`, and `closing`\./,
+      /对于 `created`、`waiting_assumptions`、`running`、`outbound`、`pr_following` 和 `closing`，`done` 必须为 `false`。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /`done` must be `true` only for `succeeded` and `failed`\./,
+      /只有 `succeeded` 和 `failed` 的 `done` 必须为 `true`。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /Never report `done = true` with a non-terminal status\./,
+      /绝不要在非终态状态下上报 `done = true`。/,
+    );
+    expect(pluginLifecycleSkillText).toMatch(/要把任务失败与上报失败区分开。/);
+    expect(pluginLifecycleSkillText).toMatch(
+      /任务失败：工作本身失败，因此上报 `status = failed` 和 `done = true`。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /Separate task failure from reporting failure\./,
-    );
-    expect(pluginLifecycleSkillText).toMatch(
-      /Task failure: .*report `status = failed` and `done = true`\./s,
-    );
-    expect(pluginLifecycleSkillText).toMatch(
-      /Reporting failure: .*Do not convert this into a task failure\./s,
+      /上报失败：PATCH 请求因为网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
     );
 
     for (const requiredFragment of [
@@ -203,7 +203,7 @@ describe("opencode plugin package baseline", () => {
       "pr_following",
       '"status": "outbound"',
       '"status": "succeeded"',
-      "reporting blocker",
+      "AIM 上报阻塞",
     ]) {
       expect(pluginLifecycleSkillText).toContain(requiredFragment);
     }
