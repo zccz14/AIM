@@ -243,30 +243,31 @@ describe("opencode plugin package baseline", () => {
       /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /只能使用 PATCH 来更新已存在的 Task。/,
+      /只能使用 PATCH 来更新已存在 Task 的非终态事实。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /对于 `created`、`waiting_assumptions`、`running`、`outbound`、`pr_following` 和 `closing`，`done` 必须为 `false`。/,
+      /只能使用 `POST \/resolve` 上报 `succeeded` 终态，且只能使用 `POST \/reject` 上报 `failed` 终态。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /只有 `succeeded` 和 `failed` 的 `done` 必须为 `true`。/,
+      /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /绝不要在非终态状态下上报 `done = true`。/,
+      /终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。/,
     );
     expect(pluginLifecycleSkillText).toMatch(/要把任务失败与上报失败区分开。/);
     expect(pluginLifecycleSkillText).toMatch(
-      /任务失败：工作本身失败，因此上报 `status = failed` 和 `done = true`。/,
+      /任务失败：工作本身失败，因此应通过 `POST \/tasks\/\$\{task_id\}\/reject` 发送带非空 `result` 的终态失败上报。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /上报失败：PATCH 请求因为网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
+      /上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
     );
 
     for (const requiredFragment of [
       "waiting_assumptions",
       "pr_following",
       '"status": "outbound"',
-      '"status": "succeeded"',
+      "POST /tasks/${task_id}/resolve",
+      "POST /tasks/${task_id}/reject",
       "AIM 上报阻塞",
     ]) {
       expect(pluginLifecycleSkillText).toContain(requiredFragment);
