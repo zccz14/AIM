@@ -162,7 +162,6 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-create-tasks/SKILL.md",
-      "package/skills/aim-placeholder/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
     ]);
