@@ -159,7 +159,9 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("ships the aim-setup-github-repo skill resource", async () => {
-    await expect(access(pluginSetupGithubRepoSkillUrl)).resolves.toBeUndefined();
+    await expect(
+      access(pluginSetupGithubRepoSkillUrl),
+    ).resolves.toBeUndefined();
   });
 
   it("packs the expected publishable tarball contents", async () => {
@@ -314,7 +316,9 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("documents GitHub repo setup workflow and blockers", () => {
-    expect(pluginSetupGithubRepoSkillText).toContain("gh repo view --json nameWithOwner,defaultBranchRef");
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "gh repo view --json nameWithOwner,defaultBranchRef",
+    );
     expect(pluginSetupGithubRepoSkillText).toContain("allowSquashMerge");
     expect(pluginSetupGithubRepoSkillText).toContain(
       "| `requiredLinearHistory` | `true` |",
@@ -323,10 +327,16 @@ describe("opencode plugin package baseline", () => {
       "把 `pull_request` 与 `non_fast_forward` 视为默认目标 rules",
     );
     expect(pluginSetupGithubRepoSkillText).toContain("required_status_checks");
-    expect(pluginSetupGithubRepoSkillText).toContain("gh pr merge PR_NUMBER --auto --squash");
-    expect(pluginSetupGithubRepoSkillText).toContain("先读 live state，再做最小修正。不要猜测仓库设置、required checks 或 PR merge 阻塞原因。");
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "gh pr merge PR_NUMBER --auto --squash",
+    );
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "先读 live state，再做最小修正。不要猜测仓库设置、required checks 或 PR merge 阻塞原因。",
+    );
     expect(pluginSetupGithubRepoSkillText).toContain("Draft PR");
-    expect(pluginSetupGithubRepoSkillText).toContain("Required checks 仍在运行 / 失败");
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "Required checks 仍在运行 / 失败",
+    );
     expect(pluginSetupGithubRepoSkillText).not.toContain("TODO");
     expect(pluginSetupGithubRepoSkillText).not.toContain("TBD");
   });
