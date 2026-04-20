@@ -70,6 +70,7 @@ const startTaskServer = async () => {
     worktree_path: null,
     pull_request_url: "https://example.test/pr/2",
     dependencies: ["task-a", "task-b"],
+    result: "",
     done: false,
     status: "created",
     created_at: "2026-04-20T00:00:00.000Z",
