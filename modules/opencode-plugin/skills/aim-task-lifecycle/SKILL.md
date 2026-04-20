@@ -35,13 +35,13 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 ### 状态含义
 
 - `created`：Task 已存在，但执行尚未开始。
-- `waiting_assumptions`：执行因缺失前提假设或用户输入而阻塞；`done` 必须保持为 `false`。
+- `waiting_assumptions`：执行因缺失前提假设或用户输入而阻塞。
 - `running`：工作已经开始，且仍处于 worktree 内执行阶段；覆盖主工作区完成准备、worktree 创建、spec / implementation plan / 实现 / 验证 / commit / push 以及 PR 创建前的全部阶段。
 - `outbound`：PR 已创建；如果 `pull_request_url` 已知则一并上报。此时已经出站，但还未进入首次正式 follow-up。
 - `pr_following`：agent 已完成 PR 创建后的主动等待，并正在跟进 checks、reviews、mergeability 或 auto-merge 状态。
 - `closing`：PR 已合并、关闭或确认废弃，任务进入收尾阶段；此阶段用于处理相关 review / 后续 review、清理 worktree，并刷新主工作区基线。
-- `succeeded`：任务成功完成，且必须以 `done = true` 上报。
-- `failed`：任务以失败终态结束，且必须以 `done = true` 上报。
+- `succeeded`：任务成功完成，并通过 `POST /resolve` 上报。
+- `failed`：任务以失败终态结束，并通过 `POST /reject` 上报。
 
 ### 允许的状态流转
 
@@ -132,10 +132,10 @@ flowchart TD
 
 1. 执行开始时：上报 `running`。
 2. worktree 创建后：在保持 `running` 的同时，上报已知的 `worktree_path`。
-3. PR 创建后：上报 `outbound` 和 `done = false`；如果此时 `pull_request_url` 已知则一并带上。即使 auto-merge 还未成功启用，或 URL 还未拿到，也仍然先如实上报 `outbound`。
-4. 首次 follow-up 开始时：在完成 1 到 10 分钟的主动等待后，上报 `pr_following`、`done = false`，并保留已知的 `pull_request_url` / `worktree_path`。
+3. PR 创建后：上报 `outbound` 和 `pull_request_url`；如果此时 URL 暂未拿到，也不要因此拖延 `outbound` 上报。
+4. 首次 follow-up 开始时：在完成 1 到 10 分钟的主动等待后，上报 `pr_following`，并保留已知的 `pull_request_url` / `worktree_path`。
 5. PR 跟进期间：如有 checks 失败、blocking review、merge conflict、auto-merge 阻塞或其他新的阶段事实，继续以上报 `pr_following` 为主，并保留所有已知事实。
-6. closing 期间：当 PR 已合并、关闭或确认废弃后，上报 `closing`、`done = false`，并保留所有已知事实；此阶段还要处理相关 review / 后续 review、删除 worktree，并刷新主工作区基线，因此尚未真正完成。
+6. closing 期间：当 PR 已合并、关闭或确认废弃后，上报 `closing`，并保留所有已知事实；此阶段还要处理相关 review / 后续 review、删除 worktree，并刷新主工作区基线，因此尚未真正完成。
 7. 成功时：只有在相关 review / 后续 review 已处理完成、worktree 已删除且主工作区基线已刷新后，才通过 `POST /tasks/${task_id}/resolve` 上报终态事实，并携带非空 `result`。
 8. 失败时：通过 `POST /tasks/${task_id}/reject` 上报终态事实，并携带非空 `result`。
 
