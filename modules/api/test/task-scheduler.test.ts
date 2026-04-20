@@ -47,7 +47,10 @@ describe("task scheduler", () => {
       initialTask.task_id,
       "session-1",
     );
-    expect(coordinator.getSessionState).toHaveBeenCalledWith("session-1");
+    expect(coordinator.getSessionState).toHaveBeenCalledWith(
+      "session-1",
+      initialTask.project_path,
+    );
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).toContain(
@@ -197,7 +200,10 @@ describe("task scheduler", () => {
     await scheduler.runRound();
 
     expect(coordinator.getSessionState).toHaveBeenCalledTimes(1);
-    expect(coordinator.getSessionState).toHaveBeenCalledWith("shared-session");
+    expect(coordinator.getSessionState).toHaveBeenCalledWith(
+      "shared-session",
+      firstTask.project_path,
+    );
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "shared-session",

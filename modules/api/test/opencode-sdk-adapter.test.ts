@@ -91,7 +91,7 @@ describe("opencode sdk adapter", () => {
     );
   });
 
-  it("reads the raw session status for the requested session", async () => {
+  it("reads the raw session status for the requested session with directory scope", async () => {
     const status = vi.fn().mockResolvedValue({
       data: {
         "session-1": { type: "busy" },
@@ -111,10 +111,13 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(adapter.getSession("session-1")).resolves.toEqual({
+    await expect(adapter.getSession("session-1", "/repo")).resolves.toEqual({
       type: "busy",
     });
     expect(status).toHaveBeenCalledWith({
+      query: {
+        directory: "/repo",
+      },
       throwOnError: true,
     });
   });

@@ -16,13 +16,13 @@ type TaskSessionRecord = {
 
 type TaskSessionCoordinatorAdapter = {
   createSession(task: Task): Promise<TaskSessionRecord>;
-  getSession(sessionId: string): Promise<unknown>;
+  getSession(sessionId: string, projectPath: string): Promise<unknown>;
   sendPrompt(sessionId: string, prompt: string): Promise<unknown>;
 };
 
 export type TaskSessionCoordinator = {
   createSession(task: Task): Promise<{ sessionId: string }>;
-  getSessionState(sessionId: string): Promise<TaskSessionState>;
+  getSessionState(sessionId: string, projectPath: string): Promise<TaskSessionState>;
   sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
@@ -56,13 +56,17 @@ export const createTaskSessionCoordinator = (
         throw actionError("createSession", error);
       }
     },
-    async getSessionState(sessionId) {
+    async getSessionState(sessionId, projectPath) {
       let session: unknown;
 
       try {
-        session = await adapter.getSession(sessionId);
+        session = await adapter.getSession(sessionId, projectPath);
       } catch (error) {
         throw actionError("getSessionState", error);
+      }
+
+      if (session === undefined) {
+        return "idle";
       }
 
       const status =
