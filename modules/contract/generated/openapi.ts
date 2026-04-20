@@ -230,6 +230,98 @@ export const openApiDocument = {
           }
         }
       }
+    },
+    "/tasks/{taskId}/resolve": {
+      "post": {
+        "operationId": "resolveTaskById",
+        "summary": "Resolve a task with a result",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskIdPathParameter"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskResultRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Task resolved"
+          },
+          "400": {
+            "description": "Invalid task result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{taskId}/reject": {
+      "post": {
+        "operationId": "rejectTaskById",
+        "summary": "Reject a task with a result",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskIdPathParameter"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskResultRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Task rejected"
+          },
+          "400": {
+            "description": "Invalid task result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -329,6 +421,7 @@ export const openApiDocument = {
           "task_id",
           "task_spec",
           "project_path",
+          "result",
           "session_id",
           "worktree_path",
           "pull_request_url",
@@ -351,6 +444,9 @@ export const openApiDocument = {
           "project_path": {
             "type": "string",
             "minLength": 1
+          },
+          "result": {
+            "type": "string"
           },
           "session_id": {
             "type": [
@@ -429,6 +525,10 @@ export const openApiDocument = {
               "minLength": 1
             }
           },
+          "result": {
+            "type": "string",
+            "default": ""
+          },
           "session_id": {
             "type": [
               "string",
@@ -495,6 +595,9 @@ export const openApiDocument = {
               "minLength": 1
             }
           },
+          "result": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -507,6 +610,20 @@ export const openApiDocument = {
               "succeeded",
               "failed"
             ]
+          }
+        }
+      },
+      "TaskResultRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "result"
+        ],
+        "properties": {
+          "result": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+"
           }
         }
       },

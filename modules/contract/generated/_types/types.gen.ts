@@ -26,6 +26,7 @@ export type Task = {
     readonly task_id: string;
     task_spec: string;
     project_path: string;
+    result: string;
     session_id: string | null;
     worktree_path: string | null;
     pull_request_url: string | null;
@@ -40,6 +41,7 @@ export type CreateTaskRequest = {
     task_spec: string;
     project_path: string;
     dependencies?: Array<string>;
+    result?: string;
     session_id?: string | null;
     worktree_path?: string | null;
     pull_request_url?: string | null;
@@ -52,7 +54,12 @@ export type PatchTaskRequest = {
     worktree_path?: string | null;
     pull_request_url?: string | null;
     dependencies?: Array<string>;
+    result?: string;
     status?: 'created' | 'waiting_assumptions' | 'running' | 'outbound' | 'pr_following' | 'closing' | 'succeeded' | 'failed';
+};
+
+export type TaskResultRequest = {
+    result: string;
 };
 
 export type TaskListResponse = {
@@ -67,6 +74,7 @@ export type ErrorResponse = {
 export type TaskWritable = {
     task_spec: string;
     project_path: string;
+    result: string;
     session_id: string | null;
     worktree_path: string | null;
     pull_request_url: string | null;
@@ -249,3 +257,65 @@ export type PatchTaskByIdResponses = {
 };
 
 export type PatchTaskByIdResponse = PatchTaskByIdResponses[keyof PatchTaskByIdResponses];
+
+export type ResolveTaskByIdData = {
+    body: TaskResultRequest;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/tasks/{taskId}/resolve';
+};
+
+export type ResolveTaskByIdErrors = {
+    /**
+     * Invalid task result
+     */
+    400: ErrorResponse;
+    /**
+     * Task not found
+     */
+    404: ErrorResponse;
+};
+
+export type ResolveTaskByIdError = ResolveTaskByIdErrors[keyof ResolveTaskByIdErrors];
+
+export type ResolveTaskByIdResponses = {
+    /**
+     * Task resolved
+     */
+    204: void;
+};
+
+export type ResolveTaskByIdResponse = ResolveTaskByIdResponses[keyof ResolveTaskByIdResponses];
+
+export type RejectTaskByIdData = {
+    body: TaskResultRequest;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/tasks/{taskId}/reject';
+};
+
+export type RejectTaskByIdErrors = {
+    /**
+     * Invalid task result
+     */
+    400: ErrorResponse;
+    /**
+     * Task not found
+     */
+    404: ErrorResponse;
+};
+
+export type RejectTaskByIdError = RejectTaskByIdErrors[keyof RejectTaskByIdErrors];
+
+export type RejectTaskByIdResponses = {
+    /**
+     * Task rejected
+     */
+    204: void;
+};
+
+export type RejectTaskByIdResponse = RejectTaskByIdResponses[keyof RejectTaskByIdResponses];

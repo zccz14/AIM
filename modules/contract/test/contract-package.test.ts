@@ -10,6 +10,10 @@ type RequestInitWithDuplex = RequestInit & {
 
 const contractPackageUrl = new URL("../package.json", import.meta.url);
 const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
+const contractTypeDefinitionUrl = new URL(
+  "../dist/index.d.mts",
+  import.meta.url,
+);
 const contractOpenApiSourceUrl = new URL("../src/openapi.ts", import.meta.url);
 const contractIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
 const generatedClientUrl = new URL("../generated/client.ts", import.meta.url);
@@ -95,12 +99,15 @@ type _generatedClientExportsTaskCrud = Assert<
     HasExport<GeneratedClientModule, "createTask"> &
     HasExport<GeneratedClientModule, "getTaskById"> &
     HasExport<GeneratedClientModule, "patchTaskById"> &
-    HasExport<GeneratedClientModule, "deleteTaskById">
+    HasExport<GeneratedClientModule, "deleteTaskById"> &
+    HasExport<GeneratedClientModule, "resolveTaskById"> &
+    HasExport<GeneratedClientModule, "rejectTaskById">
 >;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
     HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
+    HasExport<GeneratedTypesModule, "TaskResultRequest"> &
     HasExport<GeneratedTypesModule, "TaskListResponse">
 >;
 
@@ -206,6 +213,9 @@ describe("contract package baseline", () => {
       "taskErrorCodeSchema",
       "taskErrorSchema",
       "taskListResponseSchema",
+      "taskRejectPath",
+      "taskResolvePath",
+      "taskResultRequestSchema",
       "taskSchema",
       "taskStatusSchema",
       "tasksPath",
@@ -218,6 +228,12 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.taskByIdPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskResolvePath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskRejectPath],
     ).toBeDefined();
   });
 
@@ -244,6 +260,8 @@ describe("contract package baseline", () => {
   it("exports task paths and task schemas from the built package boundary", () => {
     expect(contractModule.tasksPath).toBe("/tasks");
     expect(contractModule.taskByIdPath).toBe("/tasks/{taskId}");
+    expect(contractModule.taskResolvePath).toBe("/tasks/{taskId}/resolve");
+    expect(contractModule.taskRejectPath).toBe("/tasks/{taskId}/reject");
     expect(contractModule.taskStatusSchema.parse("running")).toBe("running");
     expect(contractModule.taskErrorCodeSchema.parse("TASK_NOT_FOUND")).toBe(
       "TASK_NOT_FOUND",
@@ -256,19 +274,30 @@ describe("contract package baseline", () => {
     ).toEqual({
       task_spec: "Ship contract",
       project_path: "/repo",
+      result: "",
     });
     expect(
       contractModule.patchTaskRequestSchema.parse({
         status: "succeeded",
+        result: "final output",
       }),
     ).toEqual({
       status: "succeeded",
+      result: "final output",
+    });
+    expect(
+      contractModule.taskResultRequestSchema.parse({
+        result: "final output",
+      }),
+    ).toEqual({
+      result: "final output",
     });
     expect(
       contractModule.taskSchema.parse({
         task_id: "task-1",
         task_spec: "Ship contract",
         project_path: "/repo",
+        result: "complete",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -280,6 +309,7 @@ describe("contract package baseline", () => {
       }),
     ).toMatchObject({
       task_id: "task-1",
+      result: "complete",
       status: "running",
     });
     expect(
@@ -289,6 +319,7 @@ describe("contract package baseline", () => {
             task_id: "task-1",
             task_spec: "Ship contract",
             project_path: "/repo",
+            result: "complete",
             session_id: null,
             worktree_path: null,
             pull_request_url: null,
@@ -307,6 +338,25 @@ describe("contract package baseline", () => {
         },
       ],
     });
+    expect(
+      contractModule.taskResultRequestSchema.safeParse({ result: "   " })
+        .success,
+    ).toBe(false);
+    expect(
+      contractModule.taskSchema.safeParse({
+        task_id: "task-1",
+        task_spec: "Ship contract",
+        project_path: "/repo",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+        done: false,
+        status: "running",
+        created_at: "2026-04-19T00:00:00.000Z",
+        updated_at: "2026-04-19T00:00:00.000Z",
+      }).success,
+    ).toBe(false);
     expect(
       contractModule.taskErrorSchema.parse({
         code: "TASK_VALIDATION_ERROR",
@@ -381,6 +431,38 @@ describe("contract package baseline", () => {
           };
         }
       | undefined;
+    const resolveTaskByIdPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/resolve"
+    ] as
+      | {
+          post?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const rejectTaskByIdPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/reject"
+    ] as
+      | {
+          post?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
     const taskQueryParameters = (tasksPathItem?.get?.parameters ?? []).map(
       (parameter) => {
         if ("$ref" in parameter && typeof parameter.$ref === "string") {
@@ -393,6 +475,8 @@ describe("contract package baseline", () => {
 
     expect(tasksPathItem).toBeDefined();
     expect(taskByIdPathItem).toBeDefined();
+    expect(resolveTaskByIdPathItem).toBeDefined();
+    expect(rejectTaskByIdPathItem).toBeDefined();
     expect(tasksPathItem?.post?.responses["201"]).toBeDefined();
     expect(taskQueryParameters).toEqual(
       expect.arrayContaining([
@@ -427,6 +511,48 @@ describe("contract package baseline", () => {
     });
     expect(taskByIdPathItem?.delete?.responses["204"]).toBeDefined();
     expect(taskByIdPathItem?.get?.responses["404"]).toBeDefined();
+    expect(
+      resolveTaskByIdPathItem?.post?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskResultRequest",
+    });
+    expect(resolveTaskByIdPathItem?.post?.responses["204"]).toBeDefined();
+    expect(
+      resolveTaskByIdPathItem?.post?.responses["400"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      resolveTaskByIdPathItem?.post?.responses["404"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      rejectTaskByIdPathItem?.post?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskResultRequest",
+    });
+    expect(rejectTaskByIdPathItem?.post?.responses["204"]).toBeDefined();
+    expect(
+      rejectTaskByIdPathItem?.post?.responses["400"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      rejectTaskByIdPathItem?.post?.responses["404"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
   });
 
   it("publishes task CRUD schemas in the shared OpenAPI document", () => {
@@ -441,6 +567,9 @@ describe("contract package baseline", () => {
     expect(createTaskRequestSchema).toBeDefined();
     expect(
       contractModule.openApiDocument.components.schemas.PatchTaskRequest,
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.components.schemas.TaskResultRequest,
     ).toBeDefined();
     expect(taskListResponseSchema).toBeDefined();
     expect(
@@ -459,6 +588,7 @@ describe("contract package baseline", () => {
       "dependencies",
       "project_path",
       "pull_request_url",
+      "result",
       "session_id",
       "status",
       "task_spec",
@@ -502,6 +632,48 @@ describe("contract package baseline", () => {
         "succeeded",
         "failed",
       ],
+    });
+    expect(
+      contractModule.openApiDocument.components.schemas.Task,
+    ).toMatchObject({
+      required: expect.arrayContaining(["result"]),
+    });
+    expect(
+      (
+        contractModule.openApiDocument.components.schemas.Task as {
+          properties: Record<string, unknown>;
+        }
+      ).properties.result,
+    ).toEqual({
+      type: "string",
+    });
+    expect(
+      (
+        createTaskRequestSchema as {
+          properties: Record<string, unknown>;
+        }
+      ).properties.result,
+    ).toEqual({
+      default: "",
+      type: "string",
+    });
+    expect(
+      contractModule.openApiDocument.components.schemas.TaskResultRequest,
+    ).toMatchObject({
+      additionalProperties: false,
+      required: ["result"],
+      type: "object",
+    });
+    expect(
+      (
+        contractModule.openApiDocument.components.schemas.TaskResultRequest as {
+          properties: Record<string, unknown>;
+        }
+      ).properties.result,
+    ).toMatchObject({
+      minLength: 1,
+      pattern: "^(?!\\s*$).+",
+      type: "string",
     });
     expect(taskListResponseSchema).toEqual({
       type: "object",
@@ -564,6 +736,21 @@ describe("contract package baseline", () => {
       }).success,
     ).toBe(false);
     expect(generatedTypeDefinitions).toContain("project_path: string;");
+    expect(generatedTypeDefinitions).toContain("result: string;");
+  });
+
+  it("publishes a public CreateTaskRequest type that allows omitting result", async () => {
+    const contractTypeDefinitions = await readFile(
+      contractTypeDefinitionUrl,
+      "utf8",
+    );
+
+    expect(contractTypeDefinitions).toContain(
+      "type CreateTaskRequest = input<typeof createTaskRequestSchema>;",
+    );
+    expect(contractTypeDefinitions).toContain(
+      "type ParsedCreateTaskRequest = output<typeof createTaskRequestSchema>;",
+    );
   });
 
   it("rejects project_path inside PatchTaskRequest", async () => {
@@ -576,6 +763,7 @@ describe("contract package baseline", () => {
 
     expect(patchSchema.additionalProperties).toBe(false);
     expect(patchSchema.properties.project_path).toBeUndefined();
+    expect(patchSchema.properties.result).toEqual({ type: "string" });
     expect(
       generatedZodModule.schemas.PatchTaskRequest.safeParse({
         project_path: "/repo",
@@ -593,6 +781,9 @@ describe("contract package baseline", () => {
     expect(generatedZodSource).not.toMatch(
       /PatchTaskRequest[\s\S]*project_path/,
     );
+    expect(
+      contractModule.patchTaskRequestSchema.parse({ result: "run summary" }),
+    ).toEqual({ result: "run summary" });
   });
 
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
@@ -624,6 +815,8 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.getTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.patchTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.resolveTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.rejectTaskById).toBeTypeOf("function");
     await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
       'export * from "./_client/index.js";',
     );
@@ -778,6 +971,7 @@ describe("contract package baseline", () => {
       task_id: "task-1",
       task_spec: "write spec",
       project_path: "/repo",
+      result: "",
       session_id: null,
       worktree_path: null,
       pull_request_url: null,
@@ -867,6 +1061,22 @@ describe("contract package baseline", () => {
             return new Response(null, { status: 204 });
           }
 
+          if (
+            request.method === "POST" &&
+            url.pathname === "/tasks/task-1/resolve" &&
+            bodyText === JSON.stringify({ result: "completed" })
+          ) {
+            return new Response(null, { status: 204 });
+          }
+
+          if (
+            request.method === "POST" &&
+            url.pathname === "/tasks/task-1/reject" &&
+            bodyText === JSON.stringify({ result: "rejected" })
+          ) {
+            return new Response(null, { status: 204 });
+          }
+
           throw new Error(
             `unexpected request: ${request.method} ${url.pathname}${url.search}`,
           );
@@ -896,6 +1106,7 @@ describe("contract package baseline", () => {
       task_id: "task-1",
       task_spec: "write spec",
       project_path: "/repo",
+      result: "",
       status: "created",
     });
     await expect(client.getTaskById("task-1")).resolves.toMatchObject({
@@ -908,8 +1119,14 @@ describe("contract package baseline", () => {
       status: "running",
     });
     await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
+    await expect(
+      client.resolveTaskById("task-1", { result: "completed" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      client.rejectTaskById("task-1", { result: "rejected" }),
+    ).resolves.toBeUndefined();
 
-    expect(fetcher.mock.calls).toHaveLength(5);
+    expect(fetcher.mock.calls).toHaveLength(7);
     expect(requests).toEqual([
       {
         body: undefined,
@@ -947,6 +1164,18 @@ describe("contract package baseline", () => {
         body: undefined,
         method: "DELETE",
         pathname: "/tasks/task-1",
+        searchParams: {},
+      },
+      {
+        body: { result: "completed" },
+        method: "POST",
+        pathname: "/tasks/task-1/resolve",
+        searchParams: {},
+      },
+      {
+        body: { result: "rejected" },
+        method: "POST",
+        pathname: "/tasks/task-1/reject",
         searchParams: {},
       },
     ]);
