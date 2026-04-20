@@ -49,12 +49,12 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 
   expect(dashboardPageSource).toContain("const handleRefresh = async () =>");
-  expect(dashboardPageSource).toContain(
-    "<Button loading={dashboardQuery.isFetching}"
-  );
-  expect(dashboardPageSource).toContain(">Refresh<");
+  expect(dashboardPageSource).toContain("loading={dashboardQuery.isFetching}");
+  expect(dashboardPageSource).toContain("disabled={dashboardQuery.isFetching}");
+  expect(dashboardPageSource).toContain("Refresh");
   expect(dashboardPageSource).toContain("onClick={() => void handleRefresh()}");
   expect(dashboardPageSource).toContain("<ServerBaseUrlForm onSave={handleRefresh} />");
+  expect(dashboardPageSource).toContain("Retry");
   expect(dashboardPageSource).not.toContain(
     'onClick={() => void dashboardQuery.refetch()}',
   );
@@ -262,7 +262,7 @@ Expected: PASS。
 
 Run: `pnpm exec playwright test --config playwright.config.ts modules/web/test/app.spec.ts modules/web/test/task-dashboard.spec.ts --project chromium --grep "keeps dashboard refresh actions behind a shared handler|refreshes the dashboard without clearing the current task filter|shows a clear error state when the task request fails|refetches the dashboard after saving a new SERVER_BASE_URL"`
 
-Expected: PASS，至少覆盖源码约束、新增手动刷新回归、既有错误态 `Retry` 可见性，以及 `SERVER_BASE_URL` 保存后的 refetch 路径。
+Expected: PASS，至少覆盖源码约束、新增手动刷新回归、既有错误态 `Retry` 页面分支，以及 `SERVER_BASE_URL` 保存后的 refetch 路径。
 
 - [ ] **Step 6: 提交浏览器回归测试**
 
