@@ -16,6 +16,7 @@ type TaskRow = {
   done: number;
   pull_request_url: null | string;
   project_path: string;
+  result: string;
   session_id: null | string;
   status: TaskStatus;
   task_id: string;
@@ -25,6 +26,7 @@ type TaskRow = {
 };
 
 type TableInfoRow = {
+  dflt_value: null | string;
   name: string;
   notnull: 0 | 1;
   pk: 0 | 1;
@@ -51,6 +53,7 @@ const requiredColumns = [
   { name: "worktree_path", notnull: 0, pk: 0, type: "TEXT" },
   { name: "pull_request_url", notnull: 0, pk: 0, type: "TEXT" },
   { name: "dependencies", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "result", defaultValue: "''", notnull: 1, pk: 0, type: "TEXT" },
   { name: "done", notnull: 1, pk: 0, type: "INTEGER" },
   { name: "status", notnull: 1, pk: 0, type: "TEXT" },
   { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
@@ -89,6 +92,7 @@ const mapTaskRow = (row: TaskRow) =>
     worktree_path: row.worktree_path,
     pull_request_url: row.pull_request_url,
     dependencies: JSON.parse(row.dependencies) as string[],
+    result: row.result,
     done: Boolean(row.done),
     status: row.status,
     created_at: row.created_at,
@@ -105,6 +109,7 @@ const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
       worktree_path TEXT,
       pull_request_url TEXT,
       dependencies TEXT NOT NULL,
+      result TEXT NOT NULL DEFAULT '',
       done INTEGER NOT NULL,
       status TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -130,6 +135,8 @@ const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
     if (
       !actualColumn ||
       normalizeColumnType(actualColumn.type) !== expectedColumn.type ||
+      ("defaultValue" in expectedColumn &&
+        actualColumn.dflt_value !== expectedColumn.defaultValue) ||
       (expectedColumn.pk === 0 &&
         actualColumn.notnull !== expectedColumn.notnull) ||
       actualColumn.pk !== expectedColumn.pk
@@ -160,11 +167,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       worktree_path,
       pull_request_url,
       dependencies,
+      result,
       done,
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const listTasksStatement = database.prepare(`
     SELECT
@@ -175,6 +183,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       worktree_path,
       pull_request_url,
       dependencies,
+      result,
       done,
       status,
       created_at,
@@ -191,6 +200,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       worktree_path,
       pull_request_url,
       dependencies,
+      result,
       done,
       status,
       created_at,
@@ -206,6 +216,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       worktree_path = ?,
       pull_request_url = ?,
       dependencies = ?,
+      result = ?,
       done = ?,
       status = ?,
       updated_at = ?
@@ -232,6 +243,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         worktree_path: input.worktree_path ?? null,
         pull_request_url: input.pull_request_url ?? null,
         dependencies: JSON.stringify(input.dependencies ?? []),
+        result: input.result ?? "",
         done: Number(isDoneStatus(input.status ?? "created")),
         status: input.status ?? "created",
         created_at: timestamp,
@@ -246,6 +258,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.worktree_path,
         task.pull_request_url,
         JSON.stringify(task.dependencies),
+        task.result,
         Number(task.done),
         task.status,
         task.created_at,
@@ -298,6 +311,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             worktree_path,
             pull_request_url,
             dependencies,
+            result,
             done,
             status,
             created_at,
@@ -351,6 +365,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         updatedTask.worktree_path,
         updatedTask.pull_request_url,
         JSON.stringify(updatedTask.dependencies),
+        updatedTask.result,
         Number(updatedTask.done),
         updatedTask.status,
         updatedTask.updated_at,
@@ -358,6 +373,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       );
 
       return updatedTask;
+    },
+    resolveTask(taskId: string, result: string): Promise<null | Task> {
+      return this.updateTask(taskId, { result, status: "succeeded" });
+    },
+    rejectTask(taskId: string, result: string): Promise<null | Task> {
+      return this.updateTask(taskId, { result, status: "failed" });
     },
     deleteTask(taskId: string): Promise<boolean> {
       const result = deleteTaskStatement.run(taskId);
