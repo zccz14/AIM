@@ -13,6 +13,12 @@ const pluginSkillPlaceholderUrl = new URL(
   "../skills/aim-placeholder/SKILL.md",
   import.meta.url,
 );
+const pluginLifecycleSkillUrl = new URL(
+  "../skills/aim-task-lifecycle/SKILL.md",
+  import.meta.url,
+);
+const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
+const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
   "../agents/aim-placeholder.md",
   import.meta.url,
@@ -34,6 +40,8 @@ type ConfigWithSkills = Config & {
 let pluginPackage: PluginPackageManifest;
 let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
+let pluginSkillsReadme: string;
+let pluginReadme: string;
 const packagedSkillsPath = fileURLToPath(new URL("../skills/", pluginEntryUrl));
 const artifactsDirUrl = new URL("../.artifacts/test-pack/", import.meta.url);
 const execFileAsync = promisify(execFile);
@@ -86,6 +94,8 @@ beforeAll(async () => {
     await readFile(pluginPackageUrl, "utf8"),
   ) as PluginPackageManifest;
   pluginSource = await readFile(pluginSourceUrl, "utf8");
+  pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
+  pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
     pathToFileURL(fileURLToPath(pluginEntryUrl)).href
   )) as { default: { id?: string; server: unknown } };
@@ -109,6 +119,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAgentPlaceholderUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-task-lifecycle skill resource", async () => {
+    await expect(access(pluginLifecycleSkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -122,7 +136,23 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-placeholder/SKILL.md",
+      "package/skills/aim-task-lifecycle/SKILL.md",
     ]);
+  });
+
+  it("packs the lifecycle skill into the publishable tarball", async () => {
+    await expect(listPackedFiles()).resolves.toContain(
+      "package/skills/aim-task-lifecycle/SKILL.md",
+    );
+  });
+
+  it("documents lifecycle reporting as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
+    expect(pluginSkillsReadme).toContain("reporting");
+    expect(pluginReadme).toContain("aim-task-lifecycle");
+    expect(pluginReadme).toContain("static");
+    expect(pluginReadme).not.toContain("auto-report");
+    expect(pluginReadme).not.toContain("automatic AIM sync");
   });
 
   it("exports a default plugin module from the built entry", () => {
