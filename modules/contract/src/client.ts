@@ -6,6 +6,8 @@ import {
   getTaskById,
   listTasks,
   patchTaskById,
+  rejectTaskById,
+  resolveTaskById,
 } from "../generated/client.js";
 import type {
   CreateTaskError,
@@ -24,8 +26,11 @@ import type {
   PatchTaskByIdError,
   PatchTaskByIdResponse,
   PatchTaskRequest,
+  RejectTaskByIdError,
+  ResolveTaskByIdError,
   Task,
   TaskListResponse,
+  TaskResultRequest,
 } from "../generated/types.js";
 import { schemas } from "../generated/zod.js";
 
@@ -64,6 +69,8 @@ export type ContractClient = {
   getTaskById(taskId: string): Promise<Task>;
   patchTaskById(taskId: string, input: PatchTaskRequest): Promise<Task>;
   deleteTaskById(taskId: string): Promise<void>;
+  resolveTaskById(taskId: string, input: TaskResultRequest): Promise<void>;
+  rejectTaskById(taskId: string, input: TaskResultRequest): Promise<void>;
 };
 
 const generatedBaseUrl = "http://contract.internal";
@@ -270,6 +277,46 @@ export const createContractClient = ({
         throw new ContractClientError(
           result.response.status,
           taskErrorSchema.parse(result.error satisfies DeleteTaskByIdError),
+        );
+      }
+    },
+
+    async resolveTaskById(taskId, input) {
+      const result = await resolveTaskById({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          taskId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies ResolveTaskByIdError),
+        );
+      }
+    },
+
+    async rejectTaskById(taskId, input) {
+      const result = await rejectTaskById({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          taskId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies RejectTaskByIdError),
         );
       }
     },
