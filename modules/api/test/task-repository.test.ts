@@ -9,6 +9,14 @@ import { taskSchema } from "../../contract/src/index.js";
 import { resolveTaskDatabasePath } from "../src/task-database.js";
 import { createTaskRepository } from "../src/task-repository.js";
 
+type TableInfoRow = {
+  dflt_value: null | string;
+  name: string;
+  notnull: 0 | 1;
+  pk: 0 | 1;
+  type: string;
+};
+
 const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-repository");
 const defaultDatabasePath = fileURLToPath(
   new URL("../../../aim.sqlite", import.meta.url),
@@ -74,15 +82,29 @@ describe("task repository", () => {
     });
     const tasks = await repository.listTasks();
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const resultColumn = database
+      .prepare("PRAGMA table_info(tasks)")
+      .all()
+      .find((row) => (row as TableInfoRow).name === "result") as
+      | TableInfoRow
+      | undefined;
     const persistedRow = database
-      .prepare("SELECT done FROM tasks WHERE task_id = ?")
-      .get(createdTask.task_id) as undefined | { done: number };
+      .prepare("SELECT done, result FROM tasks WHERE task_id = ?")
+      .get(createdTask.task_id) as undefined | { done: number; result: string };
     database.close();
 
     expect(taskSchema.safeParse(createdTask).success).toBe(true);
     expect(createdTask.done).toBe(true);
     expect(createdTask.project_path).toBe("/repo/bootstrap");
-    expect(persistedRow).toEqual({ done: 1 });
+    expect(createdTask.result).toBe("");
+    expect(resultColumn).toMatchObject({
+      dflt_value: "''",
+      name: "result",
+      notnull: 1,
+      pk: 0,
+      type: "TEXT",
+    });
+    expect(persistedRow).toEqual({ done: 1, result: "" });
     expect(tasks).toEqual([createdTask]);
   });
 
@@ -156,6 +178,103 @@ describe("task repository", () => {
     await expect(repository.deleteTask(firstTask.task_id)).resolves.toBe(true);
     await expect(repository.getTaskById(firstTask.task_id)).resolves.toBeNull();
     await expect(repository.deleteTask(firstTask.task_id)).resolves.toBe(false);
+  });
+
+  it("preserves the current result when a patch omits it", async () => {
+    const projectRoot = await createProjectRoot("patch-omits-result");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const task = await repository.createTask({
+      project_path: "/repo/patch-omits-result",
+      result: "keep me",
+      status: "running",
+      task_spec: "preserve result",
+    });
+
+    const updatedTask = await repository.updateTask(task.task_id, {
+      status: "succeeded",
+      task_spec: "preserve existing result",
+    });
+
+    expect(updatedTask).toMatchObject({
+      done: true,
+      result: "keep me",
+      status: "succeeded",
+      task_id: task.task_id,
+    });
+  });
+
+  it("updates the result when a patch explicitly includes it", async () => {
+    const projectRoot = await createProjectRoot("patch-updates-result");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const task = await repository.createTask({
+      project_path: "/repo/patch-updates-result",
+      result: "before",
+      status: "running",
+      task_spec: "replace result",
+    });
+
+    const updatedTask = await repository.updateTask(task.task_id, {
+      result: "after",
+    });
+
+    expect(updatedTask).toMatchObject({
+      result: "after",
+      status: "running",
+      task_id: task.task_id,
+    });
+  });
+
+  it("resolves and rejects tasks while persisting their terminal result", async () => {
+    const projectRoot = await createProjectRoot("terminal-result-helpers");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const resolvedTask = await repository.createTask({
+      project_path: "/repo/terminal-result-helpers/resolved",
+      status: "running",
+      task_spec: "resolve me",
+    });
+    const rejectedTask = await repository.createTask({
+      project_path: "/repo/terminal-result-helpers/rejected",
+      status: "running",
+      task_spec: "reject me",
+    });
+
+    await expect(
+      repository.resolveTask(resolvedTask.task_id, "ship it"),
+    ).resolves.toMatchObject({
+      done: true,
+      result: "ship it",
+      status: "succeeded",
+      task_id: resolvedTask.task_id,
+    });
+    await expect(
+      repository.rejectTask(rejectedTask.task_id, "needs more work"),
+    ).resolves.toMatchObject({
+      done: true,
+      result: "needs more work",
+      status: "failed",
+      task_id: rejectedTask.task_id,
+    });
+    await expect(
+      repository.getTaskById(resolvedTask.task_id),
+    ).resolves.toMatchObject({
+      result: "ship it",
+      status: "succeeded",
+    });
+    await expect(
+      repository.getTaskById(rejectedTask.task_id),
+    ).resolves.toMatchObject({
+      result: "needs more work",
+      status: "failed",
+    });
   });
 
   it("lists only unfinished tasks for the scheduler", async () => {
@@ -324,6 +443,7 @@ describe("task repository", () => {
         worktree_path TEXT,
         pull_request_url TEXT,
         dependencies TEXT NOT NULL,
+        result TEXT NOT NULL DEFAULT '',
         done INTEGER NOT NULL,
         status TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -353,6 +473,7 @@ describe("task repository", () => {
         worktree_path text,
         pull_request_url text,
         dependencies text NOT NULL,
+        result text NOT NULL default '',
         done int NOT NULL,
         status varchar(32) NOT NULL,
         created_at datetime NOT NULL,
@@ -371,6 +492,38 @@ describe("task repository", () => {
 
     await expect(repository.getTaskById(createdTask.task_id)).resolves.toEqual(
       createdTask,
+    );
+  });
+
+  it("rejects an existing result column when it lacks the empty-string default", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-result-without-default",
+    );
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE tasks (
+        task_id TEXT PRIMARY KEY,
+        task_spec TEXT NOT NULL,
+        project_path TEXT NOT NULL,
+        session_id TEXT,
+        worktree_path TEXT,
+        pull_request_url TEXT,
+        dependencies TEXT NOT NULL,
+        result TEXT NOT NULL,
+        done INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    database.close();
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    expect(() => createTaskRepository()).toThrowError(
+      /tasks schema is incompatible/i,
     );
   });
 
