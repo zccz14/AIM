@@ -6,6 +6,7 @@ const HealthError = z
   .passthrough();
 const CreateTaskRequest = z.object({
   task_spec: z.string().min(1),
+  project_path: z.string().min(1),
   dependencies: z.array(z.string().min(1)).optional(),
   session_id: z.union([z.string(), z.null()]).optional(),
   worktree_path: z.union([z.string(), z.null()]).optional(),
@@ -26,6 +27,7 @@ const CreateTaskRequest = z.object({
 const Task = z.object({
   task_id: z.string().min(1),
   task_spec: z.string().min(1),
+  project_path: z.string().min(1),
   session_id: z.union([z.string(), z.null()]),
   worktree_path: z.union([z.string(), z.null()]),
   pull_request_url: z.union([z.string(), z.null()]),

@@ -25,6 +25,7 @@ export type HealthError = {
 export type Task = {
     readonly task_id: string;
     task_spec: string;
+    project_path: string;
     session_id: string | null;
     worktree_path: string | null;
     pull_request_url: string | null;
@@ -37,6 +38,7 @@ export type Task = {
 
 export type CreateTaskRequest = {
     task_spec: string;
+    project_path: string;
     dependencies?: Array<string>;
     session_id?: string | null;
     worktree_path?: string | null;
@@ -64,6 +66,7 @@ export type ErrorResponse = {
 
 export type TaskWritable = {
     task_spec: string;
+    project_path: string;
     session_id: string | null;
     worktree_path: string | null;
     pull_request_url: string | null;

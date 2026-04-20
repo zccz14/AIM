@@ -246,9 +246,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.createTaskRequestSchema.parse({
         task_spec: "Ship contract",
+        project_path: "/repo",
       }),
     ).toEqual({
       task_spec: "Ship contract",
+      project_path: "/repo",
     });
     expect(
       contractModule.patchTaskRequestSchema.parse({
@@ -261,6 +263,7 @@ describe("contract package baseline", () => {
       contractModule.taskSchema.parse({
         task_id: "task-1",
         task_spec: "Ship contract",
+        project_path: "/repo",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -280,6 +283,7 @@ describe("contract package baseline", () => {
           {
             task_id: "task-1",
             task_spec: "Ship contract",
+            project_path: "/repo",
             session_id: null,
             worktree_path: null,
             pull_request_url: null,
@@ -439,7 +443,7 @@ describe("contract package baseline", () => {
     ).toBeDefined();
 
     expect(createTaskRequestSchema).toMatchObject({
-      required: ["task_spec"],
+      required: ["task_spec", "project_path"],
     });
     expect(
       Object.keys(
@@ -448,6 +452,7 @@ describe("contract package baseline", () => {
       ).sort(),
     ).toEqual([
       "dependencies",
+      "project_path",
       "pull_request_url",
       "session_id",
       "status",
@@ -506,6 +511,72 @@ describe("contract package baseline", () => {
         },
       },
     });
+  });
+
+  it("requires project_path in task responses and create requests", async () => {
+    const taskSchema = contractModule.openApiDocument.components.schemas.Task as {
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+    const createSchema = contractModule.openApiDocument.components.schemas
+      .CreateTaskRequest as {
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+    const generatedTypeDefinitions = await readFile(
+      generatedTypeDefinitionsUrl,
+      "utf8",
+    );
+
+    expect(taskSchema.required).toContain("project_path");
+    expect(createSchema.required).toContain("project_path");
+    expect(taskSchema.properties.project_path).toEqual({
+      minLength: 1,
+      type: "string",
+    });
+    expect(createSchema.properties.project_path).toEqual({
+      minLength: 1,
+      type: "string",
+    });
+    expect(
+      contractModule.createTaskRequestSchema.safeParse({
+        task_spec: "write plan",
+      }).success,
+    ).toBe(false);
+    expect(
+      contractModule.taskSchema.safeParse({
+        task_id: "task-1",
+        task_spec: "Ship contract",
+        session_id: null,
+        worktree_path: null,
+        pull_request_url: null,
+        dependencies: [],
+        done: false,
+        status: "created",
+        created_at: "2026-04-19T00:00:00.000Z",
+        updated_at: "2026-04-19T00:00:00.000Z",
+      }).success,
+    ).toBe(false);
+    expect(generatedTypeDefinitions).toContain("project_path: string;");
+  });
+
+  it("rejects project_path inside PatchTaskRequest", async () => {
+    const patchSchema = contractModule.openApiDocument.components.schemas
+      .PatchTaskRequest as {
+      additionalProperties?: boolean;
+      properties: Record<string, unknown>;
+    };
+    const generatedZodSource = await readFile(generatedZodUrl, "utf8");
+
+    expect(patchSchema.additionalProperties).toBe(false);
+    expect(patchSchema.properties.project_path).toBeUndefined();
+    expect(
+      contractModule.patchTaskRequestSchema.safeParse({
+        project_path: "/repo",
+      }).success,
+    ).toBe(false);
+    expect(generatedZodSource).toContain("const PatchTaskRequest");
+    expect(generatedZodSource).not.toMatch(/PatchTaskRequest[\s\S]*project_path/);
   });
 
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
@@ -690,6 +761,7 @@ describe("contract package baseline", () => {
     const task = {
       task_id: "task-1",
       task_spec: "write spec",
+      project_path: "/repo",
       session_id: null,
       worktree_path: null,
       pull_request_url: null,
@@ -742,7 +814,11 @@ describe("contract package baseline", () => {
             request.method === "POST" &&
             url.pathname === "/tasks" &&
             bodyText ===
-              JSON.stringify({ task_spec: "write spec", dependencies: [] })
+              JSON.stringify({
+                task_spec: "write spec",
+                project_path: "/repo",
+                dependencies: [],
+              })
           ) {
             return new Response(JSON.stringify(task), {
               status: 201,
@@ -795,10 +871,15 @@ describe("contract package baseline", () => {
       items: [],
     });
     await expect(
-      client.createTask({ task_spec: "write spec", dependencies: [] }),
+      client.createTask({
+        task_spec: "write spec",
+        project_path: "/repo",
+        dependencies: [],
+      }),
     ).resolves.toMatchObject({
       task_id: "task-1",
       task_spec: "write spec",
+      project_path: "/repo",
       status: "created",
     });
     await expect(client.getTaskById("task-1")).resolves.toMatchObject({
@@ -825,7 +906,11 @@ describe("contract package baseline", () => {
         },
       },
       {
-        body: { task_spec: "write spec", dependencies: [] },
+        body: {
+          task_spec: "write spec",
+          project_path: "/repo",
+          dependencies: [],
+        },
         method: "POST",
         pathname: contractModule.tasksPath,
         searchParams: {},
@@ -895,7 +980,7 @@ describe("contract package baseline", () => {
       fetch: fetcher,
     });
 
-    const result = client.createTask({ task_spec: "" });
+    const result = client.createTask({ task_spec: "", project_path: "/repo" });
 
     await expect(result).rejects.toBeInstanceOf(
       contractModule.ContractClientError,
