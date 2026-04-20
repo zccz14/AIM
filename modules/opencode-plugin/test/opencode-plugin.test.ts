@@ -155,8 +155,12 @@ describe("opencode plugin package baseline", () => {
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
     expect(pluginSkillsReadme).toContain("workflow automation");
 
-    expect(pluginReadme).toContain("Registers the packaged `skills/` directory");
-    expect(pluginReadme).toContain("Ships static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain(
+      "Registers the packaged `skills/` directory",
+    );
+    expect(pluginReadme).toContain(
+      "Ships static `skills/` and `agents/` resources",
+    );
     expect(pluginReadme).toContain("aim-task-lifecycle");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
