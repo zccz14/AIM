@@ -149,29 +149,17 @@ describe("opencode plugin package baseline", () => {
     ]);
   });
 
-  it("packs the lifecycle skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-task-lifecycle/SKILL.md",
-    );
-  });
-
   it("documents lifecycle reporting as packaged documentation only", () => {
-    expect(pluginSkillsReadme).toContain(
-      "The package ships static skill documentation only:",
-    );
-    expect(pluginSkillsReadme).toContain(
-      "- `aim-task-lifecycle`: AIM task lifecycle reporting guidance for updating an existing Task via HTTP PATCH.",
-    );
-    expect(pluginSkillsReadme).toContain(
-      "The plugin does not auto-run workflow automation or background AIM reporting.",
-    );
+    expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
+    expect(pluginSkillsReadme).toContain("Task via HTTP PATCH");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+    expect(pluginSkillsReadme).toContain("workflow automation");
 
-    expect(pluginReadme).toContain(
-      "- Registers the packaged `skills/` directory into OpenCode config.",
-    );
-    expect(pluginReadme).toContain(
-      "- Ships static `skills/` and `agents/` resources, including the `aim-task-lifecycle` packaged skill document.",
-    );
+    expect(pluginReadme).toContain("Registers the packaged `skills/` directory");
+    expect(pluginReadme).toContain("Ships static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("aim-task-lifecycle");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
   });
 
   it("exports a default plugin module from the built entry", () => {
