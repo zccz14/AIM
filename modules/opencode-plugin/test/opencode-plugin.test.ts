@@ -169,21 +169,43 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("documents lifecycle reporting rules and failure split", () => {
+    expect(pluginLifecycleSkillText).toMatch(
+      /`SERVER_BASE_URL` defaults to `http:\/\/localhost:8192`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Use PATCH only to update an existing Task\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /`done` must be `false` for `created`, `waiting_assumptions`, `running`, `outbound`, `pr_following`, and `closing`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /`done` must be `true` only for `succeeded` and `failed`\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Never report `done = true` with a non-terminal status\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Separate task failure from reporting failure\./,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Task failure: .*report `status = failed` and `done = true`\./s,
+    );
+    expect(pluginLifecycleSkillText).toMatch(
+      /Reporting failure: .*Do not convert this into a task failure\./s,
+    );
+
     for (const requiredFragment of [
-      "http://localhost:8192",
       "waiting_assumptions",
       "pr_following",
       '"status": "outbound"',
       '"status": "succeeded"',
-      "done = true",
       "reporting blocker",
     ]) {
       expect(pluginLifecycleSkillText).toContain(requiredFragment);
     }
-
-    expect(pluginLifecycleSkillText).toMatch(
-      /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
-    );
 
     expect(pluginLifecycleSkillText).not.toContain("TODO");
     expect(pluginLifecycleSkillText).not.toContain("TBD");
