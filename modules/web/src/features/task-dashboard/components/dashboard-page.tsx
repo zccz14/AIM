@@ -41,6 +41,10 @@ export const DashboardPage = () => {
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
     (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
 
+  const handleRefresh = async () => {
+    await dashboardQuery.refetch();
+  };
+
   const handleCreateTask = async (input: {
     projectPath: string;
     taskSpec: string;
@@ -86,14 +90,24 @@ export const DashboardPage = () => {
                 <Title order={1}>Task Dashboard</Title>
               </div>
             </Group>
-            <Button
-              disabled={createDrawerOpened}
-              onClick={() => setCreateDrawerOpened(true)}
-            >
-              Create Task
-            </Button>
+            <Group gap="sm">
+              <Button
+                disabled={dashboardQuery.isFetching}
+                loading={dashboardQuery.isFetching}
+                onClick={() => void handleRefresh()}
+                variant="default"
+              >
+                Refresh
+              </Button>
+              <Button
+                disabled={createDrawerOpened}
+                onClick={() => setCreateDrawerOpened(true)}
+              >
+                Create Task
+              </Button>
+            </Group>
           </Group>
-          <ServerBaseUrlForm onSave={() => dashboardQuery.refetch()} />
+          <ServerBaseUrlForm onSave={handleRefresh} />
 
           {dashboardQuery.isPending ? (
             <Center mih={240}>
@@ -112,7 +126,9 @@ export const DashboardPage = () => {
                   {getTaskDashboardErrorMessage(dashboardQuery.error)}
                 </Text>
                 <Button
-                  onClick={() => void dashboardQuery.refetch()}
+                  disabled={dashboardQuery.isFetching}
+                  loading={dashboardQuery.isFetching}
+                  onClick={() => void handleRefresh()}
                   variant="light"
                 >
                   Retry
