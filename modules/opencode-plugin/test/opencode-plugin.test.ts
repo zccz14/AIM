@@ -40,6 +40,7 @@ type ConfigWithSkills = Config & {
 let pluginPackage: PluginPackageManifest;
 let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
+let pluginLifecycleSkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -103,6 +104,7 @@ beforeAll(async () => {
     await readFile(pluginPackageUrl, "utf8"),
   ) as PluginPackageManifest;
   pluginSource = await readFile(pluginSourceUrl, "utf8");
+  pluginLifecycleSkillText = await readFile(pluginLifecycleSkillUrl, "utf8");
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
@@ -164,6 +166,27 @@ describe("opencode plugin package baseline", () => {
     expect(pluginReadme).toContain("aim-task-lifecycle");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents lifecycle reporting rules and failure split", () => {
+    for (const requiredFragment of [
+      "http://localhost:8192",
+      "waiting_assumptions",
+      "pr_following",
+      '"status": "outbound"',
+      '"status": "succeeded"',
+      "done = true",
+      "reporting blocker",
+    ]) {
+      expect(pluginLifecycleSkillText).toContain(requiredFragment);
+    }
+
+    expect(pluginLifecycleSkillText).toMatch(
+      /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
+    );
+
+    expect(pluginLifecycleSkillText).not.toContain("TODO");
+    expect(pluginLifecycleSkillText).not.toContain("TBD");
   });
 
   it("exports a default plugin module from the built entry", () => {
