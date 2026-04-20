@@ -97,6 +97,50 @@ describe("task scheduler", () => {
     );
   });
 
+  it("does not send continue prompts across rounds while session state stays running", async () => {
+    const task = createTask({ session_id: "session-1" });
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockResolvedValue("running");
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.runRound();
+    await scheduler.runRound();
+
+    expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+  });
+
+  it("sends only one continue prompt after state changes from running to idle", async () => {
+    const task = createTask({ session_id: "session-1" });
+    const coordinator = createCoordinator();
+    coordinator.getSessionState
+      .mockResolvedValueOnce("running")
+      .mockResolvedValueOnce("idle");
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.runRound();
+    await scheduler.runRound();
+
+    expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
+      "session-1",
+      expect.stringContaining(task.task_spec),
+    );
+  });
+
   it("isolates per-task failures without aborting the round", async () => {
     const firstTask = createTask({
       task_id: "task-1",

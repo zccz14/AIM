@@ -12,12 +12,29 @@ describe("task session coordinator default adapter", () => {
     vi.clearAllMocks();
   });
 
+  it("validates config before constructing the default SDK adapter", async () => {
+    const { createTaskSessionCoordinator } = await import(
+      "../src/task-session-coordinator.js"
+    );
+
+    expect(() =>
+      createTaskSessionCoordinator({
+        baseUrl: "   ",
+        modelId: "claude-sonnet-4-5",
+        providerId: "anthropic",
+      }),
+    ).toThrow("Task session coordinator requires a non-empty baseUrl");
+
+    expect(mockCreateOpenCodeSdkAdapter).not.toHaveBeenCalled();
+  });
+
   it("uses the SDK adapter by default when one is not injected", async () => {
     const createSession = vi.fn().mockResolvedValue({ id: "session-1" });
+    const getSessionState = vi.fn().mockResolvedValue("running");
 
     mockCreateOpenCodeSdkAdapter.mockReturnValue({
       createSession,
-      getSession: vi.fn(),
+      getSessionState,
       sendPrompt: vi.fn(),
     });
 
@@ -52,5 +69,10 @@ describe("task session coordinator default adapter", () => {
       providerId: "anthropic",
     });
     expect(createSession).toHaveBeenCalledOnce();
+
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).resolves.toBe("running");
+    expect(getSessionState).toHaveBeenCalledWith("session-1", "/repo");
   });
 });

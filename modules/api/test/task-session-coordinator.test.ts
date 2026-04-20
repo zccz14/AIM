@@ -40,7 +40,7 @@ describe("task session coordinator", () => {
   it("returns only the injected session id shape", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn().mockResolvedValue({ id: "session-1" }),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt: vi.fn(),
     });
 
@@ -53,7 +53,7 @@ describe("task session coordinator", () => {
     const adapterError = new Error("adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn().mockRejectedValue(adapterError),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt: vi.fn(),
     });
 
@@ -71,7 +71,7 @@ describe("task session coordinator", () => {
       createSession: vi.fn(() => {
         throw adapterError;
       }),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt: vi.fn(),
     });
 
@@ -83,10 +83,10 @@ describe("task session coordinator", () => {
     );
   });
 
-  it("treats a missing remote session entry as idle", async () => {
+  it("passes through idle session state from the adapter", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn().mockResolvedValue(undefined),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
       sendPrompt: vi.fn(),
     });
 
@@ -95,58 +95,23 @@ describe("task session coordinator", () => {
     ).resolves.toBe("idle");
   });
 
-  it("maps remote idle sessions to the idle state", async () => {
+  it("passes through running session state from the adapter", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ status: "idle" }),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", "/repo"),
-    ).resolves.toBe("idle");
-  });
-
-  it("maps remote running sessions to the running state", async () => {
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ status: "running" }),
+      getSessionState: vi.fn().mockResolvedValue("running"),
       sendPrompt: vi.fn(),
     });
 
     await expect(
       coordinator.getSessionState("session-1", "/repo"),
     ).resolves.toBe("running");
-  });
-
-  it("maps remote retry sessions to the running state", async () => {
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ type: "retry" }),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", "/repo"),
-    ).resolves.toBe("running");
-  });
-  it("throws unknown session statuses directly", async () => {
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ status: "paused" }),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", "/repo"),
-    ).rejects.toThrow("Unknown OpenCode session status: paused");
   });
 
   it("wraps adapter getSessionState failures with coordinator context", async () => {
     const adapterError = new Error("adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn().mockRejectedValue(adapterError),
+      getSessionState: vi.fn().mockRejectedValue(adapterError),
       sendPrompt: vi.fn(),
     });
 
@@ -158,11 +123,11 @@ describe("task session coordinator", () => {
     });
   });
 
-  it("wraps synchronous getSession throws with coordinator context", async () => {
+  it("wraps synchronous getSessionState throws with coordinator context", async () => {
     const adapterError = new Error("sync adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn(() => {
+      getSessionState: vi.fn(() => {
         throw adapterError;
       }),
       sendPrompt: vi.fn(),
@@ -179,7 +144,7 @@ describe("task session coordinator", () => {
     const sendPrompt = vi.fn().mockResolvedValue({ ok: true });
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt,
     });
 
@@ -199,7 +164,7 @@ describe("task session coordinator", () => {
     const adapterError = new Error("adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt: vi.fn().mockRejectedValue(adapterError),
     });
 
@@ -218,7 +183,7 @@ describe("task session coordinator", () => {
     const adapterError = new Error("sync adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
-      getSession: vi.fn(),
+      getSessionState: vi.fn(),
       sendPrompt: vi.fn(() => {
         throw adapterError;
       }),

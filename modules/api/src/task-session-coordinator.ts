@@ -16,7 +16,10 @@ type TaskSessionRecord = {
 
 type TaskSessionCoordinatorAdapter = {
   createSession(task: Task): Promise<TaskSessionRecord>;
-  getSession(sessionId: string, projectPath: string): Promise<unknown>;
+  getSessionState(
+    sessionId: string,
+    projectPath: string,
+  ): Promise<TaskSessionState>;
   sendPrompt(sessionId: string, prompt: string): Promise<unknown>;
 };
 
@@ -43,16 +46,18 @@ const requireNonEmpty = (
 
 export const createTaskSessionCoordinator = (
   config: TaskSessionCoordinatorConfig,
-  adapter: TaskSessionCoordinatorAdapter = createOpenCodeSdkAdapter(config),
+  adapter?: TaskSessionCoordinatorAdapter,
 ): TaskSessionCoordinator => {
   requireNonEmpty(config.baseUrl, "baseUrl");
   requireNonEmpty(config.modelId, "modelId");
   requireNonEmpty(config.providerId, "providerId");
 
+  const coordinatorAdapter = adapter ?? createOpenCodeSdkAdapter(config);
+
   return {
     async createSession(task) {
       try {
-        const session = await adapter.createSession(task);
+        const session = await coordinatorAdapter.createSession(task);
 
         return { sessionId: session.id };
       } catch (error) {
@@ -60,39 +65,15 @@ export const createTaskSessionCoordinator = (
       }
     },
     async getSessionState(sessionId, projectPath) {
-      let session: unknown;
-
       try {
-        session = await adapter.getSession(sessionId, projectPath);
+        return await coordinatorAdapter.getSessionState(sessionId, projectPath);
       } catch (error) {
         throw actionError("getSessionState", error);
-      }
-
-      if (session === undefined) {
-        return "idle";
-      }
-
-      const status =
-        typeof session === "object" && session !== null && "status" in session
-          ? session.status
-          : typeof session === "object" && session !== null && "type" in session
-            ? session.type
-            : undefined;
-
-      switch (status) {
-        case "idle":
-          return "idle";
-        case "busy":
-        case "retry":
-        case "running":
-          return "running";
-        default:
-          throw new Error(`Unknown OpenCode session status: ${String(status)}`);
       }
     },
     async sendContinuePrompt(sessionId, prompt) {
       try {
-        await adapter.sendPrompt(sessionId, prompt);
+        await coordinatorAdapter.sendPrompt(sessionId, prompt);
       } catch (error) {
         throw actionError("sendContinuePrompt", error);
       }
