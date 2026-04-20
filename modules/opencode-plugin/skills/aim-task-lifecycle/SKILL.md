@@ -36,6 +36,7 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 
 - `created`：Task 已存在，但执行尚未开始。
 - `waiting_assumptions`：执行因缺失前提假设或用户输入而阻塞。
+<<<<<<< HEAD
 - `running`：工作已经开始，且仍处于 worktree 内执行阶段；覆盖主工作区完成准备、worktree 创建、spec / implementation plan / 实现 / 验证 / commit / push 以及 PR 创建前的全部阶段。
 - `outbound`：PR 已创建；如果 `pull_request_url` 已知则一并上报。此时已经出站，但还未进入首次正式 follow-up。
 - `pr_following`：agent 已完成 PR 创建后的主动等待，并正在跟进 checks、reviews、mergeability 或 auto-merge 状态。
@@ -63,7 +64,6 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 `running -> closing` 不是标准的 v1 路径，不应被写作正常状态流转。
 
 终态写入一旦成功，不要再回退到非终态状态。
-
 ## 阶段映射
 
 把仓库执行剧本映射到 AIM 生命周期时，使用下面的口径：
