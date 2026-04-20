@@ -83,6 +83,18 @@ describe("task session coordinator", () => {
     );
   });
 
+  it("treats a missing remote session entry as idle", async () => {
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue(undefined),
+      sendPrompt: vi.fn(),
+    });
+
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).resolves.toBe("idle");
+  });
+
   it("maps remote idle sessions to the idle state", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn(),
@@ -90,9 +102,9 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
-      "idle",
-    );
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).resolves.toBe("idle");
   });
 
   it("maps remote running sessions to the running state", async () => {
@@ -102,9 +114,9 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
-      "running",
-    );
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).resolves.toBe("running");
   });
 
   it("maps remote retry sessions to the running state", async () => {
@@ -114,9 +126,9 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).resolves.toBe(
-      "running",
-    );
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).resolves.toBe("running");
   });
   it("throws unknown session statuses directly", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
@@ -125,9 +137,9 @@ describe("task session coordinator", () => {
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.getSessionState("session-1")).rejects.toThrow(
-      "Unknown OpenCode session status: paused",
-    );
+    await expect(
+      coordinator.getSessionState("session-1", "/repo"),
+    ).rejects.toThrow("Unknown OpenCode session status: paused");
   });
 
   it("wraps adapter getSessionState failures with coordinator context", async () => {
@@ -139,7 +151,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1"),
+      coordinator.getSessionState("session-1", "/repo"),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during getSessionState",
@@ -157,7 +169,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1"),
+      coordinator.getSessionState("session-1", "/repo"),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during getSessionState",

@@ -132,7 +132,10 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       roundSessionIds.add(sessionId);
 
-      const sessionState = await options.coordinator.getSessionState(sessionId);
+      const sessionState = await options.coordinator.getSessionState(
+        sessionId,
+        latestTask.project_path,
+      );
 
       if (sessionState !== "idle") {
         return;

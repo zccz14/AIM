@@ -5,7 +5,7 @@ import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js
 
 export type OpenCodeSdkAdapter = {
   createSession(task: Task): Promise<{ id: string }>;
-  getSession(sessionId: string): Promise<unknown>;
+  getSession(sessionId: string, projectPath: string): Promise<unknown>;
   sendPrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
@@ -53,8 +53,11 @@ export const createOpenCodeSdkAdapter = (
 
       return { id: session.data.id };
     },
-    async getSession(sessionId) {
-      const response = await client.session.status({ throwOnError: true });
+    async getSession(sessionId, projectPath) {
+      const response = await client.session.status({
+        query: { directory: projectPath },
+        throwOnError: true,
+      });
 
       return response.data[sessionId];
     },
