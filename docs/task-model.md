@@ -80,6 +80,7 @@ Task 不是“等依赖都完成才启动”的一次性流程，而是可能多
 | `dependencies`     | `TEXT` / JSON Array | 否   | 当前候选前置 Task ID 列表，规划器可初始化，执行层可覆盖 |
 | `done`             | `INTEGER` / BOOLEAN | 否   | 该 Task 是否已经进入终态                                |
 | `status`           | `TEXT`              | 否   | 该 Task 当前编排状态的缓存值                            |
+| `result`           | `TEXT`              | 否   | Task 终态结果文本；持久化为非 null 字符串，默认值为 `''` |
 | `created_at`       | `TEXT` / timestamp  | 否   | Task 写入 SQLite 的时间                                 |
 | `updated_at`       | `TEXT` / timestamp  | 否   | 该 Task 最近一次被更新的时间                            |
 
@@ -256,6 +257,24 @@ Task 不是“等依赖都完成才启动”的一次性流程，而是可能多
 
 - `waiting_assumptions` 表示“当前还不 ready，但后续基线变化后仍值得再验一次”。
 - `failed` 表示“这份 Task Spec 已经不能靠自然的基线推进继续执行，需要上层规划器介入”。
+
+### `result`
+
+`result` 保存的是 Task 的终态结果文本。
+
+它是一个持久化字段，推荐在 SQLite 中定义为 `TEXT NOT NULL DEFAULT ''`，因此无论 Task 是否已经结束，这个字段始终是非 null 字符串，默认值为空字符串 `''`。
+
+它的语义是：
+
+- 在 Task 尚未进入终态前，默认值通常为 `''`。
+- 在 Task 成功或失败结束时，写入一段面向上层 AI / 调度器的结果说明。
+- 该说明用于补充 `status` / `done` 这类结构化字段无法表达的终态结论。
+
+注意：
+
+- `result` 的默认空字符串表示“当前还没有终态结果文本”，而不是未知值或 `null`。
+- 非终态更新不要求每次都改写 `result`。
+- 一旦 Task 进入成功或失败终态，`result` 应能独立概括这次 Task 生命周期的最终结论。
 
 ### `created_at`
 
