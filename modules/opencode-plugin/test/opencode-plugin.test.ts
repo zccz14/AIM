@@ -246,7 +246,7 @@ describe("opencode plugin package baseline", () => {
       /只能使用 PATCH 来更新已存在 Task 的非终态事实。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
-      /只能使用 `POST \/resolve` 上报 `succeeded` 终态，且只能使用 `POST \/reject` 上报 `failed` 终态。/,
+      /只能使用 `POST \/resolve` 上报 `succeeded` 终态结果，且只能使用 `POST \/reject` 上报 `failed` 终态结果。/,
     );
     expect(pluginLifecycleSkillText).toMatch(
       /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。/,
