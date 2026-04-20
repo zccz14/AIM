@@ -1,6 +1,6 @@
 ---
 name: aim-task-lifecycle
-description: Use when an existing AIM Task must be kept in sync via PATCH while a single task is advanced through worktree, PR, follow-up, and closing stages.
+description: Report AIM task lifecycle facts to an existing AIM Task during non-terminal PATCH updates and terminal resolve/reject reporting while a single task is advanced through worktree, PR, follow-up, and closing stages.
 ---
 
 ## 何时使用
@@ -26,7 +26,9 @@ description: Use when an existing AIM Task must be kept in sync via PATCH while 
 ## 环境
 
 - `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
-- v1 中唯一的上报目标是 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
+- 非终态生命周期更新使用 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
+- 成功终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
+- 失败终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
 
 ## 生命周期状态
 
@@ -135,18 +137,21 @@ flowchart TD
 
 1. 执行开始时：上报 `running`，并带上 `done = false`。
 2. worktree 创建后：在保持 `running` 的同时，上报已知的 `worktree_path`。
+<<<<<<< HEAD
 3. PR 创建后：上报 `outbound` 和 `done = false`；如果此时 `pull_request_url` 已知则一并带上。即使 auto-merge 还未成功启用，或 URL 还未拿到，也仍然先如实上报 `outbound`。
 4. 首次 follow-up 开始时：在完成 1 到 10 分钟的主动等待后，上报 `pr_following`、`done = false`，并保留已知的 `pull_request_url` / `worktree_path`。
 5. PR 跟进期间：如有 checks 失败、blocking review、merge conflict、auto-merge 阻塞或其他新的阶段事实，继续以上报 `pr_following` 为主，并保留所有已知事实。
 6. closing 期间：当 PR 已合并、关闭或确认废弃后，上报 `closing`、`done = false`，并保留所有已知事实；此阶段还要处理相关 review / 后续 review、删除 worktree，并刷新主工作区基线，因此尚未真正完成。
-7. 成功时：只有在相关 review / 后续 review 已处理完成、worktree 已删除且主工作区基线已刷新后，才上报 `succeeded`、`done = true`，并保留所有已知事实。
-8. 失败时：上报 `failed`、`done = true`，并保留所有已知事实。
+7. 成功时：只有在相关 review / 后续 review 已处理完成、worktree 已删除且主工作区基线已刷新后，才通过 `POST /tasks/${task_id}/resolve` 上报终态事实，并携带非空 `result`。
+8. 失败时：通过 `POST /tasks/${task_id}/reject` 上报终态事实，并携带非空 `result`。
 
 当任务因缺失前提假设或输入而被阻塞时，也要立即上报 `waiting_assumptions`。
 
 ## API 调用格式
 
 每个 PATCH 都必须包含 `status` 和 `done`。只有在 `worktree_path` 和 `pull_request_url` 已知时，才添加这两个字段。
+
+终态上报不使用 PATCH。对 `succeeded` 使用 `POST /resolve`，对 `failed` 使用 `POST /reject`，并在请求体中只发送一个必填且非空的 `result` 字符串字段。
 
 未知值不等于空字符串。对于未知字段，应省略，而不是发送 `""` 或伪造的 `null` 占位值。
 
@@ -179,30 +184,39 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
 ### 终态成功示例
 
 ```bash
-curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
+curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/resolve" \
   -H "Content-Type: application/json" \
   --data '{
-    "status": "succeeded",
-    "done": true,
-    "worktree_path": "/repo/.worktrees/task-123",
-    "pull_request_url": "https://github.com/org/repo/pull/123"
+    "result": "PR merged, worktree removed, and local baseline refreshed."
+  }'
+```
+
+### Terminal failure example
+
+```bash
+curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "result": "Spec assumptions no longer match the latest baseline and need replanning."
   }'
 ```
 
 ## 规则
 
-- 只能使用 PATCH 来更新已存在的 Task。
+- 只能使用 PATCH 来更新已存在 Task 的非终态事实。
+- 只能使用 `POST /resolve` 上报 `succeeded` 终态，且只能使用 `POST /reject` 上报 `failed` 终态。
 - 保持 `status` 和 `done` 与上述生命周期规则一致。
-- 在后续上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
-- 除非 PATCH 实际成功，否则不要声称 AIM 已拥有最新事实。
+- 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
+- 在后续非终态 PATCH 上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
+- 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
 - 这个技能是一种“上报纪律 + 生命周期映射”，不是授权主 Agent 直接执行开发动作的例外。
 
 ## 失败处理
 
 要把任务失败与上报失败区分开。
 
-- 任务失败：工作本身失败，因此上报 `status = failed` 和 `done = true`。
-- 上报失败：PATCH 请求因为网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
+- 任务失败：工作本身失败，因此应通过 `POST /tasks/${task_id}/reject` 发送带非空 `result` 的终态失败上报。
+- 上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
 
 对于单个上报时点，最多只进行三次尝试：首次请求加最多两次重试。可以采用简短的重试模式，例如先等 1 秒，再等 5 秒。如果服务端返回明确的 4xx 输入错误，则停止重试，并暴露输入问题。
 
