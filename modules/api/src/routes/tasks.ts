@@ -4,6 +4,9 @@ import {
   type TaskStatus,
   taskByIdPath,
   taskErrorSchema,
+  taskRejectPath,
+  taskResolvePath,
+  taskResultRequestSchema,
   taskStatusSchema,
   tasksPath,
 } from "@aim-ai/contract";
@@ -12,6 +15,8 @@ import type { Hono } from "hono";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
+const taskResolveRoutePath = taskResolvePath.replace("{taskId}", ":taskId");
+const taskRejectRoutePath = taskRejectPath.replace("{taskId}", ":taskId");
 
 const buildNotFoundError = (taskId: string) =>
   taskErrorSchema.parse({
@@ -92,6 +97,20 @@ const parsePatchTaskRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
+const parseTaskResultRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = taskResultRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task result"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
 export const registerTaskRoutes = (app: Hono) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
@@ -153,6 +172,43 @@ export const registerTaskRoutes = (app: Hono) => {
     }
 
     return context.json(payload, 200);
+  });
+
+  app.post(taskResolveRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const input = await parseTaskResultRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const payload = await getRepository().resolveTask(
+      taskId,
+      input.data.result,
+    );
+
+    if (!payload) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  app.post(taskRejectRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const input = await parseTaskResultRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const payload = await getRepository().rejectTask(taskId, input.data.result);
+
+    if (!payload) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return new Response(null, { status: 204 });
   });
 
   app.delete(taskByIdRoutePath, async (context) => {
