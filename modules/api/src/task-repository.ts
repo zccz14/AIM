@@ -15,6 +15,7 @@ type TaskRow = {
   dependencies: string;
   done: number;
   pull_request_url: null | string;
+  project_path: string;
   session_id: null | string;
   status: TaskStatus;
   task_id: string;
@@ -45,6 +46,7 @@ type TaskRepositoryOptions = {
 const requiredColumns = [
   { name: "task_id", notnull: 0, pk: 1, type: "TEXT" },
   { name: "task_spec", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
   { name: "session_id", notnull: 0, pk: 0, type: "TEXT" },
   { name: "worktree_path", notnull: 0, pk: 0, type: "TEXT" },
   { name: "pull_request_url", notnull: 0, pk: 0, type: "TEXT" },
@@ -82,6 +84,7 @@ const mapTaskRow = (row: TaskRow) =>
   taskSchema.parse({
     task_id: row.task_id,
     task_spec: row.task_spec,
+    project_path: row.project_path,
     session_id: row.session_id,
     worktree_path: row.worktree_path,
     pull_request_url: row.pull_request_url,
@@ -97,6 +100,7 @@ const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
     CREATE TABLE IF NOT EXISTS ${tasksTableName} (
       task_id TEXT PRIMARY KEY,
       task_spec TEXT NOT NULL,
+      project_path TEXT NOT NULL,
       session_id TEXT,
       worktree_path TEXT,
       pull_request_url TEXT,
@@ -151,6 +155,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     INSERT INTO ${tasksTableName} (
       task_id,
       task_spec,
+      project_path,
       session_id,
       worktree_path,
       pull_request_url,
@@ -159,12 +164,13 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const listTasksStatement = database.prepare(`
     SELECT
       task_id,
       task_spec,
+      project_path,
       session_id,
       worktree_path,
       pull_request_url,
@@ -180,6 +186,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     SELECT
       task_id,
       task_spec,
+      project_path,
       session_id,
       worktree_path,
       pull_request_url,
@@ -220,6 +227,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const task = mapTaskRow({
         task_id: taskId,
         task_spec: input.task_spec,
+        project_path: input.project_path,
         session_id: input.session_id ?? null,
         worktree_path: input.worktree_path ?? null,
         pull_request_url: input.pull_request_url ?? null,
@@ -233,6 +241,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       insertTaskStatement.run(
         task.task_id,
         task.task_spec,
+        task.project_path,
         task.session_id,
         task.worktree_path,
         task.pull_request_url,
@@ -284,6 +293,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
           SELECT
             task_id,
             task_spec,
+            project_path,
             session_id,
             worktree_path,
             pull_request_url,

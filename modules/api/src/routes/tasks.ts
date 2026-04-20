@@ -68,6 +68,18 @@ const parseCreateTaskRequest = async (request: Request) => {
 
 const parsePatchTaskRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
+
+  if (
+    payload !== null &&
+    typeof payload === "object" &&
+    Object.hasOwn(payload, "project_path")
+  ) {
+    return {
+      error: buildValidationError("Invalid task patch"),
+      ok: false as const,
+    };
+  }
+
   const result = patchTaskRequestSchema.safeParse(payload);
 
   if (!result.success) {
