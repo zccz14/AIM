@@ -42,36 +42,45 @@ let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
+let packedFilesPromise: Promise<string[]> | undefined;
 const packagedSkillsPath = fileURLToPath(new URL("../skills/", pluginEntryUrl));
 const artifactsDirUrl = new URL("../.artifacts/test-pack/", import.meta.url);
 const execFileAsync = promisify(execFile);
 
 async function listPackedFiles() {
-  await rm(artifactsDirUrl, { force: true, recursive: true });
-  await mkdir(artifactsDirUrl, { recursive: true });
-
-  await execFileAsync(
-    "pnpm",
-    ["pack", "--pack-destination", fileURLToPath(artifactsDirUrl)],
-    {
-      cwd: fileURLToPath(new URL("..", import.meta.url)),
-    },
-  );
-
-  const [tarballName] = await readdir(artifactsDirUrl);
-
-  if (!tarballName) {
-    throw new Error("pnpm pack did not create a tarball");
+  if (packedFilesPromise) {
+    return packedFilesPromise;
   }
 
-  const tarballPath = fileURLToPath(new URL(tarballName, artifactsDirUrl));
-  const { stdout } = await execFileAsync("tar", ["-tf", tarballPath]);
+  packedFilesPromise = (async () => {
+    await rm(artifactsDirUrl, { force: true, recursive: true });
+    await mkdir(artifactsDirUrl, { recursive: true });
 
-  return stdout
-    .split("\n")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .sort();
+    await execFileAsync(
+      "pnpm",
+      ["pack", "--pack-destination", fileURLToPath(artifactsDirUrl)],
+      {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+      },
+    );
+
+    const [tarballName] = await readdir(artifactsDirUrl);
+
+    if (!tarballName) {
+      throw new Error("pnpm pack did not create a tarball");
+    }
+
+    const tarballPath = fileURLToPath(new URL(tarballName, artifactsDirUrl));
+    const { stdout } = await execFileAsync("tar", ["-tf", tarballPath]);
+
+    return stdout
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .sort();
+  })();
+
+  return packedFilesPromise;
 }
 
 async function loadPluginHooks() {
