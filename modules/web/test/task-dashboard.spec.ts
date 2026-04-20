@@ -160,6 +160,59 @@ test("filters tasks by text that appears only in later task_spec lines", async (
   await expect(page.getByText("No matching tasks.")).toHaveCount(0);
 });
 
+test("refreshes the dashboard without clearing the current task filter", async ({
+  page,
+}) => {
+  let dashboardRequestCount = 0;
+
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+
+    dashboardRequestCount += 1;
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          dashboardRequestCount === 1
+            ? [
+                buildTask({ spec: "needle task", taskId: "task-123" }),
+                buildTask({ spec: "background task", taskId: "task-456" }),
+              ]
+            : [
+                buildTask({
+                  spec: "needle task refreshed",
+                  taskId: "task-123",
+                }),
+                buildTask({ spec: "background task", taskId: "task-456" }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Filter Tasks").fill("needle");
+
+  await expect(page.getByRole("row", { name: /needle task/i })).toBeVisible();
+  await expect(page.getByRole("row", { name: /background task/i })).toHaveCount(
+    0,
+  );
+
+  await page.getByRole("button", { name: "Refresh" }).click();
+
+  await expect.poll(() => dashboardRequestCount).toBe(2);
+  await expect(page.getByLabel("Filter Tasks")).toHaveValue("needle");
+  await expect(
+    page.getByRole("row", { name: /needle task refreshed/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("row", { name: /background task/i })).toHaveCount(
+    0,
+  );
+});
+
 test("opens the shared task drawer from overview and table", async ({
   page,
 }) => {
