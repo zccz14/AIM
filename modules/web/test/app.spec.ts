@@ -167,3 +167,22 @@ test("routes task creation through feature-local api and mutation helpers", asyn
   );
   expect(mutationSource).toContain("useMutation");
 });
+
+test("keeps dashboard refresh actions behind a shared handler", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
+    "utf8",
+  );
+
+  expect(dashboardPageSource).toContain("const handleRefresh = async () =>");
+  expect(dashboardPageSource).toContain("loading={dashboardQuery.isFetching}");
+  expect(dashboardPageSource).toContain("disabled={dashboardQuery.isFetching}");
+  expect(dashboardPageSource).toContain("Refresh");
+  expect(dashboardPageSource).toContain("onClick={() => void handleRefresh()}");
+  expect(dashboardPageSource).toContain("<ServerBaseUrlForm onSave={handleRefresh} />");
+  expect(dashboardPageSource).toContain("Retry");
+  expect(dashboardPageSource).not.toContain(
+    'onClick={() => void dashboardQuery.refetch()}',
+  );
+});
