@@ -68,7 +68,9 @@ describe("task routes", () => {
 
     const payload = await response.json();
 
-    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(true);
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 
@@ -381,21 +383,26 @@ describe("task routes", () => {
     expect(createResponse.status).toBe(201);
 
     const createdTask = await createResponse.json();
-    const response = await app.request(resolveTaskByIdPath(createdTask.task_id), {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
+    const response = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          project_path: "/repo/other",
+        }),
       },
-      body: JSON.stringify({
-        project_path: "/repo/other",
-      }),
-    });
+    );
 
     expect(response.status).toBe(400);
 
     const payload = await response.json();
 
-    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(true);
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 

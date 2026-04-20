@@ -334,7 +334,9 @@ describe("task repository", () => {
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
-    expect(() => createTaskRepository()).toThrowError(/tasks schema is incompatible/i);
+    expect(() => createTaskRepository()).toThrowError(
+      /tasks schema is incompatible/i,
+    );
   });
 
   it("accepts a semantically compatible existing tasks schema", async () => {
