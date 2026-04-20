@@ -26,6 +26,12 @@ import type {
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
+  RejectTaskByIdData,
+  RejectTaskByIdErrors,
+  RejectTaskByIdResponses,
+  ResolveTaskByIdData,
+  ResolveTaskByIdErrors,
+  ResolveTaskByIdResponses,
 } from "./types.gen.js";
 
 export type Options<
@@ -125,6 +131,44 @@ export const patchTaskById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: "/tasks/{taskId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Resolve a task with a result
+ */
+export const resolveTaskById = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveTaskByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveTaskByIdResponses,
+    ResolveTaskByIdErrors,
+    ThrowOnError
+  >({
+    url: "/tasks/{taskId}/resolve",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Reject a task with a result
+ */
+export const rejectTaskById = <ThrowOnError extends boolean = false>(
+  options: Options<RejectTaskByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RejectTaskByIdResponses,
+    RejectTaskByIdErrors,
+    ThrowOnError
+  >({
+    url: "/tasks/{taskId}/reject",
     ...options,
     headers: {
       "Content-Type": "application/json",

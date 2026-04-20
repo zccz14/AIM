@@ -13,6 +13,7 @@ const CreateTaskRequest = z
     task_spec: z.string().min(1),
     project_path: z.string().min(1),
     dependencies: z.array(z.string().min(1)).optional(),
+    result: z.string().optional().default(""),
     session_id: z.union([z.string(), z.null()]).optional(),
     worktree_path: z.union([z.string(), z.null()]).optional(),
     pull_request_url: z.union([z.string(), z.null()]).optional(),
@@ -35,6 +36,7 @@ const Task = z
     task_id: z.string().min(1),
     task_spec: z.string().min(1),
     project_path: z.string().min(1),
+    result: z.string(),
     session_id: z.union([z.string(), z.null()]),
     worktree_path: z.union([z.string(), z.null()]),
     pull_request_url: z.union([z.string(), z.null()]),
@@ -73,6 +75,7 @@ const PatchTaskRequest = z
     worktree_path: z.union([z.string(), z.null()]),
     pull_request_url: z.union([z.string(), z.null()]),
     dependencies: z.array(z.string().min(1)),
+    result: z.string(),
     status: z.enum([
       "created",
       "waiting_assumptions",
@@ -86,6 +89,14 @@ const PatchTaskRequest = z
   })
   .partial()
   .strict();
+const TaskResultRequest = z
+  .object({
+    result: z
+      .string()
+      .min(1)
+      .regex(/^(?!\s*$).+/),
+  })
+  .strict();
 
 export const schemas = {
   HealthResponse,
@@ -95,4 +106,5 @@ export const schemas = {
   ErrorResponse,
   TaskListResponse,
   PatchTaskRequest,
+  TaskResultRequest,
 };
