@@ -22,7 +22,10 @@ type TaskSessionCoordinatorAdapter = {
 
 export type TaskSessionCoordinator = {
   createSession(task: Task): Promise<{ sessionId: string }>;
-  getSessionState(sessionId: string, projectPath: string): Promise<TaskSessionState>;
+  getSessionState(
+    sessionId: string,
+    projectPath: string,
+  ): Promise<TaskSessionState>;
   sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
