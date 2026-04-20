@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const buildTask = ({
   dependencies = [],
   done = false,
+  result = "",
   spec,
   status = "created",
   taskId,
@@ -10,6 +11,7 @@ const buildTask = ({
 }: {
   dependencies?: string[];
   done?: boolean;
+  result?: string;
   spec: string;
   status?: string;
   taskId: string;
@@ -22,6 +24,7 @@ const buildTask = ({
   worktree_path: null,
   pull_request_url: null,
   dependencies,
+  result,
   done,
   status,
   created_at: "2026-04-19T00:00:00.000Z",
