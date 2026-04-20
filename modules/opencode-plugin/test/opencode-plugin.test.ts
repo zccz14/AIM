@@ -21,6 +21,10 @@ const pluginCreateTasksSkillUrl = new URL(
   "../skills/aim-create-tasks/SKILL.md",
   import.meta.url,
 );
+const pluginSetupGithubRepoSkillUrl = new URL(
+  "../skills/aim-setup-github-repo/SKILL.md",
+  import.meta.url,
+);
 const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
 const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
@@ -46,6 +50,7 @@ let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
 let pluginLifecycleSkillText: string;
 let pluginCreateTasksSkillText: string;
+let pluginSetupGithubRepoSkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -114,6 +119,10 @@ beforeAll(async () => {
     pluginCreateTasksSkillUrl,
     "utf8",
   );
+  pluginSetupGithubRepoSkillText = await readFile(
+    pluginSetupGithubRepoSkillUrl,
+    "utf8",
+  );
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
@@ -149,6 +158,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginCreateTasksSkillUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-setup-github-repo skill resource", async () => {
+    await expect(access(pluginSetupGithubRepoSkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -162,6 +175,7 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-create-tasks/SKILL.md",
+      "package/skills/aim-setup-github-repo/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
     ]);
@@ -170,6 +184,12 @@ describe("opencode plugin package baseline", () => {
   it("packs the aim-create-tasks skill into the publishable tarball", async () => {
     await expect(listPackedFiles()).resolves.toContain(
       "package/skills/aim-create-tasks/SKILL.md",
+    );
+  });
+
+  it("packs the aim-setup-github-repo skill into the publishable tarball", async () => {
+    await expect(listPackedFiles()).resolves.toContain(
+      "package/skills/aim-setup-github-repo/SKILL.md",
     );
   });
 
@@ -197,6 +217,17 @@ describe("opencode plugin package baseline", () => {
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
 
     expect(pluginReadme).toContain("aim-create-tasks");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents aim-setup-github-repo as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-setup-github-repo");
+    expect(pluginSkillsReadme).toContain("gh");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+
+    expect(pluginReadme).toContain("aim-setup-github-repo");
     expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
@@ -280,6 +311,24 @@ describe("opencode plugin package baseline", () => {
     expect(pluginCreateTasksSkillText).toContain("`aim-task-lifecycle`");
     expect(pluginCreateTasksSkillText).not.toContain("TODO");
     expect(pluginCreateTasksSkillText).not.toContain("TBD");
+  });
+
+  it("documents GitHub repo setup workflow and blockers", () => {
+    expect(pluginSetupGithubRepoSkillText).toContain("gh repo view --json nameWithOwner,defaultBranchRef");
+    expect(pluginSetupGithubRepoSkillText).toContain("allowSquashMerge");
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "| `requiredLinearHistory` | `true` |",
+    );
+    expect(pluginSetupGithubRepoSkillText).toContain(
+      "把 `pull_request` 与 `non_fast_forward` 视为默认目标 rules",
+    );
+    expect(pluginSetupGithubRepoSkillText).toContain("required_status_checks");
+    expect(pluginSetupGithubRepoSkillText).toContain("gh pr merge PR_NUMBER --auto --squash");
+    expect(pluginSetupGithubRepoSkillText).toContain("先读 live state，再做最小修正。不要猜测仓库设置、required checks 或 PR merge 阻塞原因。");
+    expect(pluginSetupGithubRepoSkillText).toContain("Draft PR");
+    expect(pluginSetupGithubRepoSkillText).toContain("Required checks 仍在运行 / 失败");
+    expect(pluginSetupGithubRepoSkillText).not.toContain("TODO");
+    expect(pluginSetupGithubRepoSkillText).not.toContain("TBD");
   });
 
   it("exports a default plugin module from the built entry", () => {
