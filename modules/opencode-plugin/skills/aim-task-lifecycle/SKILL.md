@@ -27,8 +27,8 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 
 - `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
 - 非终态生命周期更新使用 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
-- 成功终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
-- 失败终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
+- 成功终态结果上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
+- 失败终态结果上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
 
 ## 生命周期状态
 
@@ -135,8 +135,8 @@ flowchart TD
 4. 首次 follow-up 开始时：在完成 1 到 10 分钟的主动等待后，上报 `pr_following`，并保留已知的 `pull_request_url` / `worktree_path`。
 5. PR 跟进期间：如有 checks 失败、blocking review、merge conflict、auto-merge 阻塞或其他新的阶段事实，继续以上报 `pr_following` 为主，并保留所有已知事实。
 6. closing 期间：当 PR 已合并、关闭或确认废弃后，上报 `closing`，并保留所有已知事实；此阶段还要处理相关 review / 后续 review、删除 worktree，并刷新主工作区基线，因此尚未真正完成。
-7. 成功时：只有在相关 review / 后续 review 已处理完成、worktree 已删除且主工作区基线已刷新后，才通过 `POST /tasks/${task_id}/resolve` 上报终态事实，并携带非空 `result`。
-8. 失败时：通过 `POST /tasks/${task_id}/reject` 上报终态事实，并携带非空 `result`。
+7. 成功时：只有在相关 review / 后续 review 已处理完成、worktree 已删除且主工作区基线已刷新后，才通过 `POST /tasks/${task_id}/resolve` 上报终态结果，并携带非空 `result`。
+8. 失败时：通过 `POST /tasks/${task_id}/reject` 上报终态结果，并携带非空 `result`。
 
 当任务因缺失前提假设或输入而被阻塞时，也要立即上报 `waiting_assumptions`。
 
@@ -144,7 +144,7 @@ flowchart TD
 
 非终态 PATCH 上报只使用受支持的局部更新字段：当生命周期阶段变化时再携带 `status`，并且只有在 `worktree_path` 和 `pull_request_url` 已知时才添加这两个字段。
 
-终态上报不使用 PATCH。对 `succeeded` 使用 `POST /resolve`，对 `failed` 使用 `POST /reject`，并在请求体中只发送一个必填且非空的 `result` 字符串字段。
+终态结果上报不使用 PATCH。对 `succeeded` 使用 `POST /resolve`，对 `failed` 使用 `POST /reject`，并在请求体中只发送一个必填且非空的 `result` 字符串字段。
 
 未知值不等于空字符串。对于未知字段，应省略，而不是发送 `""` 或伪造的 `null` 占位值。
 
@@ -182,7 +182,7 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/resolve
   }'
 ```
 
-### Terminal failure example
+### 终态失败示例
 
 ```bash
 curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject" \
@@ -195,7 +195,7 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject"
 ## 规则
 
 - 只能使用 PATCH 来更新已存在 Task 的非终态事实。
-- 只能使用 `POST /resolve` 上报 `succeeded` 终态，且只能使用 `POST /reject` 上报 `failed` 终态。
+- 只能使用 `POST /resolve` 上报 `succeeded` 终态结果，且只能使用 `POST /reject` 上报 `failed` 终态结果。
 - 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。
 - 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
 - 在后续非终态 PATCH 上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
