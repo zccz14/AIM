@@ -17,6 +17,10 @@ const pluginLifecycleSkillUrl = new URL(
   "../skills/aim-task-lifecycle/SKILL.md",
   import.meta.url,
 );
+const pluginCreateTasksSkillUrl = new URL(
+  "../skills/aim-create-tasks/SKILL.md",
+  import.meta.url,
+);
 const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
 const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
@@ -41,6 +45,7 @@ let pluginPackage: PluginPackageManifest;
 let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
 let pluginLifecycleSkillText: string;
+let pluginCreateTasksSkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -105,6 +110,10 @@ beforeAll(async () => {
   ) as PluginPackageManifest;
   pluginSource = await readFile(pluginSourceUrl, "utf8");
   pluginLifecycleSkillText = await readFile(pluginLifecycleSkillUrl, "utf8");
+  pluginCreateTasksSkillText = await readFile(
+    pluginCreateTasksSkillUrl,
+    "utf8",
+  );
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
@@ -136,6 +145,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginLifecycleSkillUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-create-tasks skill resource", async () => {
+    await expect(access(pluginCreateTasksSkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -148,9 +161,16 @@ describe("opencode plugin package baseline", () => {
       "package/dist/index.js.map",
       "package/package.json",
       "package/skills/README.md",
+      "package/skills/aim-create-tasks/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
     ]);
+  });
+
+  it("packs the aim-create-tasks skill into the publishable tarball", async () => {
+    await expect(listPackedFiles()).resolves.toContain(
+      "package/skills/aim-create-tasks/SKILL.md",
+    );
   });
 
   it("documents lifecycle reporting as packaged documentation only", () => {
@@ -167,6 +187,17 @@ describe("opencode plugin package baseline", () => {
       "Ships static `skills/` and `agents/` resources",
     );
     expect(pluginReadme).toContain("aim-task-lifecycle");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents aim-create-tasks as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-create-tasks");
+    expect(pluginSkillsReadme).toContain("HTTP POST");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+
+    expect(pluginReadme).toContain("aim-create-tasks");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
   });
@@ -210,6 +241,45 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginLifecycleSkillText).not.toContain("TODO");
     expect(pluginLifecycleSkillText).not.toContain("TBD");
+  });
+
+  it("documents task creation interview, approval, and boundary rules", () => {
+    expect(pluginCreateTasksSkillText).toContain(
+      "Review the latest baseline, related existing AIM Tasks, and nearby Task Specs or design docs before proposing new tasks.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "Candidate tasks must include the full five-part Task Spec:",
+    );
+    expect(pluginCreateTasksSkillText).toContain("- `Title`");
+    expect(pluginCreateTasksSkillText).toContain("- `Assumptions`");
+    expect(pluginCreateTasksSkillText).toContain("- `Goal vs Non-Goal`");
+    expect(pluginCreateTasksSkillText).toContain("- `Core Path`");
+    expect(pluginCreateTasksSkillText).toContain("- `Value Alignment`");
+    expect(pluginCreateTasksSkillText).toMatch(
+      /POST \$\{SERVER_BASE_URL:-http:\/\/localhost:8192\}\/tasks/,
+    );
+    expect(pluginCreateTasksSkillText).toContain("`task_spec`");
+    expect(pluginCreateTasksSkillText).toContain("`project_path`");
+    expect(pluginCreateTasksSkillText).toContain(
+      "`dependencies` are soft hints",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "Wait for explicit user approval before any create call.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "If the user requests changes, return to interview or proposal revision, update the candidate tasks, and wait for explicit approval again.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "Do not guess `project_path`.",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "Do not replace scheduler ordering.",
+    );
+    expect(pluginCreateTasksSkillText).toContain("`aim-verify-task-spec`");
+    expect(pluginCreateTasksSkillText).toContain("implementation plan");
+    expect(pluginCreateTasksSkillText).toContain("`aim-task-lifecycle`");
+    expect(pluginCreateTasksSkillText).not.toContain("TODO");
+    expect(pluginCreateTasksSkillText).not.toContain("TBD");
   });
 
   it("exports a default plugin module from the built entry", () => {
