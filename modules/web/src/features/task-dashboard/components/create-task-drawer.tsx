@@ -1,4 +1,12 @@
-import { Alert, Button, Drawer, Group, Stack, Textarea } from "@mantine/core";
+import {
+  Alert,
+  Button,
+  Drawer,
+  Group,
+  Stack,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -12,14 +20,20 @@ export const CreateTaskDrawer = ({
   errorMessage: string | null;
   isSubmitting: boolean;
   onClose: () => void;
-  onSubmit: (taskSpec: string) => Promise<unknown> | unknown;
+  onSubmit: (input: {
+    projectPath: string;
+    taskSpec: string;
+  }) => Promise<unknown> | unknown;
   opened: boolean;
 }) => {
+  const [projectPath, setProjectPath] = useState("");
   const [taskSpec, setTaskSpec] = useState("");
+  const trimmedProjectPath = projectPath.trim();
   const trimmedTaskSpec = taskSpec.trim();
 
   useEffect(() => {
     if (!opened) {
+      setProjectPath("");
       setTaskSpec("");
     }
   }, [opened]);
@@ -49,14 +63,25 @@ export const CreateTaskDrawer = ({
           placeholder="Describe the task to create"
           value={taskSpec}
         />
+        <TextInput
+          label="Project Path"
+          onChange={(event) => setProjectPath(event.currentTarget.value)}
+          placeholder="/absolute/path/to/repo"
+          value={projectPath}
+        />
         <Group justify="flex-end">
           <Button disabled={isSubmitting} onClick={onClose} variant="default">
             Cancel
           </Button>
           <Button
-            disabled={!trimmedTaskSpec}
+            disabled={!trimmedProjectPath || !trimmedTaskSpec}
             loading={isSubmitting}
-            onClick={() => void onSubmit(trimmedTaskSpec)}
+            onClick={() =>
+              void onSubmit({
+                projectPath: trimmedProjectPath,
+                taskSpec: trimmedTaskSpec,
+              })
+            }
           >
             Create Task
           </Button>

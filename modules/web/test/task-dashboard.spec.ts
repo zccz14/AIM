@@ -17,6 +17,7 @@ const buildTask = ({
 }) => ({
   task_id: taskId,
   task_spec: spec,
+  project_path: "/repo/dashboard",
   session_id: null,
   worktree_path: null,
   pull_request_url: null,
@@ -193,9 +194,14 @@ test("opens and closes the create task drawer from the dashboard header", async 
 
   await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
   await expect(page.getByLabel("Task Spec")).toBeVisible();
+  await expect(page.getByLabel("Project Path")).toBeVisible();
   await expect(headerCreateTaskButton).toBeDisabled();
 
   await page.getByLabel("Task Spec").fill("Draft task spec");
+  await expect(
+    page.getByRole("button", { name: "Create Task" }).nth(1),
+  ).toBeDisabled();
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
 
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
@@ -204,9 +210,10 @@ test("opens and closes the create task drawer from the dashboard header", async 
 
   await headerCreateTaskButton.click();
   await expect(page.getByLabel("Task Spec")).toHaveValue("");
+  await expect(page.getByLabel("Project Path")).toHaveValue("");
 });
 
-test("submits only task_spec to the existing task API", async ({ page }) => {
+test("submits task_spec and project_path to the existing task API", async ({ page }) => {
   let createRequestBodyText: null | string = null;
 
   await page.route("**/tasks", async (route) => {
@@ -235,11 +242,17 @@ test("submits only task_spec to the existing task API", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
   await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
   await expect
     .poll(() => createRequestBodyText)
-    .toEqual(JSON.stringify({ task_spec: "Ship create flow" }));
+    .toEqual(
+      JSON.stringify({
+        task_spec: "Ship create flow",
+        project_path: "/repo/dashboard",
+      }),
+    );
 });
 
 test("shows a local create error when the task API rejects the request", async ({
@@ -274,6 +287,7 @@ test("shows a local create error when the task API rejects the request", async (
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
   await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
   const createTaskDialog = page.getByRole("dialog", { name: "Create Task" });
@@ -350,6 +364,7 @@ test("closes the create drawer, refreshes the dashboard, and opens the new task 
   await page
     .getByLabel("Task Spec")
     .fill("Create release checklist\n- draft notes\n- notify team");
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
   await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
@@ -367,6 +382,7 @@ test("closes the create drawer, refreshes the dashboard, and opens the new task 
       "Task Spec: Create release checklist\n- draft notes\n- notify team",
     ),
   ).toBeVisible();
+  await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
   await expect(
     page.getByRole("row", { name: /Create release checklist/i }),
   ).toBeVisible();
@@ -425,6 +441,7 @@ test("opens created task details from the create response when the dashboard ref
   await page
     .getByLabel("Task Spec")
     .fill("Fallback task title\n- still visible after refresh failure");
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).nth(1).click();
 
   await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
@@ -442,6 +459,7 @@ test("opens created task details from the create response when the dashboard ref
       "Task Spec: Fallback task title\n- still visible after refresh failure",
     ),
   ).toBeVisible();
+  await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
   await expect.poll(() => listRequestCount).toBe(2);
 });
 

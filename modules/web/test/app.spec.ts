@@ -128,6 +128,7 @@ test("keeps task creation inside the dashboard shell", async () => {
   expect(dashboardPageSource).toContain("<CreateTaskDrawer");
   expect(dashboardPageSource).not.toContain("react-router");
   expect(createDrawerSource).toContain('label="Task Spec"');
+  expect(createDrawerSource).toContain('label="Project Path"');
   expect(createDrawerSource).not.toContain('label="Title"');
 });
 
@@ -156,7 +157,9 @@ test("routes task creation through feature-local api and mutation helpers", asyn
   expect(apiSource).not.toContain("createContractClient");
   expect(apiSource).not.toContain("readServerBaseUrl");
   expect(apiSource).not.toContain("resolveContractUrl");
-  expect(apiSource).toContain("client.createTask({ task_spec: taskSpec })");
+  expect(apiSource).toContain("project_path: input.projectPath");
+  expect(mutationSource).toContain("taskSpec: string");
+  expect(mutationSource).toContain("projectPath: string");
   expect(apiClientSource).toContain('request.headers.get("content-type")');
   expect(apiClientSource).toContain("request.body");
   expect(apiClientSource).not.toContain(

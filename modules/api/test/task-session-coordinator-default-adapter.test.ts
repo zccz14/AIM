@@ -35,6 +35,7 @@ describe("task session coordinator default adapter", () => {
         created_at: "2026-04-20T00:00:00.000Z",
         dependencies: [],
         done: false,
+        project_path: "/repo",
         pull_request_url: null,
         session_id: null,
         status: "created",

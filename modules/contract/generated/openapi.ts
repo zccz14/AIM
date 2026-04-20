@@ -328,6 +328,7 @@ export const openApiDocument = {
         "required": [
           "task_id",
           "task_spec",
+          "project_path",
           "session_id",
           "worktree_path",
           "pull_request_url",
@@ -344,6 +345,10 @@ export const openApiDocument = {
             "readOnly": true
           },
           "task_spec": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_path": {
             "type": "string",
             "minLength": 1
           },
@@ -405,10 +410,15 @@ export const openApiDocument = {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "task_spec"
+          "task_spec",
+          "project_path"
         ],
         "properties": {
           "task_spec": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_path": {
             "type": "string",
             "minLength": 1
           },

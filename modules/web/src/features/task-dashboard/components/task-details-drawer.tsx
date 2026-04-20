@@ -26,6 +26,7 @@ export const TaskDetailsDrawer = ({
         <Text style={{ whiteSpace: "pre-wrap" }}>
           Task Spec: {task.taskSpec}
         </Text>
+        <Text>Project Path: {task.projectPath}</Text>
         <Text>Task ID: {task.id}</Text>
         <Text>Contract Status: {task.contractStatus}</Text>
         <Text>

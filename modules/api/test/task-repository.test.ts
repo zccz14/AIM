@@ -69,6 +69,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const createdTask = await repository.createTask({
       task_spec: "bootstrap repository schema",
+      project_path: "/repo/bootstrap",
       status: "succeeded",
     });
     const tasks = await repository.listTasks();
@@ -80,6 +81,7 @@ describe("task repository", () => {
 
     expect(taskSchema.safeParse(createdTask).success).toBe(true);
     expect(createdTask.done).toBe(true);
+    expect(createdTask.project_path).toBe("/repo/bootstrap");
     expect(persistedRow).toEqual({ done: 1 });
     expect(tasks).toEqual([createdTask]);
   });
@@ -92,17 +94,20 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const firstTask = await repository.createTask({
       task_spec: "keep running",
+      project_path: "/repo/session-a/running",
       session_id: "session-a",
       status: "running",
     });
     const secondTask = await repository.createTask({
       task_spec: "complete later",
+      project_path: "/repo/session-a/created",
       session_id: "session-a",
       dependencies: [firstTask.task_id],
       status: "created",
     });
     const thirdTask = await repository.createTask({
       task_spec: "different session",
+      project_path: "/repo/session-b/failed",
       session_id: "session-b",
       status: "failed",
     });
@@ -128,6 +133,7 @@ describe("task repository", () => {
 
     expect(updatedTask.task_id).toBe(secondTask.task_id);
     expect(updatedTask.task_spec).toBe("complete now");
+    expect(updatedTask.project_path).toBe("/repo/session-a/created");
     expect(updatedTask.session_id).toBe("session-a");
     expect(updatedTask.dependencies).toEqual([firstTask.task_id]);
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/2");
@@ -160,14 +166,17 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const runningTask = await repository.createTask({
       task_spec: "still running",
+      project_path: "/repo/unfinished/running",
       status: "running",
     });
     const createdTask = await repository.createTask({
       task_spec: "queued",
+      project_path: "/repo/unfinished/queued",
       status: "created",
     });
     await repository.createTask({
       task_spec: "already done",
+      project_path: "/repo/unfinished/done",
       status: "succeeded",
     });
 
@@ -187,6 +196,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await repository.createTask({
       task_spec: "claim me once",
+      project_path: "/repo/claim-once",
       status: "created",
     });
 
@@ -213,6 +223,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await repository.createTask({
       task_spec: "race me",
+      project_path: "/repo/race-me",
       status: "created",
     });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -240,6 +251,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await repository.createTask({
       task_spec: "finish before binding",
+      project_path: "/repo/finish-first",
       status: "created",
     });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -267,11 +279,13 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const firstTask = await repository.createTask({
       task_spec: "shared session first",
+      project_path: "/repo/shared-session/first",
       session_id: "shared-session",
       status: "running",
     });
     const secondTask = await repository.createTask({
       task_spec: "shared session second",
+      project_path: "/repo/shared-session/second",
       session_id: "shared-session",
       status: "created",
     });
@@ -297,6 +311,34 @@ describe("task repository", () => {
     expect(() => createTaskRepository()).toThrowError(/tasks schema/i);
   });
 
+  it("fails fast when an existing tasks table lacks project_path", async () => {
+    const projectRoot = await createProjectRoot("rejects-missing-project-path");
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE tasks (
+        task_id TEXT PRIMARY KEY,
+        task_spec TEXT NOT NULL,
+        session_id TEXT,
+        worktree_path TEXT,
+        pull_request_url TEXT,
+        dependencies TEXT NOT NULL,
+        done INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    database.close();
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    expect(() => createTaskRepository()).toThrowError(
+      /tasks schema is incompatible/i,
+    );
+  });
+
   it("accepts a semantically compatible existing tasks schema", async () => {
     const projectRoot = await createProjectRoot("accepts-compatible-schema");
     const databasePath = join(projectRoot, "aim.sqlite");
@@ -306,6 +348,7 @@ describe("task repository", () => {
       CREATE TABLE tasks (
         task_id text PRIMARY KEY,
         task_spec varchar(255) NOT NULL,
+        project_path varchar(255) NOT NULL,
         session_id text,
         worktree_path text,
         pull_request_url text,
@@ -323,6 +366,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const createdTask = await repository.createTask({
       task_spec: "compatible schema bootstrap",
+      project_path: "/repo/compatible-schema",
     });
 
     await expect(repository.getTaskById(createdTask.task_id)).resolves.toEqual(

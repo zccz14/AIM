@@ -50,10 +50,35 @@ afterEach(async () => {
 });
 
 describe("task routes", () => {
+  it("rejects POST /tasks when project_path is missing", async () => {
+    await useProjectRoot("rejects-missing-project-path");
+
+    const app = apiModule.createApp();
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "write sqlite-backed route tests",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+  });
+
   it("persists a created task and reads the same record through both GET routes", async () => {
     await useProjectRoot("persists-create-and-read");
 
     const app = apiModule.createApp();
+    const projectPath = "/repo/main";
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -61,6 +86,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "write sqlite-backed route tests",
+        project_path: projectPath,
         session_id: "session-1",
         dependencies: ["task-0"],
         status: "running",
@@ -73,6 +99,7 @@ describe("task routes", () => {
 
     expect(contractModule.taskSchema.safeParse(createdTask).success).toBe(true);
     expect(createdTask.task_spec).toBe("write sqlite-backed route tests");
+    expect(createdTask.project_path).toBe(projectPath);
     expect(createdTask.session_id).toBe("session-1");
     expect(createdTask.dependencies).toEqual(["task-0"]);
     expect(createdTask.done).toBe(false);
@@ -117,6 +144,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "stays on app root",
+        project_path: "/repo/app-root",
       }),
     });
 
@@ -141,6 +169,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "keep running",
+        project_path: "/repo/session-a/running",
         session_id: "session-a",
         status: "running",
       }),
@@ -152,6 +181,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "already done",
+        project_path: "/repo/session-a/done",
         session_id: "session-a",
         status: "failed",
       }),
@@ -163,6 +193,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "different session",
+        project_path: "/repo/session-b/running",
         session_id: "session-b",
         status: "running",
       }),
@@ -239,6 +270,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "before patch",
+        project_path: "/repo/patch-target",
         session_id: "session-7",
         dependencies: ["task-a"],
         status: "running",
@@ -271,6 +303,7 @@ describe("task routes", () => {
     expect(contractModule.taskSchema.safeParse(patchedTask).success).toBe(true);
     expect(patchedTask.task_id).toBe(createdTask.task_id);
     expect(patchedTask.task_spec).toBe("after patch");
+    expect(patchedTask.project_path).toBe("/repo/patch-target");
     expect(patchedTask.session_id).toBe("session-7");
     expect(patchedTask.dependencies).toEqual(["task-a"]);
     expect(patchedTask.pull_request_url).toBe("https://example.test/pr/7");
@@ -289,6 +322,7 @@ describe("task routes", () => {
     await useProjectRoot("patches-nullable-fields");
 
     const app = apiModule.createApp();
+    const projectPath = "/repo/null-fields";
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -296,6 +330,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "clear patch fields",
+        project_path: projectPath,
         session_id: "session-9",
         worktree_path: "/tmp/worktree",
         pull_request_url: "https://example.test/pr/9",
@@ -325,8 +360,50 @@ describe("task routes", () => {
     const patchedTask = await patchResponse.json();
 
     expect(patchedTask.session_id).toBeNull();
+    expect(patchedTask.project_path).toBe(projectPath);
     expect(patchedTask.worktree_path).toBeNull();
     expect(patchedTask.pull_request_url).toBeNull();
+  });
+
+  it("rejects PATCH /tasks/{id} when project_path is present", async () => {
+    await useProjectRoot("rejects-project-path-patch");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "patch validation target",
+        project_path: "/repo/original",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          project_path: "/repo/other",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 
   it("deletes a persisted task and then returns not found for a follow-up read", async () => {
@@ -340,6 +417,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "delete me",
+        project_path: "/repo/delete-me",
       }),
     });
 
@@ -423,6 +501,7 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         task_spec: "patch validation target",
+        project_path: "/repo/invalid-patch",
       }),
     });
 

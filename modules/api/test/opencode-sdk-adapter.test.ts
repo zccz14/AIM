@@ -13,6 +13,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
   dependencies: [],
   done: false,
+  project_path: "/repo",
   pull_request_url: null,
   session_id: null,
   status: "created",
@@ -60,7 +61,7 @@ describe("opencode sdk adapter", () => {
     });
     expect(create).toHaveBeenCalledWith({
       query: {
-        directory: "/repo/.worktrees/task-1",
+        directory: "/repo",
       },
       throwOnError: true,
     });
@@ -82,6 +83,12 @@ describe("opencode sdk adapter", () => {
       path: { id: "session-1" },
       throwOnError: true,
     });
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
+      "project_path: /repo",
+    );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
+      "worktree_path: /repo/.worktrees/task-1",
+    );
   });
 
   it("reads the raw session status for the requested session", async () => {

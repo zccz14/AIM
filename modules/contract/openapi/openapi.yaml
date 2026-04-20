@@ -206,6 +206,7 @@ components:
       required:
         - task_id
         - task_spec
+        - project_path
         - session_id
         - worktree_path
         - pull_request_url
@@ -220,6 +221,9 @@ components:
           minLength: 1
           readOnly: true
         task_spec:
+          type: string
+          minLength: 1
+        project_path:
           type: string
           minLength: 1
         session_id:
@@ -266,8 +270,12 @@ components:
       additionalProperties: false
       required:
         - task_spec
+        - project_path
       properties:
         task_spec:
+          type: string
+          minLength: 1
+        project_path:
           type: string
           minLength: 1
         dependencies:

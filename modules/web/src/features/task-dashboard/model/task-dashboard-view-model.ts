@@ -9,6 +9,7 @@ export type DashboardTask = {
   id: string;
   title: string;
   taskSpec: string;
+  projectPath: string;
   contractStatus: string;
   dashboardStatus: DashboardStatus;
   sessionId: string | null;

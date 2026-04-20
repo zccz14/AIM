@@ -41,11 +41,14 @@ export const DashboardPage = () => {
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
     (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
 
-  const handleCreateTask = async (taskSpec: string) => {
+  const handleCreateTask = async (input: {
+    projectPath: string;
+    taskSpec: string;
+  }) => {
     createTaskMutation.reset();
 
     try {
-      const createdTask = await createTaskMutation.mutateAsync(taskSpec);
+      const createdTask = await createTaskMutation.mutateAsync(input);
       const createdDashboardTaskFallback = adaptDashboardTask(createdTask);
 
       setCreateDrawerOpened(false);
