@@ -156,12 +156,22 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("documents lifecycle reporting as packaged documentation only", () => {
-    expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
-    expect(pluginSkillsReadme).toContain("reporting");
-    expect(pluginReadme).toContain("aim-task-lifecycle");
-    expect(pluginReadme).toContain("static");
-    expect(pluginReadme).not.toContain("auto-report");
-    expect(pluginReadme).not.toContain("automatic AIM sync");
+    expect(pluginSkillsReadme).toContain(
+      "The package ships static skill documentation only:",
+    );
+    expect(pluginSkillsReadme).toContain(
+      "- `aim-task-lifecycle`: AIM task lifecycle reporting guidance for updating an existing Task via HTTP PATCH.",
+    );
+    expect(pluginSkillsReadme).toContain(
+      "The plugin does not auto-run workflow automation or background AIM reporting.",
+    );
+
+    expect(pluginReadme).toContain(
+      "- Registers the packaged `skills/` directory into OpenCode config.",
+    );
+    expect(pluginReadme).toContain(
+      "- Ships static `skills/` and `agents/` resources, including the `aim-task-lifecycle` packaged skill document.",
+    );
   });
 
   it("exports a default plugin module from the built entry", () => {
