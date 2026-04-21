@@ -101,11 +101,25 @@ const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
     .replaceAll(/[`"'()[\]]/g, " ")
     .replaceAll(/\s+/g, " ")
     .trim();
+  const whereClause = normalizedSql.match(/\bwhere\b\s+(.+)$/)?.[1]?.trim();
+
+  if (!whereClause || whereClause.includes(" or ")) {
+    return false;
+  }
+
+  const normalizedPredicates = whereClause
+    .split(/\band\b/)
+    .map((predicate) => predicate.trim())
+    .filter(Boolean)
+    .sort();
 
   return (
-    normalizedSql.includes("where") &&
-    normalizedSql.includes("session_id is not null") &&
-    (normalizedSql.includes("done = 0") || normalizedSql.includes("0 = done"))
+    (normalizedPredicates.length === 2 &&
+      normalizedPredicates[0] === "0 = done" &&
+      normalizedPredicates[1] === "session_id is not null") ||
+    (normalizedPredicates.length === 2 &&
+      normalizedPredicates[0] === "done = 0" &&
+      normalizedPredicates[1] === "session_id is not null")
   );
 };
 

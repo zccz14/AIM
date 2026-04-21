@@ -620,7 +620,7 @@ describe("task repository", () => {
     database.exec(`
       CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
       ON tasks (session_id)
-      WHERE session_id IS NOT NULL AND done = 0
+      WHERE (session_id IS NOT NULL) AND (0 = done)
     `);
     database.close();
 
@@ -634,6 +634,43 @@ describe("task repository", () => {
 
     await expect(repository.getTaskById(createdTask.task_id)).resolves.toEqual(
       createdTask,
+    );
+  });
+
+  it("rejects a broader partial session index predicate", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-broader-session-index-predicate",
+    );
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE tasks (
+        task_id text PRIMARY KEY,
+        task_spec varchar(255) NOT NULL,
+        project_path varchar(255) NOT NULL,
+        session_id text,
+        worktree_path text,
+        pull_request_url text,
+        dependencies text NOT NULL,
+        result text NOT NULL default '',
+        done int NOT NULL,
+        status varchar(32) NOT NULL,
+        created_at datetime NOT NULL,
+        updated_at datetime NOT NULL
+      )
+    `);
+    database.exec(`
+      CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
+      ON tasks (session_id)
+      WHERE done = 0 OR session_id IS NOT NULL
+    `);
+    database.close();
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    expect(() => createTaskRepository()).toThrowError(
+      /tasks schema is incompatible/i,
     );
   });
 
