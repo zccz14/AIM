@@ -1,6 +1,10 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
-
-import { buildContinuePrompt } from "./task-continue-prompt.js";
+import {
+  buildContinuePrompt,
+  getTaskSpecFilename,
+} from "./task-continue-prompt.js";
 import type {
   TaskSessionCoordinator,
   TaskSessionState,
@@ -140,6 +144,11 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       if (sessionState !== "idle") {
         return;
       }
+
+      const specFile = getTaskSpecFilename(latestTask);
+
+      await mkdir(dirname(specFile), { recursive: true });
+      await writeFile(specFile, latestTask.task_spec, "utf-8");
 
       await options.coordinator.sendContinuePrompt(
         sessionId,

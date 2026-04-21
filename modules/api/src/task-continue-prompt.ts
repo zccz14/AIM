@@ -1,16 +1,27 @@
+import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
-const formatOptionalField = (label: string, value: null | string) =>
-  `${label}: ${value ?? "null"}`;
+export const getTaskSpecFilename = (task: Task) =>
+  join(
+    task.worktree_path ?? task.project_path,
+    `.aim/task-specs/${task.created_at}-${task.task_id}.md`,
+  );
 
 export const buildContinuePrompt = (
   task: Task,
 ) => `Continue the assigned task session.
 
-task_id: ${task.task_id}
-task_spec: ${task.task_spec}
-status: ${task.status}
-${formatOptionalField("worktree_path", task.worktree_path)}
-${formatOptionalField("pull_request_url", task.pull_request_url)}
+AIM Task Context:
+- task_id: ${task.task_id}
+- task_spec_file: ${getTaskSpecFilename(task)}
+- session_id: ${task.session_id}
+- status: ${task.status}
+- worktree_path: ${task.worktree_path ?? "(not set)"}
+- pull_request_url: ${task.pull_request_url ?? "(not set)"}
 
-Continue this task from its current state through the normal session workflow. Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting during resumed execution. If you cannot continue, write the task's failure state. When the task is complete, write done=true.`;
+Don't Ask My Any Questions. Just Follow your Recommendations and Continue. 
+I agree all recommendations and decisions should be made based on the above context.
+
+Follow the aim-task-lifecycle SKILL.
+This task should finally use resolve or reject to report its completion or failure.
+`;
