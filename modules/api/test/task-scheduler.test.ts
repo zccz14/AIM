@@ -60,7 +60,7 @@ describe("task scheduler", () => {
       taskRepository: repository,
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_bound",
@@ -91,7 +91,7 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
@@ -118,7 +118,7 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(coordinator.getSessionState).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe("task scheduler", () => {
       taskRepository: repository,
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(coordinator.createSession).toHaveBeenCalledWith(initialTask);
     expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
@@ -169,7 +169,7 @@ describe("task scheduler", () => {
       taskRepository: repository,
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
@@ -207,8 +207,8 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
-    await scheduler.runRound();
+    await scheduler.scanOnce();
+    await scheduler.scanOnce();
 
     expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
@@ -228,8 +228,8 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
-    await scheduler.runRound();
+    await scheduler.scanOnce();
+    await scheduler.scanOnce();
 
     expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
@@ -239,7 +239,7 @@ describe("task scheduler", () => {
     );
   });
 
-  it("isolates per-task failures without aborting the round", async () => {
+  it("isolates per-task failures without aborting the scan", async () => {
     const firstTask = createTask({
       task_id: "task-1",
       session_id: "session-1",
@@ -268,7 +268,7 @@ describe("task scheduler", () => {
       },
     });
 
-    await expect(scheduler.runRound()).resolves.toBeUndefined();
+    await expect(scheduler.scanOnce()).resolves.toBeUndefined();
     expect(sendContinuePrompt).toHaveBeenCalledTimes(2);
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
@@ -288,98 +288,62 @@ describe("task scheduler", () => {
     });
   });
 
-  it("refuses duplicate unfinished tasks that share one session_id", async () => {
+  it("processes tasks sequentially within one scan", async () => {
     const firstTask = createTask({
       task_id: "task-1",
-      session_id: "shared-session",
+      session_id: "session-1",
     });
     const secondTask = createTask({
       task_id: "task-2",
-      session_id: "shared-session",
+      session_id: "session-2",
     });
-    const logger = {
-      error: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-    };
+    const events: string[] = [];
+    let releaseFirstSend: (() => void) | undefined;
     const coordinator = createCoordinator();
+    coordinator.getSessionState.mockImplementation(async (sessionId) => {
+      events.push(`state:${sessionId}`);
+      return "idle";
+    });
+    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
+      events.push(`send:start:${sessionId}`);
+
+      if (sessionId === "session-1") {
+        await new Promise<void>((resolve) => {
+          releaseFirstSend = () => {
+            events.push(`send:end:${sessionId}`);
+            resolve();
+          };
+        });
+        return;
+      }
+
+      events.push(`send:end:${sessionId}`);
+    });
     const scheduler = createTaskScheduler({
       coordinator,
-      logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
       },
     });
 
-    await scheduler.runRound();
+    const scanPromise = scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionId: "shared-session" }),
-      expect.stringContaining("shared-session"),
-    );
-    expect(logger.info).not.toHaveBeenCalled();
-  });
-
-  it("warns and skips when assignment returns a duplicate session snapshot", async () => {
-    const firstTask = createTask({
-      task_id: "task-1",
-      session_id: "shared-session",
-    });
-    const secondTask = createTask({
-      task_id: "task-2",
-    });
-    const latestSnapshot = createTask({
-      task_id: "task-2",
-      session_id: "shared-session",
-    });
-    const logger = {
-      error: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-    };
-    const coordinator = createCoordinator();
-    coordinator.createSession.mockResolvedValue({ sessionId: "new-session" });
-    const scheduler = createTaskScheduler({
-      coordinator,
-      logger,
-      taskRepository: {
-        assignSessionIfUnassigned: vi.fn().mockResolvedValue(latestSnapshot),
-        listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
-      },
+    await vi.waitFor(() => {
+      expect(events).toEqual(["state:session-1", "send:start:session-1"]);
     });
 
-    await scheduler.runRound();
+    releaseFirstSend?.();
+    await scanPromise;
 
-    expect(coordinator.getSessionState).toHaveBeenCalledTimes(1);
-    expect(coordinator.getSessionState).toHaveBeenCalledWith(
-      "shared-session",
-      firstTask.project_path,
-    );
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
-      "shared-session",
-      expect.stringContaining(
-        `task_spec_file: ${getTaskSpecFilename(firstTask)}`,
-      ),
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "shared-session",
-        taskId: secondTask.task_id,
-      }),
-      expect.stringContaining("shared-session"),
-    );
-    expect(logger.info).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith({
-      event: "task_session_continued",
-      project_path: firstTask.project_path,
-      session_id: "shared-session",
-      status: firstTask.status,
-      task_id: firstTask.task_id,
-    });
+    expect(events).toEqual([
+      "state:session-1",
+      "send:start:session-1",
+      "send:end:session-1",
+      "state:session-2",
+      "send:start:session-2",
+      "send:end:session-2",
+    ]);
   });
 
   it("does not log task_session_bound when another process assigned a different session", async () => {
@@ -404,7 +368,7 @@ describe("task scheduler", () => {
       },
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(coordinator.getSessionState).toHaveBeenCalledWith(
       "existing-session",
@@ -441,7 +405,7 @@ describe("task scheduler", () => {
       taskRepository: repository,
     });
 
-    await scheduler.runRound();
+    await scheduler.scanOnce();
 
     expect(coordinator.getSessionState).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
