@@ -1,0 +1,77 @@
+---
+name: using-aim
+description: Use when deciding whether AIM-specific packaged skills apply so the relevant AIM skill is loaded before acting.
+---
+
+# using-aim
+
+## Overview
+
+This is a process skill for deciding when AIM-specific packaged skills apply inside this repository.
+
+It does not replace user instructions, `AGENTS.md`, or the repo's default execution rules. It helps the agent notice when a more specific AIM skill should be loaded before responding or acting.
+
+## Instruction Priority
+
+Within this repo, follow instructions in this order:
+
+1. Direct user instructions.
+2. Repository rules such as `AGENTS.md`.
+3. Relevant AIM packaged skills loaded through the `skill` tool.
+4. Default platform behavior.
+
+If a skill conflicts with user instructions or `AGENTS.md`, follow the higher-priority instruction. Skills refine execution inside those boundaries; they do not override them.
+
+## When To Use
+
+Use this skill when a request may involve AIM-specific workflow guidance and you need to decide whether another AIM packaged skill must be loaded first.
+
+Typical triggers:
+
+- The user wants to create a new AIM Task from stabilized intent.
+- The user wants to validate whether a Task Spec is still actionable on the latest baseline.
+- The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
+- The user wants to verify or standardize GitHub repo merge settings, rulesets, or PR auto-merge behavior for AIM workflows.
+- You are about to act and there is any real chance that one of the AIM packaged skills is the correct workflow guide.
+
+## AIM Skills To Check First
+
+Load the matching skill before acting when the request falls into one of these buckets:
+
+- `aim-create-tasks`: turn approved user intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
+- `aim-verify-task-spec`: validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
+- `aim-task-lifecycle`: report lifecycle facts for an existing AIM Task while the task is advanced through worktree, PR, follow-up, and closing stages.
+- `aim-setup-github-repo`: verify or standardize GitHub merge settings, default-branch rulesets, required checks, or PR auto-merge behavior with `gh`.
+
+If none of these apply, continue with the repo's normal instructions.
+
+## Decision Workflow
+
+Before you respond or take action, run this checklist:
+
+1. Identify the real job to be done, not just the surface wording.
+2. Ask whether that job matches AIM task creation, spec verification, lifecycle reporting, or GitHub repo setup.
+3. If yes, load the corresponding AIM skill first.
+4. Re-read the user request and `AGENTS.md` in light of that skill's scope and boundaries.
+5. Only then respond or act.
+
+When the match is uncertain, prefer loading the potentially relevant AIM skill first. A short detour through the right skill is cheaper than executing the wrong workflow.
+
+## Red Flags
+
+These are signs you are rationalizing away required skill usage:
+
+- "I already remember what that AIM skill says."
+- "This is probably too small to need the skill."
+- "I will inspect files first and decide later."
+- "I only need to ask one clarifying question."
+- "This sounds close enough that I can improvise."
+
+If you notice one of these thoughts and a relevant AIM skill exists, load the skill first.
+
+## Boundaries
+
+- This skill is about deciding whether to load a more specific AIM skill.
+- It does not create Tasks, validate Specs, patch AIM lifecycle state, or change GitHub settings by itself.
+- It does not claim any runtime automation. The plugin ships static skill documents only.
+- It does not weaken `AGENTS.md`, worktree rules, PR rules, or any other repo constraint.
