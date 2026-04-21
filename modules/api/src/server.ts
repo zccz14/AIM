@@ -12,6 +12,7 @@ import {
 
 const defaultPort = 8192;
 const defaultSchedulerIntervalMs = 5_000;
+const defaultOpencodeBaseUrl = "http://localhost:4096";
 const parsedPort = Number.parseInt(process.env.PORT ?? `${defaultPort}`, 10);
 const port = Number.isNaN(parsedPort) ? defaultPort : parsedPort;
 const parsedSchedulerIntervalMs = Number.parseInt(
@@ -36,13 +37,14 @@ const readRequiredEnv = (
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
-  const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED === "true";
+  const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED !== "false";
   let scheduler: ReturnType<typeof createTaskScheduler> | undefined;
   let stopScheduler: (() => void) | undefined;
 
   if (isTaskSchedulerEnabled) {
     const coordinatorConfig: TaskSessionCoordinatorConfig = {
-      baseUrl: readRequiredEnv("OPENCODE_BASE_URL"),
+      baseUrl:
+        process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
       modelId: readRequiredEnv("OPENCODE_MODEL_ID"),
       providerId: readRequiredEnv("OPENCODE_PROVIDER_ID"),
     };

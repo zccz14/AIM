@@ -68,17 +68,44 @@ describe("server startup", () => {
     });
   });
 
-  it("fails fast when scheduler config is missing", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
+  it("defaults scheduler enablement and base url when env vars are unset", async () => {
     process.env.OPENCODE_PROVIDER_ID = "anthropic";
     process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
+
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+
+    const { startServer } = await import("../src/server.js");
+
+    expect(() => startServer()).not.toThrow();
+    expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
+      baseUrl: "http://localhost:4096",
+      modelId: "claude-sonnet-4-5",
+      providerId: "anthropic",
+    });
+  });
+
+  it("fails fast when required scheduler config is missing", async () => {
+    process.env.TASK_SCHEDULER_ENABLED = "true";
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
 
     const { startServer } = await import("../src/server.js");
 
     expect(() => startServer()).toThrow(
-      "OPENCODE_BASE_URL is required when TASK_SCHEDULER_ENABLED=true",
+      "OPENCODE_MODEL_ID is required when TASK_SCHEDULER_ENABLED=true",
     );
     expect(mockCreateTaskSessionCoordinator).not.toHaveBeenCalled();
   });
