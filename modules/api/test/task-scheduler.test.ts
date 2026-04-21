@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildContinuePrompt } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
@@ -11,11 +13,13 @@ const createCoordinator = () => ({
   sendContinuePrompt: vi.fn().mockResolvedValue(undefined),
 });
 
+const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-scheduler");
+
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
   dependencies: [],
   done: false,
-  project_path: "/repo",
+  project_path: join(tempRoot, overrides.task_id ?? "task-1"),
   pull_request_url: null,
   session_id: null,
   status: "created",
@@ -24,6 +28,10 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   updated_at: "2026-04-20T00:00:00.000Z",
   worktree_path: null,
   ...overrides,
+});
+
+afterEach(async () => {
+  await rm(tempRoot, { force: true, recursive: true });
 });
 
 describe("task scheduler", () => {
@@ -93,7 +101,9 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(task.task_spec),
+      expect.stringContaining(
+        `task_spec_file: ${join(task.project_path, ".aim/task-specs/task-1.md")}`,
+      ),
     );
   });
 
@@ -137,7 +147,9 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(task.task_spec),
+      expect.stringContaining(
+        `task_spec_file: ${join(task.project_path, ".aim/task-specs/task-1.md")}`,
+      ),
     );
   });
 
@@ -251,7 +263,9 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "shared-session",
-      expect.stringContaining(firstTask.task_id),
+      expect.stringContaining(
+        `task_spec_file: ${join(firstTask.project_path, ".aim/task-specs/task-1.md")}`,
+      ),
     );
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("shared-session"),
@@ -412,9 +426,10 @@ describe("task scheduler", () => {
     expect(coordinatorSource).toContain("createTaskSessionCoordinator");
   });
 
-  it("continue prompt contains task metadata and terminal ownership without storage wording", () => {
+  it("continue prompt contains task metadata and task spec file path", () => {
     const prompt = buildContinuePrompt(
       createTask({
+        project_path: "/repo",
         pull_request_url: "https://example.test/pr/123",
         session_id: "session-1",
         status: "running",
@@ -423,17 +438,21 @@ describe("task scheduler", () => {
     );
 
     expect(prompt).toContain("task_id: task-1");
-    expect(prompt).toContain("task_spec: Continue implementing the scheduler.");
+    expect(prompt).toContain("task_spec_file: /repo/.aim/task-specs/task-1.md");
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
     expect(prompt).toContain(
-      "Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting during resumed execution.",
+      "Don't Ask My Any Questions. Just Follow your Recommendations and Continue.",
     );
-    expect(prompt).toContain("If you cannot continue");
-    expect(prompt).toContain("write the task's failure state");
-    expect(prompt).toContain("When the task is complete");
-    expect(prompt).toContain("write done=true");
+    expect(prompt).toContain(
+      "I agree all recommendations and decisions should be made based on the above context.",
+    );
+    expect(prompt).toContain("Follow the aim-task-lifecycle SKILL.");
+    expect(prompt).toContain(
+      "This task should finally use resolve or reject to report its completion or failure.",
+    );
+    expect(prompt).not.toContain("task_spec:");
     expect(prompt).not.toMatch(/aim\.sqlite/i);
     expect(prompt).not.toMatch(/\bdb\b/i);
     expect(prompt).not.toMatch(/database/i);

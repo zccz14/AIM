@@ -2,7 +2,10 @@ import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
 export const getTaskSpecFilename = (task: Task) =>
-  join(task.project_path, `.aim/task-specs/${task.task_id}.md`);
+  join(
+    task.worktree_path ?? task.project_path,
+    `.aim/task-specs/${task.created_at}-${task.task_id}.md`,
+  );
 
 export const buildContinuePrompt = (
   task: Task,
