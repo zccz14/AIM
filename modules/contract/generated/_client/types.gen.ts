@@ -383,3 +383,32 @@ export type RejectTaskByIdResponses = {
 
 export type RejectTaskByIdResponse =
   RejectTaskByIdResponses[keyof RejectTaskByIdResponses];
+
+export type GetTaskSpecByIdData = {
+  body?: never;
+  path: {
+    taskId: string;
+  };
+  query?: never;
+  url: "/tasks/{taskId}/spec";
+};
+
+export type GetTaskSpecByIdErrors = {
+  /**
+   * Task not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetTaskSpecByIdError =
+  GetTaskSpecByIdErrors[keyof GetTaskSpecByIdErrors];
+
+export type GetTaskSpecByIdResponses = {
+  /**
+   * Task spec markdown
+   */
+  200: string;
+};
+
+export type GetTaskSpecByIdResponse =
+  GetTaskSpecByIdResponses[keyof GetTaskSpecByIdResponses];

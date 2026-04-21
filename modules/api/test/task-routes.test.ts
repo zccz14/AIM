@@ -22,6 +22,9 @@ const createLogger = () => ({
 const resolveTaskByIdPath = (taskId: string) =>
   contractModule.taskByIdPath.replace("{taskId}", taskId);
 
+const resolveTaskSpecPath = (taskId: string) =>
+  contractModule.taskSpecPath.replace("{taskId}", taskId);
+
 const resolveTaskResolvePath = (taskId: string) =>
   contractModule.taskResolvePath.replace("{taskId}", taskId);
 
@@ -160,6 +163,53 @@ describe("task routes", () => {
       true,
     );
     expect(detailPayload).toEqual(createdTask);
+  });
+
+  it("returns the raw task spec markdown for GET /tasks/{taskId}/spec", async () => {
+    await useProjectRoot("reads-task-spec");
+
+    const app = apiModule.createApp();
+    const taskSpec = "# Task Spec\n\nShip the endpoint.";
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: taskSpec,
+        project_path: "/repo/task-spec",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const specResponse = await app.request(
+      resolveTaskSpecPath(createdTask.task_id),
+    );
+
+    expect(specResponse.status).toBe(200);
+    expect(specResponse.headers.get("content-type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    await expect(specResponse.text()).resolves.toBe(taskSpec);
+  });
+
+  it("returns TASK_NOT_FOUND for GET /tasks/{taskId}/spec when the task is missing", async () => {
+    await useProjectRoot("missing-task-spec");
+
+    const app = apiModule.createApp();
+    const response = await app.request(resolveTaskSpecPath("task-missing"));
+
+    expect(response.status).toBe(404);
+
+    const payload = await response.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_NOT_FOUND");
+    expect(payload.message).toBe("Task task-missing was not found");
   });
 
   it("logs task_created after POST /tasks succeeds", async () => {

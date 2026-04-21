@@ -145,6 +145,22 @@ describe("api package baseline", () => {
           };
         }
       | undefined;
+    const taskSpecPathItem = payload.paths[contractModule.taskSpecPath] as
+      | {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: {
+                  "text/markdown"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
 
     expect(payload.openapi).toBe(contractModule.openApiDocument.openapi);
     expect(payload.info).toEqual(contractModule.openApiDocument.info);
@@ -156,6 +172,12 @@ describe("api package baseline", () => {
         ?.schema,
     ).toEqual({
       $ref: "#/components/schemas/Task",
+    });
+    expect(
+      taskSpecPathItem?.get?.responses?.["200"]?.content?.["text/markdown"]
+        ?.schema,
+    ).toEqual({
+      type: "string",
     });
     expect(taskByIdPathItem?.patch?.responses?.["200"]).toBeDefined();
     expect(taskByIdPathItem?.delete?.responses?.["204"]).toBeDefined();

@@ -9,6 +9,7 @@ export {
   taskByIdPath,
   taskRejectPath,
   taskResolvePath,
+  taskSpecPath,
   tasksPath,
 } from "./openapi.js";
 export const healthResponseSchema = schemas.HealthResponse;

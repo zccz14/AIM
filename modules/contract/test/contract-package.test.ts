@@ -33,6 +33,7 @@ const generatedClientSdkUrl = new URL(
   "../generated/_client/sdk.gen.ts",
   import.meta.url,
 );
+const generatedOpenApiUrl = new URL("../generated/openapi.ts", import.meta.url);
 const generatedTypesUrl = new URL("../generated/types.ts", import.meta.url);
 const generatedTypeDefinitionsUrl = new URL(
   "../generated/_types/types.gen.ts",
@@ -217,6 +218,7 @@ describe("contract package baseline", () => {
       "taskResolvePath",
       "taskResultRequestSchema",
       "taskSchema",
+      "taskSpecPath",
       "taskStatusSchema",
       "tasksPath",
     ]);
@@ -234,6 +236,9 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.taskRejectPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskSpecPath],
     ).toBeDefined();
   });
 
@@ -463,6 +468,25 @@ describe("contract package baseline", () => {
           };
         }
       | undefined;
+    const taskSpecPathItem = contractModule.openApiDocument.paths[
+      contractModule.taskSpecPath
+    ] as
+      | {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: unknown;
+                  "text/markdown"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
     const taskQueryParameters = (tasksPathItem?.get?.parameters ?? []).map(
       (parameter) => {
         if ("$ref" in parameter && typeof parameter.$ref === "string") {
@@ -477,6 +501,8 @@ describe("contract package baseline", () => {
     expect(taskByIdPathItem).toBeDefined();
     expect(resolveTaskByIdPathItem).toBeDefined();
     expect(rejectTaskByIdPathItem).toBeDefined();
+    expect(contractModule.taskSpecPath).toBe("/tasks/{taskId}/spec");
+    expect(taskSpecPathItem).toBeDefined();
     expect(tasksPathItem?.post?.responses["201"]).toBeDefined();
     expect(taskQueryParameters).toEqual(
       expect.arrayContaining([
@@ -550,6 +576,21 @@ describe("contract package baseline", () => {
       rejectTaskByIdPathItem?.post?.responses["404"]?.content?.[
         "application/json"
       ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+    expect(
+      taskSpecPathItem?.get?.responses?.["200"]?.content?.["text/markdown"]
+        ?.schema,
+    ).toEqual({
+      type: "string",
+    });
+    expect(
+      taskSpecPathItem?.get?.responses?.["200"]?.content?.["application/json"],
+    ).toBeUndefined();
+    expect(
+      taskSpecPathItem?.get?.responses?.["404"]?.content?.["application/json"]
+        ?.schema,
     ).toEqual({
       $ref: "#/components/schemas/ErrorResponse",
     });
@@ -787,6 +828,12 @@ describe("contract package baseline", () => {
   });
 
   it("moves contract package inputs to the OpenAPI generation pipeline", async () => {
+    const [generatedOpenApiSource, generatedClientSdkSource] =
+      await Promise.all([
+        readFile(generatedOpenApiUrl, "utf8"),
+        readFile(generatedClientSdkUrl, "utf8"),
+      ]);
+
     expect(rootPackage.scripts["openapi:generate"]).toBeDefined();
     expect(rootPackage.scripts["openapi:generate"]).toContain(
       "modules/contract",
@@ -794,6 +841,7 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["openapi:check"]).toContain("generate:check");
     expect(rootPackage.scripts["openapi:check"]).toContain("tasksPath");
     expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
+    expect(rootPackage.scripts["openapi:check"]).toContain("taskSpecPath");
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.build).toContain("pnpm run generate");
     expect(contractPackage.scripts?.test).toContain(
@@ -817,12 +865,12 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.resolveTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.rejectTaskById).toBeTypeOf("function");
+    expect(generatedOpenApiSource).toContain('"/tasks/{taskId}/spec"');
     await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
       'export * from "./_client/index.js";',
     );
-    await expect(readFile(generatedClientSdkUrl, "utf8")).resolves.toContain(
-      "listTasks",
-    );
+    expect(generatedClientSdkSource).toContain("listTasks");
+    expect(generatedClientSdkSource).toContain("getTaskSpecById");
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(
       "CreateTaskRequest",
     );

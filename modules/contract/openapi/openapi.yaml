@@ -187,6 +187,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tasks/{taskId}/spec:
+    get:
+      operationId: getTaskSpecById
+      summary: Read a task spec markdown document
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPathParameter"
+      responses:
+        "200":
+          description: Task spec markdown
+          content:
+            text/markdown:
+              schema:
+                type: string
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
