@@ -25,6 +25,10 @@ const pluginSetupGithubRepoSkillUrl = new URL(
   "../skills/aim-setup-github-repo/SKILL.md",
   import.meta.url,
 );
+const pluginEvaluateReadmeSkillUrl = new URL(
+  "../skills/aim-evaluate-readme/SKILL.md",
+  import.meta.url,
+);
 const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
 const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
@@ -51,6 +55,7 @@ let pluginSource: string;
 let pluginLifecycleSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginSetupGithubRepoSkillText: string;
+let pluginEvaluateReadmeSkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -123,6 +128,10 @@ beforeAll(async () => {
     pluginSetupGithubRepoSkillUrl,
     "utf8",
   );
+  pluginEvaluateReadmeSkillText = await readFile(
+    pluginEvaluateReadmeSkillUrl,
+    "utf8",
+  ).catch(() => "");
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
@@ -164,6 +173,10 @@ describe("opencode plugin package baseline", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("ships the aim-evaluate-readme skill resource", async () => {
+    await expect(access(pluginEvaluateReadmeSkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -177,6 +190,7 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-create-tasks/SKILL.md",
+      "package/skills/aim-evaluate-readme/SKILL.md",
       "package/skills/aim-setup-github-repo/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
@@ -193,6 +207,12 @@ describe("opencode plugin package baseline", () => {
   it("packs the aim-setup-github-repo skill into the publishable tarball", async () => {
     await expect(listPackedFiles()).resolves.toContain(
       "package/skills/aim-setup-github-repo/SKILL.md",
+    );
+  });
+
+  it("packs the aim-evaluate-readme skill into the publishable tarball", async () => {
+    await expect(listPackedFiles()).resolves.toContain(
+      "package/skills/aim-evaluate-readme/SKILL.md",
     );
   });
 
@@ -234,6 +254,120 @@ describe("opencode plugin package baseline", () => {
     expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents aim-evaluate-readme as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-evaluate-readme");
+    expect(pluginSkillsReadme).toContain("README-to-baseline gap evaluation");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+
+    expect(pluginReadme).toContain("aim-evaluate-readme");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents using-aim discovery for aim-evaluate-readme", async () => {
+    const usingAimSkillText = await readFile(
+      new URL("../skills/using-aim/SKILL.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(usingAimSkillText).toContain("README 与最新 `origin/main` 的差距");
+    expect(usingAimSkillText).toContain("aim-evaluate-readme");
+    expect(usingAimSkillText).toContain("方向信号");
+  });
+
+  it("documents aim-evaluate-readme content boundaries and output semantics", () => {
+    for (const requiredFragment of [
+      "最新 origin/main",
+      "claim_checks",
+      "conclusion_category",
+      "iteration_signal",
+      "git fetch origin",
+    ]) {
+      expect(pluginEvaluateReadmeSkillText).toContain(requiredFragment);
+    }
+
+    const conclusionCategorySection = pluginEvaluateReadmeSkillText.match(
+      /## `conclusion_category` 允许值\n\n([\s\S]*?)\n## 总体结论聚合规则/,
+    );
+
+    expect(conclusionCategorySection).not.toBeNull();
+
+    if (!conclusionCategorySection) {
+      throw new Error("Expected conclusion_category section in skill text");
+    }
+
+    const conclusionCategorySectionText = conclusionCategorySection[1];
+
+    expect(conclusionCategorySectionText).toBeDefined();
+
+    if (conclusionCategorySectionText === undefined) {
+      throw new Error("Expected conclusion_category capture in skill text");
+    }
+
+    expect(conclusionCategorySectionText.match(/- `([^`]+)`：/g)).toEqual([
+      "- `aligned`：",
+      "- `readme_ahead`：",
+      "- `baseline_ahead`：",
+      "- `ambiguous`：",
+      "- `conflicted`：",
+    ]);
+
+    const iterationSignalSection = pluginEvaluateReadmeSkillText.match(
+      /## `iteration_signal` 固定映射\n\n([\s\S]*?)\n\n不得混用映射/,
+    );
+
+    expect(iterationSignalSection).not.toBeNull();
+
+    if (!iterationSignalSection) {
+      throw new Error("Expected iteration_signal section in skill text");
+    }
+
+    const iterationSignalSectionText = iterationSignalSection[1];
+
+    expect(iterationSignalSectionText).toBeDefined();
+
+    if (iterationSignalSectionText === undefined) {
+      throw new Error("Expected iteration_signal capture in skill text");
+    }
+
+    expect(
+      Array.from(
+        iterationSignalSectionText.matchAll(
+          /^\| `(aligned|readme_ahead|baseline_ahead|ambiguous|conflicted)` \| `([^`]+)` \|/gm,
+        ),
+        ([, conclusionCategory, iterationSignal]) => ({
+          conclusionCategory,
+          iterationSignal,
+        }),
+      ),
+    ).toEqual([
+      {
+        conclusionCategory: "aligned",
+        iterationSignal: "hold_alignment",
+      },
+      {
+        conclusionCategory: "readme_ahead",
+        iterationSignal: "continue_toward_readme",
+      },
+      {
+        conclusionCategory: "baseline_ahead",
+        iterationSignal: "consolidate_readme",
+      },
+      {
+        conclusionCategory: "ambiguous",
+        iterationSignal: "clarify_readme",
+      },
+      {
+        conclusionCategory: "conflicted",
+        iterationSignal: "resolve_readme_conflict",
+      },
+    ]);
+
+    expect(pluginEvaluateReadmeSkillText).not.toContain("TODO");
+    expect(pluginEvaluateReadmeSkillText).not.toContain("TBD");
   });
 
   it("documents lifecycle reporting rules and failure split", () => {
