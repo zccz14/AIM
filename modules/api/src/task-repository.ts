@@ -91,6 +91,24 @@ const normalizeColumnType = (type: string) => {
   return normalizedType;
 };
 
+const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
+  if (!sql) {
+    return false;
+  }
+
+  const normalizedSql = sql
+    .toLowerCase()
+    .replaceAll(/[`"'()[\]]/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+
+  return (
+    normalizedSql.includes("where") &&
+    normalizedSql.includes("session_id is not null") &&
+    (normalizedSql.includes("done = 0") || normalizedSql.includes("0 = done"))
+  );
+};
+
 const mapTaskRow = (row: TaskRow) =>
   taskSchema.parse({
     task_id: row.task_id,
@@ -156,7 +174,7 @@ const validateTasksIndexes = (
     sessionIndex.partial !== 1 ||
     sessionIndexColumns.length !== 1 ||
     sessionIndexColumns[0]?.name !== "session_id" ||
-    !sessionIndexSql?.sql?.includes(`WHERE ${unfinishedSessionIndexPredicate}`)
+    !hasCompatibleUnfinishedSessionPredicate(sessionIndexSql?.sql ?? null)
   ) {
     throw buildSchemaError();
   }

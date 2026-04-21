@@ -401,6 +401,40 @@ describe("task repository", () => {
     });
   });
 
+  it("rejects assigning a session when another unfinished task already uses it", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-session-claim-on-conflict",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    await repository.createTask({
+      task_spec: "already claimed elsewhere",
+      project_path: "/repo/claim-conflict/owner",
+      session_id: "shared-session",
+      status: "running",
+    });
+    const unassignedTask = await repository.createTask({
+      task_spec: "claim me later",
+      project_path: "/repo/claim-conflict/unassigned",
+      status: "created",
+    });
+
+    await expect(
+      repository.assignSessionIfUnassigned(
+        unassignedTask.task_id,
+        "shared-session",
+      ),
+    ).rejects.toThrow(/unique|constraint/i);
+    await expect(
+      repository.getTaskById(unassignedTask.task_id),
+    ).resolves.toMatchObject({
+      session_id: null,
+      task_id: unassignedTask.task_id,
+    });
+  });
+
   it("allows multiple unfinished tasks without session assignments", async () => {
     const projectRoot = await createProjectRoot("multiple-null-sessions");
 
@@ -485,6 +519,39 @@ describe("task repository", () => {
     });
   });
 
+  it("rejects updating an unfinished task to a conflicting session_id", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-update-session-conflict",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    await repository.createTask({
+      task_spec: "session owner",
+      project_path: "/repo/update-conflict/owner",
+      session_id: "shared-session",
+      status: "running",
+    });
+    const taskToUpdate = await repository.createTask({
+      task_spec: "update me",
+      project_path: "/repo/update-conflict/target",
+      status: "created",
+    });
+
+    await expect(
+      repository.updateTask(taskToUpdate.task_id, {
+        session_id: "shared-session",
+      }),
+    ).rejects.toThrow(/unique|constraint/i);
+    await expect(
+      repository.getTaskById(taskToUpdate.task_id),
+    ).resolves.toMatchObject({
+      session_id: null,
+      task_id: taskToUpdate.task_id,
+    });
+  });
+
   it("fails fast when the tasks table schema is incompatible", async () => {
     const projectRoot = await createProjectRoot("rejects-bad-schema");
     const databasePath = join(projectRoot, "aim.sqlite");
@@ -553,7 +620,7 @@ describe("task repository", () => {
     database.exec(`
       CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
       ON tasks (session_id)
-      WHERE done = 0 AND session_id IS NOT NULL
+      WHERE session_id IS NOT NULL AND done = 0
     `);
     database.close();
 
