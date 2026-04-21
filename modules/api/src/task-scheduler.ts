@@ -3,11 +3,11 @@ import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
-import { buildTaskLogFields } from "./task-log-fields.js";
 import {
   buildContinuePrompt,
   getTaskSpecFilename,
 } from "./task-continue-prompt.js";
+import { buildTaskLogFields } from "./task-log-fields.js";
 import type {
   TaskSessionCoordinator,
   TaskSessionState,
