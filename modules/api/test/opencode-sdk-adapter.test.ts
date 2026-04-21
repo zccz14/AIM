@@ -127,6 +127,9 @@ describe("opencode sdk adapter", () => {
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
       "worktree_path: /repo/.worktrees/task-1",
     );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
+      "Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting and workflow expectations during initial execution.",
+    );
   });
 
   it("reads session messages and returns idle for an explicitly completed assistant message", async () => {

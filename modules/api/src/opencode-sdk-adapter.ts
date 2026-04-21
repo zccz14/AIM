@@ -28,7 +28,7 @@ pull_request_url: ${task.pull_request_url ?? "null"}
 
 ${
   action === "start"
-    ? "Start this task from scratch and follow the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true."
+    ? "Start this task from scratch and follow the normal session workflow. Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting and workflow expectations during initial execution. If you cannot continue, write the task's failure state. When the task is complete, write done=true."
     : "Continue this task from its current state through the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true."
 }`;
 
