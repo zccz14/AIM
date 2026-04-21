@@ -12,7 +12,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
-import type { ApiLogger } from "../logger.js";
+import type { ApiLogger } from "../api-logger.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 

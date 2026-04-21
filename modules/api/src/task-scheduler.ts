@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
-import type { ApiLogger } from "./logger.js";
+import type { ApiLogger } from "./api-logger.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
 import {
   buildContinuePrompt,

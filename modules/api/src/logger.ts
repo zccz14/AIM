@@ -1,5 +1,5 @@
 import pino from "pino";
 
-export type ApiLogger = Pick<pino.Logger, "error" | "info" | "warn">;
+import type { ApiLogger } from "./api-logger.js";
 
 export const createApiLogger = (): ApiLogger => pino();

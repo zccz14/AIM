@@ -2,7 +2,7 @@ import { openApiDocument } from "@aim-ai/contract";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import type { ApiLogger } from "./logger.js";
+import type { ApiLogger } from "./api-logger.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
