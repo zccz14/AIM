@@ -117,7 +117,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         }
 
         latestTask = assignedTask;
-        boundInRound = true;
+        boundInRound = assignedTask.session_id === sessionId;
       }
 
       const sessionId = latestTask.session_id;

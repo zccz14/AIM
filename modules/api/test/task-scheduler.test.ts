@@ -382,6 +382,48 @@ describe("task scheduler", () => {
     });
   });
 
+  it("does not log task_session_bound when another process assigned a different session", async () => {
+    const initialTask = createTask({ task_id: "task-2" });
+    const latestSnapshot = createTask({
+      session_id: "existing-session",
+      task_id: "task-2",
+    });
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const coordinator = createCoordinator();
+    coordinator.createSession.mockResolvedValue({ sessionId: "new-session" });
+    const scheduler = createTaskScheduler({
+      coordinator,
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn().mockResolvedValue(latestSnapshot),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
+      },
+    });
+
+    await scheduler.runRound();
+
+    expect(coordinator.getSessionState).toHaveBeenCalledWith(
+      "existing-session",
+      latestSnapshot.project_path,
+    );
+    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
+      "existing-session",
+      expect.stringContaining(latestSnapshot.task_id),
+    );
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_session_continued",
+      project_path: latestSnapshot.project_path,
+      session_id: "existing-session",
+      status: latestSnapshot.status,
+      task_id: latestSnapshot.task_id,
+    });
+  });
+
   it("does not continue a task that finished before the assignment snapshot returned", async () => {
     const initialTask = createTask();
     const completedTask = createTask({
