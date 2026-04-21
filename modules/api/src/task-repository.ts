@@ -33,7 +33,15 @@ type TableInfoRow = {
   type: string;
 };
 
+type IndexListRow = {
+  name: string;
+  partial: 0 | 1;
+  unique: 0 | 1;
+};
+
 const tasksTableName = "tasks";
+const unfinishedSessionIndexName = "tasks_unfinished_session_id_unique";
+const unfinishedSessionIndexPredicate = "done = 0 AND session_id IS NOT NULL";
 
 type ListTaskFilters = {
   done?: boolean;
@@ -83,6 +91,38 @@ const normalizeColumnType = (type: string) => {
   return normalizedType;
 };
 
+const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
+  if (!sql) {
+    return false;
+  }
+
+  const normalizedSql = sql
+    .toLowerCase()
+    .replaceAll(/[`"'()[\]]/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+  const whereClause = normalizedSql.match(/\bwhere\b\s+(.+)$/)?.[1]?.trim();
+
+  if (!whereClause || whereClause.includes(" or ")) {
+    return false;
+  }
+
+  const normalizedPredicates = whereClause
+    .split(/\band\b/)
+    .map((predicate) => predicate.trim())
+    .filter(Boolean)
+    .sort();
+
+  return (
+    (normalizedPredicates.length === 2 &&
+      normalizedPredicates[0] === "0 = done" &&
+      normalizedPredicates[1] === "session_id is not null") ||
+    (normalizedPredicates.length === 2 &&
+      normalizedPredicates[0] === "done = 0" &&
+      normalizedPredicates[1] === "session_id is not null")
+  );
+};
+
 const mapTaskRow = (row: TaskRow) =>
   taskSchema.parse({
     task_id: row.task_id,
@@ -118,7 +158,45 @@ const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
   `);
 };
 
-const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
+const createTasksIndexes = (database: ReturnType<typeof openTaskDatabase>) => {
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ${unfinishedSessionIndexName}
+    ON ${tasksTableName} (session_id)
+    WHERE ${unfinishedSessionIndexPredicate}
+  `);
+};
+
+const validateTasksIndexes = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
+  const indexes = database
+    .prepare(`PRAGMA index_list(${tasksTableName})`)
+    .all() as IndexListRow[];
+  const sessionIndex = indexes.find(
+    (index) => index.name === unfinishedSessionIndexName,
+  );
+  const sessionIndexSql = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?")
+    .get(unfinishedSessionIndexName) as { sql: null | string } | undefined;
+  const sessionIndexColumns = database
+    .prepare(`PRAGMA index_info(${unfinishedSessionIndexName})`)
+    .all() as Array<{ name: string }>;
+
+  if (
+    !sessionIndex ||
+    sessionIndex.unique !== 1 ||
+    sessionIndex.partial !== 1 ||
+    sessionIndexColumns.length !== 1 ||
+    sessionIndexColumns[0]?.name !== "session_id" ||
+    !hasCompatibleUnfinishedSessionPredicate(sessionIndexSql?.sql ?? null)
+  ) {
+    throw buildSchemaError();
+  }
+};
+
+const validateTasksTableSchema = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
   const rows = database
     .prepare(`PRAGMA table_info(${tasksTableName})`)
     .all() as TableInfoRow[];
@@ -146,10 +224,16 @@ const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
   }
 };
 
+const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
+  validateTasksIndexes(database);
+};
+
 const bootstrapTaskDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
   createTasksTable(database);
+  validateTasksTableSchema(database);
+  createTasksIndexes(database);
   validateTasksSchema(database);
 
   return database;
@@ -232,7 +316,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   `);
 
   return {
-    createTask(input: CreateTaskRequest): Promise<Task> {
+    async createTask(input: CreateTaskRequest): Promise<Task> {
       const timestamp = new Date().toISOString();
       const taskId = randomUUID();
       const task = mapTaskRow({
@@ -265,7 +349,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.updated_at,
       );
 
-      return Promise.resolve(task);
+      return task;
     },
     getTaskById(taskId: string): Promise<null | Task> {
       const row = getTaskByIdStatement.get(taskId) as TaskRow | undefined;

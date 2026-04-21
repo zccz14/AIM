@@ -17,6 +17,14 @@ type TableInfoRow = {
   type: string;
 };
 
+type IndexListRow = {
+  name: string;
+  origin: string;
+  partial: 0 | 1;
+  seq: number;
+  unique: 0 | 1;
+};
+
 const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-repository");
 const defaultDatabasePath = fileURLToPath(
   new URL("../../../aim.sqlite", import.meta.url),
@@ -123,7 +131,7 @@ describe("task repository", () => {
     const secondTask = await repository.createTask({
       task_spec: "complete later",
       project_path: "/repo/session-a/created",
-      session_id: "session-a",
+      session_id: "session-a-pending",
       dependencies: [firstTask.task_id],
       status: "created",
     });
@@ -139,7 +147,10 @@ describe("task repository", () => {
     );
     await expect(
       repository.listTasks({ session_id: "session-a" }),
-    ).resolves.toEqual([firstTask, secondTask]);
+    ).resolves.toEqual([firstTask]);
+    await expect(
+      repository.listTasks({ session_id: "session-a-pending" }),
+    ).resolves.toEqual([secondTask]);
     await expect(repository.listTasks({ status: "failed" })).resolves.toEqual([
       thirdTask,
     ]);
@@ -156,7 +167,7 @@ describe("task repository", () => {
     expect(updatedTask.task_id).toBe(secondTask.task_id);
     expect(updatedTask.task_spec).toBe("complete now");
     expect(updatedTask.project_path).toBe("/repo/session-a/created");
-    expect(updatedTask.session_id).toBe("session-a");
+    expect(updatedTask.session_id).toBe("session-a-pending");
     expect(updatedTask.dependencies).toEqual([firstTask.task_id]);
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/2");
     expect(updatedTask.status).toBe("succeeded");
@@ -390,22 +401,54 @@ describe("task repository", () => {
     });
   });
 
-  it("keeps duplicate session rows visible to the scheduler scan", async () => {
-    const projectRoot = await createProjectRoot("duplicate-session-visibility");
+  it("rejects assigning a session when another unfinished task already uses it", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-session-claim-on-conflict",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    await repository.createTask({
+      task_spec: "already claimed elsewhere",
+      project_path: "/repo/claim-conflict/owner",
+      session_id: "shared-session",
+      status: "running",
+    });
+    const unassignedTask = await repository.createTask({
+      task_spec: "claim me later",
+      project_path: "/repo/claim-conflict/unassigned",
+      status: "created",
+    });
+
+    await expect(
+      repository.assignSessionIfUnassigned(
+        unassignedTask.task_id,
+        "shared-session",
+      ),
+    ).rejects.toThrow(/unique|constraint/i);
+    await expect(
+      repository.getTaskById(unassignedTask.task_id),
+    ).resolves.toMatchObject({
+      session_id: null,
+      task_id: unassignedTask.task_id,
+    });
+  });
+
+  it("allows multiple unfinished tasks without session assignments", async () => {
+    const projectRoot = await createProjectRoot("multiple-null-sessions");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
     const firstTask = await repository.createTask({
-      task_spec: "shared session first",
-      project_path: "/repo/shared-session/first",
-      session_id: "shared-session",
+      task_spec: "null session first",
+      project_path: "/repo/null-session/first",
       status: "running",
     });
     const secondTask = await repository.createTask({
-      task_spec: "shared session second",
-      project_path: "/repo/shared-session/second",
-      session_id: "shared-session",
+      task_spec: "null session second",
+      project_path: "/repo/null-session/second",
       status: "created",
     });
 
@@ -413,6 +456,100 @@ describe("task repository", () => {
       firstTask,
       secondTask,
     ]);
+  });
+
+  it("rejects a second unfinished task with the same non-null session_id", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-duplicate-unfinished-session",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    await repository.createTask({
+      task_spec: "first shared session task",
+      project_path: "/repo/shared-session/first",
+      session_id: "shared-session",
+      status: "running",
+    });
+
+    await expect(
+      repository.createTask({
+        task_spec: "second shared session task",
+        project_path: "/repo/shared-session/second",
+        session_id: "shared-session",
+        status: "created",
+      }),
+    ).rejects.toThrow(/unique|constraint/i);
+  });
+
+  it("reuses a session_id after the earlier task is done", async () => {
+    const projectRoot = await createProjectRoot("reuses-finished-session-id");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const firstTask = await repository.createTask({
+      task_spec: "finish before reuse",
+      project_path: "/repo/reuse-session/first",
+      session_id: "reusable-session",
+      status: "running",
+    });
+
+    await expect(
+      repository.updateTask(firstTask.task_id, { status: "succeeded" }),
+    ).resolves.toMatchObject({
+      done: true,
+      session_id: "reusable-session",
+      status: "succeeded",
+      task_id: firstTask.task_id,
+    });
+
+    await expect(
+      repository.createTask({
+        task_spec: "reuse after completion",
+        project_path: "/repo/reuse-session/second",
+        session_id: "reusable-session",
+        status: "created",
+      }),
+    ).resolves.toMatchObject({
+      done: false,
+      session_id: "reusable-session",
+      status: "created",
+    });
+  });
+
+  it("rejects updating an unfinished task to a conflicting session_id", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-update-session-conflict",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    await repository.createTask({
+      task_spec: "session owner",
+      project_path: "/repo/update-conflict/owner",
+      session_id: "shared-session",
+      status: "running",
+    });
+    const taskToUpdate = await repository.createTask({
+      task_spec: "update me",
+      project_path: "/repo/update-conflict/target",
+      status: "created",
+    });
+
+    await expect(
+      repository.updateTask(taskToUpdate.task_id, {
+        session_id: "shared-session",
+      }),
+    ).rejects.toThrow(/unique|constraint/i);
+    await expect(
+      repository.getTaskById(taskToUpdate.task_id),
+    ).resolves.toMatchObject({
+      session_id: null,
+      task_id: taskToUpdate.task_id,
+    });
   });
 
   it("fails fast when the tasks table schema is incompatible", async () => {
@@ -480,6 +617,11 @@ describe("task repository", () => {
         updated_at datetime NOT NULL
       )
     `);
+    database.exec(`
+      CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
+      ON tasks (session_id)
+      WHERE (session_id IS NOT NULL) AND (0 = done)
+    `);
     database.close();
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
@@ -493,6 +635,132 @@ describe("task repository", () => {
     await expect(repository.getTaskById(createdTask.task_id)).resolves.toEqual(
       createdTask,
     );
+  });
+
+  it("rejects a broader partial session index predicate", async () => {
+    const projectRoot = await createProjectRoot(
+      "rejects-broader-session-index-predicate",
+    );
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE tasks (
+        task_id text PRIMARY KEY,
+        task_spec varchar(255) NOT NULL,
+        project_path varchar(255) NOT NULL,
+        session_id text,
+        worktree_path text,
+        pull_request_url text,
+        dependencies text NOT NULL,
+        result text NOT NULL default '',
+        done int NOT NULL,
+        status varchar(32) NOT NULL,
+        created_at datetime NOT NULL,
+        updated_at datetime NOT NULL
+      )
+    `);
+    database.exec(`
+      CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
+      ON tasks (session_id)
+      WHERE done = 0 OR session_id IS NOT NULL
+    `);
+    database.close();
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    expect(() => createTaskRepository()).toThrowError(
+      /tasks schema is incompatible/i,
+    );
+  });
+
+  it("creates a partial unique index for unfinished non-null sessions", async () => {
+    const projectRoot = await createProjectRoot(
+      "creates-unfinished-session-index",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+
+    await repository.listTasks();
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const index = database
+      .prepare("PRAGMA index_list(tasks)")
+      .all()
+      .find(
+        (row) =>
+          (row as IndexListRow).name === "tasks_unfinished_session_id_unique",
+      ) as IndexListRow | undefined;
+    const indexColumns = database
+      .prepare("PRAGMA index_info(tasks_unfinished_session_id_unique)")
+      .all() as Array<{ name: string }>;
+    const indexSql = database
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+      )
+      .get("tasks_unfinished_session_id_unique") as { sql: string } | undefined;
+    database.close();
+
+    expect(index).toMatchObject({
+      name: "tasks_unfinished_session_id_unique",
+      partial: 1,
+      unique: 1,
+    });
+    expect(indexColumns).toHaveLength(1);
+    expect(indexColumns[0]).toMatchObject({ name: "session_id" });
+    expect(indexSql?.sql).toContain(
+      "WHERE done = 0 AND session_id IS NOT NULL",
+    );
+  });
+
+  it("bootstraps the session index onto a compatible existing schema", async () => {
+    const projectRoot = await createProjectRoot(
+      "bootstraps-missing-session-index",
+    );
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE tasks (
+        task_id text PRIMARY KEY,
+        task_spec varchar(255) NOT NULL,
+        project_path varchar(255) NOT NULL,
+        session_id text,
+        worktree_path text,
+        pull_request_url text,
+        dependencies text NOT NULL,
+        result text NOT NULL default '',
+        done int NOT NULL,
+        status varchar(32) NOT NULL,
+        created_at datetime NOT NULL,
+        updated_at datetime NOT NULL
+      )
+    `);
+    database.close();
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+
+    await repository.listTasks();
+
+    const bootstrappedDatabase = new DatabaseSync(databasePath);
+    const index = bootstrappedDatabase
+      .prepare("PRAGMA index_list(tasks)")
+      .all()
+      .find(
+        (row) =>
+          (row as IndexListRow).name === "tasks_unfinished_session_id_unique",
+      ) as IndexListRow | undefined;
+    bootstrappedDatabase.close();
+
+    expect(index).toMatchObject({
+      name: "tasks_unfinished_session_id_unique",
+      partial: 1,
+      unique: 1,
+    });
   });
 
   it("rejects an existing result column when it lacks the empty-string default", async () => {
