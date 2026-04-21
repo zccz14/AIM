@@ -13,4 +13,4 @@ status: ${task.status}
 ${formatOptionalField("worktree_path", task.worktree_path)}
 ${formatOptionalField("pull_request_url", task.pull_request_url)}
 
-Continue this task from its current state through the normal session workflow. If you cannot continue, write the task's failure state. When the task is complete, write done=true.`;
+Continue this task from its current state through the normal session workflow. Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting during resumed execution. If you cannot continue, write the task's failure state. When the task is complete, write done=true.`;
