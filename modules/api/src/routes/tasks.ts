@@ -12,6 +12,8 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import type { ApiLogger } from "../api-logger.js";
+import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
@@ -111,7 +113,15 @@ const parseTaskResultRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
-export const registerTaskRoutes = (app: Hono) => {
+type RegisterTaskRoutesOptions = {
+  logger?: ApiLogger;
+};
+
+export const registerTaskRoutes = (
+  app: Hono,
+  options: RegisterTaskRoutesOptions = {},
+) => {
+  const logger = options.logger;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {
@@ -140,6 +150,8 @@ export const registerTaskRoutes = (app: Hono) => {
     }
 
     const payload = await getRepository().createTask(input.data);
+
+    logger?.info(buildTaskLogFields("task_created", payload));
 
     return context.json(payload, 201);
   });
@@ -191,6 +203,8 @@ export const registerTaskRoutes = (app: Hono) => {
       return context.json(buildNotFoundError(taskId), 404);
     }
 
+    logger?.info(buildTaskLogFields("task_resolved", payload));
+
     return new Response(null, { status: 204 });
   });
 
@@ -207,6 +221,8 @@ export const registerTaskRoutes = (app: Hono) => {
     if (!payload) {
       return context.json(buildNotFoundError(taskId), 404);
     }
+
+    logger?.info(buildTaskLogFields("task_rejected", payload));
 
     return new Response(null, { status: 204 });
   });

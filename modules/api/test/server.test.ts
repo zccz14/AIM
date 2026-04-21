@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mockServe = vi.fn();
 const mockCreateApp = vi.fn();
+const mockCreateApiLogger = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
@@ -12,6 +13,10 @@ vi.mock("@hono/node-server", () => ({
 
 vi.mock("../src/app.js", () => ({
   createApp: mockCreateApp,
+}));
+
+vi.mock("../src/logger.js", () => ({
+  createApiLogger: mockCreateApiLogger,
 }));
 
 vi.mock("../src/task-repository.js", () => ({
@@ -95,6 +100,44 @@ describe("server startup", () => {
       modelId: "claude-sonnet-4-5",
       providerId: "anthropic",
     });
+  });
+
+  it("creates one api logger and passes it to app and scheduler", async () => {
+    process.env.TASK_SCHEDULER_ENABLED = "true";
+    process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
+    process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
+    process.env.OPENCODE_PROVIDER_ID = "anthropic";
+
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    mockCreateApiLogger.mockReturnValue(logger);
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    expect(mockCreateApiLogger).toHaveBeenCalledTimes(1);
+    expect(mockCreateApp).toHaveBeenCalledWith({ logger });
+    expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
+      expect.objectContaining({ logger }),
+    );
   });
 
   it("fails fast when required scheduler config is missing", async () => {

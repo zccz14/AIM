@@ -3,14 +3,21 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import ts from "typescript";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as contractModule from "../../contract/src/index.js";
 import * as apiModule from "../src/app.js";
 
 const taskRouteSourceUrl = new URL("../src/routes/tasks.ts", import.meta.url);
+const appSourceUrl = new URL("../src/app.ts", import.meta.url);
 const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
 
 let previousProjectRoot: string | undefined;
+
+const createLogger = () => ({
+  error: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+});
 
 const resolveTaskByIdPath = (taskId: string) =>
   contractModule.taskByIdPath.replace("{taskId}", taskId);
@@ -80,6 +87,25 @@ describe("task routes", () => {
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
   });
 
+  it("does not log success events for invalid create requests", async () => {
+    await useProjectRoot("invalid-create-does-not-log");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "write sqlite-backed route tests",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
   it("persists a created task and reads the same record through both GET routes", async () => {
     await useProjectRoot("persists-create-and-read");
 
@@ -134,6 +160,37 @@ describe("task routes", () => {
       true,
     );
     expect(detailPayload).toEqual(createdTask);
+  });
+
+  it("logs task_created after POST /tasks succeeds", async () => {
+    await useProjectRoot("logs-task-created");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/main",
+        session_id: "session-1",
+        status: "running",
+        task_spec: "write sqlite-backed route tests",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+
+    const createdTask = await response.json();
+
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_created",
+      project_path: "/repo/main",
+      session_id: "session-1",
+      status: "running",
+      task_id: createdTask.task_id,
+    });
   });
 
   it("binds task storage to the project root present when the app is created", async () => {
@@ -441,6 +498,52 @@ describe("task routes", () => {
     expect(patchedTask.result).toBe("ship it");
   });
 
+  it("logs task_resolved with a truncated result preview after repository success", async () => {
+    await useProjectRoot("logs-task-resolved");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/resolve-target",
+        session_id: "session-7",
+        task_spec: "resolve me",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const longResult = "x".repeat(250);
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: longResult,
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_resolved",
+      project_path: "/repo/resolve-target",
+      result_preview: longResult.slice(0, 200),
+      session_id: "session-7",
+      status: "succeeded",
+      task_id: createdTask.task_id,
+    });
+  });
+
   it("rejects a task and persists the failed result", async () => {
     await useProjectRoot("rejects-task");
 
@@ -487,6 +590,52 @@ describe("task routes", () => {
     expect(rejectedTask.status).toBe("failed");
     expect(rejectedTask.done).toBe(true);
     expect(rejectedTask.result).toBe("needs more work");
+  });
+
+  it("logs task_rejected with a truncated result preview after repository success", async () => {
+    await useProjectRoot("logs-task-rejected");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/reject-target",
+        session_id: "session-8",
+        task_spec: "reject me",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const longResult = "needs more work ".repeat(20);
+    const rejectResponse = await app.request(
+      resolveTaskRejectPath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: longResult,
+        }),
+      },
+    );
+
+    expect(rejectResponse.status).toBe(204);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_rejected",
+      project_path: "/repo/reject-target",
+      result_preview: longResult.slice(0, 200),
+      session_id: "session-8",
+      status: "failed",
+      task_id: createdTask.task_id,
+    });
   });
 
   it("rejects PATCH /tasks/{id} when project_path is present", async () => {
@@ -749,6 +898,43 @@ describe("task routes", () => {
     }
   });
 
+  it("does not log success events for invalid reject payloads", async () => {
+    await useProjectRoot("invalid-reject-does-not-log");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        task_spec: "reject validation target",
+        project_path: "/repo/invalid-reject",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskRejectPath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({}),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_created" }),
+    );
+  });
+
   it("returns a shared not found error for patching a missing task", async () => {
     await useProjectRoot("missing-patch-target");
 
@@ -797,6 +983,25 @@ describe("task routes", () => {
     expect(payload.code).toBe("TASK_NOT_FOUND");
   });
 
+  it("does not log success events when resolve returns not found", async () => {
+    await useProjectRoot("missing-resolve-does-not-log");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const response = await app.request(resolveTaskResolvePath("task-404"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        result: "ship it",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
   it("returns a shared not found error for rejecting a missing task", async () => {
     await useProjectRoot("missing-reject-target");
 
@@ -819,6 +1024,25 @@ describe("task routes", () => {
       true,
     );
     expect(payload.code).toBe("TASK_NOT_FOUND");
+  });
+
+  it("does not log success events when reject returns not found", async () => {
+    await useProjectRoot("missing-reject-does-not-log");
+
+    const logger = createLogger();
+    const app = apiModule.createApp({ logger });
+    const response = await app.request(resolveTaskRejectPath("task-404"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        result: "needs more work",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(logger.info).not.toHaveBeenCalled();
   });
 
   it("returns a shared not found error for deleting a missing task", async () => {
@@ -868,8 +1092,17 @@ describe("task routes", () => {
       .map((statement) => statement.moduleSpecifier)
       .filter(ts.isStringLiteral)
       .map((specifier) => specifier.text);
+    const valueImportPaths = sourceFile.statements
+      .filter(ts.isImportDeclaration)
+      .filter((statement) => !statement.importClause?.isTypeOnly)
+      .map((statement) => statement.moduleSpecifier)
+      .filter(ts.isStringLiteral)
+      .map((specifier) => specifier.text);
 
     expect(importPaths).toContain("@aim-ai/contract");
+    expect(valueImportPaths).not.toContain("../src/logger.js");
+    expect(valueImportPaths).not.toContain("../logger.js");
+    expect(valueImportPaths).toContain("../task-log-fields.js");
     expect(
       importPaths.some((path) => path.includes("contract/generated")),
     ).toBe(false);
@@ -878,5 +1111,32 @@ describe("task routes", () => {
         (path) => path.startsWith(".") && path.includes("contract"),
       ),
     ).toBe(false);
+  });
+
+  it("keeps createApp type surface off the pino logger module", async () => {
+    const source = await readFile(appSourceUrl, "utf8");
+    const sourceFile = ts.createSourceFile(
+      appSourceUrl.pathname,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const valueImportPaths = sourceFile.statements
+      .filter(ts.isImportDeclaration)
+      .filter((statement) => !statement.importClause?.isTypeOnly)
+      .map((statement) => statement.moduleSpecifier)
+      .filter(ts.isStringLiteral)
+      .map((specifier) => specifier.text);
+    const typeImportPaths = sourceFile.statements
+      .filter(ts.isImportDeclaration)
+      .filter((statement) => statement.importClause?.isTypeOnly)
+      .map((statement) => statement.moduleSpecifier)
+      .filter(ts.isStringLiteral)
+      .map((specifier) => specifier.text);
+
+    expect(valueImportPaths).not.toContain("./logger.js");
+    expect(typeImportPaths).not.toContain("./logger.js");
+    expect(typeImportPaths).toContain("./api-logger.js");
   });
 });
