@@ -1,353 +1,386 @@
 // This file is auto-generated from the OpenAPI contract.
 export const openApiDocument = {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "CZ-Stack Contract",
-    "version": "0.0.0"
+  openapi: "3.1.0",
+  info: {
+    title: "CZ-Stack Contract",
+    version: "0.0.0",
   },
-  "servers": [
+  servers: [
     {
-      "url": "https://dev.api.cz-stack.local",
-      "description": "Development"
+      url: "https://dev.api.cz-stack.local",
+      description: "Development",
     },
     {
-      "url": "https://staging.api.cz-stack.local",
-      "description": "Staging"
+      url: "https://staging.api.cz-stack.local",
+      description: "Staging",
     },
     {
-      "url": "https://api.cz-stack.local",
-      "description": "Production"
-    }
+      url: "https://api.cz-stack.local",
+      description: "Production",
+    },
   ],
-  "paths": {
+  paths: {
     "/health": {
-      "get": {
-        "operationId": "getHealth",
-        "summary": "Read service health status",
-        "responses": {
+      get: {
+        operationId: "getHealth",
+        summary: "Read service health status",
+        responses: {
           "200": {
-            "description": "Healthy response",
-            "content": {
+            description: "Healthy response",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/HealthResponse",
+                },
+              },
+            },
           },
           "503": {
-            "description": "Unhealthy response",
-            "content": {
+            description: "Unhealthy response",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthError"
-                }
-              }
-            }
-          }
-        }
-      }
+                schema: {
+                  $ref: "#/components/schemas/HealthError",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     "/tasks": {
-      "post": {
-        "operationId": "createTask",
-        "summary": "Create a task",
-        "requestBody": {
-          "required": true,
-          "content": {
+      post: {
+        operationId: "createTask",
+        summary: "Create a task",
+        requestBody: {
+          required: true,
+          content: {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTaskRequest"
-              }
-            }
-          }
+              schema: {
+                $ref: "#/components/schemas/CreateTaskRequest",
+              },
+            },
+          },
         },
-        "responses": {
+        responses: {
           "201": {
-            "description": "Created task",
-            "content": {
+            description: "Created task",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/Task",
+                },
+              },
+            },
           },
           "400": {
-            "description": "Invalid task payload",
-            "content": {
+            description: "Invalid task payload",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
       },
-      "get": {
-        "operationId": "listTasks",
-        "summary": "List tasks",
-        "parameters": [
+      get: {
+        operationId: "listTasks",
+        summary: "List tasks",
+        parameters: [
           {
-            "$ref": "#/components/parameters/TaskStatusQueryParameter"
+            $ref: "#/components/parameters/TaskStatusQueryParameter",
           },
           {
-            "$ref": "#/components/parameters/TaskDoneQueryParameter"
+            $ref: "#/components/parameters/TaskDoneQueryParameter",
           },
           {
-            "$ref": "#/components/parameters/TaskSessionIdQueryParameter"
-          }
+            $ref: "#/components/parameters/TaskSessionIdQueryParameter",
+          },
         ],
-        "responses": {
+        responses: {
           "200": {
-            "description": "Task collection",
-            "content": {
+            description: "Task collection",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskListResponse"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/TaskListResponse",
+                },
+              },
+            },
           },
           "400": {
-            "description": "Invalid task filter",
-            "content": {
+            description: "Invalid task filter",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     "/tasks/{taskId}": {
-      "get": {
-        "operationId": "getTaskById",
-        "summary": "Read a task",
-        "parameters": [
+      get: {
+        operationId: "getTaskById",
+        summary: "Read a task",
+        parameters: [
           {
-            "$ref": "#/components/parameters/TaskIdPathParameter"
-          }
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
         ],
-        "responses": {
+        responses: {
           "200": {
-            "description": "Task detail",
-            "content": {
+            description: "Task detail",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/Task",
+                },
+              },
+            },
           },
           "404": {
-            "description": "Task not found",
-            "content": {
+            description: "Task not found",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "patchTaskById",
-        "summary": "Update a task",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/TaskIdPathParameter"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PatchTaskRequest"
-              }
-            }
-          }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
         },
-        "responses": {
+      },
+      patch: {
+        operationId: "patchTaskById",
+        summary: "Update a task",
+        parameters: [
+          {
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/PatchTaskRequest",
+              },
+            },
+          },
+        },
+        responses: {
           "200": {
-            "description": "Updated task",
-            "content": {
+            description: "Updated task",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/Task",
+                },
+              },
+            },
           },
           "400": {
-            "description": "Invalid task patch",
-            "content": {
+            description: "Invalid task patch",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
           },
           "404": {
-            "description": "Task not found",
-            "content": {
+            description: "Task not found",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
       },
-      "delete": {
-        "operationId": "deleteTaskById",
-        "summary": "Delete a task",
-        "parameters": [
+      delete: {
+        operationId: "deleteTaskById",
+        summary: "Delete a task",
+        parameters: [
           {
-            "$ref": "#/components/parameters/TaskIdPathParameter"
-          }
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
         ],
-        "responses": {
+        responses: {
           "204": {
-            "description": "Task deleted"
+            description: "Task deleted",
           },
           "404": {
-            "description": "Task not found",
-            "content": {
+            description: "Task not found",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     "/tasks/{taskId}/resolve": {
-      "post": {
-        "operationId": "resolveTaskById",
-        "summary": "Resolve a task with a result",
-        "parameters": [
+      post: {
+        operationId: "resolveTaskById",
+        summary: "Resolve a task with a result",
+        parameters: [
           {
-            "$ref": "#/components/parameters/TaskIdPathParameter"
-          }
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
+        requestBody: {
+          required: true,
+          content: {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskResultRequest"
-              }
-            }
-          }
+              schema: {
+                $ref: "#/components/schemas/TaskResultRequest",
+              },
+            },
+          },
         },
-        "responses": {
+        responses: {
           "204": {
-            "description": "Task resolved"
+            description: "Task resolved",
           },
           "400": {
-            "description": "Invalid task result",
-            "content": {
+            description: "Invalid task result",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
           },
           "404": {
-            "description": "Task not found",
-            "content": {
+            description: "Task not found",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     "/tasks/{taskId}/reject": {
-      "post": {
-        "operationId": "rejectTaskById",
-        "summary": "Reject a task with a result",
-        "parameters": [
+      post: {
+        operationId: "rejectTaskById",
+        summary: "Reject a task with a result",
+        parameters: [
           {
-            "$ref": "#/components/parameters/TaskIdPathParameter"
-          }
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
+        requestBody: {
+          required: true,
+          content: {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskResultRequest"
-              }
-            }
-          }
+              schema: {
+                $ref: "#/components/schemas/TaskResultRequest",
+              },
+            },
+          },
         },
-        "responses": {
+        responses: {
           "204": {
-            "description": "Task rejected"
+            description: "Task rejected",
           },
           "400": {
-            "description": "Invalid task result",
-            "content": {
+            description: "Invalid task result",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
           },
           "404": {
-            "description": "Task not found",
-            "content": {
+            description: "Task not found",
+            content: {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
-      }
-    },
-    "parameters": {
-      "TaskIdPathParameter": {
-        "name": "taskId",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string",
-          "minLength": 1
-        }
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
       },
-      "TaskStatusQueryParameter": {
-        "name": "status",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "string",
-          "enum": [
+    },
+    "/tasks/{taskId}/spec": {
+      get: {
+        operationId: "getTaskSpecById",
+        summary: "Read a task spec markdown document",
+        parameters: [
+          {
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Task spec markdown",
+            content: {
+              "text/markdown": {
+                schema: {
+                  type: "string",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Task not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+      },
+    },
+    parameters: {
+      TaskIdPathParameter: {
+        name: "taskId",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          minLength: 1,
+        },
+      },
+      TaskStatusQueryParameter: {
+        name: "status",
+        in: "query",
+        required: false,
+        schema: {
+          type: "string",
+          enum: [
             "created",
             "waiting_assumptions",
             "running",
@@ -355,69 +388,60 @@ export const openApiDocument = {
             "pr_following",
             "closing",
             "succeeded",
-            "failed"
-          ]
-        }
+            "failed",
+          ],
+        },
       },
-      "TaskDoneQueryParameter": {
-        "name": "done",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "boolean"
-        }
+      TaskDoneQueryParameter: {
+        name: "done",
+        in: "query",
+        required: false,
+        schema: {
+          type: "boolean",
+        },
       },
-      "TaskSessionIdQueryParameter": {
-        "name": "session_id",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
+      TaskSessionIdQueryParameter: {
+        name: "session_id",
+        in: "query",
+        required: false,
+        schema: {
+          type: "string",
+          minLength: 1,
+        },
+      },
     },
-    "schemas": {
-      "HealthResponse": {
-        "type": "object",
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "description": "Health status reported by the service",
-            "enum": [
-              "ok"
-            ]
-          }
-        }
-      },
-      "HealthError": {
-        "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Stable machine-readable error code",
-            "enum": [
-              "UNAVAILABLE"
-            ]
+    schemas: {
+      HealthResponse: {
+        type: "object",
+        required: ["status"],
+        properties: {
+          status: {
+            type: "string",
+            description: "Health status reported by the service",
+            enum: ["ok"],
           },
-          "message": {
-            "type": "string",
-            "description": "Human-readable error detail",
-            "minLength": 1
-          }
-        }
+        },
       },
-      "Task": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
+      HealthError: {
+        type: "object",
+        required: ["code", "message"],
+        properties: {
+          code: {
+            type: "string",
+            description: "Stable machine-readable error code",
+            enum: ["UNAVAILABLE"],
+          },
+          message: {
+            type: "string",
+            description: "Human-readable error detail",
+            minLength: 1,
+          },
+        },
+      },
+      Task: {
+        type: "object",
+        additionalProperties: false,
+        required: [
           "task_id",
           "task_spec",
           "project_path",
@@ -429,57 +453,48 @@ export const openApiDocument = {
           "done",
           "status",
           "created_at",
-          "updated_at"
+          "updated_at",
         ],
-        "properties": {
-          "task_id": {
-            "type": "string",
-            "minLength": 1,
-            "readOnly": true
+        properties: {
+          task_id: {
+            type: "string",
+            minLength: 1,
+            readOnly: true,
           },
-          "task_spec": {
-            "type": "string",
-            "minLength": 1
+          task_spec: {
+            type: "string",
+            minLength: 1,
           },
-          "project_path": {
-            "type": "string",
-            "minLength": 1
+          project_path: {
+            type: "string",
+            minLength: 1,
           },
-          "result": {
-            "type": "string"
+          result: {
+            type: "string",
           },
-          "session_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+          session_id: {
+            type: ["string", "null"],
           },
-          "worktree_path": {
-            "type": [
-              "string",
-              "null"
-            ]
+          worktree_path: {
+            type: ["string", "null"],
           },
-          "pull_request_url": {
-            "type": [
-              "string",
-              "null"
-            ]
+          pull_request_url: {
+            type: ["string", "null"],
           },
-          "dependencies": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+          dependencies: {
+            type: "array",
+            items: {
+              type: "string",
+              minLength: 1,
+            },
           },
-          "done": {
-            "type": "boolean",
-            "readOnly": true
+          done: {
+            type: "boolean",
+            readOnly: true,
           },
-          "status": {
-            "type": "string",
-            "enum": [
+          status: {
+            type: "string",
+            enum: [
               "created",
               "waiting_assumptions",
               "running",
@@ -487,69 +502,57 @@ export const openApiDocument = {
               "pr_following",
               "closing",
               "succeeded",
-              "failed"
-            ]
+              "failed",
+            ],
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "readOnly": true
+          created_at: {
+            type: "string",
+            format: "date-time",
+            readOnly: true,
           },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "readOnly": true
-          }
-        }
+          updated_at: {
+            type: "string",
+            format: "date-time",
+            readOnly: true,
+          },
+        },
       },
-      "CreateTaskRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "task_spec",
-          "project_path"
-        ],
-        "properties": {
-          "task_spec": {
-            "type": "string",
-            "minLength": 1
+      CreateTaskRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_spec", "project_path"],
+        properties: {
+          task_spec: {
+            type: "string",
+            minLength: 1,
           },
-          "project_path": {
-            "type": "string",
-            "minLength": 1
+          project_path: {
+            type: "string",
+            minLength: 1,
           },
-          "dependencies": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+          dependencies: {
+            type: "array",
+            items: {
+              type: "string",
+              minLength: 1,
+            },
           },
-          "result": {
-            "type": "string",
-            "default": ""
+          result: {
+            type: "string",
+            default: "",
           },
-          "session_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+          session_id: {
+            type: ["string", "null"],
           },
-          "worktree_path": {
-            "type": [
-              "string",
-              "null"
-            ]
+          worktree_path: {
+            type: ["string", "null"],
           },
-          "pull_request_url": {
-            "type": [
-              "string",
-              "null"
-            ]
+          pull_request_url: {
+            type: ["string", "null"],
           },
-          "status": {
-            "type": "string",
-            "enum": [
+          status: {
+            type: "string",
+            enum: [
               "created",
               "waiting_assumptions",
               "running",
@@ -557,50 +560,41 @@ export const openApiDocument = {
               "pr_following",
               "closing",
               "succeeded",
-              "failed"
-            ]
-          }
-        }
+              "failed",
+            ],
+          },
+        },
       },
-      "PatchTaskRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "task_spec": {
-            "type": "string",
-            "minLength": 1
+      PatchTaskRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          task_spec: {
+            type: "string",
+            minLength: 1,
           },
-          "session_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+          session_id: {
+            type: ["string", "null"],
           },
-          "worktree_path": {
-            "type": [
-              "string",
-              "null"
-            ]
+          worktree_path: {
+            type: ["string", "null"],
           },
-          "pull_request_url": {
-            "type": [
-              "string",
-              "null"
-            ]
+          pull_request_url: {
+            type: ["string", "null"],
           },
-          "dependencies": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+          dependencies: {
+            type: "array",
+            items: {
+              type: "string",
+              minLength: 1,
+            },
           },
-          "result": {
-            "type": "string"
+          result: {
+            type: "string",
           },
-          "status": {
-            "type": "string",
-            "enum": [
+          status: {
+            type: "string",
+            enum: [
               "created",
               "waiting_assumptions",
               "running",
@@ -608,63 +602,56 @@ export const openApiDocument = {
               "pr_following",
               "closing",
               "succeeded",
-              "failed"
-            ]
-          }
-        }
+              "failed",
+            ],
+          },
+        },
       },
-      "TaskResultRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "result"
-        ],
-        "properties": {
-          "result": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
-          }
-        }
+      TaskResultRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["result"],
+        properties: {
+          result: {
+            type: "string",
+            minLength: 1,
+            pattern: "^(?!\\s*$).+",
+          },
+        },
       },
-      "TaskListResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Task"
-            }
-          }
-        }
+      TaskListResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["items"],
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/Task",
+            },
+          },
+        },
       },
-      "ErrorResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "code",
-          "message"
-        ],
-        "properties": {
-          "code": {
-            "type": "string",
-            "enum": [
+      ErrorResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["code", "message"],
+        properties: {
+          code: {
+            type: "string",
+            enum: [
               "TASK_NOT_FOUND",
               "TASK_CONFLICT",
               "TASK_VALIDATION_ERROR",
-              "TASK_UNSUPPORTED_STATUS"
-            ]
+              "TASK_UNSUPPORTED_STATUS",
+            ],
           },
-          "message": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
-    }
-  }
+          message: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+    },
+  },
 } as const;

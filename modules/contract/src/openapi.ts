@@ -7,4 +7,5 @@ export const tasksPath = "/tasks";
 export const taskByIdPath = "/tasks/{taskId}";
 export const taskResolvePath = "/tasks/{taskId}/resolve";
 export const taskRejectPath = "/tasks/{taskId}/reject";
+export const taskSpecPath = "/tasks/{taskId}/spec";
 export const openApiDocument: OpenApiDocument = generatedOpenApiDocument;

@@ -20,6 +20,9 @@ import type {
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
+  GetTaskSpecByIdData,
+  GetTaskSpecByIdErrors,
+  GetTaskSpecByIdResponses,
   ListTasksData,
   ListTasksErrors,
   ListTasksResponses,
@@ -175,3 +178,15 @@ export const rejectTaskById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Read a task spec markdown document
+ */
+export const getTaskSpecById = <ThrowOnError extends boolean = false>(
+  options: Options<GetTaskSpecByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetTaskSpecByIdResponses,
+    GetTaskSpecByIdErrors,
+    ThrowOnError
+  >({ url: "/tasks/{taskId}/spec", ...options });

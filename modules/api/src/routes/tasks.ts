@@ -7,6 +7,7 @@ import {
   taskRejectPath,
   taskResolvePath,
   taskResultRequestSchema,
+  taskSpecPath,
   taskStatusSchema,
   tasksPath,
 } from "@aim-ai/contract";
@@ -17,6 +18,7 @@ import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
+const taskSpecRoutePath = taskSpecPath.replace("{taskId}", ":taskId");
 const taskResolveRoutePath = taskResolvePath.replace("{taskId}", ":taskId");
 const taskRejectRoutePath = taskRejectPath.replace("{taskId}", ":taskId");
 
@@ -166,6 +168,23 @@ export const registerTaskRoutes = (
     }
 
     return context.json(task, 200);
+  });
+
+  app.get(taskSpecRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+
+    const task = await getRepository().getTaskById(taskId);
+
+    if (!task) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return new Response(task.task_spec, {
+      headers: {
+        "content-type": "text/markdown; charset=utf-8",
+      },
+      status: 200,
+    });
   });
 
   app.patch(taskByIdRoutePath, async (context) => {
