@@ -41,19 +41,37 @@ const defaultLogger: ApiLogger = {
 
 export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   const logger = options.logger ?? defaultLogger;
-  let intervalHandle: NodeJS.Timeout | undefined;
   let scanPromise: Promise<void> | null = null;
+  let loopPromise: Promise<void> | null = null;
+  let stopRequested = false;
+  let sleepTimer: NodeJS.Timeout | undefined;
+  let wakeSleepingLoop: (() => void) | undefined;
 
-  const startScan = () => {
-    void beginScan().catch((error) => {
-      logger.error(
-        {
-          err: error,
-        },
-        "Task scheduler failed while scanning unfinished tasks",
-      );
-    });
+  const logScanFailure = (error: unknown) => {
+    logger.error(
+      {
+        err: error,
+      },
+      "Task scheduler failed while scanning unfinished tasks",
+    );
   };
+
+  const sleep = (intervalMs: number) =>
+    new Promise<void>((resolve) => {
+      sleepTimer = setTimeout(() => {
+        sleepTimer = undefined;
+        wakeSleepingLoop = undefined;
+        resolve();
+      }, intervalMs);
+      wakeSleepingLoop = () => {
+        if (sleepTimer) {
+          clearTimeout(sleepTimer);
+          sleepTimer = undefined;
+        }
+        wakeSleepingLoop = undefined;
+        resolve();
+      };
+    });
 
   const runTask = async (task: Task) => {
     try {
@@ -141,22 +159,36 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       return beginScan();
     },
     start(startOptions: StartOptions) {
-      if (intervalHandle) {
+      if (loopPromise) {
         return;
       }
 
-      startScan();
-      intervalHandle = setInterval(() => {
-        startScan();
-      }, startOptions.intervalMs);
+      stopRequested = false;
+      loopPromise = (async () => {
+        while (!stopRequested) {
+          await beginScan().catch(logScanFailure);
+
+          if (stopRequested) {
+            break;
+          }
+
+          await sleep(startOptions.intervalMs);
+        }
+      })().finally(() => {
+        if (sleepTimer) {
+          clearTimeout(sleepTimer);
+          sleepTimer = undefined;
+        }
+        wakeSleepingLoop = undefined;
+        stopRequested = false;
+        loopPromise = null;
+      });
     },
     stop() {
-      if (!intervalHandle) {
-        return;
-      }
+      stopRequested = true;
+      wakeSleepingLoop?.();
 
-      clearInterval(intervalHandle);
-      intervalHandle = undefined;
+      return loopPromise ?? Promise.resolve();
     },
   };
 };

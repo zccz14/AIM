@@ -411,7 +411,31 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
-  it("does not allow overlapping rounds after start", async () => {
+  it("starts with an immediate scan and repeated start calls stay idempotent", async () => {
+    vi.useFakeTimers();
+    const listUnfinishedTasks = vi.fn().mockResolvedValue([]);
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks,
+      },
+    });
+
+    scheduler.start({ intervalMs: 1_000 });
+    scheduler.start({ intervalMs: 1_000 });
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
+
+    await scheduler.stop();
+    vi.useRealTimers();
+  });
+
+  it("does not create a second loop while a started scan is still in flight", async () => {
     vi.useFakeTimers();
     const task = createTask({ session_id: "session-1" });
     let resolveList: (() => void) | undefined;
@@ -438,13 +462,11 @@ describe("task scheduler", () => {
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
 
     resolveList?.();
-    await Promise.resolve();
-    await Promise.resolve();
-    scheduler.stop();
+    await scheduler.stop();
     vi.useRealTimers();
   });
 
-  it("starts polling immediately and stops cleanly without scheduling more rounds", async () => {
+  it("waits for an in-flight scan to finish before stop resolves", async () => {
     vi.useFakeTimers();
     const task = createTask({ session_id: "session-1" });
     let resolveList: (() => void) | undefined;
@@ -466,11 +488,37 @@ describe("task scheduler", () => {
 
     scheduler.start({ intervalMs: 1_000 });
 
-    expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
+    let stopped = false;
+    const stopPromise = scheduler.stop().then(() => {
+      stopped = true;
+    });
 
-    const stopPromise = scheduler.stop();
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+
     resolveList?.();
     await stopPromise;
+
+    expect(stopped).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("stops during sleep before the next iteration starts", async () => {
+    vi.useFakeTimers();
+    const listUnfinishedTasks = vi.fn().mockResolvedValue([]);
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks,
+      },
+    });
+
+    scheduler.start({ intervalMs: 1_000 });
+
+    expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
+
+    await scheduler.stop();
     await vi.advanceTimersByTimeAsync(5_000);
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
@@ -510,7 +558,7 @@ describe("task scheduler", () => {
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
     expect(logger.info).not.toHaveBeenCalled();
-    scheduler.stop();
+    await scheduler.stop();
     vi.useRealTimers();
   });
 
