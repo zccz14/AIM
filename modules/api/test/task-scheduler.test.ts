@@ -4,7 +4,10 @@ import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildContinuePrompt } from "../src/task-continue-prompt.js";
+import {
+  buildContinuePrompt,
+  getTaskSpecFilename,
+} from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
 
 const createCoordinator = () => ({
@@ -101,9 +104,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(
-        `task_spec_file: ${join(task.project_path, ".aim/task-specs/task-1.md")}`,
-      ),
+      expect.stringContaining(`task_spec_file: ${getTaskSpecFilename(task)}`),
     );
   });
 
@@ -147,9 +148,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(
-        `task_spec_file: ${join(task.project_path, ".aim/task-specs/task-1.md")}`,
-      ),
+      expect.stringContaining(`task_spec_file: ${getTaskSpecFilename(task)}`),
     );
   });
 
@@ -264,7 +263,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "shared-session",
       expect.stringContaining(
-        `task_spec_file: ${join(firstTask.project_path, ".aim/task-specs/task-1.md")}`,
+        `task_spec_file: ${getTaskSpecFilename(firstTask)}`,
       ),
     );
     expect(logger.warn).toHaveBeenCalledWith(
@@ -438,7 +437,9 @@ describe("task scheduler", () => {
     );
 
     expect(prompt).toContain("task_id: task-1");
-    expect(prompt).toContain("task_spec_file: /repo/.aim/task-specs/task-1.md");
+    expect(prompt).toContain(
+      "task_spec_file: /repo/.worktrees/task-1/.aim/task-specs/2026-04-20T00:00:00.000Z-task-1.md",
+    );
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
