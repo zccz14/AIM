@@ -1,6 +1,6 @@
 ---
 name: using-aim
-description: Use when deciding whether AIM-specific packaged skills apply so the relevant AIM skill is loaded before acting.
+description: Use when starting AIM-related work to decide whether another AIM skill applies and load it before any response or action.
 ---
 
 # using-aim
@@ -9,7 +9,19 @@ description: Use when deciding whether AIM-specific packaged skills apply so the
 
 This is a process skill for deciding when AIM-specific packaged skills apply inside this repository.
 
-It does not replace user instructions, `AGENTS.md`, or the repo's default execution rules. It helps the agent notice when a more specific AIM skill should be loaded before responding or acting.
+Use it at the start of AIM-related work. Its job is to stop the agent from improvising when a more specific AIM skill should be loaded first.
+
+If there is even a plausible chance that an AIM skill applies, load that skill before any response or action, including clarifying questions, exploratory reads, or tool calls.
+
+This skill does not replace user instructions, `AGENTS.md`, or the repo's default execution rules. It makes skill loading more disciplined inside those boundaries.
+
+## Required Rule
+
+If a relevant AIM skill exists for the task, you must load it before proceeding.
+
+This is not optional. Do not rationalize your way out of it because the task looks small, familiar, or easy to inspect.
+
+If you load a skill and it turns out not to apply after all, that is acceptable. Skipping a relevant skill is the larger mistake.
 
 ## Instruction Priority
 
@@ -32,7 +44,20 @@ Typical triggers:
 - The user wants to validate whether a Task Spec is still actionable on the latest baseline.
 - The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
 - The user wants to verify or standardize GitHub repo merge settings, rulesets, or PR auto-merge behavior for AIM workflows.
-- You are about to act and there is any real chance that one of the AIM packaged skills is the correct workflow guide.
+- You are about to respond or act and there is any plausible chance that one of the AIM packaged skills is the correct workflow guide.
+
+## The Rule In Practice
+
+Check for AIM skill usage before you:
+
+- answer the user
+- ask a clarifying question
+- inspect files or diffs
+- run commands
+- start drafting a plan
+- perform AIM HTTP operations or GitHub workflow actions
+
+The skill check comes first. Do not postpone it until after gathering a little more context.
 
 ## AIM Skills To Check First
 
@@ -51,7 +76,7 @@ Before you respond or take action, run this checklist:
 
 1. Identify the real job to be done, not just the surface wording.
 2. Ask whether that job matches AIM task creation, spec verification, lifecycle reporting, or GitHub repo setup.
-3. If yes, load the corresponding AIM skill first.
+3. If the answer is yes, or even plausibly yes, load the corresponding AIM skill first.
 4. Re-read the user request and `AGENTS.md` in light of that skill's scope and boundaries.
 5. Only then respond or act.
 
@@ -66,6 +91,8 @@ These are signs you are rationalizing away required skill usage:
 - "I will inspect files first and decide later."
 - "I only need to ask one clarifying question."
 - "This sounds close enough that I can improvise."
+- "I can quickly do one step before loading the skill."
+- "The user did not explicitly ask me to load a skill."
 
 If you notice one of these thoughts and a relevant AIM skill exists, load the skill first.
 
