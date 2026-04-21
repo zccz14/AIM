@@ -2,15 +2,10 @@ import { openApiDocument } from "@aim-ai/contract";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import type { ApiLogger } from "./logger.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
-type CreateAppOptions = {
-  logger?: ApiLogger;
-};
-
-export const createApp = (_options: CreateAppOptions = {}) => {
+export const createApp = () => {
   const app = new Hono();
 
   app.use("*", cors({ origin: "*" }));

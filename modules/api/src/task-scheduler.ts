@@ -25,12 +25,17 @@ type SchedulerTaskRepository = {
 type CreateTaskSchedulerOptions = {
   coordinator: TaskSessionCoordinator;
   concurrency?: number;
-  logger?: ApiLogger;
+  logger?: Pick<ApiLogger, "error" | "warn">;
   taskRepository: SchedulerTaskRepository;
 };
 
 type StartOptions = {
   intervalMs: number;
+};
+
+const defaultLogger: Pick<Console, "error" | "warn"> = {
+  error: console.error.bind(console),
+  warn: console.warn.bind(console),
 };
 
 const getEffectiveConcurrency = (concurrency?: number) => {
@@ -72,7 +77,7 @@ const runWithConcurrency = async (
 
 export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   const concurrency = getEffectiveConcurrency(options.concurrency);
-  const logger = options.logger ?? console;
+  const logger = options.logger ?? defaultLogger;
   let intervalHandle: NodeJS.Timeout | undefined;
   let roundPromise: Promise<void> | null = null;
 

@@ -102,7 +102,7 @@ describe("server startup", () => {
     });
   });
 
-  it("creates one api logger and passes it to app and scheduler", async () => {
+  it("creates one api logger and passes it only to scheduler", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
     process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
@@ -134,7 +134,7 @@ describe("server startup", () => {
     startServer();
 
     expect(mockCreateApiLogger).toHaveBeenCalledTimes(1);
-    expect(mockCreateApp).toHaveBeenCalledWith({ logger });
+    expect(mockCreateApp).toHaveBeenCalledWith();
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.objectContaining({ logger }),
     );
