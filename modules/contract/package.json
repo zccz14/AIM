@@ -23,7 +23,7 @@
     "generate:types": "mkdir -p ./generated && rm -rf ./generated/types.ts ./generated/_types && pnpm exec openapi-ts --input ./openapi/openapi.yaml --output ./generated/_types --plugins @hey-api/typescript && printf '%s\n' '// This file is auto-generated from the OpenAPI contract.' 'export * from \"./_types/types.gen.js\";' > ./generated/types.ts",
     "generate:client": "pnpm exec node ./openapi/generate-client.mjs && pnpm exec biome format --write ./generated/client.ts ./generated/_client",
     "generate:zod": "mkdir -p ./generated && rm -f ./openapi/openapi.yaml.client.ts && pnpm exec openapi-zod-client ./openapi/openapi.yaml -o ./generated/zod.ts --template ./openapi/templates/schemas-only.hbs --export-schemas --strict-objects",
-    "generate": "pnpm run generate:openapi && pnpm run generate:types && pnpm run generate:client && pnpm run generate:zod",
+    "generate": "pnpm run generate:openapi && pnpm run generate:types && pnpm run generate:client && pnpm run generate:zod && pnpm exec biome format --write ./generated/openapi.ts ./generated/types.ts ./generated/_types",
     "generate:check": "pnpm run generate && git diff --exit-code -- generated openapi/openapi.yaml",
     "build": "pnpm run generate && pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/contract/src/index.ts --out-dir modules/contract/dist",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
