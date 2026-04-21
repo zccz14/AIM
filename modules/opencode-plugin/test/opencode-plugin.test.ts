@@ -180,6 +180,7 @@ describe("opencode plugin package baseline", () => {
       "package/skills/aim-setup-github-repo/SKILL.md",
       "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
+      "package/skills/using-aim/SKILL.md",
     ]);
   });
 
