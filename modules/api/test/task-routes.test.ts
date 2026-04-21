@@ -1016,8 +1016,17 @@ describe("task routes", () => {
       .map((statement) => statement.moduleSpecifier)
       .filter(ts.isStringLiteral)
       .map((specifier) => specifier.text);
+    const valueImportPaths = sourceFile.statements
+      .filter(ts.isImportDeclaration)
+      .filter((statement) => !statement.importClause?.isTypeOnly)
+      .map((statement) => statement.moduleSpecifier)
+      .filter(ts.isStringLiteral)
+      .map((specifier) => specifier.text);
 
     expect(importPaths).toContain("@aim-ai/contract");
+    expect(valueImportPaths).not.toContain("../src/logger.js");
+    expect(valueImportPaths).not.toContain("../logger.js");
+    expect(valueImportPaths).toContain("../task-log-fields.js");
     expect(
       importPaths.some((path) => path.includes("contract/generated")),
     ).toBe(false);

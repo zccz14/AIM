@@ -273,7 +273,7 @@ describe("task scheduler", () => {
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.any(Error),
+        err: expect.any(Error),
         taskId: firstTask.task_id,
       }),
       expect.stringContaining(firstTask.task_id),
@@ -495,7 +495,7 @@ describe("task scheduler", () => {
 
     await vi.waitFor(() => {
       expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.any(Error) }),
+        expect.objectContaining({ err: expect.any(Error) }),
         "Task scheduler failed while scanning unfinished tasks",
       );
     });

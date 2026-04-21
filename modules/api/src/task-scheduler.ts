@@ -2,7 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
-import { buildTaskLogFields } from "./logger.js";
+import type { ApiLogger } from "./logger.js";
+import { buildTaskLogFields } from "./task-log-fields.js";
 import {
   buildContinuePrompt,
   getTaskSpecFilename,
@@ -25,7 +26,7 @@ type SchedulerTaskRepository = {
 type CreateTaskSchedulerOptions = {
   coordinator: TaskSessionCoordinator;
   concurrency?: number;
-  logger?: SchedulerLogger;
+  logger?: ApiLogger;
   taskRepository: SchedulerTaskRepository;
 };
 
@@ -33,13 +34,7 @@ type StartOptions = {
   intervalMs: number;
 };
 
-type SchedulerLogger = {
-  error: (...args: unknown[]) => void;
-  info: (...args: unknown[]) => void;
-  warn: (...args: unknown[]) => void;
-};
-
-const defaultLogger: SchedulerLogger = {
+const defaultLogger: ApiLogger = {
   error: console.error.bind(console),
   info: console.info.bind(console),
   warn: console.warn.bind(console),
@@ -92,7 +87,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     void beginRound().catch((error) => {
       logger.error(
         {
-          error,
+          err: error,
         },
         "Task scheduler failed while scanning unfinished tasks",
       );
@@ -182,7 +177,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     } catch (error) {
       logger.error(
         {
-          error,
+          err: error,
           taskId: task.task_id,
         },
         `Task scheduler failed while processing task ${task.task_id}`,

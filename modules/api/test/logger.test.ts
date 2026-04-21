@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTaskLogFields, buildTaskResultPreview } from "../src/logger.js";
+import {
+  buildTaskLogFields,
+  buildTaskResultPreview,
+} from "../src/task-log-fields.js";
 
-describe("api logger helpers", () => {
+describe("task log field helpers", () => {
   it("truncates result preview to 200 characters", () => {
     const result = "x".repeat(250);
 

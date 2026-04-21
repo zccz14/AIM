@@ -13,7 +13,7 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../logger.js";
-import { buildTaskLogFields } from "../logger.js";
+import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
