@@ -26,9 +26,25 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 ## 环境
 
 - `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
+- 当需要读取、核对或复述 Task Spec 时，只能使用 `GET ${SERVER_BASE_URL}/tasks/${task_id}/spec`。
 - 非终态生命周期更新使用 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
 - 成功终态结果上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
 - 失败终态结果上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
+
+## Task Spec 读取
+
+- 当且仅当执行需要读取或检查 Task Spec 时，使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/spec`。
+- 该接口成功时返回的是原始 Markdown 文本，不是 JSON；应把响应体当作 Task Spec 正文来读取，而不是再解析 `spec` 字段或其他 JSON 包装。
+- 本地 `.aim/task-specs/` 文件只是运行时产物，不是允许的事实源；不要把它们当作真实依据，也不要读取它们来替代 API。
+- 不存在“API 失败后退回本地文件”的例外。只要 Task Spec 需要被读取或核对，就只能依赖该 API。
+- 如果 `GET /tasks/${task_id}/spec` 返回 404、超时、连接失败、5xx、明显不是 Markdown 的畸形响应，或其他导致无法可靠取得 Spec 正文的结果，必须立即停止当前依赖 Spec 的推进，并明确暴露这是输入 / 上报链路阻塞，而不是任务本身失败。
+- 遇到上述阻塞时，不要伪造、猜测、缓存复用或改读本地 `.aim/task-specs` 文件；要直接向用户或上游说明 `task_id`、请求 URL 与错误摘要，等待 API 问题或输入问题被解决。
+
+### Task Spec 获取示例
+
+```bash
+curl "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/spec"
+```
 
 ## 生命周期状态
 
@@ -208,7 +224,10 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject"
 
 - 任务失败：工作本身失败，因此应通过 `POST /tasks/${task_id}/reject` 发送带非空 `result` 的终态失败上报。
 - 上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
+- Task Spec 获取失败：`GET /tasks/${task_id}/spec` 因 404、网络、超时、连接、5xx、空响应或畸形响应等问题无法提供可用 Markdown。把它视为输入 / 上报链路阻塞，不要把这类情况转换成任务失败，也不要继续依赖本地文件推进。
 
 对于单个上报时点，最多只进行三次尝试：首次请求加最多两次重试。可以采用简短的重试模式，例如先等 1 秒，再等 5 秒。如果服务端返回明确的 4xx 输入错误，则停止重试，并暴露输入问题。
 
 如果所有重试都失败，必须明确暴露 AIM 上报阻塞，并附带 task id、目标 URL、上报时点以及最终错误摘要。要说明业务事实已经发生，但 AIM 未被成功更新。重试耗尽后，不要声称该阶段已经同步。
+
+如果 Task Spec API 无法返回可用 Markdown，也必须明确暴露 Spec 读取阻塞，并附带 task id、目标 URL 以及最终错误摘要。要说明当前阻塞的是 Spec 输入 / AIM 链路，而不是任务已被判定失败；在阻塞解除前，不要继续依赖猜测的 Spec 推进。
