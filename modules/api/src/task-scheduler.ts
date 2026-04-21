@@ -34,11 +34,13 @@ type StartOptions = {
 
 type SchedulerLogger = {
   error: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 };
 
 const defaultLogger: SchedulerLogger = {
   error: console.error.bind(console),
+  info: console.info.bind(console),
   warn: console.warn.bind(console),
 };
 

@@ -12,6 +12,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import type { ApiLogger } from "../logger.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
@@ -111,7 +112,14 @@ const parseTaskResultRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
-export const registerTaskRoutes = (app: Hono) => {
+type RegisterTaskRoutesOptions = {
+  logger?: ApiLogger;
+};
+
+export const registerTaskRoutes = (
+  app: Hono,
+  _options: RegisterTaskRoutesOptions = {},
+) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {

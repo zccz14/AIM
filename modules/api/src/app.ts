@@ -16,7 +16,7 @@ export const createApp = (_options: CreateAppOptions = {}) => {
   app.use("*", cors({ origin: "*" }));
 
   registerHealthRoute(app);
-  registerTaskRoutes(app);
+  registerTaskRoutes(app, { logger: _options.logger });
 
   app.get("/openapi.json", (context) => context.json(openApiDocument, 200));
 
