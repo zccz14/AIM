@@ -111,9 +111,7 @@ describe("opencode sdk adapter", () => {
         },
         parts: [
           {
-            text: expect.stringContaining(
-              "task_spec: Implement the OpenCode SDK coordinator.",
-            ),
+            text: expect.stringContaining("task_id: task-1"),
             type: "text",
           },
         ],
@@ -128,7 +126,19 @@ describe("opencode sdk adapter", () => {
       "worktree_path: /repo/.worktrees/task-1",
     );
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
+      "If you need to read or verify the task spec, use GET /tasks/task-1/spec.",
+    );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
+      "Before starting work, fetch the task spec from GET /tasks/task-1/spec.",
+    );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
       "Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting and workflow expectations during initial execution.",
+    );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).not.toContain(
+      "task_spec:",
+    );
+    expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).not.toContain(
+      "task_spec_file:",
     );
   });
 

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildContinuePrompt,
-  getTaskSpecFilename,
+  buildTaskSessionPrompt,
 } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
 
@@ -191,7 +191,13 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(`task_spec_file: ${getTaskSpecFilename(task)}`),
+      expect.stringContaining(
+        `If you need to read or verify the task spec, use GET /tasks/${task.task_id}/spec.`,
+      ),
+    );
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
+      "task_spec_file:",
     );
   });
 
@@ -235,8 +241,38 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
-      expect.stringContaining(`task_spec_file: ${getTaskSpecFilename(task)}`),
+      expect.stringContaining(
+        `If you need to read or verify the task spec, use GET /tasks/${task.task_id}/spec.`,
+      ),
     );
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
+      "task_spec_file:",
+    );
+  });
+
+  it("does not write a task spec markdown file before continuing an idle session even when worktree_path is set", async () => {
+    const task = createTask({
+      session_id: "session-1",
+      task_id: "task-no-spec-file",
+      worktree_path: "/repo/.worktrees/task-no-spec-file",
+    });
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    await expect(
+      rm(join(task.project_path, ".aim"), {
+        force: false,
+        recursive: true,
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("isolates per-task failures without aborting the scan", async () => {
@@ -585,10 +621,17 @@ describe("task scheduler", () => {
     expect(schedulerSource).not.toMatch(/opencode/i);
     expect(schedulerSource).not.toMatch(/spawn\(/i);
     expect(schedulerSource).not.toMatch(/child_process/i);
+    expect(schedulerSource).not.toMatch(/node:fs/i);
+    expect(schedulerSource).not.toMatch(/node:path/i);
+    expect(schedulerSource).not.toMatch(/writeFile/i);
+    expect(schedulerSource).not.toMatch(/mkdir/i);
+    expect(schedulerSource).not.toMatch(/\.aim/i);
+    expect(schedulerSource).not.toMatch(/task-specs/i);
+    expect(schedulerSource).not.toContain("worktree_path");
     expect(coordinatorSource).toContain("createTaskSessionCoordinator");
   });
 
-  it("continue prompt contains task metadata and task spec file path", () => {
+  it("continue prompt contains task metadata and API-based spec lookup instructions", () => {
     const prompt = buildContinuePrompt(
       createTask({
         project_path: "/repo",
@@ -601,11 +644,12 @@ describe("task scheduler", () => {
 
     expect(prompt).toContain("task_id: task-1");
     expect(prompt).toContain(
-      "task_spec_file: /repo/.worktrees/task-1/.aim/task-specs/2026-04-20T00:00:00.000Z-task-1.md",
+      "If you need to read or verify the task spec, use GET /tasks/task-1/spec.",
     );
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
+    expect(prompt).toContain("session_id: session-1");
     expect(prompt).toContain(
       "Don't Ask My Any Questions. Just Follow your Recommendations and Continue.",
     );
@@ -617,6 +661,7 @@ describe("task scheduler", () => {
       "This task should finally use resolve or reject to report its completion or failure.",
     );
     expect(prompt).not.toContain("task_spec:");
+    expect(prompt).not.toContain("task_spec_file:");
     expect(prompt).not.toMatch(/aim\.sqlite/i);
     expect(prompt).not.toMatch(/\bdb\b/i);
     expect(prompt).not.toMatch(/database/i);
@@ -624,5 +669,22 @@ describe("task scheduler", () => {
     expect(prompt).not.toMatch(/\bUPDATE tasks\b/i);
     expect(prompt).not.toMatch(/storage/i);
     expect(prompt).not.toMatch(/persist/i);
+  });
+
+  it("start prompt requires fetching the task spec over the API before starting work", () => {
+    const prompt = buildTaskSessionPrompt(
+      "start",
+      createTask({
+        project_path: "/repo",
+        session_id: "session-1",
+        worktree_path: "/repo/.worktrees/task-1",
+      }),
+    );
+
+    expect(prompt).toContain(
+      "Before starting work, fetch the task spec from GET /tasks/task-1/spec.",
+    );
+    expect(prompt).not.toContain("task_spec:");
+    expect(prompt).not.toContain("task_spec_file:");
   });
 });
