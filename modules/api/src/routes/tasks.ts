@@ -13,6 +13,7 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../logger.js";
+import { buildTaskLogFields } from "../logger.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
@@ -118,8 +119,9 @@ type RegisterTaskRoutesOptions = {
 
 export const registerTaskRoutes = (
   app: Hono,
-  _options: RegisterTaskRoutesOptions = {},
+  options: RegisterTaskRoutesOptions = {},
 ) => {
+  const logger = options.logger;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {
@@ -148,6 +150,8 @@ export const registerTaskRoutes = (
     }
 
     const payload = await getRepository().createTask(input.data);
+
+    logger?.info(buildTaskLogFields("task_created", payload));
 
     return context.json(payload, 201);
   });
@@ -199,6 +203,8 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
+    logger?.info(buildTaskLogFields("task_resolved", payload));
+
     return new Response(null, { status: 204 });
   });
 
@@ -215,6 +221,8 @@ export const registerTaskRoutes = (
     if (!payload) {
       return context.json(buildNotFoundError(taskId), 404);
     }
+
+    logger?.info(buildTaskLogFields("task_rejected", payload));
 
     return new Response(null, { status: 204 });
   });

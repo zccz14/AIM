@@ -38,6 +38,93 @@ afterEach(async () => {
 });
 
 describe("task scheduler", () => {
+  it("logs task_session_bound only after assignment succeeds", async () => {
+    const initialTask = createTask();
+    const boundTask = createTask({
+      session_id: "session-1",
+      status: "running",
+    });
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const repository = {
+      assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
+    };
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      logger,
+      taskRepository: repository,
+    });
+
+    await scheduler.runRound();
+
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_session_bound",
+      project_path: boundTask.project_path,
+      session_id: "session-1",
+      status: "running",
+      task_id: boundTask.task_id,
+    });
+  });
+
+  it("logs task_session_continued only after continue prompt succeeds", async () => {
+    const task = createTask({
+      session_id: "session-1",
+      status: "running",
+    });
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.runRound();
+
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_session_continued",
+      project_path: task.project_path,
+      session_id: "session-1",
+      status: "running",
+      task_id: task.task_id,
+    });
+  });
+
+  it("does not log task_session_bound when assignment does not return a bound snapshot", async () => {
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn().mockResolvedValue(null),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([createTask()]),
+      },
+    });
+
+    await scheduler.runRound();
+
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
   it("creates and binds a session for an unbound unfinished task, then continues if idle", async () => {
     const initialTask = createTask();
     const boundTask = createTask({ session_id: "session-1" });
@@ -167,6 +254,7 @@ describe("task scheduler", () => {
       .mockResolvedValueOnce(undefined);
     const logger = {
       error: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
@@ -184,12 +272,20 @@ describe("task scheduler", () => {
     expect(sendContinuePrompt).toHaveBeenCalledTimes(2);
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining(firstTask.task_id),
       expect.objectContaining({
         error: expect.any(Error),
         taskId: firstTask.task_id,
       }),
+      expect.stringContaining(firstTask.task_id),
     );
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_session_continued",
+      project_path: secondTask.project_path,
+      session_id: secondTask.session_id,
+      status: secondTask.status,
+      task_id: secondTask.task_id,
+    });
   });
 
   it("refuses duplicate unfinished tasks that share one session_id", async () => {
@@ -203,6 +299,7 @@ describe("task scheduler", () => {
     });
     const logger = {
       error: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
@@ -220,9 +317,10 @@ describe("task scheduler", () => {
     expect(coordinator.getSessionState).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("shared-session"),
       expect.objectContaining({ sessionId: "shared-session" }),
+      expect.stringContaining("shared-session"),
     );
+    expect(logger.info).not.toHaveBeenCalled();
   });
 
   it("warns and skips when assignment returns a duplicate session snapshot", async () => {
@@ -239,6 +337,7 @@ describe("task scheduler", () => {
     });
     const logger = {
       error: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
@@ -267,12 +366,20 @@ describe("task scheduler", () => {
       ),
     );
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("shared-session"),
       expect.objectContaining({
         sessionId: "shared-session",
         taskId: secondTask.task_id,
       }),
+      expect.stringContaining("shared-session"),
     );
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "task_session_continued",
+      project_path: firstTask.project_path,
+      session_id: "shared-session",
+      status: firstTask.status,
+      task_id: firstTask.task_id,
+    });
   });
 
   it("does not continue a task that finished before the assignment snapshot returned", async () => {
@@ -368,6 +475,7 @@ describe("task scheduler", () => {
     vi.useFakeTimers();
     const logger = {
       error: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
     };
     const listUnfinishedTasks = vi
@@ -387,14 +495,15 @@ describe("task scheduler", () => {
 
     await vi.waitFor(() => {
       expect(logger.error).toHaveBeenCalledWith(
-        "Task scheduler failed while scanning unfinished tasks",
         expect.objectContaining({ error: expect.any(Error) }),
+        "Task scheduler failed while scanning unfinished tasks",
       );
     });
 
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
+    expect(logger.info).not.toHaveBeenCalled();
     scheduler.stop();
     vi.useRealTimers();
   });

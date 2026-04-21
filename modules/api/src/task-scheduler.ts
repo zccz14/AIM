@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
 
+import { buildTaskLogFields } from "./logger.js";
 import {
   buildContinuePrompt,
   getTaskSpecFilename,
@@ -89,9 +90,12 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
   const startRound = () => {
     void beginRound().catch((error) => {
-      logger.error("Task scheduler failed while scanning unfinished tasks", {
-        error,
-      });
+      logger.error(
+        {
+          error,
+        },
+        "Task scheduler failed while scanning unfinished tasks",
+      );
     });
   };
 
@@ -102,6 +106,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   ) => {
     try {
       let latestTask = task;
+      let boundInRound = false;
 
       if (!latestTask.session_id) {
         const { sessionId } =
@@ -117,6 +122,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         }
 
         latestTask = assignedTask;
+        boundInRound = true;
       }
 
       const sessionId = latestTask.session_id;
@@ -127,22 +133,22 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       if (duplicateSessionIds.has(sessionId)) {
         logger.warn(
-          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
           {
             sessionId,
             taskId: latestTask.task_id,
           },
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
         );
         return;
       }
 
       if (roundSessionIds.has(sessionId)) {
         logger.warn(
-          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
           {
             sessionId,
             taskId: latestTask.task_id,
           },
+          `Skipping duplicate unfinished session_id in round: ${sessionId}`,
         );
         return;
       }
@@ -153,6 +159,10 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         sessionId,
         latestTask.project_path,
       );
+
+      if (boundInRound && sessionState === "idle") {
+        logger.info(buildTaskLogFields("task_session_bound", latestTask));
+      }
 
       if (sessionState !== "idle") {
         return;
@@ -167,13 +177,15 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         sessionId,
         buildContinuePrompt(latestTask),
       );
+
+      logger.info(buildTaskLogFields("task_session_continued", latestTask));
     } catch (error) {
       logger.error(
-        `Task scheduler failed while processing task ${task.task_id}`,
         {
           error,
           taskId: task.task_id,
         },
+        `Task scheduler failed while processing task ${task.task_id}`,
       );
     }
   };
