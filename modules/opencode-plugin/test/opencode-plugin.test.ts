@@ -266,8 +266,8 @@ describe("opencode plugin package baseline", () => {
       "waiting_assumptions",
       "pr_following",
       '"status": "outbound"',
-      "POST /tasks/${task_id}/resolve",
-      "POST /tasks/${task_id}/reject",
+      `POST /tasks/\${task_id}/resolve`,
+      `POST /tasks/\${task_id}/reject`,
       "AIM 上报阻塞",
     ]) {
       expect(pluginLifecycleSkillText).toContain(requiredFragment);
@@ -279,39 +279,45 @@ describe("opencode plugin package baseline", () => {
 
   it("documents task creation interview, approval, and boundary rules", () => {
     expect(pluginCreateTasksSkillText).toContain(
-      "Review the latest baseline, related existing AIM Tasks, and nearby Task Specs or design docs before proposing new tasks.",
+      "起草前先做只读了解，确认最新基线、相关 AIM Task、相邻 spec 或设计文档",
     );
     expect(pluginCreateTasksSkillText).toContain(
-      "Candidate tasks must include the full five-part Task Spec:",
+      "每个候选都必须写完整五段式 Task Spec",
     );
     expect(pluginCreateTasksSkillText).toContain("- `Title`");
     expect(pluginCreateTasksSkillText).toContain("- `Assumptions`");
     expect(pluginCreateTasksSkillText).toContain("- `Goal vs Non-Goal`");
     expect(pluginCreateTasksSkillText).toContain("- `Core Path`");
     expect(pluginCreateTasksSkillText).toContain("- `Value Alignment`");
+    expect(pluginCreateTasksSkillText).toContain("`docs/task-spec.md`");
     expect(pluginCreateTasksSkillText).toMatch(
       /POST \$\{SERVER_BASE_URL:-http:\/\/localhost:8192\}\/tasks/,
     );
     expect(pluginCreateTasksSkillText).toContain("`task_spec`");
     expect(pluginCreateTasksSkillText).toContain("`project_path`");
+    expect(pluginCreateTasksSkillText).toContain("`dependencies` 只是软提示");
     expect(pluginCreateTasksSkillText).toContain(
-      "`dependencies` are soft hints",
+      "只有用户明确表示批准创建，才能调用 `POST /tasks`。",
     );
     expect(pluginCreateTasksSkillText).toContain(
-      "Wait for explicit user approval before any create call.",
+      "如果用户要求修改候选，回到访谈或起草步骤，重新形成候选并再次经过独立校验。",
     );
+    expect(pluginCreateTasksSkillText).toContain("不要猜 `project_path`");
     expect(pluginCreateTasksSkillText).toContain(
-      "If the user requests changes, return to interview or proposal revision, update the candidate tasks, and wait for explicit approval again.",
-    );
-    expect(pluginCreateTasksSkillText).toContain(
-      "Do not guess `project_path`.",
-    );
-    expect(pluginCreateTasksSkillText).toContain(
-      "Do not replace scheduler ordering.",
+      "不用它替代调度器决定顺序、优先级或编排。",
     );
     expect(pluginCreateTasksSkillText).toContain("`aim-verify-task-spec`");
+    expect(pluginCreateTasksSkillText).toContain(
+      "这道校验必须通过 SubAgent 派发完成",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "`waiting_assumptions` 或 `failed` 都不得进入创建。",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "应并行派发多个 SubAgent 分别校验",
+    );
     expect(pluginCreateTasksSkillText).toContain("implementation plan");
-    expect(pluginCreateTasksSkillText).toContain("`aim-task-lifecycle`");
+    expect(pluginCreateTasksSkillText).toContain("生命周期推进");
     expect(pluginCreateTasksSkillText).not.toContain("TODO");
     expect(pluginCreateTasksSkillText).not.toContain("TBD");
   });

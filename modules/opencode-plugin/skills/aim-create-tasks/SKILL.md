@@ -1,62 +1,163 @@
 ---
 name: aim-create-tasks
-description: Use when turning approved user intent into AIM Task creation proposals and eventual POST /tasks writes without replacing scheduler ordering or later execution workflows.
+description: 当用户已经明确批准创建新的 AIM Task，且需要把稳定的用户意图整理成候选 Task Spec 并提交到 POST /tasks 时使用。
 ---
 
 # aim-create-tasks
 
-## When to use
+## 概述
 
-Use this skill when the user wants to create new AIM Tasks from a requirement, feature request, bug report, or scoped project outcome.
+这个 skill 只负责一件事：把已经获批的用户意图整理成候选 AIM Task Spec，并在得到明确批准后创建 Task。
 
-Do not use this skill to replace scheduler ordering.
-Do not use this skill to replace `aim-verify-task-spec`, implementation plan writing, or `aim-task-lifecycle`.
-Do not replace scheduler ordering.
+它不负责替代调度器，不负责执行 `aim-verify-task-spec` 之外的校验，不负责 implementation plan、实现执行、生命周期推进或 PR 跟进。
 
-## Required inputs
+## 何时使用
 
-- A clear user goal.
-- An explicit `project_path`.
-- Enough context to write a stable five-part Task Spec.
+- 用户明确想新增 AIM Task，而不是直接改代码、排期或执行任务时。
+- 已经能够拿到明确的 `project_path`。
+- 需要把用户意图收敛为完整的五段式 Task Spec，再写入 `POST /tasks` 时。
 
-## Process
+## 不何时使用
 
-### 1. Interview first
+- 不用它替代调度器决定顺序、优先级或编排。
+- 不用它替代 `aim-verify-task-spec`。
+- 不把它扩展成写 implementation plan、改代码、跑验证、汇报生命周期。
 
-Interview first; do not create tasks from a vague request.
-Do not guess `project_path`.
+## 必需输入
 
-Clarify the target outcome, non-goals, important constraints, value tradeoffs, and any known nearby AIM Tasks or specs before drafting candidates.
+- 已经被用户确认要创建 Task 的目标意图。
+- 明确的 `project_path`。
+- 足够形成五段式 Task Spec 的上下文：范围、边界、关键约束、潜在冲突与价值取舍。
 
-### 2. Explore the latest baseline before proposing tasks
+## 工作流程
 
-Review the latest baseline, related existing AIM Tasks, and nearby Task Specs or design docs before proposing new tasks.
+### 1. 先补齐信息，不要从模糊请求直接落 Task
 
-This exploration is for duplicate detection, assumption quality, and scope alignment. It is not a license to write an implementation plan or execution checklist.
+如果用户给的只是方向、主题或一句需求，先继续访谈。
 
-### 3. Propose candidate tasks before any write
+至少要补齐：
 
-Candidate tasks must include the full five-part Task Spec:
+- 这次要推进的基线增量是什么。
+- 明确不做什么。
+- 当前已知前提事实是什么。
+- 可能出现哪些冲突场景，以及冲突时价值排序是什么。
+- `project_path` 是什么。
+
+不要猜 `project_path`，也不要把背景故事直接抄进 Spec。
+
+### 2. 基于最新基线起草候选 Task Spec
+
+起草前先做只读了解，确认最新基线、相关 AIM Task、相邻 spec 或设计文档，目标是：
+
+- 避免重复建 Task。
+- 让 `Assumptions` 贴近当前可验证事实。
+- 让范围边界与已有增量保持一致。
+
+这一步只用于起草候选 Task Spec，不得顺势扩展成 implementation plan 或执行清单。
+
+### 3. 每个候选都必须写完整五段式 Task Spec
+
+候选 Task 不能只给标题、摘要或实现提示。每个候选都必须包含完整五段：
+
 - `Title`
 - `Assumptions`
 - `Goal vs Non-Goal`
 - `Core Path`
 - `Value Alignment`
 
-Each candidate must also include `project_path` and optional `dependencies` with a short rationale.
+并且还要附带：
 
-Do not collapse the proposal into title-only bullets, issue summaries, or implementation notes.
+- `project_path`
+- 可选的 `dependencies`
 
-### 4. Approval gate
+五段写法必须遵循 `docs/task-spec.md` 的语义：
 
-Wait for explicit user approval before any create call.
-Discussion, refinement, or "looks close" is not approval.
-If the user requests changes, return to interview or proposal revision, update the candidate tasks, and wait for explicit approval again.
-Wait for explicit user approval before any create call.
+#### Title
 
-### 5. Create tasks only after approval
+- 必须是一句“基线增量目标”，不是泛泛主题。
+- 应该能自然映射为一个 PR 标题。
+- 像“优化任务系统”“清理创建流程”这种宽泛话题不合格。
 
-Use POST only after approval:
+示例：
+
+- 好：`为 Task 创建阶段补齐独立的 Spec 校验门` 
+- 差：`Task 创建` 
+
+#### Assumptions
+
+- 只写当前可验证的基线事实，不写背景故事。
+- 优先写可通过只读检查确认的外部可观测事实。
+- 不要写容易漂移的实现猜测或“之前发生过什么”。
+
+示例：
+
+- 好：`当前 Task 创建 skill 允许起草者直接自我判断 Spec 是否可创建。`
+- 差：`之前大家在创建 Task 时经常觉得流程不够严格，所以需要加强。`
+
+#### Goal vs Non-Goal
+
+- `Goal` 和 `Non-Goal` 必须一起把范围夹紧。
+- `Goal` 说明这次增量要推进到哪里。
+- `Non-Goal` 要具体到足以阻止范围蔓延，不能只是礼貌性地说“暂不处理其他问题”。
+
+示例：
+
+- 好的 Goal：`要求每个候选 Task Spec 在创建前都经过独立校验。`
+- 好的 Non-Goal：`不改动调度器排序逻辑，不在创建阶段引入 implementation plan 或执行状态字段。`
+- 差的 Non-Goal：`其他优化后续再说。`
+
+#### Core Path
+
+- 解释当前概念格局、目标概念变化，以及为什么选这条主路径。
+- 必须交代放弃了哪些备选路径，以及为什么不选。
+- 不能退化成文件改动清单、函数改动清单或机械步骤。
+
+示例：
+
+- 好：`把“候选 Spec 起草”和“Spec 可创建性校验”拆成两个职责：起草侧只负责表达用户批准的增量，校验侧独立判断该增量在最新基线上是否仍然成立；不采用起草者自检路径，因为那会把起草偏见带入创建门。`
+- 差：`修改 SKILL.md，并在创建前多调用一个 skill。`
+
+#### Value Alignment
+
+- 必须写成“冲突场景 + 价值排序”，给下游自由裁量证据。
+- 不是抽象口号，不是单句偏好。
+- 要说明遇到分歧时，哪些价值优先级更高。
+
+示例：
+
+- 好：`当“更快创建 Task”和“避免把失效 Spec 写入系统”冲突时，优先后者；当“覆盖更多候选方向”和“保持每个候选都有清晰边界”冲突时，优先后者。`
+- 差：`优先保持简单。`
+
+### 4. 起草后必须先做独立 Spec 校验，禁止自我批准
+
+在任何创建动作之前，每一个候选 Task Spec 都必须先调用 `aim-verify-task-spec` 做校验。
+
+这道校验必须通过 SubAgent 派发完成，不能由同一个起草 agent 一边写候选、一边自己判定“已经没问题”。
+
+要求如下：
+
+- 起草 agent 负责整理候选 Task Spec。
+- 独立的 SubAgent 负责对每个候选调用 `aim-verify-task-spec`。
+- 只有校验结论为 `pass` 时，候选才能进入用户审批；`waiting_assumptions` 或 `failed` 都不得进入创建。
+- 如果校验指出结构不足、假设失效或边界不清，先回到起草环节修订，不得跳过。
+
+如果一次生成多个候选 Task Spec，且它们之间没有相互依赖，应并行派发多个 SubAgent 分别校验，避免串行拖慢确认过程。
+
+不要在这里重复 `aim-verify-task-spec` 的完整判定细节；创建前校验的职责边界以该 skill 为准。
+
+### 5. 用户明确批准后，才能执行创建
+
+候选经过独立校验后，先把候选列表返回给用户确认。
+
+只有用户明确表示批准创建，才能调用 `POST /tasks`。像“看起来差不多”“先这样吧”这类模糊反馈，不算批准。
+
+如果用户要求修改候选，回到访谈或起草步骤，重新形成候选并再次经过独立校验。
+
+### 6. 创建调用
+
+创建目标是 `POST ${SERVER_BASE_URL:-http://localhost:8192}/tasks`。
+
+示例：
 
 ```bash
 curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks" \
@@ -68,38 +169,41 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks" \
   }'
 ```
 
-The write target is `POST ${SERVER_BASE_URL:-http://localhost:8192}/tasks`.
-`task_spec` and `project_path` are required for creation.
-`dependencies` are soft hints, not scheduler gates.
-If a candidate has no useful dependency hint, send an empty array or omit the field if the server contract allows it.
+- `task_spec` 和 `project_path` 是创建必需字段。
+- `dependencies` 只是软提示，不是调度门禁。
+- 如果没有可靠的依赖提示，可以传空数组，或在服务端契约允许时省略该字段。
+- 创建成功后，要把每个新建 Task 的标识返回给用户。
 
-After successful creates, report each created Task identifier back to the user.
+## 失败处理
 
-## Failure handling
+- 用户目标仍然模糊：继续访谈，不要创建。
+- 缺少 `project_path`：停止并补齐，不要猜测。
+- 候选没有完整五段，或五段内容空洞：回到起草环节修订。
+- 候选尚未经过独立 SubAgent 校验：不得进入创建。
+- 用户尚未明确批准：不得调用 `POST /tasks`。
+- `POST /tasks` 失败：区分哪些候选已创建、哪些失败，以及失败原因。
 
-- If the goal is still vague, keep interviewing instead of creating tasks.
-- If `project_path` is missing, stop and ask for it.
-- If baseline exploration is incomplete, do not draft final candidate tasks yet.
-- If the user has not explicitly approved the candidate list, do not call `POST /tasks`.
-- After successful creates, report each created Task identifier back to the user.
-- If `POST /tasks` fails, report which tasks were created, which failed, and why.
+报告失败时，区分内容问题和传输问题：
 
-Split content problems from transport problems when reporting failure. Missing `task_spec`, invalid `project_path`, or malformed payloads are request issues. Timeouts, connection failures, or unexpected server responses are infrastructure issues.
+- 内容问题：如 `task_spec` 不完整、`project_path` 无效、请求体格式错误。
+- 传输问题：如超时、连接失败、服务端异常响应。
 
-## Boundaries
+## 边界
 
-- `aim-create-tasks` does not replace scheduler ordering.
-- `aim-create-tasks` does not replace `aim-verify-task-spec`.
-- `aim-create-tasks` stops at Task creation and does not write the implementation plan.
-- `aim-create-tasks` does not replace `aim-task-lifecycle` reporting.
+- 只负责把已获批的用户意图整理为候选 Task，并在批准后创建。
+- 不负责替代 `aim-verify-task-spec` 本身的校验逻辑。
+- 不负责调度、排期、执行、implementation plan、生命周期推进。
+- 不把 `dependencies` 升级为硬性顺序约束。
 
-## Common mistakes
+## 常见错误
 
-- Mistake: Creating tasks after only a title-level request.
-  Fix: Continue the interview until the goal, non-goals, value tradeoffs, and `project_path` are explicit enough for a full Task Spec.
-- Mistake: Treating `dependencies` as hard execution gates.
-  Fix: Keep them as soft hints; scheduler and latest-baseline checks can reorder or ignore them.
-- Mistake: Writing implementation plans during task creation.
-  Fix: Stop at Task creation; implementation planning belongs to later execution work.
-- Mistake: Guessing the repository path or skipping baseline exploration to move faster.
-  Fix: Ask for the explicit `project_path`, inspect the latest baseline and nearby AIM artifacts, then return with candidate Task Specs for approval.
+- 错误：只有标题或 issue 摘要就直接建 Task。
+  修正：先补齐五段式 Task Spec，再进入校验与审批。
+- 错误：起草 agent 自己判断候选“看起来可以创建了”。
+  修正：必须派发独立 SubAgent 调用 `aim-verify-task-spec`，禁止自我批准。
+- 错误：多个候选逐个慢慢校验，即使它们彼此独立。
+  修正：在可并行时并行派发 SubAgent 做校验。
+- 错误：把 `Core Path` 写成文件修改清单。
+  修正：回到概念变化、主路径选择和备选路径取舍。
+- 错误：把 `dependencies` 当成必须先完成的硬门。
+  修正：只把它当成调度提示，最终顺序仍由调度器和最新基线决定。
