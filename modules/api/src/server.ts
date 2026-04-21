@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.js";
+import { createApiLogger } from "./logger.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createTaskScheduler } from "./task-scheduler.js";
 import {
@@ -37,6 +38,7 @@ const readRequiredEnv = (
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
+  const logger = createApiLogger();
   const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED !== "false";
   let scheduler: ReturnType<typeof createTaskScheduler> | undefined;
   let stopScheduler: (() => void) | undefined;
@@ -52,6 +54,7 @@ export const startServer = () => {
     });
     const taskScheduler = createTaskScheduler({
       coordinator: createTaskSessionCoordinator(coordinatorConfig),
+      logger,
       taskRepository,
     });
 
@@ -59,7 +62,7 @@ export const startServer = () => {
     stopScheduler = () => taskScheduler.stop();
   }
 
-  const server = serve({ fetch: createApp().fetch, port });
+  const server = serve({ fetch: createApp({ logger }).fetch, port });
 
   try {
     if (scheduler && stopScheduler) {

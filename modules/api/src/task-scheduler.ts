@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Task } from "@aim-ai/contract";
+
+import type { ApiLogger } from "./logger.js";
 import {
   buildContinuePrompt,
   getTaskSpecFilename,
@@ -23,7 +25,7 @@ type SchedulerTaskRepository = {
 type CreateTaskSchedulerOptions = {
   coordinator: TaskSessionCoordinator;
   concurrency?: number;
-  logger?: Pick<Console, "error" | "warn">;
+  logger?: ApiLogger;
   taskRepository: SchedulerTaskRepository;
 };
 
