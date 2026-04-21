@@ -427,6 +427,9 @@ describe("task scheduler", () => {
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
+    expect(prompt).toContain(
+      "Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting during resumed execution.",
+    );
     expect(prompt).toContain("If you cannot continue");
     expect(prompt).toContain("write the task's failure state");
     expect(prompt).toContain("When the task is complete");
