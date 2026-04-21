@@ -43,8 +43,7 @@ export const startServer = () => {
 
   if (isTaskSchedulerEnabled) {
     const coordinatorConfig: TaskSessionCoordinatorConfig = {
-      baseUrl:
-        process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
+      baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
       modelId: readRequiredEnv("OPENCODE_MODEL_ID"),
       providerId: readRequiredEnv("OPENCODE_PROVIDER_ID"),
     };
