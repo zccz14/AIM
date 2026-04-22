@@ -1,19 +1,15 @@
 import type { Task } from "@aim-ai/contract";
 
-type TaskPromptAction = "continue" | "start";
+export const buildTaskSessionPrompt = (task: Task) => `
+You are the AIM developer.
 
-const formatTaskPromptAction = (action: TaskPromptAction) =>
-  action === "start" ? "Start" : "Continue";
+FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.
 
-const formatTaskPromptInstruction = (action: TaskPromptAction) =>
-  action === "start"
-    ? "Start this task from scratch and follow the normal session workflow. Follow the packaged skill aim-task-lifecycle for lifecycle/status reporting and workflow expectations during initial execution."
-    : "Continue this task from its current state through the normal session workflow. Follow the aim-task-lifecycle SKILL.";
+Remember the task's final status is neither 'resolved' nor 'rejected'.
+1. resolved: "GitHub PR is merged" AND "local worktree is cleaned up" AND "local main branch is refreshed to origin/main".
+2. rejected: The task spec's verification steps have FAILED.
 
-export const buildTaskSessionPrompt = (
-  action: TaskPromptAction,
-  task: Task,
-) => `${formatTaskPromptAction(action)} the assigned task session.
+You should retry if you encounter any other failure, such as CI failure, test failure, or any other error during the execution of the task.
 
 AIM Task Context:
 - task_id: ${task.task_id}
@@ -23,23 +19,7 @@ AIM Task Context:
 - worktree_path: ${task.worktree_path ?? "(not set)"}
 - pull_request_url: ${task.pull_request_url ?? "(not set)"}
 
-If you need to read or verify the task spec, use GET /tasks/${task.task_id}/spec.
-${
-  action === "start"
-    ? `Before starting work, fetch the task spec from GET /tasks/${task.task_id}/spec.
-`
-    : ""
-}Do not rely on any local .aim/task-specs/*.md runtime file.
-Do not expose task_spec_file or embed the full task_spec body.
+Read the task spec by GET /tasks/${task.task_id}/spec.
 
-Don't Ask My Any Questions. Just Follow your Recommendations and Continue.
-I agree all recommendations and decisions should be made based on the above context.
-
-${formatTaskPromptInstruction(action)}
-If you cannot continue, write the task's failure state.
-This task should finally use resolve or reject to report its completion or failure.
-When the task is complete, write done=true.
+DON'T ASK ME ANY QUESTIONS. Just Follow your Recommendations and Continue. I agree with all your actions.
 `;
-
-export const buildContinuePrompt = (task: Task) =>
-  buildTaskSessionPrompt("continue", task);
