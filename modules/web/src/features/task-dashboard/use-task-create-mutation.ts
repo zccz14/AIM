@@ -9,5 +9,6 @@ type CreateTaskMutationInput = {
 
 export const useTaskCreateMutation = () =>
   useMutation({
-    mutationFn: (input: CreateTaskMutationInput) => createTaskFromDashboard(input),
+    mutationFn: (input: CreateTaskMutationInput) =>
+      createTaskFromDashboard(input),
   });

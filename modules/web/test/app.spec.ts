@@ -180,9 +180,11 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   expect(dashboardPageSource).toContain("disabled={dashboardQuery.isFetching}");
   expect(dashboardPageSource).toContain("Refresh");
   expect(dashboardPageSource).toContain("onClick={() => void handleRefresh()}");
-  expect(dashboardPageSource).toContain("<ServerBaseUrlForm onSave={handleRefresh} />");
+  expect(dashboardPageSource).toContain(
+    "<ServerBaseUrlForm onSave={handleRefresh} />",
+  );
   expect(dashboardPageSource).toContain("Retry");
   expect(dashboardPageSource).not.toContain(
-    'onClick={() => void dashboardQuery.refetch()}',
+    "onClick={() => void dashboardQuery.refetch()}",
   );
 });
