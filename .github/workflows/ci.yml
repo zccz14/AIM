@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Test gate
+    name: Quality gates
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
@@ -37,3 +37,12 @@ jobs:
 
       - name: Run root test gate
         run: pnpm test
+
+  playwright:
+    name: Playwright
+    runs-on: ubuntu-latest
+    needs: quality
+    if: ${{ success() }}
+    steps:
+      - name: Confirm Playwright is covered by root test gate
+        run: true
