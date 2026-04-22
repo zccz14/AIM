@@ -29,6 +29,10 @@ const pluginEvaluateReadmeSkillUrl = new URL(
   "../skills/aim-evaluate-readme/SKILL.md",
   import.meta.url,
 );
+const pluginAskStrategySkillUrl = new URL(
+  "../skills/aim-ask-strategy/SKILL.md",
+  import.meta.url,
+);
 const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
 const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
@@ -56,6 +60,7 @@ let pluginLifecycleSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
+let pluginAskStrategySkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -132,6 +137,10 @@ beforeAll(async () => {
     pluginEvaluateReadmeSkillUrl,
     "utf8",
   ).catch(() => "");
+  pluginAskStrategySkillText = await readFile(
+    pluginAskStrategySkillUrl,
+    "utf8",
+  ).catch(() => "");
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
@@ -177,6 +186,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginEvaluateReadmeSkillUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-ask-strategy skill resource", async () => {
+    await expect(access(pluginAskStrategySkillUrl)).resolves.toBeUndefined();
+  });
+
   it("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -189,6 +202,7 @@ describe("opencode plugin package baseline", () => {
       "package/dist/index.js.map",
       "package/package.json",
       "package/skills/README.md",
+      "package/skills/aim-ask-strategy/SKILL.md",
       "package/skills/aim-create-tasks/SKILL.md",
       "package/skills/aim-evaluate-readme/SKILL.md",
       "package/skills/aim-setup-github-repo/SKILL.md",
@@ -214,6 +228,12 @@ describe("opencode plugin package baseline", () => {
   it("packs the aim-evaluate-readme skill into the publishable tarball", async () => {
     await expect(listPackedFiles()).resolves.toContain(
       "package/skills/aim-evaluate-readme/SKILL.md",
+    );
+  });
+
+  it("packs the aim-ask-strategy skill into the publishable tarball", async () => {
+    await expect(listPackedFiles()).resolves.toContain(
+      "package/skills/aim-ask-strategy/SKILL.md",
     );
   });
 
@@ -268,6 +288,17 @@ describe("opencode plugin package baseline", () => {
     expect(pluginReadme).toContain("workflow automation");
   });
 
+  it("documents aim-ask-strategy as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-ask-strategy");
+    expect(pluginSkillsReadme).toContain("upper-middle-lower strategy set");
+    expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
+
+    expect(pluginReadme).toContain("aim-ask-strategy");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
   it("documents using-aim discovery for aim-evaluate-readme", async () => {
     const usingAimSkillText = await readFile(
       new URL("../skills/using-aim/SKILL.md", import.meta.url),
@@ -277,6 +308,38 @@ describe("opencode plugin package baseline", () => {
     expect(usingAimSkillText).toContain("README 与最新 `origin/main` 的差距");
     expect(usingAimSkillText).toContain("aim-evaluate-readme");
     expect(usingAimSkillText).toContain("方向信号");
+  });
+
+  it("documents using-aim discovery for aim-ask-strategy", async () => {
+    const usingAimSkillText = await readFile(
+      new URL("../skills/using-aim/SKILL.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(usingAimSkillText).toContain("问策 / 定策");
+    expect(usingAimSkillText).toContain("上中下三策");
+    expect(usingAimSkillText).toContain("aim-ask-strategy");
+  });
+
+  it("documents aim-ask-strategy README-first recursive strategy workflow", () => {
+    for (const requiredFragment of [
+      "开始问策前必须先读 README",
+      "第一次输出必须直接给出上中下三策",
+      "默认推荐通常是中策",
+      "用户选中一策后，递归细化这一策",
+      "下一步动作已经清楚时停止",
+      "提问只服务于改变策略排序",
+    ]) {
+      expect(pluginAskStrategySkillText).toContain(requiredFragment);
+    }
+
+    expect(pluginAskStrategySkillText).toContain("问策 / 定策");
+    expect(pluginAskStrategySkillText).toContain("README");
+    expect(pluginAskStrategySkillText).toContain("上策");
+    expect(pluginAskStrategySkillText).toContain("中策");
+    expect(pluginAskStrategySkillText).toContain("下策");
+    expect(pluginAskStrategySkillText).not.toContain("TODO");
+    expect(pluginAskStrategySkillText).not.toContain("TBD");
   });
 
   it("documents aim-evaluate-readme content boundaries and output semantics", () => {
