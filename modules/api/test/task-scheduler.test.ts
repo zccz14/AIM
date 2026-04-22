@@ -652,7 +652,7 @@ describe("task scheduler", () => {
       "FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.",
     );
     expect(prompt).toContain(
-      "Remember the task's final status is neither 'resolved' nor 'rejected'.",
+      "Remember the task's final status is either 'resolved' or 'rejected'.",
     );
     expect(prompt).not.toContain("task_spec:");
     expect(prompt).not.toContain("task_spec_file:");
