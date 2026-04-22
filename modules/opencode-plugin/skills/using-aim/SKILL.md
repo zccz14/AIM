@@ -41,6 +41,7 @@ Use this skill when a request may involve AIM-specific workflow guidance and you
 Typical triggers:
 
 - The user wants to create a new AIM Task from stabilized intent.
+- The user first needs 问策 / 定策: compare viable directions, see an initial 上中下三策 recommendation set, and recursively narrow one strategy until the next action is clear.
 - The user wants to judge the gap between README claims and the latest `origin/main` baseline, then emit direction signals without creating tasks or deciding execution.
 - The user wants to validate whether a Task Spec is still actionable on the latest baseline.
 - The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
@@ -64,6 +65,7 @@ The skill check comes first. Do not postpone it until after gathering a little m
 
 Load the matching skill before acting when the request falls into one of these buckets:
 
+- `aim-ask-strategy`: read README first, give 上中下三策 with an initial recommendation, and recursively refine one chosen strategy until the next action is clear.
 - `aim-create-tasks`: turn approved user intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
 - `aim-evaluate-readme`: evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
 - `aim-verify-task-spec`: validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
@@ -77,7 +79,7 @@ If none of these apply, continue with the repo's normal instructions.
 Before you respond or take action, run this checklist:
 
 1. Identify the real job to be done, not just the surface wording.
-2. Ask whether that job matches AIM task creation, README gap evaluation, spec verification, lifecycle reporting, or GitHub repo setup.
+2. Ask whether that job matches AIM ask-strategy, task creation, README gap evaluation, spec verification, lifecycle reporting, or GitHub repo setup.
 3. If the answer is yes, or even plausibly yes, load the corresponding AIM skill first.
 4. Re-read the user request and `AGENTS.md` in light of that skill's scope and boundaries.
 5. Only then respond or act.
