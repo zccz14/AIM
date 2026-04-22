@@ -137,9 +137,10 @@ beforeAll(async () => {
     pluginEvaluateReadmeSkillUrl,
     "utf8",
   ).catch(() => "");
-  pluginAskStrategySkillText = await readFile(pluginAskStrategySkillUrl, "utf8").catch(
-    () => "",
-  );
+  pluginAskStrategySkillText = await readFile(
+    pluginAskStrategySkillUrl,
+    "utf8",
+  ).catch(() => "");
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
   pluginModule = (await import(
