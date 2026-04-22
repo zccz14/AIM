@@ -8,46 +8,15 @@ on:
 
 jobs:
   quality:
-    name: Quality gates
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup workspace
-        uses: ./.github/actions/setup-node-pnpm
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Package-local tests
-        run: pnpm run test:repo && pnpm --filter=!@aim-ai/web -r --workspace-concurrency=1 --if-present run test
-
-      - name: Build
-        run: pnpm build
-
-      - name: Verify OpenAPI baseline
-        run: pnpm openapi:check
-
-      - name: Validate changeset policy for releaseable packages
-        run: pnpm changeset:check
-
-      - name: CLI smoke
-        run: pnpm smoke
-
-  playwright:
-    name: Playwright
+    name: Test gate
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup workspace
         uses: ./.github/actions/setup-node-pnpm
@@ -66,5 +35,5 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium firefox
 
-      - name: Run Playwright suite
-        run: pnpm test:web
+      - name: Run root test gate
+        run: pnpm test
