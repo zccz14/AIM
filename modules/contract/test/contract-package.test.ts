@@ -160,12 +160,10 @@ describe("contract package baseline", () => {
       "pnpm -r --if-present run test:web",
     );
     expect(rootPackage.scripts.test).toBe(
-      "pnpm run test:repo && pnpm -r --workspace-concurrency=1 --if-present run test",
+      "pnpm run test:type && pnpm run test:lint && pnpm run test:repo && pnpm -r --workspace-concurrency=1 --if-present run test && pnpm run build && pnpm run openapi:check && pnpm run changeset:check",
     );
     expect(rootPackage.scripts.smoke).toBe("pnpm run test:smoke");
-    expect(rootPackage.scripts.validate).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm run test && pnpm run build && pnpm run openapi:check",
-    );
+    expect(rootPackage.scripts.validate).toBe("pnpm run test");
     expect(rootPackage.scripts).not.toHaveProperty("test:unit");
     expect(rootPackage.scripts).not.toHaveProperty("test:integration");
     expect(rootPackage.scripts).not.toHaveProperty("test:e2e");
@@ -177,14 +175,14 @@ describe("contract package baseline", () => {
     expect(playwrightConfigSource).toContain('name: "firefox"');
   });
 
-  it("keeps CI wired to the package-local test entrypoints", () => {
-    expect(ciWorkflowSource).toContain("run: pnpm run test:repo");
+  it("keeps CI wired to the root test entrypoint with CI-only setup", () => {
+    expect(ciWorkflowSource).toContain("run: pnpm test");
     expect(ciWorkflowSource).toContain(
-      "pnpm --filter=!@aim-ai/web -r --workspace-concurrency=1 --if-present run test",
+      "run: pnpm exec playwright install-deps chromium firefox",
     );
-    expect(ciWorkflowSource).toContain("run: pnpm smoke");
-    expect(ciWorkflowSource).toContain("run: pnpm test:web");
-    expect(ciWorkflowSource).not.toContain("run: pnpm test\n");
+    expect(ciWorkflowSource).toContain(
+      "run: pnpm exec playwright install chromium firefox",
+    );
     expect(ciWorkflowSource).not.toContain(
       "pnpm test:unit && pnpm test:integration",
     );

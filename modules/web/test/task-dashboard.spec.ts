@@ -269,7 +269,9 @@ test("opens and closes the create task drawer from the dashboard header", async 
   await expect(page.getByLabel("Project Path")).toHaveValue("");
 });
 
-test("submits task_spec and project_path to the existing task API", async ({ page }) => {
+test("submits task_spec and project_path to the existing task API", async ({
+  page,
+}) => {
   let createRequestBodyText: null | string = null;
 
   await page.route("**/tasks", async (route) => {
