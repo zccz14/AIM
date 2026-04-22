@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
@@ -46,7 +47,6 @@ jobs:
   version-or-prepare-release:
     name: Version PR / release prep
     needs: release-check
-    if: needs.release-check.outputs.has_changesets == '1'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -57,11 +57,19 @@ jobs:
       - name: Setup workspace
         uses: ./.github/actions/setup-node-pnpm
 
+      - name: Configure npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
       - name: Create or update version PR
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
+          publish: pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance
           commit: "chore: version packages"
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
