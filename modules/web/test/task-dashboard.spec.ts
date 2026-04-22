@@ -216,7 +216,7 @@ test("refreshes the dashboard without clearing the current task filter", async (
   );
 });
 
-test("opens the shared task drawer from overview and table", async ({
+test("opens the task details page from overview and table", async ({
   page,
 }) => {
   await page.goto("/");
@@ -225,44 +225,41 @@ test("opens the shared task drawer from overview and table", async ({
     .getByRole("button", { name: /stub task spec/i })
     .first()
     .click();
-  await expect(
-    page.getByRole("dialog", { name: "Task Details" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/task-123$/);
   await expect(page.getByText("Contract Status")).toBeVisible();
 
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Back to Dashboard" }).click();
+  await expect(page).toHaveURL(/\/$/);
   await page.getByRole("row", { name: /stub task spec/i }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Task Details" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/task-123$/);
 });
 
-test("opens and closes the create task drawer from the dashboard header", async ({
+test("opens and closes the create task page from the dashboard header", async ({
   page,
 }) => {
   await page.goto("/");
 
-  const headerCreateTaskButton = page
-    .getByRole("button", { name: "Create Task" })
-    .first();
+  const headerCreateTaskButton = page.getByRole("button", {
+    name: "Create Task",
+  });
 
   await headerCreateTaskButton.click();
 
-  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(
+    page.getByRole("heading", { name: "Create Task" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Task Spec")).toBeVisible();
   await expect(page.getByLabel("Project Path")).toBeVisible();
-  await expect(headerCreateTaskButton).toBeDisabled();
 
   await page.getByLabel("Task Spec").fill("Draft task spec");
   await expect(
-    page.getByRole("button", { name: "Create Task" }).nth(1),
+    page.getByRole("button", { name: "Create Task" }),
   ).toBeDisabled();
   await page.getByLabel("Project Path").fill("/repo/dashboard");
 
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
-    0,
-  );
+  await expect(page).toHaveURL(/\/$/);
 
   await headerCreateTaskButton.click();
   await expect(page.getByLabel("Task Spec")).toHaveValue("");
@@ -299,9 +296,10 @@ test("submits task_spec and project_path to the existing task API", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+  await page.getByRole("button", { name: "Create Task" }).click();
 
   await expect
     .poll(() => createRequestBodyText)
@@ -344,19 +342,22 @@ test("shows a local create error when the task API rejects the request", async (
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+  await page.getByRole("button", { name: "Create Task" }).click();
 
-  const createTaskDialog = page.getByRole("dialog", { name: "Create Task" });
-  await expect(createTaskDialog).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Back to Dashboard" }),
+  ).toBeDisabled();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
 
   await page.keyboard.press("Escape");
-  await expect(createTaskDialog).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
 
   await page.mouse.click(8, 8);
-  await expect(createTaskDialog).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
 
   if (finishCreateRequest === null) {
     throw new Error("Expected the create request to be pending");
@@ -367,10 +368,12 @@ test("shows a local create error when the task API rejects the request", async (
   await expect(
     page.getByText("Task creation failed: task_spec cannot be blank"),
   ).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Create Task" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Create Task" }),
+  ).toBeVisible();
 });
 
-test("closes the create drawer, refreshes the dashboard, and opens the new task details", async ({
+test("navigates from create page to task details after refresh", async ({
   page,
 }) => {
   let listRequestCount = 0;
@@ -423,17 +426,12 @@ test("closes the create drawer, refreshes the dashboard, and opens the new task 
     .getByLabel("Task Spec")
     .fill("Create release checklist\n- draft notes\n- notify team");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+  await page.getByRole("button", { name: "Create Task" }).click();
 
-  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
-    0,
-  );
-  await expect(
-    page.getByRole("dialog", { name: "Task Details" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/task-created$/);
   await expect(page.getByText("Task ID: task-created")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Create release checklist" }),
+    page.getByRole("heading", { level: 2, name: "Create release checklist" }),
   ).toBeVisible();
   await expect(
     page.getByText(
@@ -441,6 +439,7 @@ test("closes the create drawer, refreshes the dashboard, and opens the new task 
     ),
   ).toBeVisible();
   await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
+  await page.getByRole("button", { name: "Back to Dashboard" }).click();
   await expect(
     page.getByRole("row", { name: /Create release checklist/i }),
   ).toBeVisible();
@@ -500,17 +499,12 @@ test("opens created task details from the create response when the dashboard ref
     .getByLabel("Task Spec")
     .fill("Fallback task title\n- still visible after refresh failure");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).nth(1).click();
+  await page.getByRole("button", { name: "Create Task" }).click();
 
-  await expect(page.getByRole("dialog", { name: "Create Task" })).toHaveCount(
-    0,
-  );
-  await expect(
-    page.getByRole("dialog", { name: "Task Details" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/task-created$/);
   await expect(page.getByText("Task ID: task-created")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Fallback task title" }),
+    page.getByRole("heading", { level: 2, name: "Fallback task title" }),
   ).toBeVisible();
   await expect(
     page.getByText(
@@ -548,7 +542,7 @@ test("uses the first task_spec line as the task title while keeping the full bod
   await page.getByRole("row", { name: /Summary title/i }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Summary title" }),
+    page.getByRole("heading", { level: 2, name: "Summary title" }),
   ).toBeVisible();
   await expect(
     page.getByText(
@@ -699,7 +693,7 @@ test("lays out branching dependencies by depth across multiple columns", async (
   expect(frontendBox.x).toBeLessThan(releaseBox.x);
 });
 
-test("opens the shared task drawer from a graph node", async ({ page }) => {
+test("opens the task details page from a graph node", async ({ page }) => {
   await page.route("**/tasks", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -723,9 +717,7 @@ test("opens the shared task drawer from a graph node", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("graph-node-task-123").click();
 
-  await expect(
-    page.getByRole("dialog", { name: "Task Details" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/tasks\/task-123$/);
   await expect(page.getByText("Task ID: task-123")).toBeVisible();
 });
 

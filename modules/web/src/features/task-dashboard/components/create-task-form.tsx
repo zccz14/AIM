@@ -1,54 +1,36 @@
 import {
   Alert,
   Button,
-  Drawer,
+  Card,
   Group,
   Stack,
   Textarea,
   TextInput,
 } from "@mantine/core";
 import { AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-export const CreateTaskDrawer = ({
+export const CreateTaskForm = ({
   errorMessage,
   isSubmitting,
-  onClose,
+  onCancel,
   onSubmit,
-  opened,
 }: {
   errorMessage: string | null;
   isSubmitting: boolean;
-  onClose: () => void;
+  onCancel: () => void;
   onSubmit: (input: {
     projectPath: string;
     taskSpec: string;
   }) => Promise<unknown> | unknown;
-  opened: boolean;
 }) => {
   const [projectPath, setProjectPath] = useState("");
   const [taskSpec, setTaskSpec] = useState("");
   const trimmedProjectPath = projectPath.trim();
   const trimmedTaskSpec = taskSpec.trim();
 
-  useEffect(() => {
-    if (!opened) {
-      setProjectPath("");
-      setTaskSpec("");
-    }
-  }, [opened]);
-
   return (
-    <Drawer
-      closeButtonProps={{ "aria-label": "Close", disabled: isSubmitting }}
-      closeOnClickOutside={!isSubmitting}
-      closeOnEscape={!isSubmitting}
-      onClose={onClose}
-      opened={opened}
-      position="right"
-      size="md"
-      title="Create Task"
-    >
+    <Card maw={720} padding="xl" radius="md" withBorder>
       <Stack gap="md">
         {errorMessage ? (
           <Alert color="red" icon={<AlertCircle size={16} />}>
@@ -58,7 +40,7 @@ export const CreateTaskDrawer = ({
         <Textarea
           autosize
           label="Task Spec"
-          minRows={8}
+          minRows={10}
           onChange={(event) => setTaskSpec(event.currentTarget.value)}
           placeholder="Describe the task to create"
           value={taskSpec}
@@ -70,7 +52,7 @@ export const CreateTaskDrawer = ({
           value={projectPath}
         />
         <Group justify="flex-end">
-          <Button disabled={isSubmitting} onClick={onClose} variant="default">
+          <Button disabled={isSubmitting} onClick={onCancel} variant="default">
             Cancel
           </Button>
           <Button
@@ -87,6 +69,6 @@ export const CreateTaskDrawer = ({
           </Button>
         </Group>
       </Stack>
-    </Drawer>
+    </Card>
   );
 };

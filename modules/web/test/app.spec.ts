@@ -119,17 +119,18 @@ test("keeps task creation inside the dashboard shell", async () => {
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
     "utf8",
   );
-  const createDrawerSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-drawer.tsx`,
+  const createTaskFormSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-form.tsx`,
     "utf8",
   );
 
   expect(dashboardPageSource).toContain("Create Task");
-  expect(dashboardPageSource).toContain("<CreateTaskDrawer");
+  expect(dashboardPageSource).toContain("<CreateTaskForm");
+  expect(dashboardPageSource).toContain('kind: "create"');
   expect(dashboardPageSource).not.toContain("react-router");
-  expect(createDrawerSource).toContain('label="Task Spec"');
-  expect(createDrawerSource).toContain('label="Project Path"');
-  expect(createDrawerSource).not.toContain('label="Title"');
+  expect(createTaskFormSource).toContain('label="Task Spec"');
+  expect(createTaskFormSource).toContain('label="Project Path"');
+  expect(createTaskFormSource).not.toContain('label="Title"');
 });
 
 test("routes task creation through feature-local api and mutation helpers", async () => {
