@@ -1,7 +1,7 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
-import { buildContinuePrompt } from "./task-continue-prompt.js";
+import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
 import type {
   TaskSessionCoordinator,
@@ -111,7 +111,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       await options.coordinator.sendContinuePrompt(
         sessionId,
-        buildContinuePrompt(latestTask),
+        buildTaskSessionPrompt(latestTask),
       );
 
       logger.info(buildTaskLogFields("task_session_continued", latestTask));

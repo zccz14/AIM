@@ -37,9 +37,7 @@ export const createOpenCodeSdkAdapter = (
             modelID: config.modelId,
             providerID: config.providerId,
           },
-          parts: [
-            { text: buildTaskSessionPrompt("start", task), type: "text" },
-          ],
+          parts: [{ text: buildTaskSessionPrompt(task), type: "text" }],
         },
         path: { id: session.data.id },
         throwOnError: true,

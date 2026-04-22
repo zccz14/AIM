@@ -4,10 +4,7 @@ import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  buildContinuePrompt,
-  buildTaskSessionPrompt,
-} from "../src/task-continue-prompt.js";
+import { buildTaskSessionPrompt } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
 
 const createCoordinator = () => ({
@@ -192,7 +189,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
       expect.stringContaining(
-        `If you need to read or verify the task spec, use GET /tasks/${task.task_id}/spec.`,
+        `Read the task spec by GET /tasks/${task.task_id}/spec.`,
       ),
     );
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
@@ -242,7 +239,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "session-1",
       expect.stringContaining(
-        `If you need to read or verify the task spec, use GET /tasks/${task.task_id}/spec.`,
+        `Read the task spec by GET /tasks/${task.task_id}/spec.`,
       ),
     );
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
@@ -632,7 +629,7 @@ describe("task scheduler", () => {
   });
 
   it("continue prompt contains task metadata and API-based spec lookup instructions", () => {
-    const prompt = buildContinuePrompt(
+    const prompt = buildTaskSessionPrompt(
       createTask({
         project_path: "/repo",
         pull_request_url: "https://example.test/pr/123",
@@ -643,22 +640,19 @@ describe("task scheduler", () => {
     );
 
     expect(prompt).toContain("task_id: task-1");
-    expect(prompt).toContain(
-      "If you need to read or verify the task spec, use GET /tasks/task-1/spec.",
-    );
+    expect(prompt).toContain("Read the task spec by GET /tasks/task-1/spec.");
     expect(prompt).toContain("status: running");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
     expect(prompt).toContain("session_id: session-1");
     expect(prompt).toContain(
-      "Don't Ask My Any Questions. Just Follow your Recommendations and Continue.",
+      "DON'T ASK ME ANY QUESTIONS. Just Follow your Recommendations and Continue. I agree with all your actions.",
     );
     expect(prompt).toContain(
-      "I agree all recommendations and decisions should be made based on the above context.",
+      "FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.",
     );
-    expect(prompt).toContain("Follow the aim-task-lifecycle SKILL.");
     expect(prompt).toContain(
-      "This task should finally use resolve or reject to report its completion or failure.",
+      "Remember the task's final status is neither 'resolved' nor 'rejected'.",
     );
     expect(prompt).not.toContain("task_spec:");
     expect(prompt).not.toContain("task_spec_file:");
@@ -673,7 +667,6 @@ describe("task scheduler", () => {
 
   it("start prompt requires fetching the task spec over the API before starting work", () => {
     const prompt = buildTaskSessionPrompt(
-      "start",
       createTask({
         project_path: "/repo",
         session_id: "session-1",
@@ -681,9 +674,7 @@ describe("task scheduler", () => {
       }),
     );
 
-    expect(prompt).toContain(
-      "Before starting work, fetch the task spec from GET /tasks/task-1/spec.",
-    );
+    expect(prompt).toContain("Read the task spec by GET /tasks/task-1/spec.");
     expect(prompt).not.toContain("task_spec:");
     expect(prompt).not.toContain("task_spec_file:");
   });
