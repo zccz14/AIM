@@ -14,6 +14,15 @@ import {
 const defaultPort = 8192;
 const defaultSchedulerIntervalMs = 5_000;
 const defaultOpencodeBaseUrl = "http://localhost:4096";
+const parsedSessionIdleFallbackTimeoutMs = Number.parseInt(
+  process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS ?? "",
+  10,
+);
+const sessionIdleFallbackTimeoutMs = Number.isNaN(
+  parsedSessionIdleFallbackTimeoutMs,
+)
+  ? undefined
+  : parsedSessionIdleFallbackTimeoutMs;
 const parsedPort = Number.parseInt(process.env.PORT ?? `${defaultPort}`, 10);
 const port = Number.isNaN(parsedPort) ? defaultPort : parsedPort;
 const parsedSchedulerIntervalMs = Number.parseInt(
@@ -48,6 +57,7 @@ export const startServer = () => {
       baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
       modelId: readRequiredEnv("OPENCODE_MODEL_ID"),
       providerId: readRequiredEnv("OPENCODE_PROVIDER_ID"),
+      sessionIdleFallbackTimeoutMs,
     };
     const taskRepository = createTaskRepository({
       projectRoot: process.env.AIM_PROJECT_ROOT,

@@ -52,7 +52,10 @@ export const createOpenCodeSdkAdapter = (
         throwOnError: true,
       });
 
-      return classifySessionMessageState(response.data);
+      return classifySessionMessageState(response.data, {
+        idleFallbackTimeoutMs: config.sessionIdleFallbackTimeoutMs,
+        nowMs: Date.now(),
+      });
     },
     async sendPrompt(sessionId, prompt) {
       await client.session.promptAsync({
