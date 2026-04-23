@@ -36,6 +36,7 @@ describe("server startup", () => {
     delete process.env.OPENCODE_BASE_URL;
     delete process.env.OPENCODE_MODEL_ID;
     delete process.env.OPENCODE_PROVIDER_ID;
+    delete process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS;
     delete process.env.TASK_SCHEDULER_ENABLED;
     vi.resetModules();
     vi.clearAllMocks();
@@ -46,6 +47,7 @@ describe("server startup", () => {
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
     process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
     process.env.OPENCODE_PROVIDER_ID = "anthropic";
+    process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS = "60000";
 
     const server = {
       close: vi.fn(),
@@ -70,6 +72,7 @@ describe("server startup", () => {
       baseUrl: "http://127.0.0.1:54321",
       modelId: "claude-sonnet-4-5",
       providerId: "anthropic",
+      sessionIdleFallbackTimeoutMs: 60000,
     });
   });
 
@@ -99,6 +102,7 @@ describe("server startup", () => {
       baseUrl: "http://localhost:4096",
       modelId: "claude-sonnet-4-5",
       providerId: "anthropic",
+      sessionIdleFallbackTimeoutMs: undefined,
     });
   });
 

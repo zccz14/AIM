@@ -46,6 +46,89 @@ describe("session message state classifier", () => {
     expect(classifySessionMessageState([createAssistantRecord()])).toBe("idle");
   });
 
+  it("returns running for an incomplete assistant message before the fallback threshold", () => {
+    expect(
+      classifySessionMessageState(
+        [
+          {
+            ...createAssistantRecord({
+              finish: undefined,
+              time: { created: 1_000 },
+            }),
+            parts: [],
+          },
+        ],
+        { idleFallbackTimeoutMs: 500, nowMs: 1_500 },
+      ),
+    ).toBe("running");
+  });
+
+  it("returns idle for an incomplete assistant message after the fallback threshold", () => {
+    expect(
+      classifySessionMessageState(
+        [
+          {
+            ...createAssistantRecord({
+              finish: undefined,
+              time: { created: 1_000 },
+            }),
+            parts: [],
+          },
+        ],
+        { idleFallbackTimeoutMs: 500, nowMs: 1_501 },
+      ),
+    ).toBe("idle");
+  });
+
+  it("returns running for incomplete assistant messages when created time is missing or invalid", () => {
+    expect(
+      classifySessionMessageState(
+        [
+          {
+            ...createAssistantRecord({
+              finish: undefined,
+              time: {},
+            }),
+            parts: [],
+          },
+        ],
+        { idleFallbackTimeoutMs: 500, nowMs: 10_000 },
+      ),
+    ).toBe("running");
+
+    expect(
+      classifySessionMessageState(
+        [
+          {
+            ...createAssistantRecord({
+              finish: undefined,
+              time: { created: "bad" },
+            }),
+            parts: [],
+          },
+        ],
+        { idleFallbackTimeoutMs: 500, nowMs: 10_000 },
+      ),
+    ).toBe("running");
+  });
+
+  it("continues exposing only idle and running states when fallback applies", () => {
+    expect(["idle", "running"]).toContain(
+      classifySessionMessageState(
+        [
+          {
+            ...createAssistantRecord({
+              finish: undefined,
+              time: { created: 1_000 },
+            }),
+            parts: [],
+          },
+        ],
+        { idleFallbackTimeoutMs: 500, nowMs: 1_501 },
+      ),
+    );
+  });
+
   it("returns running when no assistant message exists", () => {
     expect(
       classifySessionMessageState([

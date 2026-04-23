@@ -8,6 +8,7 @@ export type TaskSessionCoordinatorConfig = {
   baseUrl: string;
   modelId: string;
   providerId: string;
+  sessionIdleFallbackTimeoutMs?: number;
 };
 
 type TaskSessionRecord = {

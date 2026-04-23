@@ -12,6 +12,11 @@ type SessionMessageRecord = {
   parts?: unknown;
 };
 
+type SessionMessageStateOptions = {
+  idleFallbackTimeoutMs?: number;
+  nowMs?: number;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
@@ -112,8 +117,34 @@ const hasExplicitAssistantCompletion = (record: SessionMessageRecord) => {
   );
 };
 
+const hasTimedOutIncompleteAssistantMessage = (
+  record: SessionMessageRecord,
+  options: SessionMessageStateOptions,
+) => {
+  const { idleFallbackTimeoutMs, nowMs } = options;
+
+  if (
+    typeof idleFallbackTimeoutMs !== "number" ||
+    !Number.isFinite(idleFallbackTimeoutMs) ||
+    idleFallbackTimeoutMs < 0 ||
+    typeof nowMs !== "number" ||
+    !Number.isFinite(nowMs)
+  ) {
+    return false;
+  }
+
+  const created = getCreatedTime(record);
+
+  if (created === undefined) {
+    return false;
+  }
+
+  return nowMs - created > idleFallbackTimeoutMs;
+};
+
 export const classifySessionMessageState = (
   records: unknown,
+  options: SessionMessageStateOptions = {},
 ): TaskSessionState => {
   if (!Array.isArray(records)) {
     return "running";
@@ -136,5 +167,8 @@ export const classifySessionMessageState = (
     return "running";
   }
 
-  return hasExplicitAssistantCompletion(assistantRecord) ? "idle" : "running";
+  return hasExplicitAssistantCompletion(assistantRecord) ||
+    hasTimedOutIncompleteAssistantMessage(assistantRecord, options)
+    ? "idle"
+    : "running";
 };
