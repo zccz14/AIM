@@ -26,8 +26,8 @@ jobs:
         with:
           install-playwright: "true"
 
-      - name: Run pre-release checks
-        run: pnpm release:check
+      - name: Run root build contract
+        run: pnpm build
 
       - name: Detect pending changesets
         id: detect
@@ -67,7 +67,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
-          publish: pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance
+          publish: pnpm build && pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance
           commit: "chore: version packages"
           title: "chore: version packages"
         env:

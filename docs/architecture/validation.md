@@ -62,9 +62,9 @@
 
 ### `pnpm release:check`
 
-- 目的：在发版前串联 typecheck、lint、test、build、OpenAPI 校验与 CLI smoke。
-- 预期结果：整条链路退出码为 0。
-- 失败先看：先回到其子命令中的第一个失败项，不要直接在 release 聚合命令表面做猜测性修复。
+- 目的：显式复用仓库根 `pnpm build` 作为发版前统一入口。
+- 预期结果：命令等价于 `pnpm build`，并完成 workspace build 与 repo-only test 校验。
+- 失败先看：先回到 `pnpm build` 链路中的第一个失败项，不要直接在 release 聚合命令表面做猜测性修复。
 
 ## 文档自检
 
