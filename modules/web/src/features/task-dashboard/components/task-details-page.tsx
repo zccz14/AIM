@@ -1,4 +1,14 @@
-import { Anchor, Card, Group, Stack, Text, Title } from "@mantine/core";
+import {
+  Anchor,
+  Card,
+  Group,
+  Stack,
+  Text,
+  Title,
+  TypographyStylesProvider,
+} from "@mantine/core";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
@@ -30,9 +40,16 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
             </div>
             <TaskStatusBadge status={task.dashboardStatus} />
           </Group>
-          <Text style={{ whiteSpace: "pre-wrap" }}>
-            Task Spec: {task.taskSpec}
-          </Text>
+          <div>
+            <Text c="dimmed" size="sm">
+              Task Spec
+            </Text>
+            <TypographyStylesProvider>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {task.taskSpec}
+              </ReactMarkdown>
+            </TypographyStylesProvider>
+          </div>
         </Stack>
         <Text>Project Path: {task.projectPath}</Text>
         <Text>Task ID: {task.id}</Text>
