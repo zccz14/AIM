@@ -1,6 +1,6 @@
 ---
 name: using-aim
-description: Use when starting AIM-related work to decide whether another AIM skill applies and load it before any response or action.
+description: Use when starting AIM-related work to decide whether ask-strategy, task creation, README evaluation, spec verification, developer execution, or repo setup guidance applies before any response or action.
 ---
 
 # using-aim
@@ -41,7 +41,7 @@ Use this skill when a request may involve AIM-specific workflow guidance and you
 Typical triggers:
 
 - The user wants to create a new AIM Task from stabilized intent.
-- The user first needs 问策 / 定策: compare viable directions, see an initial 上中下三策 recommendation set, and recursively narrow one strategy until the next action is clear.
+- The user first needs a pre-execution strategy entry because the next action is not yet clear: choose a direction, explore an open question, do creative/design exploration, or answer a route-changing clarification before execution.
 - The user wants to judge the gap between README claims and the latest `origin/main` baseline, then emit direction signals without creating tasks or deciding execution.
 - The user wants to validate whether a Task Spec is still actionable on the latest baseline.
 - The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
@@ -65,7 +65,7 @@ The skill check comes first. Do not postpone it until after gathering a little m
 
 Load the matching skill before acting when the request falls into one of these buckets:
 
-- `aim-ask-strategy`: read README first, give 上中下三策 with an initial recommendation, and recursively refine one chosen strategy until the next action is clear.
+- `aim-ask-strategy`: use as the broad pre-execution entry when the next action is not yet clear; read README first, then frame direction choices, open questions, creative/design exploration, or route-changing clarifications into an initial 上中下三策 recommendation and refine until execution is clear.
 - `aim-create-tasks`: turn approved user intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
 - `aim-evaluate-readme`: evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
 - `aim-verify-task-spec`: validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
