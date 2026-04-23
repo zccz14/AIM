@@ -129,7 +129,7 @@ describe("opencode sdk adapter", () => {
       "Read the task spec by GET /tasks/task-1/spec.",
     );
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
-      "FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.",
+      "FOLLOW the aim-developer-guide SKILL and finish the task assigned to you by AIM Coordinator.",
     );
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
       "DON'T ASK ME ANY QUESTIONS. Just Follow your Recommendations and Continue. I agree with all your actions.",
