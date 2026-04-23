@@ -328,8 +328,8 @@ describe("opencode plugin package baseline", () => {
       "utf8",
     );
 
-    expect(usingAimSkillText).toContain("pre-execution strategy entry");
-    expect(usingAimSkillText).toContain("creative/design exploration");
+    expect(usingAimSkillText).toContain("front-door routing step");
+    expect(usingAimSkillText).toContain("creative or design exploration");
     expect(usingAimSkillText).toContain("上中下三策");
     expect(usingAimSkillText).toContain("aim-ask-strategy");
     expect(usingAimSkillText).toContain("broader front-door router");
