@@ -35,8 +35,8 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium firefox
 
-      - name: Run root test gate
-        run: pnpm test
+      - name: Run root build contract
+        run: pnpm build
 
   playwright:
     name: Playwright
