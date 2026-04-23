@@ -11,7 +11,7 @@
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/web/package.json modules/web/src modules/web/test",
-    "test:web": "pnpm --dir ../.. exec playwright test --config playwright.config.ts",
+    "test:web": "pnpm --dir ../.. --filter @aim-ai/contract run build && pnpm --dir ../.. exec playwright test --config playwright.config.ts",
     "test": "pnpm run test:type && pnpm run test:lint && pnpm run test:web"
   },
   "dependencies": {

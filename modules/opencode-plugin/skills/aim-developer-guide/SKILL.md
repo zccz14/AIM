@@ -7,7 +7,7 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 当你是 AIM Developer，且当前工作对应一个已存在的 AIM Task 时，必须先使用此技能。
 
-此技能是 AIM Developer 处理既有 Task 的强制入口指南，用于把以下动作串成单一闭环：AIM developer guide 明确纪律。
+此技能是 AIM Developer 处理既有 Task 的强制入口指南，用于把以下动作串成单一闭环：
 
 1. 通过 `task_id` 从 AIM Server 读取任务与 Spec。
 2. 先对最新基线做只读验证，再决定是否进入执行。
@@ -154,15 +154,11 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 ## API 调用规则
 
-- 只能使用 PATCH 来更新已存在 Task 的非终态事实。
 - 非终态事实上报只使用 `PATCH /tasks/${task_id}`。
 - `PATCH` 只发送受支持且已知的字段：`status`、`worktree_path`、`pull_request_url`。
 - 未知值必须省略，不能发送空字符串、伪造值或 `null` 占位。
-- 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。
 - 成功终态只能使用 `POST /tasks/${task_id}/resolve`。
 - 失败终态只能使用 `POST /tasks/${task_id}/reject`。
-- 只能使用 `POST /resolve` 上报 `succeeded` 终态结果，且只能使用 `POST /reject` 上报 `failed` 终态结果。
-- 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
 - 终态请求体必须且只能包含一个非空 `result` 字符串字段。
 - 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
 
@@ -211,14 +207,19 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject"
 
 ## 失败处理
 
-要把任务失败与上报失败区分开。
+必须严格区分“任务失败”和“链路失败”。
 
-- 任务失败：工作本身失败，因此应通过 `POST /tasks/${task_id}/reject` 发送带非空 `result` 的终态失败上报。
-- 上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
-- Task Spec 获取失败：`GET /tasks/${task_id}/spec` 因 404、网络、超时、连接、5xx、空响应或畸形响应等问题无法提供可用 Markdown。把它视为输入 / 上报链路阻塞，不要把这类情况转换成任务失败，也不要继续依赖本地文件推进。
+- 任务失败：例如 `aim-verify-task-spec` 判断 Spec 与最新基线失配，或执行过程中确认任务目标已无法按当前 Spec 成立。这时应 `POST /reject`。
+- Spec API 读取失败：例如 404、超时、连接失败、5xx、空响应、明显不是 Markdown 的畸形响应。这是 Spec 输入链路阻塞，不是任务失败。
+- AIM PATCH / resolve / reject 失败：例如网络、超时、连接、5xx 或意外响应。这是 AIM 上报链路阻塞，不是任务失败。
 
-对于单个 AIM 请求，最多尝试三次：首次请求加最多两次重试。可采用简短重试，例如先等 1 秒，再等 5 秒。如果服务端明确返回 4xx 输入错误，则停止重试，并暴露输入问题。
+对于单个 AIM 请求，最多尝试三次：首次请求加最多两次重试。可采用简短重试，例如等待 1 秒，再等待 5 秒。若服务端明确返回 4xx 输入错误，则停止重试并暴露输入问题。
 
-如果所有重试都失败，必须明确暴露 AIM 上报阻塞，并附带 task id、目标 URL、上报时点以及最终错误摘要。要说明业务事实可能已经发生，但 AIM 未被成功更新。重试耗尽后，不要声称该阶段已经同步。
+如果重试耗尽仍失败，必须明确暴露：
 
-如果 Task Spec API 无法返回可用 Markdown，也必须明确暴露 Spec 读取阻塞，并附带 task id、目标 URL 以及最终错误摘要。要说明当前阻塞的是 Spec 输入 / AIM 链路，而不是任务已被判定失败；在阻塞解除前，不要继续依赖猜测的 Spec 推进。
+- `task_id`
+- 目标 URL
+- 当前上报或读取时点
+- 最终错误摘要
+
+并明确说明：业务事实可能已经发生，但 AIM 尚未被成功更新；或者当前阻塞的是 Spec / AIM 链路，而不是任务本身已被判定失败。
