@@ -40,8 +40,11 @@ Use this skill when a request may involve AIM-specific workflow guidance and you
 
 Typical triggers:
 
+- The user needs a front-door routing step because the next AIM action is still unclear.
+- The user first needs 问策 / 定策: compare viable directions, see an initial 上中下三策 recommendation set, and recursively narrow one strategy until the next action is clear.
+- The user is converging on direction or priority and a clarification would change which path to take next.
+- The user wants creative or design exploration before execution is chosen.
 - The user wants to create a new AIM Task from stabilized intent.
-- The user first needs a pre-execution strategy entry because the next action is not yet clear: choose a direction, explore an open question, do creative/design exploration, or answer a route-changing clarification before execution.
 - The user wants to judge the gap between README claims and the latest `origin/main` baseline, then emit direction signals without creating tasks or deciding execution.
 - The user wants to validate whether a Task Spec is still actionable on the latest baseline.
 - The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
@@ -65,12 +68,12 @@ The skill check comes first. Do not postpone it until after gathering a little m
 
 Load the matching skill before acting when the request falls into one of these buckets:
 
-- `aim-ask-strategy`: use as the broad pre-execution entry when the next action is not yet clear; read README first, then frame direction choices, open questions, creative/design exploration, or route-changing clarifications into an initial 上中下三策 recommendation and refine until execution is clear.
-- `aim-create-tasks`: turn approved user intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
-- `aim-evaluate-readme`: evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
-- `aim-verify-task-spec`: validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
-- `aim-developer-guide`: guide execution for an existing AIM Task through worktree, PR, follow-up, and closing stages while reporting lifecycle facts back to AIM.
-- `aim-setup-github-repo`: verify or standardize GitHub merge settings, default-branch rulesets, required checks, or PR auto-merge behavior with `gh`.
+- `aim-ask-strategy`: use as the broader front-door router when the next action is still unclear, when direction or priority must converge, when creative/design exploration is needed before execution, or when a clarification would change the route. Do not route every missing detail here. If the missing detail would not change direction, priority, or next action, continue with the more direct workflow instead.
+- `aim-create-tasks`: direct entry when the user wants to turn stabilized, approved intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
+- `aim-evaluate-readme`: direct entry when the user wants to evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
+- `aim-verify-task-spec`: direct entry when the user wants to validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
+- `aim-developer-guide`: direct entry when the user needs execution guidance for an existing AIM Task through worktree, PR, follow-up, and closing stages while reporting lifecycle facts back to AIM.
+- `aim-setup-github-repo`: direct entry when the user wants to verify or standardize GitHub merge settings, default-branch rulesets, required checks, or PR auto-merge behavior with `gh`.
 
 If none of these apply, continue with the repo's normal instructions.
 
@@ -79,12 +82,12 @@ If none of these apply, continue with the repo's normal instructions.
 Before you respond or take action, run this checklist:
 
 1. Identify the real job to be done, not just the surface wording.
-2. Ask whether that job matches AIM ask-strategy, task creation, README gap evaluation, spec verification, AIM developer execution guidance, or GitHub repo setup.
+2. Ask whether that job needs front-door strategy routing first, or whether it is already a direct match for task creation, README gap evaluation, spec verification, AIM developer execution guidance, or GitHub repo setup.
 3. If the answer is yes, or even plausibly yes, load the corresponding AIM skill first.
 4. Re-read the user request and `AGENTS.md` in light of that skill's scope and boundaries.
 5. Only then respond or act.
 
-When the match is uncertain, prefer loading the potentially relevant AIM skill first. A short detour through the right skill is cheaper than executing the wrong workflow.
+When the match is uncertain, prefer loading the potentially relevant AIM skill first. A short detour through the right skill is cheaper than executing the wrong workflow. But do not treat every clarification as strategy work; route to `aim-ask-strategy` only when the answer could change the direction, priority, or immediate next action.
 
 ## Red Flags
 

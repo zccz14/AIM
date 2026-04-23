@@ -332,6 +332,26 @@ describe("opencode plugin package baseline", () => {
     expect(usingAimSkillText).toContain("creative/design exploration");
     expect(usingAimSkillText).toContain("上中下三策");
     expect(usingAimSkillText).toContain("aim-ask-strategy");
+    expect(usingAimSkillText).toContain("broader front-door router");
+    expect(usingAimSkillText).toContain("creative/design exploration");
+    expect(usingAimSkillText).toContain(
+      "If the missing detail would not change direction, priority, or next action, continue with the more direct workflow instead.",
+    );
+    expect(usingAimSkillText).toContain(
+      "direct entry when the user wants to turn stabilized, approved intent into candidate five-part AIM Task Specs",
+    );
+    expect(usingAimSkillText).toContain(
+      "direct entry when the user wants to evaluate README 与最新 `origin/main` 的差距",
+    );
+    expect(usingAimSkillText).toContain(
+      "direct entry when the user wants to validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.",
+    );
+    expect(usingAimSkillText).toContain(
+      "direct entry when the user needs execution guidance for an existing AIM Task through worktree, PR, follow-up, and closing stages",
+    );
+    expect(usingAimSkillText).toContain(
+      "direct entry when the user wants to verify or standardize GitHub merge settings",
+    );
   });
 
   it("documents aim-ask-strategy README-first recursive strategy workflow", () => {
