@@ -1,6 +1,6 @@
 ---
 name: using-aim
-description: Use when starting AIM-related work to decide whether another AIM skill applies and load it before any response or action.
+description: Use when starting AIM-related work to decide whether ask-strategy, task creation, README evaluation, spec verification, developer execution, or repo setup guidance applies before any response or action.
 ---
 
 # using-aim

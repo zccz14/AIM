@@ -1,6 +1,6 @@
 ---
 name: aim-ask-strategy
-description: 当需要在 AIM 语境下先读 README，再通过带初始推荐的上中下三策收敛执行前方向、设计或开放问题到清晰下一步动作时使用。
+description: 当 AIM 语境下还没有清晰下一步动作，需先读 README，并通过带初始推荐的上中下三策为方向选择、开放问题、creative/design 探索或会改变路线的关键澄清提供前置策略入口时使用。
 ---
 
 # aim-ask-strategy

@@ -297,10 +297,15 @@ describe("opencode plugin package baseline", () => {
 
   it("documents aim-ask-strategy as packaged documentation only", () => {
     expect(pluginSkillsReadme).toContain("aim-ask-strategy");
-    expect(pluginSkillsReadme).toContain("upper-middle-lower strategy set");
+    expect(pluginSkillsReadme).toContain(
+      "Broad AIM pre-execution strategy entry",
+    );
+    expect(pluginSkillsReadme).toContain("creative/design work");
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
 
     expect(pluginReadme).toContain("aim-ask-strategy");
+    expect(pluginReadme).toContain("broad pre-execution discovery entry");
+    expect(pluginReadme).toContain("direct workflow guides");
     expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
@@ -323,7 +328,8 @@ describe("opencode plugin package baseline", () => {
       "utf8",
     );
 
-    expect(usingAimSkillText).toContain("问策 / 定策");
+    expect(usingAimSkillText).toContain("front-door routing step");
+    expect(usingAimSkillText).toContain("creative or design exploration");
     expect(usingAimSkillText).toContain("上中下三策");
     expect(usingAimSkillText).toContain("aim-ask-strategy");
     expect(usingAimSkillText).toContain("broader front-door router");
@@ -366,6 +372,10 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginAskStrategySkillText).toContain("问策 / 定策");
     expect(pluginAskStrategySkillText).toContain("README");
+    expect(pluginAskStrategySkillText).toContain("方向选择");
+    expect(pluginAskStrategySkillText).toContain("开放问题");
+    expect(pluginAskStrategySkillText).toContain("creative/design 探索");
+    expect(pluginAskStrategySkillText).toContain("关键澄清");
     expect(pluginAskStrategySkillText).toContain("上策");
     expect(pluginAskStrategySkillText).toContain("中策");
     expect(pluginAskStrategySkillText).toContain("下策");
