@@ -183,12 +183,8 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 
 安装: `pnpm install`
 
-测试并构建: `pnpm build` 每个包的测试内置于构建流程中，构建流程成功即测试成功，不另外设立测试命令。
+测试并构建：`pnpm build`
 
-对于每个包来说，构建命令会先执行测试，如果测试失败则构建失败。测试通过后才会进行构建。
-所有的测试要内置于构建流程中。
-
-项目根目录的 repo 级别的构建语义：
-
-1. 按照依赖关系构建所有模块 `pnpm -r --if-present build`，如果某个模块的测试失败，则整个构建失败。
-2. 进行 repo 级别的集成测试，包括 changeset:check 和 test:smoke 之类的，不属于任何包的测试和构建。
+- 在 repo 根执行时，固定等价于 `pnpm -r --if-present build && pnpm test`：先完成各 workspace 包各自作用域内的“先测后构建”，再执行仅属于 repo 根的测试与校验。
+- 在任一 workspace 包内执行时，`pnpm build` 都表示先完成该包要求的测试与校验，再输出该包构建产物。
+- `pnpm test` 在 repo 根只代表 repo-only 校验；在各 workspace 包内只代表该包自己的测试与校验入口。

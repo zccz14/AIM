@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm exec vite",
-    "build": "pnpm exec vite build",
+    "build:dist": "pnpm exec vite build",
+    "build": "pnpm run test && pnpm run build:dist",
     "preview": "pnpm exec vite preview",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",

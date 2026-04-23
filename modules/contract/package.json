@@ -25,11 +25,12 @@
     "generate:zod": "mkdir -p ./generated && rm -f ./openapi/openapi.yaml.client.ts && pnpm exec openapi-zod-client ./openapi/openapi.yaml -o ./generated/zod.ts --template ./openapi/templates/schemas-only.hbs --export-schemas --strict-objects",
     "generate": "pnpm run generate:openapi && pnpm run generate:types && pnpm run generate:client && pnpm run generate:zod && pnpm exec biome format --write ./generated/openapi.ts ./generated/types.ts ./generated/_types",
     "generate:check": "pnpm run generate && git diff --exit-code -- generated openapi/openapi.yaml",
-    "build": "pnpm run generate && pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/contract/src/index.ts --out-dir modules/contract/dist",
+    "build:dist": "pnpm run generate && pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/contract/src/index.ts --out-dir modules/contract/dist",
+    "build": "pnpm run test && pnpm run build:dist",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/contract/package.json modules/contract/src modules/contract/test",
-    "test": "pnpm run build && pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
+    "test": "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.96.0",
