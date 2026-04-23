@@ -148,12 +148,13 @@ AIM Manager 的输出：
 - 与 OpenCode 的强 API 集成，用于执行任务。
 - 面向负责人视角的最小管理界面与可脚本化入口。
 
-## 近期路线图
+## 路线图
 
-- 落地独立 server、GUI、CLI 与 OpenAPI 入口，形成可部署的产品骨架。
-- 将调度状态从“能看见”推进到“能稳定闭环跟进”。
-- 强化任务失败反馈与上层重新规划接口，支持黑灯工厂式迭代。
-- 围绕基线推进增加更清晰的吞吐、阻塞与成功率观测能力。
+1. AIM 落地独立 server、GUI、CLI 与 OpenAPI 入口，形成可部署的产品骨架和部署文档。
+2. AIM Developer 能够稳定完成 AIM Task 定义的基线迭代闭环，且在失败时能提供清晰的反馈信息。
+3. AIM Coordinator 能够基于 AIM Manager 的评估结果和 Task Pool 的状态，合理规划和调整 Task Pool，最大化推进效率。
+4. AIM Manager 能够准确评估基线与目标状态的差距，确定迭代的方向，定义评估的坐标系，并为 AIM Coordinator 提供清晰、准确、可操作的评估结果。
+5. AIM GUI 能够清晰展示当前基线与目标状态之间的差距、迭代的进展、成功率、阻塞点等关键指标，并提供必要的交互功能来支持用户对 AIM Manager 输出的澄清和调整。
 
 ## 非目标
 
@@ -177,3 +178,17 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 - API 文档入口说明：[`docs/api/README.md`](docs/api/README.md)
 - 架构文档目录：[`docs/architecture/`](docs/architecture/)
 - CZ-Stack 起源说明：[`CZ-Stack.README.md`](CZ-Stack.README.md)
+
+## 安装、构建与测试
+
+安装: `pnpm install`
+
+测试并构建: `pnpm build` 每个包的测试内置于构建流程中，构建流程成功即测试成功，不另外设立测试命令。
+
+对于每个包来说，构建命令会先执行测试，如果测试失败则构建失败。测试通过后才会进行构建。
+所有的测试要内置于构建流程中。
+
+项目根目录的 repo 级别的构建语义：
+
+1. 按照依赖关系构建所有模块 `pnpm -r --if-present build`，如果某个模块的测试失败，则整个构建失败。
+2. 进行 repo 级别的集成测试，包括 changeset:check 和 test:smoke 之类的，不属于任何包的测试和构建。
