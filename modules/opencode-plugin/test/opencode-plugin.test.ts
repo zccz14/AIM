@@ -336,6 +336,10 @@ describe("opencode plugin package baseline", () => {
       "用户选中一策后，递归细化这一策",
       "下一步动作已经清楚时停止",
       "提问只服务于改变策略排序",
+      "开放式问题、方向选择题",
+      "创意、交互、产品、文档结构等设计工作",
+      "只有在答案会改变路线、推荐或排序时才值得问",
+      "aim-verify-task-spec",
     ]) {
       expect(pluginAskStrategySkillText).toContain(requiredFragment);
     }
