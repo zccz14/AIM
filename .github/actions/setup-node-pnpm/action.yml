@@ -1,6 +1,12 @@
 name: Setup Node.js and pnpm workspace
 description: Install pnpm, Node.js, and workspace dependencies.
 
+inputs:
+  install-playwright:
+    description: Install Playwright browsers and required system packages.
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -18,3 +24,8 @@ runs:
     - name: Install workspace dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
+
+    - name: Install Playwright browsers
+      if: ${{ inputs.install-playwright == 'true' }}
+      shell: bash
+      run: pnpm exec playwright install --with-deps chromium firefox
