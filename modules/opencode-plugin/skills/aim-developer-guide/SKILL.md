@@ -1,11 +1,11 @@
 ---
-name: aim-task-lifecycle
-description: Report AIM task lifecycle facts to an existing AIM Task during non-terminal PATCH updates and terminal resolve/reject reporting while a single task is advanced through worktree, PR, follow-up, and closing stages.
+name: aim-developer-guide
+description: Guide an AIM developer through the required task workflow while reporting task lifecycle facts to an existing AIM Task during non-terminal PATCH updates and terminal resolve/reject reporting.
 ---
 
 ## 何时使用
 
-当当前工作对应到一个已存在的 AIM Task，并且 agent 不仅要在生命周期事实发生时持续把这些事实同步回 AIM，还要把单个任务沿着 worktree、PR、follow-up 与 closing 阶段闭环推进时，使用此技能。
+当当前工作对应到一个已存在的 AIM Task，并且 agent 需要按仓库规则把单个任务沿着 worktree、PR、follow-up 与 closing 阶段闭环推进，同时在关键生命周期事实上报 AIM 时，使用此技能。
 
 不要用此技能来创建任务、绕过仓库 `AGENTS.md`，或把 AIM 上报误当成可替代实际执行流程的编排器。
 
@@ -16,7 +16,7 @@ description: Report AIM task lifecycle facts to an existing AIM Task during non-
 
 ## 角色与边界
 
-此技能描述的是“单个 AIM Task 的事实如何上报，以及该任务如何按仓库规则推进到真正完成”。它不改写仓库规则，只把这些规则映射到 AIM 生命周期状态。
+此技能描述的是“单个 AIM Task 应如何按仓库规则推进到真正完成，以及相关事实如何同步回 AIM”。它不改写仓库规则，只把这些规则映射到 AIM 生命周期状态。
 
 - 主 Agent 只负责：读取用户要求、判定是否进入开发流程、派发 Sub Agent、审核结果、维护任务上下文，并且只在主工作区执行仓库准备操作与只读检查。
 - 所有开发动作都必须由 Sub Agent 执行，包括 spec、implementation plan、代码、测试、验证、commit、push、PR、review 修复、merge 与清理动作。
@@ -216,7 +216,7 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject"
 - 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
 - 在后续非终态 PATCH 上报中，只要已知的 `worktree_path` 和 `pull_request_url` 仍然成立，就继续携带它们。
 - 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
-- 这个技能是一种“上报纪律 + 生命周期映射”，不是授权主 Agent 直接执行开发动作的例外。
+- 这个技能是一份 AIM developer guide，包含“上报纪律 + 生命周期映射”，不是授权主 Agent 直接执行开发动作的例外。
 
 ## 失败处理
 

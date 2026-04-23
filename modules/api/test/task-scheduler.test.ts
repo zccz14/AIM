@@ -649,7 +649,7 @@ describe("task scheduler", () => {
       "DON'T ASK ME ANY QUESTIONS. Just Follow your Recommendations and Continue. I agree with all your actions.",
     );
     expect(prompt).toContain(
-      "FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.",
+      "FOLLOW the aim-developer-guide SKILL and finish the task assigned to you by AIM Coordinator.",
     );
     expect(prompt).toContain(
       "Remember the task's final status is either 'resolved' or 'rejected'.",

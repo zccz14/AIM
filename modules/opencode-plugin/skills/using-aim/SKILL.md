@@ -69,7 +69,7 @@ Load the matching skill before acting when the request falls into one of these b
 - `aim-create-tasks`: turn approved user intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
 - `aim-evaluate-readme`: evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
 - `aim-verify-task-spec`: validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
-- `aim-task-lifecycle`: report lifecycle facts for an existing AIM Task while the task is advanced through worktree, PR, follow-up, and closing stages.
+- `aim-developer-guide`: guide execution for an existing AIM Task through worktree, PR, follow-up, and closing stages while reporting lifecycle facts back to AIM.
 - `aim-setup-github-repo`: verify or standardize GitHub merge settings, default-branch rulesets, required checks, or PR auto-merge behavior with `gh`.
 
 If none of these apply, continue with the repo's normal instructions.
@@ -79,7 +79,7 @@ If none of these apply, continue with the repo's normal instructions.
 Before you respond or take action, run this checklist:
 
 1. Identify the real job to be done, not just the surface wording.
-2. Ask whether that job matches AIM ask-strategy, task creation, README gap evaluation, spec verification, lifecycle reporting, or GitHub repo setup.
+2. Ask whether that job matches AIM ask-strategy, task creation, README gap evaluation, spec verification, AIM developer execution guidance, or GitHub repo setup.
 3. If the answer is yes, or even plausibly yes, load the corresponding AIM skill first.
 4. Re-read the user request and `AGENTS.md` in light of that skill's scope and boundaries.
 5. Only then respond or act.

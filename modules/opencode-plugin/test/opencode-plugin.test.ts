@@ -13,8 +13,8 @@ const pluginSkillPlaceholderUrl = new URL(
   "../skills/aim-placeholder/SKILL.md",
   import.meta.url,
 );
-const pluginLifecycleSkillUrl = new URL(
-  "../skills/aim-task-lifecycle/SKILL.md",
+const pluginDeveloperGuideSkillUrl = new URL(
+  "../skills/aim-developer-guide/SKILL.md",
   import.meta.url,
 );
 const pluginCreateTasksSkillUrl = new URL(
@@ -56,7 +56,7 @@ type ConfigWithSkills = Config & {
 let pluginPackage: PluginPackageManifest;
 let pluginModule: { default: { id?: string; server: unknown } };
 let pluginSource: string;
-let pluginLifecycleSkillText: string;
+let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
@@ -124,7 +124,10 @@ beforeAll(async () => {
     await readFile(pluginPackageUrl, "utf8"),
   ) as PluginPackageManifest;
   pluginSource = await readFile(pluginSourceUrl, "utf8");
-  pluginLifecycleSkillText = await readFile(pluginLifecycleSkillUrl, "utf8");
+  pluginDeveloperGuideSkillText = await readFile(
+    pluginDeveloperGuideSkillUrl,
+    "utf8",
+  );
   pluginCreateTasksSkillText = await readFile(
     pluginCreateTasksSkillUrl,
     "utf8",
@@ -168,8 +171,8 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAgentPlaceholderUrl)).resolves.toBeUndefined();
   });
 
-  it("ships the aim-task-lifecycle skill resource", async () => {
-    await expect(access(pluginLifecycleSkillUrl)).resolves.toBeUndefined();
+  it("ships the aim-developer-guide skill resource", async () => {
+    await expect(access(pluginDeveloperGuideSkillUrl)).resolves.toBeUndefined();
   });
 
   it("ships the aim-create-tasks skill resource", async () => {
@@ -204,9 +207,9 @@ describe("opencode plugin package baseline", () => {
       "package/skills/README.md",
       "package/skills/aim-ask-strategy/SKILL.md",
       "package/skills/aim-create-tasks/SKILL.md",
+      "package/skills/aim-developer-guide/SKILL.md",
       "package/skills/aim-evaluate-readme/SKILL.md",
       "package/skills/aim-setup-github-repo/SKILL.md",
-      "package/skills/aim-task-lifecycle/SKILL.md",
       "package/skills/aim-test-driven-development/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
       "package/skills/using-aim/SKILL.md",
@@ -239,18 +242,22 @@ describe("opencode plugin package baseline", () => {
 
   it("documents lifecycle reporting as packaged documentation only", () => {
     expect(pluginSkillsReadme).not.toContain("aim-placeholder");
-    expect(pluginSkillsReadme).toContain("aim-task-lifecycle");
-    expect(pluginSkillsReadme).toContain("Task via HTTP PATCH");
+    expect(pluginSkillsReadme).toContain("aim-developer-guide");
+    expect(pluginSkillsReadme).toContain("required worktree/PR flow");
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
     expect(pluginSkillsReadme).toContain("workflow automation");
 
+    expect(pluginDeveloperGuideSkillText).toContain(
+      "name: aim-developer-guide",
+    );
+    expect(pluginDeveloperGuideSkillText).toContain("AIM developer guide");
     expect(pluginReadme).toContain(
       "Registers the packaged `skills/` directory",
     );
     expect(pluginReadme).toContain(
       "Ships static `skills/` and `agents/` resources",
     );
-    expect(pluginReadme).toContain("aim-task-lifecycle");
+    expect(pluginReadme).toContain("aim-developer-guide");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
   });
@@ -434,30 +441,32 @@ describe("opencode plugin package baseline", () => {
     expect(pluginEvaluateReadmeSkillText).not.toContain("TBD");
   });
 
-  it("documents lifecycle reporting rules and failure split", () => {
-    expect(pluginLifecycleSkillText).toMatch(
+  it("documents developer guide reporting rules and failure split", () => {
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /`SERVER_BASE_URL` 默认为 `http:\/\/localhost:8192`。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /只能使用 PATCH 来更新已存在 Task 的非终态事实。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /只能使用 `POST \/resolve` 上报 `succeeded` 终态结果，且只能使用 `POST \/reject` 上报 `failed` 终态结果。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(/要把任务失败与上报失败区分开。/);
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
+      /要把任务失败与上报失败区分开。/,
+    );
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /任务失败：工作本身失败，因此应通过 `POST \/tasks\/\$\{task_id\}\/reject` 发送带非空 `result` 的终态失败上报。/,
     );
-    expect(pluginLifecycleSkillText).toMatch(
+    expect(pluginDeveloperGuideSkillText).toMatch(
       /上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
     );
 
@@ -469,11 +478,11 @@ describe("opencode plugin package baseline", () => {
       `POST /tasks/\${task_id}/reject`,
       "AIM 上报阻塞",
     ]) {
-      expect(pluginLifecycleSkillText).toContain(requiredFragment);
+      expect(pluginDeveloperGuideSkillText).toContain(requiredFragment);
     }
 
-    expect(pluginLifecycleSkillText).not.toContain("TODO");
-    expect(pluginLifecycleSkillText).not.toContain("TBD");
+    expect(pluginDeveloperGuideSkillText).not.toContain("TODO");
+    expect(pluginDeveloperGuideSkillText).not.toContain("TBD");
   });
 
   it("documents task creation interview, approval, and boundary rules", () => {

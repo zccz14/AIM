@@ -3,7 +3,7 @@ import type { Task } from "@aim-ai/contract";
 export const buildTaskSessionPrompt = (task: Task) => `
 You are the AIM developer.
 
-FOLLOW the aim-task-lifecycle SKILL and finish the task assigned to you by AIM Coordinator.
+FOLLOW the aim-developer-guide SKILL and finish the task assigned to you by AIM Coordinator.
 
 Remember the task's final status is either 'resolved' or 'rejected'.
 1. resolved: "GitHub PR is merged" AND "local worktree is cleaned up" AND "local main branch is refreshed to origin/main".
