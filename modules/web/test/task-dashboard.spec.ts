@@ -433,11 +433,9 @@ test("navigates from create page to task details after refresh", async ({
   await expect(
     page.getByRole("heading", { level: 2, name: "Create release checklist" }),
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      "Task Spec: Create release checklist\n- draft notes\n- notify team",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("Task Spec", { exact: true })).toBeVisible();
+  await expect(page.getByText("draft notes")).toBeVisible();
+  await expect(page.getByText("notify team")).toBeVisible();
   await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
   await page.getByRole("button", { name: "Back to Dashboard" }).click();
   await expect(
@@ -506,10 +504,9 @@ test("opens created task details from the create response when the dashboard ref
   await expect(
     page.getByRole("heading", { level: 2, name: "Fallback task title" }),
   ).toBeVisible();
+  await expect(page.getByText("Task Spec", { exact: true })).toBeVisible();
   await expect(
-    page.getByText(
-      "Task Spec: Fallback task title\n- still visible after refresh failure",
-    ),
+    page.getByText("still visible after refresh failure"),
   ).toBeVisible();
   await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
   await expect.poll(() => listRequestCount).toBe(2);
@@ -544,11 +541,43 @@ test("uses the first task_spec line as the task title while keeping the full bod
   await expect(
     page.getByRole("heading", { level: 2, name: "Summary title" }),
   ).toBeVisible();
+  await expect(page.getByText("Task Spec", { exact: true })).toBeVisible();
+  await expect(page.getByText("implementation detail")).toBeVisible();
+  await expect(page.getByText("rollout detail")).toBeVisible();
+});
+
+test("renders task spec markdown with GFM tables in task details", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: [
+              "Release checklist",
+              "",
+              "| Step | Owner |",
+              "| --- | --- |",
+              "| Ship | Ops |",
+            ].join("\n"),
+            taskId: "task-markdown",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("row", { name: /Release checklist/i }).click();
+
   await expect(
-    page.getByText(
-      "Task Spec: Summary title\n- implementation detail\n- rollout detail",
-    ),
+    page.getByRole("heading", { level: 2, name: "Release checklist" }),
   ).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Ship" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Ops" })).toBeVisible();
 });
 
 test("renders the dependency graph with status-colored nodes", async ({
