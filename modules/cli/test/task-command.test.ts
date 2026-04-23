@@ -39,7 +39,7 @@ afterEach(async () => {
 });
 
 beforeAll(async () => {
-  const child = spawn("pnpm", ["run", "build"], {
+  const child = spawn("pnpm", ["run", "build:dist"], {
     cwd: cliRootUrl,
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],

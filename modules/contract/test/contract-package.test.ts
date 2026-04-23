@@ -150,9 +150,13 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["test:type"]).toBe(
       "pnpm run typecheck && pnpm -r --if-present run test:type",
     );
+    expect(rootPackage.scripts["test:type:repo"]).toBe(
+      "pnpm run typecheck:repo",
+    );
     expect(rootPackage.scripts["test:lint"]).toBe(
       "pnpm run lint && pnpm -r --if-present run test:lint",
     );
+    expect(rootPackage.scripts["test:lint:repo"]).toBe("pnpm run lint");
     expect(rootPackage.scripts["test:smoke"]).toBe(
       "pnpm -r --if-present run test:smoke",
     );
@@ -160,7 +164,10 @@ describe("contract package baseline", () => {
       "pnpm -r --if-present run test:web",
     );
     expect(rootPackage.scripts.test).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm run test:repo && pnpm -r --workspace-concurrency=1 --if-present run test && pnpm run build && pnpm run openapi:check && pnpm run changeset:check",
+      "pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
+    );
+    expect(rootPackage.scripts.build).toBe(
+      "pnpm -r --if-present build && pnpm test",
     );
     expect(rootPackage.scripts.smoke).toBe("pnpm run test:smoke");
     expect(rootPackage.scripts.validate).toBe("pnpm run test");
@@ -841,9 +848,14 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
     expect(rootPackage.scripts["openapi:check"]).toContain("taskSpecPath");
     expect(contractPackage.scripts?.generate).toBeDefined();
-    expect(contractPackage.scripts?.build).toContain("pnpm run generate");
+    expect(contractPackage.scripts?.["build:dist"]).toContain(
+      "pnpm run generate",
+    );
+    expect(contractPackage.scripts?.build).toBe(
+      "pnpm run test && pnpm run build:dist",
+    );
     expect(contractPackage.scripts?.test).toContain(
-      "pnpm run build && pnpm run test:type",
+      "pnpm run build:dist && pnpm run test:type",
     );
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
     expect(contractPackage.devDependencies?.yaml).toBe("^2.8.3");
