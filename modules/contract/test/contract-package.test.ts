@@ -53,6 +53,10 @@ const ciWorkflowUrl = new URL(
   "../../../.github/workflows/ci.yml",
   import.meta.url,
 );
+const setupNodePnpmActionUrl = new URL(
+  "../../../.github/actions/setup-node-pnpm/action.yml",
+  import.meta.url,
+);
 const releaseWorkflowUrl = new URL(
   "../../../.github/workflows/release.yml",
   import.meta.url,
@@ -123,6 +127,7 @@ let generatedClientModule: GeneratedClientModule;
 let generatedZodModule: GeneratedZodModule;
 let playwrightConfigSource: string;
 let ciWorkflowSource: string;
+let setupNodePnpmActionSource: string;
 let releaseWorkflowSource: string;
 
 beforeAll(async () => {
@@ -134,6 +139,7 @@ beforeAll(async () => {
   ) as RootPackageManifest;
   playwrightConfigSource = await readFile(playwrightConfigUrl, "utf8");
   ciWorkflowSource = await readFile(ciWorkflowUrl, "utf8");
+  setupNodePnpmActionSource = await readFile(setupNodePnpmActionUrl, "utf8");
   releaseWorkflowSource = await readFile(releaseWorkflowUrl, "utf8");
   contractModule = (await import(
     pathToFileURL(fileURLToPath(contractEntryUrl)).href
@@ -206,6 +212,11 @@ describe("contract package baseline", () => {
 
   it("keeps release readiness and publish flow aligned to the root build contract", () => {
     expect(releaseWorkflowSource).toContain("run: pnpm build");
+    expect(releaseWorkflowSource).toContain('install-playwright: "true"');
+    expect(setupNodePnpmActionSource).toContain("install-playwright:");
+    expect(setupNodePnpmActionSource).toContain(
+      "run: pnpm exec playwright install --with-deps chromium firefox",
+    );
     expect(releaseWorkflowSource).toContain(
       "publish: pnpm build && pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance",
     );
