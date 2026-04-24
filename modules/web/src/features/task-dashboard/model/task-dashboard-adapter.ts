@@ -3,6 +3,7 @@ import type { Task, TaskStatus } from "@aim-ai/contract";
 import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
   DashboardClosureCue,
+  DashboardRejectedFeedbackSignal,
   DashboardStatus,
   DashboardTask,
   TaskDashboardViewModel,
@@ -71,6 +72,108 @@ const summarizeTaskResult = (result: string) => {
   return trimmedResult.length <= 96
     ? trimmedResult
     : `${trimmedResult.slice(0, 93)}...`;
+};
+
+const normalizeSignalText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[`*_#>\-[\]()]/g, " ")
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getRejectedReasonCategory = (
+  task: DashboardTask,
+): DashboardRejectedFeedbackSignal["reasonCategory"] => {
+  const searchableText = normalizeSignalText(
+    `${task.title} ${task.taskSpec} ${task.result}`,
+  );
+
+  if (searchableText.includes("scheduler session")) {
+    return "scheduler_session";
+  }
+
+  if (
+    searchableText.includes("stale spec") ||
+    (searchableText.includes("spec") && searchableText.includes("stale")) ||
+    (searchableText.includes("spec") && searchableText.includes("前提")) ||
+    searchableText.includes("assumption") ||
+    searchableText.includes("前提失效")
+  ) {
+    return "stale_spec";
+  }
+
+  return "general";
+};
+
+const rejectedReasonCategoryLabels: Record<
+  DashboardRejectedFeedbackSignal["reasonCategory"],
+  string
+> = {
+  general: "General Rejection",
+  scheduler_session: "Scheduler Session",
+  stale_spec: "Stale Spec Premise",
+};
+
+const buildRejectedFeedbackSignals = (
+  historyTasks: DashboardTask[],
+): DashboardRejectedFeedbackSignal[] => {
+  const signalsByKey = new Map<string, DashboardRejectedFeedbackSignal>();
+
+  for (const task of historyTasks) {
+    if (task.dashboardStatus !== "failed") {
+      continue;
+    }
+
+    const reasonCategory = getRejectedReasonCategory(task);
+    const reasonSummary = summarizeTaskResult(task.result);
+    const normalizedReason = normalizeSignalText(task.result);
+    const key = `${reasonCategory}:${normalizedReason || "missing-feedback"}`;
+    const coordinate = task.projectPath;
+    const currentSignal = signalsByKey.get(key);
+    const sampleTask = {
+      id: task.id,
+      title: task.title,
+      projectPath: task.projectPath,
+      updatedAt: task.updatedAt,
+    };
+
+    if (currentSignal === undefined) {
+      signalsByKey.set(key, {
+        key,
+        reasonCategory,
+        reasonCategoryLabel: rejectedReasonCategoryLabels[reasonCategory],
+        reasonSummary,
+        count: 1,
+        latestAt: task.updatedAt,
+        coordinates: [coordinate],
+        sampleTasks: [sampleTask],
+      });
+      continue;
+    }
+
+    currentSignal.count += 1;
+
+    if (!currentSignal.coordinates.includes(coordinate)) {
+      currentSignal.coordinates.push(coordinate);
+    }
+
+    if (task.updatedAt > currentSignal.latestAt) {
+      currentSignal.latestAt = task.updatedAt;
+    }
+
+    if (currentSignal.sampleTasks.length < 3) {
+      currentSignal.sampleTasks.push(sampleTask);
+    }
+  }
+
+  return [...signalsByKey.values()].sort((left, right) => {
+    const countDiff = right.count - left.count;
+
+    return countDiff === 0
+      ? right.latestAt.localeCompare(left.latestAt)
+      : countDiff;
+  });
 };
 
 const buildClosureChecklist = (task: Task): DashboardClosureCue[] => {
@@ -174,6 +277,7 @@ export const adaptTaskDashboard = (
 } => {
   const tasks = response.active.items.map(adaptDashboardTask);
   const historyTasks = response.history.items.map(adaptDashboardTask);
+  const rejectedFeedbackSignals = buildRejectedFeedbackSignals(historyTasks);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const depthByTaskId = new Map<string, number>();
   const rowByDepth = new Map<number, number>();
@@ -214,6 +318,7 @@ export const adaptTaskDashboard = (
     graphEdges,
     graphNodes,
     historyTasks,
+    rejectedFeedbackSignals,
     tasks,
     summaryCards: [
       { key: "pool", label: "Task Pool", value: tasks.length },

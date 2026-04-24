@@ -186,10 +186,143 @@ test("separates unfinished Task Pool data from completed history results", async
   await expect(
     recentActiveSection.getByRole("button", { name: "Rejected history task" }),
   ).toHaveCount(0);
-  await expect(page.getByText("Completed Task Feedback")).toBeVisible();
-  await expect(page.getByText("Merged and verified.")).toBeVisible();
+  const completedFeedbackSection = page.locator("section", {
+    has: page.getByRole("heading", { name: "Completed Task Feedback" }),
+  });
+
+  await expect(completedFeedbackSection).toBeVisible();
   await expect(
-    page.getByText("Rejected feedback: missing acceptance tests."),
+    completedFeedbackSection.getByText("Merged and verified."),
+  ).toBeVisible();
+  await expect(
+    completedFeedbackSection.getByText(
+      "Rejected feedback: missing acceptance tests.",
+    ),
+  ).toBeVisible();
+});
+
+test("aggregates rejected feedback signals for Coordinator planning", async ({
+  page,
+}) => {
+  const repeatedStaleSpecFeedback =
+    "Spec premise stale: Scheduler Session priority assumptions no longer match origin/main.";
+
+  await page.route("**/tasks**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const doneFilter = requestUrl.searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? [
+                buildTask({
+                  done: true,
+                  result: repeatedStaleSpecFeedback,
+                  spec: "Scheduler Session priority stale spec check",
+                  status: "failed",
+                  taskId: "task-scheduler-priority-a",
+                  updatedAt: "2026-04-20T00:00:03.000Z",
+                }),
+                buildTask({
+                  done: true,
+                  result: repeatedStaleSpecFeedback,
+                  spec: "Scheduler Session priority retry stale spec check",
+                  status: "failed",
+                  taskId: "task-scheduler-priority-b",
+                  updatedAt: "2026-04-21T00:00:03.000Z",
+                }),
+                buildTask({
+                  done: true,
+                  result: "Rejected feedback: missing acceptance tests.",
+                  spec: "Dashboard rejection sample",
+                  status: "failed",
+                  taskId: "task-dashboard-rejected",
+                  updatedAt: "2026-04-22T00:00:03.000Z",
+                }),
+                buildTask({
+                  done: true,
+                  result: "Merged and verified.",
+                  spec: "Succeeded history task",
+                  status: "succeeded",
+                  taskId: "task-history-succeeded",
+                  updatedAt: "2026-04-23T00:00:03.000Z",
+                }),
+              ]
+            : [
+                buildTask({
+                  spec: "Active ready task",
+                  taskId: "task-active-ready",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const rejectedFeedbackSection = page.locator("section", {
+    has: page.getByRole("heading", { name: "Rejected Feedback Signals" }),
+  });
+
+  await expect(rejectedFeedbackSection).toBeVisible();
+  const schedulerFeedbackCard = rejectedFeedbackSection
+    .locator(".rejected-feedback-card")
+    .filter({ hasText: repeatedStaleSpecFeedback });
+
+  await expect(
+    schedulerFeedbackCard.getByText("Scheduler Session", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    schedulerFeedbackCard.getByText(repeatedStaleSpecFeedback),
+  ).toHaveCount(1);
+  await expect(schedulerFeedbackCard.getByText("2 tasks")).toBeVisible();
+  await expect(
+    schedulerFeedbackCard.getByRole("button", {
+      name: "Scheduler Session priority stale spec check",
+    }),
+  ).toBeVisible();
+  await expect(
+    schedulerFeedbackCard.getByRole("button", {
+      name: "Scheduler Session priority retry stale spec check",
+    }),
+  ).toBeVisible();
+  await expect(
+    rejectedFeedbackSection.getByText(
+      "Rejected feedback: missing acceptance tests.",
+    ),
+  ).toBeVisible();
+
+  await rejectedFeedbackSection
+    .getByLabel("Reason category")
+    .selectOption("scheduler_session");
+  await expect(rejectedFeedbackSection.getByText("2 tasks")).toBeVisible();
+  await expect(
+    rejectedFeedbackSection.getByText(
+      "Rejected feedback: missing acceptance tests.",
+    ),
+  ).toHaveCount(0);
+
+  await rejectedFeedbackSection
+    .getByLabel("Coordinate or task")
+    .fill("priority retry");
+  await expect(
+    rejectedFeedbackSection.getByRole("button", {
+      name: "Scheduler Session priority retry stale spec check",
+    }),
+  ).toBeVisible();
+  await expect(
+    rejectedFeedbackSection.getByRole("button", {
+      name: "Scheduler Session priority stale spec check",
+    }),
+  ).toBeVisible();
+
+  await rejectedFeedbackSection
+    .getByLabel("Coordinate or task")
+    .fill("api-only");
+  await expect(
+    rejectedFeedbackSection.getByText("No rejected feedback matches filters."),
   ).toBeVisible();
 });
 
