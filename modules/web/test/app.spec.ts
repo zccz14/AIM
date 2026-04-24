@@ -12,7 +12,7 @@ test("boots the dashboard app with Mantine and query providers", async () => {
   );
 
   expect(mainSource).toContain("@mantine/core/styles.css");
-  expect(mainSource).toContain("<MantineProvider>");
+  expect(mainSource).toContain('<MantineProvider defaultColorScheme="auto">');
   expect(mainSource).toContain("<QueryClientProvider client={webQueryClient}>");
   expect(appSource).toContain(
     "./features/task-dashboard/components/dashboard-page.js",
@@ -188,4 +188,36 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   expect(dashboardPageSource).not.toContain(
     "onClick={() => void dashboardQuery.refetch()}",
   );
+});
+
+test("shares branded dashboard theme tokens across overview, graph, and table", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const mainSource = await readFile(
+    `${process.cwd()}/modules/web/src/main.tsx`,
+    "utf8",
+  );
+  const themeSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-theme.ts`,
+    "utf8",
+  );
+  const overviewSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/overview-section.tsx`,
+    "utf8",
+  );
+  const graphSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dependency-graph-section.tsx`,
+    "utf8",
+  );
+  const tableSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-table-section.tsx`,
+    "utf8",
+  );
+
+  expect(mainSource).toContain('defaultColorScheme="auto"');
+  expect(themeSource).toContain("getDashboardThemeTokens");
+  expect(themeSource).toContain("panelBorder");
+  expect(themeSource).toContain("graphEdge");
+  expect(overviewSource).toContain("getDashboardThemeTokens");
+  expect(graphSource).toContain("getDashboardThemeTokens");
+  expect(tableSource).toContain("getDashboardThemeTokens");
 });

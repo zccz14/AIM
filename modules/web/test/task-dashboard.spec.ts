@@ -73,7 +73,7 @@ test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByAltText("AIM icon")).toBeVisible();
-  await expect(page.getByText("AIM")).toBeVisible();
+  await expect(page.getByText("AIM", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Task Dashboard" }),
   ).toBeVisible();
@@ -901,4 +901,28 @@ test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
   await expect(
     page.getByRole("button", { exact: true, name: "Failed task" }),
   ).toHaveCount(0);
+});
+
+test("renders a branded decision workspace with readable dark-mode data views", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+
+  await expect(page.getByText("Decision cockpit")).toBeVisible();
+  await expect(page.getByText("Execution radar")).toBeVisible();
+  await expect(page.getByText("Delivery queue")).toBeVisible();
+  await expect(page.getByText("Dependency lanes")).toBeVisible();
+  await expect(page.getByTestId("dashboard-shell")).toHaveCSS(
+    "background-color",
+    "rgb(10, 15, 30)",
+  );
+  await expect(page.getByTestId("dashboard-table-header")).toHaveCSS(
+    "background-color",
+    "rgb(18, 24, 43)",
+  );
+  await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
+    "background-color",
+    "rgb(18, 24, 43)",
+  );
 });
