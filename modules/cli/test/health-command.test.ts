@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const cliPackageUrl = new URL("../package.json", import.meta.url);
 const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
@@ -28,6 +28,28 @@ afterEach(async () => {
       await once(server, "close");
     }),
   );
+});
+
+beforeAll(async () => {
+  const child = spawn("pnpm", ["run", "build:dist"], {
+    cwd: cliRootUrl,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+
+  child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
+  child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+
+  const [exitCode] = (await once(child, "close")) as [number | null];
+
+  expect({
+    exitCode,
+    stdout: Buffer.concat(stdout).toString("utf8"),
+    stderr: Buffer.concat(stderr).toString("utf8"),
+  }).toMatchObject({ exitCode: 0 });
 });
 
 const startHealthServer = async () => {
