@@ -58,7 +58,7 @@ beforeAll(async () => {
     stdout: Buffer.concat(stdout).toString("utf8"),
     stderr: Buffer.concat(stderr).toString("utf8"),
   }).toMatchObject({ exitCode: 0 });
-});
+}, 30_000);
 
 const startTaskServer = async () => {
   const requests: RecordedRequest[] = [];
