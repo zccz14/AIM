@@ -33,6 +33,14 @@ const pluginAskStrategySkillUrl = new URL(
   "../skills/aim-ask-strategy/SKILL.md",
   import.meta.url,
 );
+const pluginWritingTestsSkillUrl = new URL(
+  "../skills/aim-writing-tests/SKILL.md",
+  import.meta.url,
+);
+const pluginTestDrivenDevelopmentSkillUrl = new URL(
+  "../skills/aim-test-driven-development/SKILL.md",
+  import.meta.url,
+);
 const pluginSkillsReadmeUrl = new URL("../skills/README.md", import.meta.url);
 const pluginReadmeUrl = new URL("../README.md", import.meta.url);
 const pluginAgentPlaceholderUrl = new URL(
@@ -61,6 +69,8 @@ let pluginCreateTasksSkillText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
 let pluginAskStrategySkillText: string;
+let pluginWritingTestsSkillText: string;
+let pluginTestDrivenDevelopmentSkillText: string;
 let pluginSkillsReadme: string;
 let pluginReadme: string;
 let packedFilesPromise: Promise<string[]> | undefined;
@@ -150,6 +160,14 @@ beforeAll(async () => {
     pluginAskStrategySkillUrl,
     "utf8",
   ).catch(() => "");
+  pluginWritingTestsSkillText = await readFile(
+    pluginWritingTestsSkillUrl,
+    "utf8",
+  ).catch(() => "");
+  pluginTestDrivenDevelopmentSkillText = await readFile(
+    pluginTestDrivenDevelopmentSkillUrl,
+    "utf8",
+  );
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
 
@@ -210,6 +228,10 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAskStrategySkillUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-writing-tests skill resource", async () => {
+    await expect(access(pluginWritingTestsSkillUrl)).resolves.toBeUndefined();
+  });
+
   itPack("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
@@ -229,6 +251,7 @@ describe("opencode plugin package baseline", () => {
       "package/skills/aim-setup-github-repo/SKILL.md",
       "package/skills/aim-test-driven-development/SKILL.md",
       "package/skills/aim-verify-task-spec/SKILL.md",
+      "package/skills/aim-writing-tests/SKILL.md",
       "package/skills/using-aim/SKILL.md",
     ]);
   });
@@ -265,6 +288,15 @@ describe("opencode plugin package baseline", () => {
     async () => {
       await expect(listPackedFiles()).resolves.toContain(
         "package/skills/aim-ask-strategy/SKILL.md",
+      );
+    },
+  );
+
+  itPack(
+    "packs the aim-writing-tests skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-writing-tests/SKILL.md",
       );
     },
   );
@@ -340,6 +372,18 @@ describe("opencode plugin package baseline", () => {
     expect(pluginReadme).toContain("workflow automation");
   });
 
+  it("documents aim-writing-tests as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-writing-tests");
+    expect(pluginSkillsReadme).toContain("behavior-oriented tests");
+    expect(pluginSkillsReadme).toContain("artifact prerequisites");
+
+    expect(pluginReadme).toContain("aim-writing-tests");
+    expect(pluginReadme).toContain("test writing");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
   it("documents using-aim discovery for aim-evaluate-readme", async () => {
     const usingAimSkillText = await readFile(
       new URL("../skills/using-aim/SKILL.md", import.meta.url),
@@ -380,6 +424,48 @@ describe("opencode plugin package baseline", () => {
     );
     expect(usingAimSkillText).toContain(
       "direct entry when the user wants to verify or standardize GitHub merge settings",
+    );
+  });
+
+  it("documents using-aim discovery for aim-writing-tests", async () => {
+    const usingAimSkillText = await readFile(
+      new URL("../skills/using-aim/SKILL.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(usingAimSkillText).toContain(
+      "write, modify, migrate, or review tests",
+    );
+    expect(usingAimSkillText).toContain("aim-writing-tests");
+    expect(usingAimSkillText).toContain("before writing RED tests");
+    expect(usingAimSkillText).toContain("implementation shape");
+  });
+
+  it("documents aim-writing-tests behavior-first testing rules", () => {
+    for (const requiredFragment of [
+      "优先写面向接口和行为的测试",
+      "old-style implementation-coupled test",
+      "policy / architecture / generated artifact guard",
+      "ensure build dist",
+      "TDD RED",
+      "mock 外部边界",
+    ]) {
+      expect(pluginWritingTestsSkillText).toContain(requiredFragment);
+    }
+
+    expect(pluginWritingTestsSkillText).toContain("name: aim-writing-tests");
+    expect(pluginWritingTestsSkillText).toContain(
+      "产品 / API / CLI / UI / contract / persistence",
+    );
+    expect(pluginWritingTestsSkillText).not.toContain("TODO");
+    expect(pluginWritingTestsSkillText).not.toContain("TBD");
+  });
+
+  it("requires aim-writing-tests before TDD red tests", () => {
+    expect(pluginTestDrivenDevelopmentSkillText).toContain("aim-writing-tests");
+    expect(pluginTestDrivenDevelopmentSkillText).toContain("写任何 RED 测试前");
+    expect(pluginTestDrivenDevelopmentSkillText).toContain(
+      "RED 所需前置状态必须由被调用的验证命令显式提供",
     );
   });
 

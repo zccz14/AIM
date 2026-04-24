@@ -50,6 +50,7 @@ Typical triggers:
 - The user wants to report lifecycle facts back to an existing AIM Task while work progresses.
 - The user wants to verify or standardize GitHub repo merge settings, rulesets, or PR auto-merge behavior for AIM workflows.
 - You are about to respond or act and there is any plausible chance that one of the AIM packaged skills is the correct workflow guide.
+- You are about to write, modify, migrate, or review tests, including before writing RED tests for TDD.
 
 ## The Rule In Practice
 
@@ -72,6 +73,7 @@ Load the matching skill before acting when the request falls into one of these b
 - `aim-create-tasks`: direct entry when the user wants to turn stabilized, approved intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
 - `aim-evaluate-readme`: direct entry when the user wants to evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。
 - `aim-verify-task-spec`: direct entry when the user wants to validate whether a candidate or existing AIM Task Spec still holds against the latest baseline.
+- `aim-writing-tests`: direct entry when tests must be written, modified, migrated, or reviewed; load it before writing RED tests so behavior and contract semantics are protected instead of implementation shape.
 - `aim-developer-guide`: direct entry when the user needs execution guidance for an existing AIM Task through worktree, PR, follow-up, and closing stages while reporting lifecycle facts back to AIM.
 - `aim-setup-github-repo`: direct entry when the user wants to verify or standardize GitHub merge settings, default-branch rulesets, required checks, or PR auto-merge behavior with `gh`.
 
