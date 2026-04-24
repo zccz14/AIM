@@ -51,6 +51,7 @@ node_modules/.cache/
 
 # Optional npm cache directory
 .npm
+.npm-cache/
 
 # Optional eslint cache
 .eslintcache
@@ -142,6 +143,7 @@ vite.config.ts.timestamp-*
 
 # Test and local reports
 .worktrees/
+**/.pack-install-test*/
 playwright-report/
 test-results/
 

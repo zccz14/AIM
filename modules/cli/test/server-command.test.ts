@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
-const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
+const cliBinUrl = new URL("../bin/aim.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
 const cliEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const apiServerEntryUrl = new URL("../../api/dist/server.mjs", import.meta.url);
