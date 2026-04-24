@@ -1,6 +1,8 @@
 import type { OpenCodeModelCombination } from "@aim-ai/contract";
 import { useEffect, useState } from "react";
 
+import { Button } from "../../../components/ui/button.js";
+
 const developerModelPreferenceKey = "aim.createTaskDeveloperModel";
 
 const checklistItems = [
@@ -219,21 +221,20 @@ export const CreateTaskForm = ({
           whitespace before submit.
         </p>
         <div className="aim-task-actions">
-          <button
-            className="aim-task-button aim-task-button-secondary"
+          <Button
             disabled={isSubmitting}
             onClick={onCancel}
-            type="button"
+            variant="taskSecondary"
           >
             Cancel
-          </button>
-          <button
-            className="aim-task-button aim-task-button-primary"
+          </Button>
+          <Button
             disabled={!canSubmit || isSubmitting}
             type="submit"
+            variant="taskPrimary"
           >
             {isSubmitting ? "Creating Task..." : "Create Task"}
-          </button>
+          </Button>
         </div>
       </div>
     </form>

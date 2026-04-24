@@ -7,6 +7,7 @@ import {
   ReactFlow,
 } from "reactflow";
 
+import { Button } from "../../../components/ui/button.js";
 import type {
   DashboardGraphEdge,
   DashboardGraphNode,
@@ -22,7 +23,7 @@ const formatStatusLabel = (status: TaskGraphNodeData["status"]) =>
 const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
   <>
     <Handle position={Position.Top} type="target" />
-    <button
+    <Button
       className="graph-node nodrag nopan"
       data-testid={data.testId}
       onClick={data.onSelect}
@@ -30,11 +31,11 @@ const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
         borderColor: data.color,
         pointerEvents: "all",
       }}
-      type="button"
+      variant="unstyled"
     >
       <strong>{data.label}</strong>
       <div className="graph-node__status">{formatStatusLabel(data.status)}</div>
-    </button>
+    </Button>
     <Handle position={Position.Bottom} type="source" />
   </>
 );
