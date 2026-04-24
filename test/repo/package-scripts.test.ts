@@ -24,7 +24,16 @@ describe("package scripts", () => {
     const packageJson = await readPackageJson("package.json");
 
     expect(packageJson.scripts?.build).toBe(
-      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
+      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run test:changeset",
+    );
+  });
+
+  it("publishes the changeset check as a skippable test script", async () => {
+    const packageJson = await readPackageJson("package.json");
+
+    expect(packageJson.scripts).not.toHaveProperty("changeset:check");
+    expect(packageJson.scripts?.["test:changeset"]).toBe(
+      '[ -n "$SKIP_TEST" ] || node ./scripts/changeset-check.mjs',
     );
   });
 

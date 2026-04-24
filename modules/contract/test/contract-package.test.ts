@@ -244,9 +244,13 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["test:web"]).toBe(
       skipTest("pnpm -r --if-present run test:web"),
     );
+    expect(rootPackage.scripts["test:changeset"]).toBe(
+      skipTest("node ./scripts/changeset-check.mjs"),
+    );
     expect(rootPackage.scripts).not.toHaveProperty("test");
+    expect(rootPackage.scripts).not.toHaveProperty("changeset:check");
     expect(rootPackage.scripts.build).toBe(
-      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
+      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run test:changeset",
     );
     expect(rootPackage.scripts["release:check"]).toBe("pnpm run build");
     expect(rootPackage.scripts.smoke).toBe("pnpm run test:smoke");
