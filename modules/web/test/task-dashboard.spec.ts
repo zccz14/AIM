@@ -132,6 +132,127 @@ test("toggles the branded shell between dark and light themes", async ({
   await expect(page.locator("body")).toContainText("AIM Navigator");
 });
 
+test("toggles task details AIM panel colors with the app theme", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            dependencies: ["task-api"],
+            spec: "Theme-aware task\n\n## Summary\n\n- keep panels readable",
+            taskId: "task-theme",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("row", { name: /Theme-aware task/i }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const readDetailsStyles = async () =>
+    page.evaluate(() => {
+      const surface = document.querySelector(".aim-surface");
+      const panel = document.querySelector(".aim-task-panel");
+      const metadataLabel = document.querySelector(".aim-task-meta-row dt");
+      const markdown = document.querySelector(".aim-task-markdown");
+      const chip = document.querySelector(".aim-task-chip");
+
+      if (!surface || !panel || !metadataLabel || !markdown || !chip) {
+        throw new Error("Expected task details theme elements to render");
+      }
+
+      return {
+        chipBackground: getComputedStyle(chip).backgroundColor,
+        markdownColor: getComputedStyle(markdown).color,
+        metadataColor: getComputedStyle(metadataLabel).color,
+        panelBackground: getComputedStyle(panel).backgroundColor,
+        surfaceColor: getComputedStyle(surface).color,
+      };
+    });
+
+  const darkStyles = await readDetailsStyles();
+  expect(darkStyles).toEqual({
+    chipBackground: "rgba(122, 162, 255, 0.09)",
+    markdownColor: "rgb(243, 247, 255)",
+    metadataColor: "rgba(216, 227, 255, 0.68)",
+    panelBackground: "rgba(10, 16, 33, 0.74)",
+    surfaceColor: "rgb(238, 243, 255)",
+  });
+
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  await expect.poll(readDetailsStyles).toEqual({
+    chipBackground: "rgba(67, 96, 181, 0.08)",
+    markdownColor: "rgb(16, 32, 61)",
+    metadataColor: "rgba(35, 52, 96, 0.7)",
+    panelBackground: "rgba(255, 255, 255, 0.78)",
+    surfaceColor: "rgb(16, 32, 61)",
+  });
+});
+
+test("toggles create task AIM form colors with the app theme", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const readCreateStyles = async () =>
+    page.evaluate(() => {
+      const surface = document.querySelector(".aim-surface");
+      const input = document.querySelector(".aim-field input");
+      const select = document.querySelector(".aim-field select");
+      const helper = document.querySelector(".aim-task-form-footer .aim-muted");
+      const secondaryButton = document.querySelector(
+        ".aim-task-button-secondary",
+      );
+
+      if (!surface || !input || !select || !helper || !secondaryButton) {
+        throw new Error("Expected create task theme elements to render");
+      }
+
+      return {
+        buttonBackground: getComputedStyle(secondaryButton).backgroundColor,
+        buttonColor: getComputedStyle(secondaryButton).color,
+        helperColor: getComputedStyle(helper).color,
+        inputBackground: getComputedStyle(input).backgroundColor,
+        inputColor: getComputedStyle(input).color,
+        selectBackground: getComputedStyle(select).backgroundColor,
+        surfaceColor: getComputedStyle(surface).color,
+      };
+    });
+
+  const darkStyles = await readCreateStyles();
+  expect(darkStyles).toEqual({
+    buttonBackground: "rgba(122, 162, 255, 0.08)",
+    buttonColor: "rgb(238, 243, 255)",
+    helperColor: "rgba(216, 227, 255, 0.72)",
+    inputBackground: "rgba(4, 9, 22, 0.8)",
+    inputColor: "rgb(243, 247, 255)",
+    selectBackground: "rgba(4, 9, 22, 0.8)",
+    surfaceColor: "rgb(238, 243, 255)",
+  });
+
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  await expect.poll(readCreateStyles).toEqual({
+    buttonBackground: "rgba(67, 96, 181, 0.08)",
+    buttonColor: "rgb(16, 32, 61)",
+    helperColor: "rgba(35, 52, 96, 0.7)",
+    inputBackground: "rgba(246, 249, 255, 0.94)",
+    inputColor: "rgb(16, 32, 61)",
+    selectBackground: "rgba(246, 249, 255, 0.94)",
+    surfaceColor: "rgb(16, 32, 61)",
+  });
+});
+
 test("renders the task table with core columns", async ({ page }) => {
   await page.goto("/");
 
