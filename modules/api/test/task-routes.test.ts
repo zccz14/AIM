@@ -7,6 +7,38 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as contractModule from "../../contract/src/index.js";
 import * as apiModule from "../src/app.js";
 
+const execFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:child_process", () => ({
+  execFile: execFileMock,
+}));
+
+const mockGhMergedOutput = (stdout: string) => {
+  execFileMock.mockImplementation(
+    (
+      _command: string,
+      _args: string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string) => void,
+    ) => {
+      callback(null, stdout);
+    },
+  );
+};
+
+const mockGhFailure = () => {
+  execFileMock.mockImplementation(
+    (
+      _command: string,
+      _args: string[],
+      _options: unknown,
+      callback: (error: Error) => void,
+    ) => {
+      callback(new Error("gh failed"));
+    },
+  );
+};
+
 const taskRouteSourceUrl = new URL("../src/routes/tasks.ts", import.meta.url);
 const appSourceUrl = new URL("../src/app.ts", import.meta.url);
 const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
@@ -75,6 +107,8 @@ const createProjectRoot = async (name: string) => {
 };
 
 afterEach(async () => {
+  execFileMock.mockReset();
+
   if (previousProjectRoot === undefined) {
     delete process.env.AIM_PROJECT_ROOT;
   } else {
@@ -621,6 +655,8 @@ describe("task routes", () => {
   it("resolves a task and preserves the result when PATCH omits it", async () => {
     await useProjectRoot("resolves-task-and-preserves-result");
 
+    mockGhMergedOutput("true\n");
+
     const app = createTaskRouteApp();
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
@@ -633,6 +669,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         status: "running",
       }),
     });
@@ -691,8 +728,155 @@ describe("task routes", () => {
     expect(patchedTask.result).toBe("ship it");
   });
 
+  it("rejects resolve when no pull request URL is recorded", async () => {
+    await useProjectRoot("resolve-requires-pull-request-url");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(400);
+
+    const payload = await resolveResponse.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("pull_request_url");
+    expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects resolve when the recorded pull request is not merged", async () => {
+    await useProjectRoot("resolve-requires-merged-pull-request");
+
+    mockGhMergedOutput("false\n");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(400);
+
+    const payload = await resolveResponse.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("merged");
+  });
+
+  it("rejects resolve when gh cannot confirm the pull request is merged", async () => {
+    await useProjectRoot("resolve-handles-gh-failure");
+
+    mockGhFailure();
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(400);
+
+    const payload = await resolveResponse.json();
+
+    expect(contractModule.taskErrorSchema.safeParse(payload).success).toBe(
+      true,
+    );
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("Could not confirm");
+  });
+
   it("logs task_resolved with a truncated result preview after repository success", async () => {
     await useProjectRoot("logs-task-resolved");
+
+    mockGhMergedOutput("true\n");
 
     const logger = createLogger();
     const app = createTaskRouteApp({ logger });
@@ -706,6 +890,7 @@ describe("task routes", () => {
         developer_provider_id: "anthropic",
         title: "Test task",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         session_id: "session-7",
         task_spec: "resolve me",
         status: "running",
@@ -743,6 +928,8 @@ describe("task routes", () => {
   it("triggers a scheduler scan opportunity after resolve succeeds", async () => {
     await useProjectRoot("resolve-triggers-scheduler-scan");
 
+    mockGhMergedOutput("true\n");
+
     const onTaskResolved = vi.fn();
     const app = createTaskRouteApp({ onTaskResolved });
     const createResponse = await app.request(contractModule.tasksPath, {
@@ -756,6 +943,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         status: "running",
       }),
     });
@@ -783,6 +971,8 @@ describe("task routes", () => {
   it("keeps resolve successful and logs when the scheduler scan trigger fails", async () => {
     await useProjectRoot("resolve-scheduler-scan-fails");
 
+    mockGhMergedOutput("true\n");
+
     const logger = createLogger();
     const error = new Error("scan failed");
     const app = createTaskRouteApp({
@@ -800,6 +990,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         status: "running",
       }),
     });
