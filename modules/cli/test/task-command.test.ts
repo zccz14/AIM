@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
+const cliEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const cliIndexSourceUrl = new URL("../src/index.ts", import.meta.url);
 const taskCommandHelperSourceUrl = new URL(
   "../src/lib/task-command.ts",
@@ -39,25 +40,13 @@ afterEach(async () => {
 });
 
 beforeAll(async () => {
-  const child = spawn("pnpm", ["run", "build:dist"], {
-    cwd: cliRootUrl,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  const stdout: Buffer[] = [];
-  const stderr: Buffer[] = [];
-
-  child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
-  child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
-
-  const [exitCode] = (await once(child, "close")) as [number | null];
-
-  expect({
-    exitCode,
-    stdout: Buffer.concat(stdout).toString("utf8"),
-    stderr: Buffer.concat(stderr).toString("utf8"),
-  }).toMatchObject({ exitCode: 0 });
+  try {
+    await access(cliEntryUrl);
+  } catch {
+    throw new Error(
+      "Expected modules/cli/dist/index.mjs to exist before running CLI tests. Run pnpm --filter ./modules/cli run build:dist first.",
+    );
+  }
 });
 
 const startTaskServer = async () => {
