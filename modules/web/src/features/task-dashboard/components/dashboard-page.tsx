@@ -1,21 +1,8 @@
-import {
-  Alert,
-  AppShell,
-  Box,
-  Button,
-  Center,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-  useComputedColorScheme,
-  useMantineTheme,
-} from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import {
@@ -26,7 +13,6 @@ import {
 import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { CreateTaskForm } from "./create-task-form.js";
-import { getDashboardThemeTokens } from "./dashboard-theme.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
@@ -67,9 +53,6 @@ const navigateTo = (pathname: string) => {
 };
 
 export const DashboardPage = () => {
-  const theme = useMantineTheme();
-  const colorScheme = useComputedColorScheme("light");
-  const tokens = getDashboardThemeTokens(theme, colorScheme);
   const queryClient = useQueryClient();
   const dashboardQuery = useTaskDashboardQuery();
   const createTaskMutation = useTaskCreateMutation();
@@ -141,15 +124,15 @@ export const DashboardPage = () => {
       ? "Task Dashboard"
       : route.kind === "create"
         ? "Create Task"
-        : (selectedTask?.title ?? "Task Details");
+        : "Task Details";
 
   const renderContent = () => {
     if (route.kind === "create") {
       return (
-        <Stack gap="md">
-          <Text c="dimmed" maw={720}>
+        <section className="section-stack">
+          <p className="section-copy">
             Create a new AIM task without leaving the main desktop workspace.
-          </Text>
+          </p>
           <CreateTaskForm
             errorMessage={
               createTaskMutation.isError
@@ -160,7 +143,7 @@ export const DashboardPage = () => {
             onCancel={goToDashboard}
             onSubmit={handleCreateTask}
           />
-        </Stack>
+        </section>
       );
     }
 
@@ -169,37 +152,45 @@ export const DashboardPage = () => {
     }
 
     return (
-      <Stack gap="lg">
+      <div className="section-stack">
         <ServerBaseUrlForm onSave={handleRefresh} />
 
         {dashboardQuery.isPending ? (
-          <Center mih={240}>
-            <Loader aria-label="Loading task dashboard" />
-          </Center>
+          <section className="surface-card">
+            <div className="hero-actions">
+              <LoaderCircle
+                aria-label="Loading task dashboard"
+                className="animate-spin"
+              />
+            </div>
+          </section>
         ) : null}
 
         {dashboardQuery.isError ? (
-          <Alert
-            color="red"
-            icon={<AlertCircle size={16} />}
-            title="Dashboard Error"
-          >
-            <Stack gap="sm">
-              <Text>{getTaskDashboardErrorMessage(dashboardQuery.error)}</Text>
-              <Button
+          <section className="alert-card">
+            <div className="form-stack">
+              <p className="field-label">
+                <AlertCircle aria-hidden="true" size={16} /> Dashboard Error
+              </p>
+              <p>{getTaskDashboardErrorMessage(dashboardQuery.error)}</p>
+              <button
+                className="ui-button ui-button--ghost"
                 disabled={dashboardQuery.isFetching}
-                loading={dashboardQuery.isFetching}
                 onClick={() => void handleRefresh()}
-                variant="light"
+                type="button"
               >
                 Retry
-              </Button>
-            </Stack>
-          </Alert>
+              </button>
+            </div>
+          </section>
         ) : null}
 
         {dashboardQuery.isSuccess && dashboardQuery.data.tasks.length === 0 ? (
-          <Text>No tasks available from the configured server.</Text>
+          <section className="surface-card">
+            <p className="muted-text">
+              No tasks available from the configured server.
+            </p>
+          </section>
         ) : null}
 
         {dashboardQuery.isSuccess && dashboardQuery.data.tasks.length > 0 ? (
@@ -219,85 +210,111 @@ export const DashboardPage = () => {
             />
           </>
         ) : null}
-      </Stack>
+      </div>
     );
   };
 
-  return (
-    <AppShell
-      header={{ height: 76 }}
-      padding="lg"
-      styles={{
-        header: {
-          backgroundColor: tokens.panelBackground,
-          borderBottom: `1px solid ${tokens.panelBorder}`,
-        },
-        main: {
-          backgroundColor: tokens.shellBackground,
-        },
-      }}
+  const renderNavAction = (
+    isActive: boolean,
+    isDisabled: boolean,
+    label: string,
+    onClick: () => void,
+  ) => (
+    <button
+      className={`nav-pill ${isActive ? "nav-pill--active" : ""}`}
+      disabled={isDisabled}
+      onClick={onClick}
+      type="button"
     >
-      <AppShell.Header px="lg" py="md">
-        <Group h="100%" justify="space-between">
-          <Group align="center" gap="sm">
-            <img alt="AIM icon" height={28} src="/aim-icon.svg" width={28} />
-            <div>
-              <Text fw={700} size="sm">
-                AIM
-              </Text>
-              <Title order={1}>{headerTitle}</Title>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="app-shell">
+      <div className="app-shell__frame" data-testid="dashboard-shell">
+        <header className="app-shell__hero">
+          <div className="app-shell__hero-content">
+            <div className="app-shell__topbar">
+              <div className="brand-lockup">
+                <div className="field-row">
+                  <img
+                    alt="AIM icon"
+                    className="brand-mark"
+                    src="/aim-icon.svg"
+                  />
+                  <div className="brand-lockup">
+                    <p className="eyebrow">AIM Navigator</p>
+                    <h1 className="brand-title">AIM</h1>
+                  </div>
+                </div>
+              </div>
+              <div className="actions-group">
+                <ThemeToggle />
+                {route.kind !== "dashboard"
+                  ? renderNavAction(
+                      false,
+                      createTaskMutation.isPending,
+                      "Back to Dashboard",
+                      goToDashboard,
+                    )
+                  : null}
+              </div>
             </div>
-          </Group>
-          <Group gap="sm">
-            {route.kind === "dashboard" ? (
-              <>
-                <Button
-                  disabled={dashboardQuery.isFetching}
-                  loading={dashboardQuery.isFetching}
-                  onClick={() => void handleRefresh()}
-                  variant="default"
-                >
-                  Refresh
-                </Button>
-                <Button onClick={goToCreateTask}>Create Task</Button>
-              </>
-            ) : null}
-            {route.kind === "create" ? (
-              <Button
-                disabled={createTaskMutation.isPending}
-                onClick={goToDashboard}
-                variant="default"
-              >
-                Back to Dashboard
-              </Button>
-            ) : null}
-            {route.kind === "task" ? (
-              <>
-                <Button
-                  disabled={dashboardQuery.isFetching}
-                  loading={dashboardQuery.isFetching}
-                  onClick={() => void handleRefresh()}
-                  variant="default"
-                >
-                  Refresh
-                </Button>
-                <Button onClick={goToDashboard} variant="default">
-                  Back to Dashboard
-                </Button>
-              </>
-            ) : null}
-          </Group>
-        </Group>
-      </AppShell.Header>
-      <AppShell.Main>
-        <Box
-          data-testid="dashboard-shell"
-          mih="calc(100vh - 76px)"
-          style={{ backgroundColor: tokens.shellBackground }}
-        >
-          <Stack gap="lg">{renderContent()}</Stack>
-        </Box>
-      </AppShell.Main>
-    </AppShell>
+
+            <div className="app-shell__hero-main">
+              <div className="hero-copy">
+                <p className="eyebrow">Mission control for autonomous builds</p>
+                <h2 className="hero-title">{headerTitle}</h2>
+                <p className="section-copy">
+                  Branded command surfaces, shared light and dark tokens, and
+                  the existing AIM task workflows on one stable shell.
+                </p>
+                <div className="nav-group">
+                  {renderNavAction(
+                    route.kind === "dashboard",
+                    false,
+                    "Dashboard",
+                    goToDashboard,
+                  )}
+                  {renderNavAction(
+                    route.kind === "create",
+                    false,
+                    "Task Intake",
+                    goToCreateTask,
+                  )}
+                </div>
+              </div>
+
+              <div className="hero-actions">
+                {route.kind !== "create" ? (
+                  <button
+                    className="ui-button ui-button--ghost"
+                    disabled={dashboardQuery.isFetching}
+                    onClick={() => void handleRefresh()}
+                    type="button"
+                  >
+                    <RefreshCw size={16} />
+                    Refresh
+                  </button>
+                ) : null}
+                {route.kind === "dashboard" ? (
+                  <button
+                    className="ui-button ui-button--primary"
+                    onClick={goToCreateTask}
+                    type="button"
+                  >
+                    <Plus size={16} />
+                    Create Task
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main>{renderContent()}</main>
+      </div>
+    </div>
   );
 };

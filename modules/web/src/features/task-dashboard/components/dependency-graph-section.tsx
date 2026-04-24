@@ -1,11 +1,4 @@
 import {
-  Card,
-  Text,
-  Title,
-  useComputedColorScheme,
-  useMantineTheme,
-} from "@mantine/core";
-import {
   Background,
   Controls,
   Handle,
@@ -18,10 +11,8 @@ import type {
   DashboardGraphEdge,
   DashboardGraphNode,
 } from "../model/task-dashboard-adapter.js";
-import { getDashboardThemeTokens } from "./dashboard-theme.js";
 
 type TaskGraphNodeData = DashboardGraphNode["data"] & {
-  backgroundColor: string;
   onSelect: () => void;
 };
 
@@ -32,25 +23,17 @@ const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
   <>
     <Handle position={Position.Top} type="target" />
     <button
-      className="nodrag nopan"
+      className="graph-node nodrag nopan"
       data-testid={data.testId}
       onClick={data.onSelect}
       style={{
-        background: data.backgroundColor,
-        border: `2px solid ${data.color}`,
-        borderRadius: 12,
-        boxShadow: `0 14px 32px ${data.color}26`,
-        color: "inherit",
-        cursor: "pointer",
-        minWidth: 180,
-        padding: 12,
+        borderColor: data.color,
         pointerEvents: "all",
-        textAlign: "left",
       }}
       type="button"
     >
       <strong>{data.label}</strong>
-      <div>{formatStatusLabel(data.status)}</div>
+      <div className="graph-node__status">{formatStatusLabel(data.status)}</div>
     </button>
     <Handle position={Position.Bottom} type="source" />
   </>
@@ -69,49 +52,24 @@ export const DependencyGraphSection = ({
   graphNodes: DashboardGraphNode[];
   onSelectTask: (taskId: string) => void;
 }) => {
-  const theme = useMantineTheme();
-  const colorScheme = useComputedColorScheme("light");
-  const tokens = getDashboardThemeTokens(theme, colorScheme);
   const nodes = graphNodes.map((node) => ({
     ...node,
     data: {
       ...node.data,
-      backgroundColor: tokens.panelBackground,
       onSelect: () => onSelectTask(node.id),
     },
     type: "taskNode" as const,
   }));
-  const edges = graphEdges.map((edge) => ({
-    ...edge,
-    animated: true,
-    style: { stroke: tokens.graphEdge, strokeWidth: 1.5 },
-  }));
 
   return (
-    <Card
-      padding="lg"
-      radius="xl"
-      style={{
-        backgroundColor: tokens.panelBackground,
-        border: `1px solid ${tokens.panelBorder}`,
-      }}
-    >
-      <Text c={tokens.mutedText} fw={700} size="xs" tt="uppercase">
-        Dependency Graph
-      </Text>
-      <Title mb="md" order={3}>
-        Dependency lanes
-      </Title>
-      <div
-        style={{
-          backgroundColor: tokens.graphCanvas,
-          borderRadius: 18,
-          height: 420,
-          overflow: "hidden",
-        }}
-      >
+    <section className="surface-card section-stack">
+      <div>
+        <p className="eyebrow">Topology</p>
+        <h2 className="section-title">Dependency Graph</h2>
+      </div>
+      <div className="graph-frame">
         <ReactFlow
-          edges={edges}
+          edges={graphEdges}
           elementsSelectable={false}
           fitView
           nodes={nodes}
@@ -120,10 +78,10 @@ export const DependencyGraphSection = ({
           nodeTypes={nodeTypes}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color={tokens.chartGrid} />
+          <Background />
           <Controls />
         </ReactFlow>
       </div>
-    </Card>
+    </section>
   );
 };

@@ -73,7 +73,10 @@ test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByAltText("AIM icon")).toBeVisible();
-  await expect(page.getByText("AIM", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AIM" })).toBeVisible();
+  await expect(
+    page.getByText("Mission control for autonomous builds"),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Task Dashboard" }),
   ).toBeVisible();
@@ -81,6 +84,27 @@ test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
   await expect(
     page.locator('head link[rel="icon"][href="/favicon.svg"]'),
   ).toHaveCount(1);
+});
+
+test("toggles the branded shell between dark and light themes", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const themeToggle = page.getByRole("button", {
+    name: "Switch to light theme",
+  });
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(themeToggle).toBeVisible();
+
+  await themeToggle.click();
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(
+    page.getByRole("button", { name: "Switch to dark theme" }),
+  ).toBeVisible();
+  await expect(page.locator("body")).toContainText("AIM Navigator");
 });
 
 test("renders the task table with core columns", async ({ page }) => {
@@ -909,20 +933,23 @@ test("renders a branded decision workspace with readable dark-mode data views", 
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
 
-  await expect(page.getByText("Decision cockpit")).toBeVisible();
-  await expect(page.getByText("Execution radar")).toBeVisible();
-  await expect(page.getByText("Delivery queue")).toBeVisible();
-  await expect(page.getByText("Dependency lanes")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(
+    page.getByText("Mission control for autonomous builds"),
+  ).toBeVisible();
+  await expect(page.getByText("Status Board")).toBeVisible();
+  await expect(page.getByText("Recent Active Tasks")).toBeVisible();
+  await expect(page.getByText("Dependency Graph")).toBeVisible();
   await expect(page.getByTestId("dashboard-shell")).toHaveCSS(
     "background-color",
-    "rgb(10, 15, 30)",
+    "rgb(7, 17, 31)",
   );
   await expect(page.getByTestId("dashboard-table-header")).toHaveCSS(
     "background-color",
-    "rgb(18, 24, 43)",
+    "rgba(15, 23, 42, 0.96)",
   );
   await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
     "background-color",
-    "rgb(18, 24, 43)",
+    "rgba(15, 23, 42, 0.96)",
   );
 });
