@@ -1,31 +1,9 @@
-import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { readFile } from "node:fs/promises";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
 const apiPackageUrl = new URL("../package.json", import.meta.url);
-const apiEntryUrl = new URL("../dist/app.mjs", import.meta.url);
-const contractEntryUrl = new URL(
-  "../../contract/dist/index.mjs",
-  import.meta.url,
-);
 const apiSourceUrl = new URL("../src/app.ts", import.meta.url);
-const apiRootUrl = new URL("../", import.meta.url);
-const contractRootUrl = new URL("../../contract/", import.meta.url);
-
-const execFileAsync = promisify(execFile);
-
-const ensureBuiltEntry = async (entryUrl: URL, packageRootUrl: URL) => {
-  try {
-    await access(entryUrl);
-  } catch {
-    await execFileAsync("pnpm", ["run", "build:dist"], {
-      cwd: fileURLToPath(packageRootUrl),
-    });
-  }
-};
 
 type ApiPackageManifest = {
   name: string;
@@ -46,16 +24,12 @@ let apiModule: ApiPackageModule;
 let contractModule: ContractPackageModule;
 
 beforeAll(async () => {
-  await ensureBuiltEntry(contractEntryUrl, contractRootUrl);
-  await ensureBuiltEntry(apiEntryUrl, apiRootUrl);
   apiPackage = JSON.parse(
     await readFile(apiPackageUrl, "utf8"),
   ) as ApiPackageManifest;
-  apiModule = (await import(
-    pathToFileURL(fileURLToPath(apiEntryUrl)).href
-  )) as ApiPackageModule;
+  apiModule = (await import("../src/app.ts")) as ApiPackageModule;
   contractModule = (await import(
-    pathToFileURL(fileURLToPath(contractEntryUrl)).href
+    "../../contract/src/index.ts"
   )) as ContractPackageModule;
 });
 
