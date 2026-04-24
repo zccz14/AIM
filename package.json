@@ -19,7 +19,6 @@
     "release:check": "pnpm run build",
     "typecheck": "pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck --types node tsdown.config.ts && pnpm -r --if-present typecheck",
     "typecheck:repo": "pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck --types node tsdown.config.ts",
-    "test:build-fixtures": "pnpm --filter ./modules/contract run build:dist && pnpm --filter ./modules/api run build:dist && pnpm --filter ./modules/cli run build:dist",
     "test:repo": "pnpm exec vitest run --config vitest.workspace.ts --project repo",
     "test:type": "pnpm run typecheck && pnpm -r --if-present run test:type",
     "test:type:repo": "pnpm run typecheck:repo",
@@ -27,11 +26,10 @@
     "test:lint:repo": "pnpm run lint",
     "test:smoke": "pnpm -r --if-present run test:smoke",
     "test:web": "pnpm -r --if-present run test:web",
-    "test": "pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
-    "build": "pnpm -r --if-present build && pnpm test",
+    "build": "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
     "gcm": "git fetch origin && git checkout origin/main",
     "smoke": "pnpm run test:smoke",
-    "validate": "pnpm run test",
+    "validate": "pnpm run build",
     "version-packages": "pnpm exec changeset version"
   },
   "devDependencies": {
