@@ -855,6 +855,76 @@ test("brands task details with grouped metadata and pull request access", async 
   await expect(page.getByText("task-release")).toBeVisible();
 });
 
+test("shows present developer closure cues in task details", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            ...buildTask({
+              done: true,
+              result: "PR merged, worktree removed, workspace refreshed.",
+              spec: "Closure-ready task",
+              status: "succeeded",
+              taskId: "task-closure-ready",
+            }),
+            pull_request_url: "https://github.com/example/repo/pull/88",
+            worktree_path: "/repo/.worktrees/task-closure-ready",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("row", { name: /Closure-ready task/i }).click();
+
+  await expect(page.getByText("Developer Closure Cues")).toBeVisible();
+  await expect(page.getByText("Pull Request: Present")).toBeVisible();
+  await expect(page.getByText("Worktree: Present")).toBeVisible();
+  await expect(page.getByText("Result Feedback: Present")).toBeVisible();
+  await expect(page.getByText("Done / Status: Complete")).toBeVisible();
+  await expect(
+    page.getByText("PR merged, worktree removed, workspace refreshed."),
+  ).toBeVisible();
+  await expect(page.getByText("done=true; status=succeeded")).toBeVisible();
+});
+
+test("shows missing developer closure cues in task details", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Closure-missing task",
+            status: "running",
+            taskId: "task-closure-missing",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("row", { name: /Closure-missing task/i }).click();
+
+  await expect(page.getByText("Developer Closure Cues")).toBeVisible();
+  await expect(page.getByText("Pull Request: Missing")).toBeVisible();
+  await expect(page.getByText("No pull_request_url recorded")).toBeVisible();
+  await expect(page.getByText("Worktree: Missing")).toBeVisible();
+  await expect(page.getByText("No worktree_path recorded")).toBeVisible();
+  await expect(page.getByText("Result Feedback: Missing")).toBeVisible();
+  await expect(page.getByText("No result feedback recorded")).toBeVisible();
+  await expect(page.getByText("Done / Status: Incomplete")).toBeVisible();
+  await expect(page.getByText("done=false; status=running")).toBeVisible();
+});
+
 test("renders the dependency graph with status-colored nodes", async ({
   page,
 }) => {

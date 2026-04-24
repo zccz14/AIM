@@ -75,6 +75,26 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
 
           <section className="aim-task-panel">
             <div className="aim-task-panel-header">
+              <p className="aim-kicker">Developer Closure Cues</p>
+              <h3>Checklist Facts</h3>
+            </div>
+            <div className="aim-checklist">
+              {task.closureChecklist.map((cue) => (
+                <div className="aim-checklist-item" key={cue.key}>
+                  <span className="aim-checkmark" aria-hidden="true">
+                    {cue.isComplete ? "OK" : "!"}
+                  </span>
+                  <div>
+                    <strong>{`${cue.label}: ${cue.statusLabel}`}</strong>
+                    <p className="aim-muted">{cue.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="aim-task-panel">
+            <div className="aim-task-panel-header">
               <p className="aim-kicker">Task Relationships</p>
               <h3>Dependencies and PR</h3>
             </div>
