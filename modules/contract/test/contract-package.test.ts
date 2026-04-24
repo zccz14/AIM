@@ -250,11 +250,11 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts).not.toHaveProperty("test");
     expect(rootPackage.scripts).not.toHaveProperty("changeset:check");
     expect(rootPackage.scripts.build).toBe(
-      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run test:changeset",
+      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm --filter ./modules/contract run openapi:check && pnpm run test:changeset",
     );
-    expect(rootPackage.scripts["release:check"]).toBe("pnpm run build");
-    expect(rootPackage.scripts.smoke).toBe("pnpm run test:smoke");
-    expect(rootPackage.scripts.validate).toBe("pnpm run build");
+    expect(rootPackage.scripts).not.toHaveProperty("release:check");
+    expect(rootPackage.scripts).not.toHaveProperty("smoke");
+    expect(rootPackage.scripts).not.toHaveProperty("validate");
     expect(rootPackage.scripts).not.toHaveProperty("test:unit");
     expect(rootPackage.scripts).not.toHaveProperty("test:integration");
     expect(rootPackage.scripts).not.toHaveProperty("test:e2e");
@@ -1033,14 +1033,18 @@ describe("contract package baseline", () => {
         readFile(generatedClientSdkUrl, "utf8"),
       ]);
 
-    expect(rootPackage.scripts["openapi:generate"]).toBeDefined();
-    expect(rootPackage.scripts["openapi:generate"]).toContain(
-      "modules/contract",
+    expect(rootPackage.scripts).not.toHaveProperty("openapi:generate");
+    expect(rootPackage.scripts).not.toHaveProperty("openapi:check");
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "generate:check",
     );
-    expect(rootPackage.scripts["openapi:check"]).toContain("generate:check");
-    expect(rootPackage.scripts["openapi:check"]).toContain("tasksPath");
-    expect(rootPackage.scripts["openapi:check"]).toContain("taskByIdPath");
-    expect(rootPackage.scripts["openapi:check"]).toContain("taskSpecPath");
+    expect(contractPackage.scripts?.["openapi:check"]).toContain("tasksPath");
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "taskByIdPath",
+    );
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "taskSpecPath",
+    );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(
       "pnpm run generate",
