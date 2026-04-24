@@ -23,6 +23,35 @@ html[data-theme="dark"] {
   --status-failed: #fb7185;
   --status-ready: #38bdf8;
   --status-running: #a78bfa;
+  --aim-surface-background:
+    linear-gradient(180deg, rgba(20, 28, 54, 0.96), rgba(9, 13, 28, 0.98)),
+    #0b1020;
+  --aim-surface-border: rgba(122, 162, 255, 0.18);
+  --aim-surface-shadow: 0 28px 70px rgba(4, 8, 20, 0.35);
+  --aim-panel-background: rgba(10, 16, 33, 0.74);
+  --aim-panel-border: rgba(122, 162, 255, 0.14);
+  --aim-text: #eef3ff;
+  --aim-text-strong: #f3f7ff;
+  --aim-muted: rgba(216, 227, 255, 0.72);
+  --aim-meta: rgba(216, 227, 255, 0.68);
+  --aim-accent: #8fb2ff;
+  --aim-link: #9bc2ff;
+  --aim-code-background: rgba(152, 192, 255, 0.12);
+  --aim-pre-background: rgba(3, 8, 19, 0.85);
+  --aim-table-border: rgba(122, 162, 255, 0.12);
+  --aim-table-header: rgba(122, 162, 255, 0.12);
+  --aim-chip-background: rgba(122, 162, 255, 0.09);
+  --aim-chip-border: rgba(122, 162, 255, 0.22);
+  --aim-checkmark-background: rgba(122, 162, 255, 0.16);
+  --aim-field-background: rgba(4, 9, 22, 0.8);
+  --aim-field-border: rgba(122, 162, 255, 0.18);
+  --aim-focus: rgba(155, 194, 255, 0.7);
+  --aim-primary-button-background: linear-gradient(135deg, #7aa2ff, #88f0ff);
+  --aim-primary-button-text: #08111f;
+  --aim-secondary-button-background: rgba(122, 162, 255, 0.08);
+  --aim-secondary-button-border: rgba(122, 162, 255, 0.24);
+  --aim-error-background: rgba(54, 11, 20, 0.72);
+  --aim-error-border: rgba(255, 133, 133, 0.28);
 }
 
 html[data-theme="light"] {
@@ -42,6 +71,39 @@ html[data-theme="light"] {
   --input: rgba(255, 255, 255, 0.92);
   --ring: rgba(14, 165, 233, 0.3);
   --shadow: 0 24px 64px rgba(148, 163, 184, 0.28);
+  --aim-surface-background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(242, 246, 255, 0.98)
+    ),
+    #f4f7ff;
+  --aim-surface-border: rgba(67, 96, 181, 0.16);
+  --aim-surface-shadow: 0 24px 60px rgba(69, 91, 160, 0.12);
+  --aim-panel-background: rgba(255, 255, 255, 0.78);
+  --aim-panel-border: rgba(67, 96, 181, 0.14);
+  --aim-text: #10203d;
+  --aim-text-strong: #10203d;
+  --aim-muted: rgba(35, 52, 96, 0.7);
+  --aim-meta: rgba(35, 52, 96, 0.7);
+  --aim-accent: #3c64c7;
+  --aim-link: #3157bd;
+  --aim-code-background: rgba(67, 96, 181, 0.11);
+  --aim-pre-background: rgba(225, 233, 250, 0.9);
+  --aim-table-border: rgba(67, 96, 181, 0.12);
+  --aim-table-header: rgba(67, 96, 181, 0.1);
+  --aim-chip-background: rgba(67, 96, 181, 0.08);
+  --aim-chip-border: rgba(67, 96, 181, 0.18);
+  --aim-checkmark-background: rgba(67, 96, 181, 0.12);
+  --aim-field-background: rgba(246, 249, 255, 0.94);
+  --aim-field-border: rgba(67, 96, 181, 0.18);
+  --aim-focus: rgba(49, 87, 189, 0.5);
+  --aim-primary-button-background: linear-gradient(135deg, #436bd8, #0ea5e9);
+  --aim-primary-button-text: #ffffff;
+  --aim-secondary-button-background: rgba(67, 96, 181, 0.08);
+  --aim-secondary-button-border: rgba(67, 96, 181, 0.2);
+  --aim-error-background: rgba(255, 241, 242, 0.88);
+  --aim-error-border: rgba(225, 29, 72, 0.28);
 }
 
 * {
@@ -593,22 +655,20 @@ a {
 }
 
 .aim-surface {
-  border: 1px solid rgba(122, 162, 255, 0.18);
+  border: 1px solid var(--aim-surface-border);
   border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(20, 28, 54, 0.96), rgba(9, 13, 28, 0.98)),
-    #0b1020;
-  box-shadow: 0 28px 70px rgba(4, 8, 20, 0.35);
-  color: #eef3ff;
+  background: var(--aim-surface-background);
+  box-shadow: var(--aim-surface-shadow);
+  color: var(--aim-text);
 }
 
 .aim-muted {
-  color: rgba(216, 227, 255, 0.72);
+  color: var(--aim-muted);
 }
 
 .aim-kicker {
   margin: 0;
-  color: #8fb2ff;
+  color: var(--aim-accent);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -723,9 +783,9 @@ a {
 .aim-task-form-main,
 .aim-task-form-sidebar,
 .aim-task-error {
-  border: 1px solid rgba(122, 162, 255, 0.14);
+  border: 1px solid var(--aim-panel-border);
   border-radius: 20px;
-  background: rgba(10, 16, 33, 0.74);
+  background: var(--aim-panel-background);
   padding: 1.25rem;
 }
 
@@ -754,7 +814,7 @@ a {
 }
 
 .aim-task-meta-row dt {
-  color: rgba(216, 227, 255, 0.68);
+  color: var(--aim-meta);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -767,7 +827,7 @@ a {
 }
 
 .aim-task-markdown {
-  color: #f3f7ff;
+  color: var(--aim-text-strong);
   line-height: 1.7;
 }
 
@@ -781,12 +841,12 @@ a {
 
 .aim-task-markdown a,
 .aim-task-link {
-  color: #9bc2ff;
+  color: var(--aim-link);
 }
 
 .aim-task-markdown code {
   border-radius: 8px;
-  background: rgba(152, 192, 255, 0.12);
+  background: var(--aim-code-background);
   padding: 0.15rem 0.35rem;
   font-size: 0.92em;
 }
@@ -794,7 +854,7 @@ a {
 .aim-task-markdown pre {
   overflow-x: auto;
   border-radius: 16px;
-  background: rgba(3, 8, 19, 0.85);
+  background: var(--aim-pre-background);
   padding: 1rem;
 }
 
@@ -812,13 +872,13 @@ a {
 
 .aim-task-markdown th,
 .aim-task-markdown td {
-  border: 1px solid rgba(122, 162, 255, 0.12);
+  border: 1px solid var(--aim-table-border);
   padding: 0.7rem 0.85rem;
   text-align: left;
 }
 
 .aim-task-markdown th {
-  background: rgba(122, 162, 255, 0.12);
+  background: var(--aim-table-header);
 }
 
 .aim-task-chip-list,
@@ -831,9 +891,9 @@ a {
 .aim-task-chip {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(122, 162, 255, 0.22);
+  border: 1px solid var(--aim-chip-border);
   border-radius: 999px;
-  background: rgba(122, 162, 255, 0.09);
+  background: var(--aim-chip-background);
   padding: 0.45rem 0.8rem;
 }
 
@@ -845,7 +905,7 @@ a {
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
-  color: #eef3ff;
+  color: var(--aim-text);
 }
 
 .aim-checkmark {
@@ -855,8 +915,8 @@ a {
   min-width: 1.3rem;
   min-height: 1.3rem;
   border-radius: 999px;
-  background: rgba(122, 162, 255, 0.16);
-  color: #9bc2ff;
+  background: var(--aim-checkmark-background);
+  color: var(--aim-link);
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -872,13 +932,14 @@ a {
 }
 
 .aim-field textarea,
-.aim-field input {
+.aim-field input,
+.aim-field select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(122, 162, 255, 0.18);
+  border: 1px solid var(--aim-field-border);
   border-radius: 16px;
-  background: rgba(4, 9, 22, 0.8);
-  color: #f5f8ff;
+  background: var(--aim-field-background);
+  color: var(--aim-text-strong);
   padding: 0.95rem 1rem;
   font: inherit;
 }
@@ -890,8 +951,9 @@ a {
 
 .aim-field textarea:focus,
 .aim-field input:focus,
+.aim-field select:focus,
 .aim-task-button:focus {
-  outline: 2px solid rgba(155, 194, 255, 0.7);
+  outline: 2px solid var(--aim-focus);
   outline-offset: 2px;
 }
 
@@ -913,25 +975,26 @@ a {
 
 .aim-task-button:disabled,
 .aim-field textarea:disabled,
-.aim-field input:disabled {
+.aim-field input:disabled,
+.aim-field select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .aim-task-button-primary {
-  background: linear-gradient(135deg, #7aa2ff, #88f0ff);
-  color: #08111f;
+  background: var(--aim-primary-button-background);
+  color: var(--aim-primary-button-text);
 }
 
 .aim-task-button-secondary {
-  border-color: rgba(122, 162, 255, 0.24);
-  background: rgba(122, 162, 255, 0.08);
-  color: #eef3ff;
+  border-color: var(--aim-secondary-button-border);
+  background: var(--aim-secondary-button-background);
+  color: var(--aim-text);
 }
 
 .aim-task-error {
-  border-color: rgba(255, 133, 133, 0.28);
-  background: rgba(54, 11, 20, 0.72);
+  border-color: var(--aim-error-border);
+  background: var(--aim-error-background);
 }
 
 .aim-task-error h3,
@@ -948,49 +1011,5 @@ a {
   .aim-task-details,
   .aim-task-form {
     padding: 1rem;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .aim-surface {
-    border-color: rgba(67, 96, 181, 0.16);
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.96),
-        rgba(242, 246, 255, 0.98)
-      ),
-      #f4f7ff;
-    box-shadow: 0 24px 60px rgba(69, 91, 160, 0.12);
-    color: #10203d;
-  }
-
-  .aim-muted,
-  .aim-task-meta-row dt {
-    color: rgba(35, 52, 96, 0.7);
-  }
-
-  .aim-task-panel,
-  .aim-task-form-main,
-  .aim-task-form-sidebar,
-  .aim-task-error {
-    background: rgba(255, 255, 255, 0.78);
-  }
-
-  .aim-task-markdown,
-  .aim-checklist-item,
-  .aim-task-button-secondary,
-  .aim-field textarea,
-  .aim-field input {
-    color: #10203d;
-  }
-
-  .aim-field textarea,
-  .aim-field input {
-    background: rgba(246, 249, 255, 0.94);
-  }
-
-  .aim-task-markdown pre {
-    background: rgba(225, 233, 250, 0.9);
   }
 }
