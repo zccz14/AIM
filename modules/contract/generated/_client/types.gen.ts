@@ -39,15 +39,7 @@ export type Task = {
   pull_request_url: string | null;
   dependencies: Array<string>;
   readonly done: boolean;
-  status:
-    | "created"
-    | "waiting_assumptions"
-    | "running"
-    | "outbound"
-    | "pr_following"
-    | "closing"
-    | "succeeded"
-    | "failed";
+  status: "processing" | "resolved" | "rejected";
   readonly created_at: string;
   readonly updated_at: string;
 };
@@ -63,15 +55,7 @@ export type CreateTaskRequest = {
   session_id?: string | null;
   worktree_path?: string | null;
   pull_request_url?: string | null;
-  status?:
-    | "created"
-    | "waiting_assumptions"
-    | "running"
-    | "outbound"
-    | "pr_following"
-    | "closing"
-    | "succeeded"
-    | "failed";
+  status?: "processing" | "resolved" | "rejected";
 };
 
 export type PatchTaskRequest = {
@@ -81,15 +65,7 @@ export type PatchTaskRequest = {
   pull_request_url?: string | null;
   dependencies?: Array<string>;
   result?: string;
-  status?:
-    | "created"
-    | "waiting_assumptions"
-    | "running"
-    | "outbound"
-    | "pr_following"
-    | "closing"
-    | "succeeded"
-    | "failed";
+  status?: "processing" | "resolved" | "rejected";
 };
 
 export type TaskWorktreePathRequest = {
@@ -144,15 +120,7 @@ export type TaskWritable = {
   worktree_path: string | null;
   pull_request_url: string | null;
   dependencies: Array<string>;
-  status:
-    | "created"
-    | "waiting_assumptions"
-    | "running"
-    | "outbound"
-    | "pr_following"
-    | "closing"
-    | "succeeded"
-    | "failed";
+  status: "processing" | "resolved" | "rejected";
 };
 
 export type TaskListResponseWritable = {
@@ -161,15 +129,7 @@ export type TaskListResponseWritable = {
 
 export type TaskIdPathParameter = string;
 
-export type TaskStatusQueryParameter =
-  | "created"
-  | "waiting_assumptions"
-  | "running"
-  | "outbound"
-  | "pr_following"
-  | "closing"
-  | "succeeded"
-  | "failed";
+export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
 
 export type TaskDoneQueryParameter = boolean;
 
@@ -231,15 +191,7 @@ export type ListTasksData = {
   body?: never;
   path?: never;
   query?: {
-    status?:
-      | "created"
-      | "waiting_assumptions"
-      | "running"
-      | "outbound"
-      | "pr_following"
-      | "closing"
-      | "succeeded"
-      | "failed";
+    status?: "processing" | "resolved" | "rejected";
     done?: boolean;
     session_id?: string;
   };

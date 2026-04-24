@@ -1,9 +1,4 @@
-export type DashboardStatus =
-  | "ready"
-  | "running"
-  | "blocked"
-  | "done"
-  | "failed";
+export type DashboardStatus = "processing" | "resolved" | "rejected";
 
 export type DashboardTask = {
   id: string;
@@ -32,7 +27,7 @@ export type DashboardClosureCue = {
 };
 
 export type DashboardSummaryCard = {
-  key: "pool" | "running" | "blocked" | "historySucceeded" | "historyFailed";
+  key: "pool" | "processing" | "historyResolved" | "historyRejected";
   label: string;
   value: number;
 };

@@ -231,32 +231,23 @@ Task 不是“等依赖都完成才启动”的一次性流程，而是可能多
 
 ### `status`
 
-`status` 是该 Task 当前编排状态的缓存结果。
-
-之所以需要这个字段，是因为虽然很多状态理论上都可以通过 AI、Git、GitHub、Session 上下文推断出来，但那种推断成本较高、并且涉及异步动作，不适合作为调度器的快速查询基础。
-
-因此 `status` 是缓存，不是唯一事实源。
+`status` 是该 Task 对外暴露的生命周期状态，不承载内部编排状态机。
 
 推荐状态值如下：
 
-- `created`: Task 已写入 SQLite，但尚未真正开始推进。
-- `waiting_assumptions`: 最新基线尚未满足该 Task Spec 的 `Assumptions`。
-- `running`: Task 当前正在推进，或已通过早期验证并处于开发执行中。
-- `outbound`: Task 处于 commit / fetch / rebase / push / create PR 相关阶段。
-- `pr_following`: PR 已存在，正在跟进 checks / review / merge。
-- `closing`: PR 已终态，正在清理 WorkTree 或刷新本地基线。
-- `succeeded`: Task 已成功结束。
-- `failed`: Task 已失败结束。
+- `processing`: Task 仍需继续推进，包含创建、验证、开发、PR 跟进、等待外部信号和收尾等所有非终态过程。
+- `resolved`: Task 已成功结束。
+- `rejected`: Task 已失败结束。
 
 推荐搭配关系：
 
-- `done = false` 时，`status` 应处于非终态。
-- `done = true` 时，`status` 应为 `succeeded` 或 `failed`。
+- `done = false` 时，`status` 应为 `processing`。
+- `done = true` 时，`status` 应为 `resolved` 或 `rejected`。
 
 其中：
 
-- `waiting_assumptions` 表示“当前还不 ready，但后续基线变化后仍值得再验一次”。
-- `failed` 表示“这份 Task Spec 已经不能靠自然的基线推进继续执行，需要上层规划器介入”。
+- `processing` 不区分中间过程，外部系统只需知道该 Task 尚未进入终态。
+- `rejected` 表示“这份 Task Spec 已不能继续执行，需要上层规划器介入或吸收失败反馈”。
 
 ### `result`
 

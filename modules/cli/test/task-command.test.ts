@@ -64,7 +64,7 @@ const startTaskServer = async () => {
     dependencies: ["task-a", "task-b"],
     result: "",
     done: false,
-    status: "created",
+    status: "processing",
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
@@ -99,7 +99,7 @@ const startTaskServer = async () => {
       response.end(
         JSON.stringify({
           items:
-            url.searchParams.get("status") === "running" &&
+            url.searchParams.get("status") === "processing" &&
             url.searchParams.get("done") === "false" &&
             url.searchParams.get("session_id") === "session-1"
               ? [task]
@@ -241,7 +241,7 @@ describe("task cli command baseline", () => {
       "--base-url",
       `${server.baseUrl}/api`,
       "--status",
-      "running",
+      "processing",
       "--done",
       "false",
       "--session-id",
@@ -256,7 +256,7 @@ describe("task cli command baseline", () => {
       method: "GET",
       pathname: "/api/tasks",
       searchParams: {
-        status: "running",
+        status: "processing",
         done: "false",
         session_id: "session-1",
       },
@@ -330,7 +330,7 @@ describe("task cli command baseline", () => {
       "--task-spec",
       "rewrite spec",
       "--status",
-      "running",
+      "processing",
       "--clear-session-id",
       "--clear-worktree-path",
       "--clear-pull-request-url",
@@ -346,7 +346,7 @@ describe("task cli command baseline", () => {
       path: "/api/tasks/task-1",
       json: {
         task_spec: "rewrite spec",
-        status: "running",
+        status: "processing",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -358,7 +358,7 @@ describe("task cli command baseline", () => {
       data: {
         task_id: "task-1",
         task_spec: "rewrite spec",
-        status: "running",
+        status: "processing",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,

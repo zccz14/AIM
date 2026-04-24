@@ -82,7 +82,7 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - 只有在验证通过后，才能基于最新 `origin/main` 创建新的 git worktree。
 - worktree 只能创建在 `<repo>/.worktrees/` 下。
 - 所有开发动作都必须在该 worktree 中执行，并与该 Task 绑定到同一分支、同一 PR。
-- worktree 创建后，立即通过 PATCH 上报 `running`，并通过字段级 PUT 上报已知的 `worktree_path`。
+- worktree 创建后，确保 Task 仍以 `processing` 暴露，并通过字段级 PUT 上报已知的 `worktree_path`。
 
 ### 5. 用 `aim-test-driven-development` 执行
 
@@ -94,12 +94,12 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 - 只有在该 Task 范围内的验证全部通过后，才创建 GitHub PR。
 - PR 创建后立刻尝试启用 Auto Merge，并要求使用 Squash。
-- PR 创建成功后，立即 PATCH `outbound`；若 `pull_request_url` 已知则立即通过字段级 PUT 单独上报，不要拖延。
+- PR 创建成功后，保持 Task 为 `processing`；若 `pull_request_url` 已知则立即通过字段级 PUT 单独上报，不要拖延。
 - 如果 Auto Merge 因权限、仓库策略或平台状态无法立即启用，必须把它当作真实阻塞继续跟进，而不是把流程视为已完成。
 
 ### 7. 持续跟进 PR 直到合并
 
-- PR 创建后，PATCH `pr_following`，并持续跟进 checks、review、mergeability 与 auto-merge 状态；跟进 required checks 时可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化，避免手动轮询。
+- PR 创建后，继续以 `processing` 表示 Task 尚未终态，并持续跟进 checks、review、mergeability 与 auto-merge 状态；跟进 required checks 时可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化，避免手动轮询。
 - 跟进时必须检查 PR 是否需要 update、是否落后于 base branch、或是否被 Linear History Rule 阻塞；若需要 update，必须在同一 worktree、同一分支、同一 PR 中按仓库规则处理，优先执行 `git fetch origin` 与 `git rebase origin/main` 更新分支后再 push，并继续跟进。
 - 如果 checks 失败且原因仍在当前任务 scope 内，必须在同一 worktree、同一分支、同一 PR 中修复、验证、push，并继续跟进。
 - 如果 checks 失败原因超出当前任务 scope，或 review 意见与 spec / scope / 权限边界冲突，必须升级决策，不得擅自扩大范围。
@@ -107,51 +107,26 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 ### 8. 清理与关闭
 
-- 只有当 PR 已合并、关闭或确认废弃后，才能进入 `closing`。
-- 在 `closing` 阶段仍需处理相关 review / 后续 review、删除 worktree，并确认不再需要该 worktree。
+- PR 已合并、关闭或确认废弃后，仍保持 `processing`，直到 review 收尾、删除 worktree，并确认不再需要该 worktree。
 - 删除 worktree 后，必须回到主工作区执行 `git fetch origin && git checkout origin/main`。
 - 只有在 PR 终态成立、worktree 已删除、主工作区基线已刷新后，才能 `POST /resolve`，并把 Task 视为真正完成。
 
 ## 生命周期状态
 
-- `created`：Task 已存在，但执行尚未真正开始。
-- `waiting_assumptions`：执行因缺失前提、用户输入或外部条件而阻塞。
-- `running`：已开始执行，且仍处于 PR 创建前的阶段；包括最新基线验证通过后、worktree 创建后、TDD / 实现 / 验证 / commit / push 前后的执行期。
-- `outbound`：PR 已创建，并已上报 `pull_request_url`。
-- `pr_following`：正在跟进 checks、review、mergeability 或 auto-merge。
-- `closing`：PR 已合并、关闭或确认废弃，正在做 review 收尾、worktree 删除与主工作区基线刷新。
-- `succeeded`：任务已成功完成，并通过 `POST /resolve` 上报。
-- `failed`：任务已失败结束，并通过 `POST /reject` 上报。
+- `processing`：Task 仍需继续推进，包含创建、验证、开发、PR 跟进、等待外部信号和收尾等所有非终态过程。
+- `resolved`：任务已成功完成，并通过 `POST /resolve` 上报。
+- `rejected`：任务已失败结束，并通过 `POST /reject` 上报。
 
-## 允许的状态流转
-
-- `created -> running`
-- `created -> waiting_assumptions`
-- `running -> waiting_assumptions`
-- `waiting_assumptions -> running`
-- `running -> outbound`
-- `running -> failed`
-- `outbound -> pr_following`
-- `outbound -> closing`
-- `outbound -> failed`
-- `pr_following -> pr_following`
-- `pr_following -> closing`
-- `pr_following -> failed`
-- `closing -> succeeded`
-- `closing -> failed`
-
-`running -> closing` 不是标准路径；不要把“未建 PR 就结束”写成正常成功流转。
+不要把内部步骤上报成 task status。AIM 外部只需要知道 Task 是否仍在 `processing`，或已进入 `resolved` / `rejected` 终态。
 
 ## 必须上报的时点
 
-1. 确认开始执行后：PATCH `running`。
-2. worktree 创建后：继续 PATCH `running`，并补充 `worktree_path`。
-3. 因缺失前提而阻塞时：PATCH `waiting_assumptions`。
-4. PR 创建后：PATCH `outbound`，并在已知时携带 `pull_request_url`。
-5. 开始跟进 PR 时：PATCH `pr_following`。
-6. PR 已合并、关闭或确认废弃后：PATCH `closing`。
-7. 最终成功完成时：`POST /resolve`，请求体只发送非空 `result`。
-8. 任务本身失败时：`POST /reject`，请求体只发送非空 `result`。
+1. 确认开始执行后：如需显式写入状态，仅 PATCH `processing`。
+2. worktree 创建后：通过字段级 PUT 补充 `worktree_path`。
+3. PR 创建后：通过字段级 PUT 补充 `pull_request_url`。
+4. 依赖关系变化时：通过字段级 PUT 补充 `dependencies`。
+5. 最终成功完成时：`POST /resolve`，请求体只发送非空 `result`。
+6. 任务本身失败时：`POST /reject`，请求体只发送非空 `result`。
 
 只要 `worktree_path`、`pull_request_url` 或 `dependencies` 有新增或变化，应使用对应字段级 PUT 单独上报。
 
@@ -168,18 +143,18 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。
 - 成功终态只能使用 `POST /tasks/${task_id}/resolve`。
 - 失败终态只能使用 `POST /tasks/${task_id}/reject`。
-- 只能使用 `POST /resolve` 上报 `succeeded` 终态结果，且只能使用 `POST /reject` 上报 `failed` 终态结果。
+- 只能使用 `POST /resolve` 上报 `resolved` 终态结果，且只能使用 `POST /reject` 上报 `rejected` 终态结果。
 - 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
 - 终态请求体必须且只能包含一个非空 `result` 字符串字段。
 - 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
 
-### Running 示例
+### Processing 示例
 
 ```bash
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   -H "Content-Type: application/json" \
   --data '{
-    "status": "running"
+    "status": "processing"
   }'
 
 curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/worktree_path" \
@@ -189,15 +164,9 @@ curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/worktree
   }'
 ```
 
-### Outbound 示例
+### Pull Request URL 示例
 
 ```bash
-curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
-  -H "Content-Type: application/json" \
-  --data '{
-    "status": "outbound"
-  }'
-
 curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/pull_request_url" \
   -H "Content-Type: application/json" \
   --data '{

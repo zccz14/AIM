@@ -29,28 +29,19 @@ export type DashboardGraphEdge = {
 };
 
 const statusColorMap: Record<DashboardStatus, string> = {
-  ready: "#228be6",
-  running: "#fab005",
-  blocked: "#f08c00",
-  done: "#2f9e44",
-  failed: "#e03131",
+  processing: "#fab005",
+  resolved: "#2f9e44",
+  rejected: "#e03131",
 };
 
 export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
   switch (status) {
-    case "created":
-      return "ready";
-    case "waiting_assumptions":
-      return "blocked";
-    case "running":
-    case "outbound":
-    case "pr_following":
-    case "closing":
-      return "running";
-    case "succeeded":
-      return "done";
-    case "failed":
-      return "failed";
+    case "processing":
+      return "processing";
+    case "resolved":
+      return "resolved";
+    case "rejected":
+      return "rejected";
   }
 };
 
@@ -58,9 +49,7 @@ const countTasksByStatus = (tasks: DashboardTask[], status: DashboardStatus) =>
   tasks.filter((task) => task.dashboardStatus === status).length;
 
 const isActiveTask = (task: DashboardTask) =>
-  task.dashboardStatus === "ready" ||
-  task.dashboardStatus === "running" ||
-  task.dashboardStatus === "blocked";
+  task.dashboardStatus === "processing";
 
 export const summarizeTaskSpec = (taskSpec: string) => {
   const [firstLine = ""] = taskSpec
@@ -88,7 +77,7 @@ const buildClosureChecklist = (task: Task): DashboardClosureCue[] => {
   const hasPullRequest = task.pull_request_url !== null;
   const hasWorktree = task.worktree_path !== null;
   const hasResult = task.result.trim().length > 0;
-  const hasSucceededCompletion = task.done && task.status === "succeeded";
+  const hasSucceededCompletion = task.done && task.status === "resolved";
 
   return [
     {
@@ -229,41 +218,26 @@ export const adaptTaskDashboard = (
     summaryCards: [
       { key: "pool", label: "Task Pool", value: tasks.length },
       {
-        key: "running",
-        label: "Running",
-        value: countTasksByStatus(tasks, "running"),
+        key: "processing",
+        label: "Processing",
+        value: countTasksByStatus(tasks, "processing"),
       },
       {
-        key: "blocked",
-        label: "Blocked",
-        value: countTasksByStatus(tasks, "blocked"),
+        key: "historyResolved",
+        label: "History Resolved",
+        value: countTasksByStatus(historyTasks, "resolved"),
       },
       {
-        key: "historySucceeded",
-        label: "History Succeeded",
-        value: countTasksByStatus(historyTasks, "done"),
-      },
-      {
-        key: "historyFailed",
-        label: "History Failed / Rejected",
-        value: countTasksByStatus(historyTasks, "failed"),
+        key: "historyRejected",
+        label: "History Rejected",
+        value: countTasksByStatus(historyTasks, "rejected"),
       },
     ],
     statusBoardItems: [
       {
-        key: "ready",
-        label: "Ready",
-        value: countTasksByStatus(tasks, "ready"),
-      },
-      {
-        key: "running",
-        label: "Running",
-        value: countTasksByStatus(tasks, "running"),
-      },
-      {
-        key: "blocked",
-        label: "Blocked",
-        value: countTasksByStatus(tasks, "blocked"),
+        key: "processing",
+        label: "Processing",
+        value: countTasksByStatus(tasks, "processing"),
       },
     ],
     activitySeries: [...historyTasks]

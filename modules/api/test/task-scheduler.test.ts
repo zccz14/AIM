@@ -24,7 +24,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   project_path: join(tempRoot, overrides.task_id ?? "task-1"),
   pull_request_url: null,
   session_id: null,
-  status: "created",
+  status: "processing",
   task_id: "task-1",
   task_spec: "Continue implementing the scheduler.",
   title: "Continue scheduler",
@@ -42,7 +42,7 @@ describe("task scheduler", () => {
     const initialTask = createTask();
     const boundTask = createTask({
       session_id: "session-1",
-      status: "running",
+      status: "processing",
     });
     const logger = {
       error: vi.fn(),
@@ -66,7 +66,7 @@ describe("task scheduler", () => {
       event: "task_session_bound",
       project_path: boundTask.project_path,
       session_id: "session-1",
-      status: "running",
+      status: "processing",
       task_id: boundTask.task_id,
     });
   });
@@ -74,7 +74,7 @@ describe("task scheduler", () => {
   it("logs task_session_continued only after continue prompt succeeds", async () => {
     const task = createTask({
       session_id: "session-1",
-      status: "running",
+      status: "processing",
     });
     const logger = {
       error: vi.fn(),
@@ -97,7 +97,7 @@ describe("task scheduler", () => {
       event: "task_session_continued",
       project_path: task.project_path,
       session_id: "session-1",
-      status: "running",
+      status: "processing",
       task_id: task.task_id,
     });
   });
@@ -436,7 +436,7 @@ describe("task scheduler", () => {
     const completedTask = createTask({
       done: true,
       session_id: "session-1",
-      status: "succeeded",
+      status: "resolved",
     });
     const repository = {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(completedTask),
@@ -644,14 +644,14 @@ describe("task scheduler", () => {
         project_path: "/repo",
         pull_request_url: "https://example.test/pr/123",
         session_id: "session-1",
-        status: "running",
+        status: "processing",
         worktree_path: "/repo/.worktrees/task-1",
       }),
     );
 
     expect(prompt).toContain("task_id: task-1");
     expect(prompt).toContain("Read the task spec by GET /tasks/task-1/spec.");
-    expect(prompt).toContain("status: running");
+    expect(prompt).toContain("status: processing");
     expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
     expect(prompt).toContain("pull_request_url: https://example.test/pr/123");
     expect(prompt).toContain("session_id: session-1");

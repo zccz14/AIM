@@ -43,18 +43,7 @@ const CreateTaskRequest = z
     session_id: z.union([z.string(), z.null()]).optional(),
     worktree_path: z.union([z.string(), z.null()]).optional(),
     pull_request_url: z.union([z.string(), z.null()]).optional(),
-    status: z
-      .enum([
-        "created",
-        "waiting_assumptions",
-        "running",
-        "outbound",
-        "pr_following",
-        "closing",
-        "succeeded",
-        "failed",
-      ])
-      .optional(),
+    status: z.enum(["processing", "resolved", "rejected"]).optional(),
   })
   .strict();
 const Task = z
@@ -71,16 +60,7 @@ const Task = z
     pull_request_url: z.union([z.string(), z.null()]),
     dependencies: z.array(z.string().min(1)),
     done: z.boolean(),
-    status: z.enum([
-      "created",
-      "waiting_assumptions",
-      "running",
-      "outbound",
-      "pr_following",
-      "closing",
-      "succeeded",
-      "failed",
-    ]),
+    status: z.enum(["processing", "resolved", "rejected"]),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
@@ -94,16 +74,7 @@ const PatchTaskRequest = z
     pull_request_url: z.union([z.string(), z.null()]),
     dependencies: z.array(z.string().min(1)),
     result: z.string(),
-    status: z.enum([
-      "created",
-      "waiting_assumptions",
-      "running",
-      "outbound",
-      "pr_following",
-      "closing",
-      "succeeded",
-      "failed",
-    ]),
+    status: z.enum(["processing", "resolved", "rejected"]),
   })
   .partial()
   .strict();

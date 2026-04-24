@@ -96,7 +96,7 @@ describe("task repository", () => {
       withRequiredCreateFields({
         task_spec: "bootstrap repository schema",
         project_path: "/repo/bootstrap",
-        status: "succeeded",
+        status: "resolved",
       }),
     );
     const tasks = await repository.listTasks();
@@ -140,7 +140,7 @@ describe("task repository", () => {
         developer_model_id: "claude-sonnet-4-5",
         developer_provider_id: "anthropic",
         project_path: "/repo/model-columns",
-        status: "created",
+        status: "processing",
         task_spec: "persist required model fields",
         title: "Persist model fields",
       }),
@@ -186,27 +186,27 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const firstTask = await repository.createTask(
       withRequiredCreateFields({
-        task_spec: "keep running",
-        project_path: "/repo/session-a/running",
+        task_spec: "keep processing",
+        project_path: "/repo/session-a/processing",
         session_id: "session-a",
-        status: "running",
+        status: "processing",
       }),
     );
     const secondTask = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "complete later",
-        project_path: "/repo/session-a/created",
+        project_path: "/repo/session-a/processing-pending",
         session_id: "session-a-pending",
         dependencies: [firstTask.task_id],
-        status: "created",
+        status: "processing",
       }),
     );
     const thirdTask = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "different session",
-        project_path: "/repo/session-b/failed",
+        project_path: "/repo/session-b/rejected",
         session_id: "session-b",
-        status: "failed",
+        status: "rejected",
       }),
     );
 
@@ -219,26 +219,26 @@ describe("task repository", () => {
     await expect(
       repository.listTasks({ session_id: "session-a-pending" }),
     ).resolves.toEqual([secondTask]);
-    await expect(repository.listTasks({ status: "failed" })).resolves.toEqual([
-      thirdTask,
-    ]);
+    await expect(repository.listTasks({ status: "rejected" })).resolves.toEqual(
+      [thirdTask],
+    );
     await expect(repository.listTasks({ done: true })).resolves.toEqual([
       thirdTask,
     ]);
 
     const updatedTask = await repository.updateTask(secondTask.task_id, {
       pull_request_url: "https://example.test/pr/2",
-      status: "succeeded",
+      status: "resolved",
       task_spec: "complete now",
     });
 
     expect(updatedTask.task_id).toBe(secondTask.task_id);
     expect(updatedTask.task_spec).toBe("complete now");
-    expect(updatedTask.project_path).toBe("/repo/session-a/created");
+    expect(updatedTask.project_path).toBe("/repo/session-a/processing-pending");
     expect(updatedTask.session_id).toBe("session-a-pending");
     expect(updatedTask.dependencies).toEqual([firstTask.task_id]);
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/2");
-    expect(updatedTask.status).toBe("succeeded");
+    expect(updatedTask.status).toBe("resolved");
     expect(updatedTask.done).toBe(true);
     expect(Date.parse(updatedTask.updated_at)).toBeGreaterThanOrEqual(
       Date.parse(secondTask.updated_at),
@@ -269,20 +269,20 @@ describe("task repository", () => {
       withRequiredCreateFields({
         project_path: "/repo/patch-omits-result",
         result: "keep me",
-        status: "running",
+        status: "processing",
         task_spec: "preserve result",
       }),
     );
 
     const updatedTask = await repository.updateTask(task.task_id, {
-      status: "succeeded",
+      status: "resolved",
       task_spec: "preserve existing result",
     });
 
     expect(updatedTask).toMatchObject({
       done: true,
       result: "keep me",
-      status: "succeeded",
+      status: "resolved",
       task_id: task.task_id,
     });
   });
@@ -297,7 +297,7 @@ describe("task repository", () => {
       withRequiredCreateFields({
         project_path: "/repo/patch-updates-result",
         result: "before",
-        status: "running",
+        status: "processing",
         task_spec: "replace result",
       }),
     );
@@ -308,7 +308,7 @@ describe("task repository", () => {
 
     expect(updatedTask).toMatchObject({
       result: "after",
-      status: "running",
+      status: "processing",
       task_id: task.task_id,
     });
   });
@@ -322,14 +322,14 @@ describe("task repository", () => {
     const resolvedTask = await repository.createTask(
       withRequiredCreateFields({
         project_path: "/repo/terminal-result-helpers/resolved",
-        status: "running",
+        status: "processing",
         task_spec: "resolve me",
       }),
     );
     const rejectedTask = await repository.createTask(
       withRequiredCreateFields({
         project_path: "/repo/terminal-result-helpers/rejected",
-        status: "running",
+        status: "processing",
         task_spec: "reject me",
       }),
     );
@@ -339,7 +339,7 @@ describe("task repository", () => {
     ).resolves.toMatchObject({
       done: true,
       result: "ship it",
-      status: "succeeded",
+      status: "resolved",
       task_id: resolvedTask.task_id,
     });
     await expect(
@@ -347,20 +347,20 @@ describe("task repository", () => {
     ).resolves.toMatchObject({
       done: true,
       result: "needs more work",
-      status: "failed",
+      status: "rejected",
       task_id: rejectedTask.task_id,
     });
     await expect(
       repository.getTaskById(resolvedTask.task_id),
     ).resolves.toMatchObject({
       result: "ship it",
-      status: "succeeded",
+      status: "resolved",
     });
     await expect(
       repository.getTaskById(rejectedTask.task_id),
     ).resolves.toMatchObject({
       result: "needs more work",
-      status: "failed",
+      status: "rejected",
     });
   });
 
@@ -370,31 +370,31 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
-    const runningTask = await repository.createTask(
+    const processingTask = await repository.createTask(
       withRequiredCreateFields({
-        task_spec: "still running",
-        project_path: "/repo/unfinished/running",
-        status: "running",
+        task_spec: "still processing",
+        project_path: "/repo/unfinished/processing",
+        status: "processing",
       }),
     );
-    const createdTask = await repository.createTask(
+    const queuedTask = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "queued",
         project_path: "/repo/unfinished/queued",
-        status: "created",
+        status: "processing",
       }),
     );
     await repository.createTask(
       withRequiredCreateFields({
         task_spec: "already done",
         project_path: "/repo/unfinished/done",
-        status: "succeeded",
+        status: "resolved",
       }),
     );
 
     await expect(repository.listUnfinishedTasks()).resolves.toEqual([
-      runningTask,
-      createdTask,
+      processingTask,
+      queuedTask,
     ]);
   });
 
@@ -410,7 +410,7 @@ describe("task repository", () => {
       withRequiredCreateFields({
         task_spec: "claim me once",
         project_path: "/repo/claim-once",
-        status: "created",
+        status: "processing",
       }),
     );
 
@@ -439,7 +439,7 @@ describe("task repository", () => {
       withRequiredCreateFields({
         task_spec: "race me",
         project_path: "/repo/race-me",
-        status: "created",
+        status: "processing",
       }),
     );
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -469,14 +469,14 @@ describe("task repository", () => {
       withRequiredCreateFields({
         task_spec: "finish before binding",
         project_path: "/repo/finish-first",
-        status: "created",
+        status: "processing",
       }),
     );
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
     database
       .prepare("UPDATE tasks SET done = 1, status = ? WHERE task_id = ?")
-      .run("succeeded", task.task_id);
+      .run("resolved", task.task_id);
     database.close();
 
     await expect(
@@ -485,7 +485,7 @@ describe("task repository", () => {
       task_id: task.task_id,
       done: true,
       session_id: null,
-      status: "succeeded",
+      status: "resolved",
     });
   });
 
@@ -502,14 +502,14 @@ describe("task repository", () => {
         task_spec: "already claimed elsewhere",
         project_path: "/repo/claim-conflict/owner",
         session_id: "shared-session",
-        status: "running",
+        status: "processing",
       }),
     );
     const unassignedTask = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "claim me later",
         project_path: "/repo/claim-conflict/unassigned",
-        status: "created",
+        status: "processing",
       }),
     );
 
@@ -537,14 +537,14 @@ describe("task repository", () => {
       withRequiredCreateFields({
         task_spec: "null session first",
         project_path: "/repo/null-session/first",
-        status: "running",
+        status: "processing",
       }),
     );
     const secondTask = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "null session second",
         project_path: "/repo/null-session/second",
-        status: "created",
+        status: "processing",
       }),
     );
 
@@ -567,7 +567,7 @@ describe("task repository", () => {
         task_spec: "first shared session task",
         project_path: "/repo/shared-session/first",
         session_id: "shared-session",
-        status: "running",
+        status: "processing",
       }),
     );
 
@@ -577,7 +577,7 @@ describe("task repository", () => {
           task_spec: "second shared session task",
           project_path: "/repo/shared-session/second",
           session_id: "shared-session",
-          status: "created",
+          status: "processing",
         }),
       ),
     ).rejects.toThrow(/unique|constraint/i);
@@ -594,16 +594,16 @@ describe("task repository", () => {
         task_spec: "finish before reuse",
         project_path: "/repo/reuse-session/first",
         session_id: "reusable-session",
-        status: "running",
+        status: "processing",
       }),
     );
 
     await expect(
-      repository.updateTask(firstTask.task_id, { status: "succeeded" }),
+      repository.updateTask(firstTask.task_id, { status: "resolved" }),
     ).resolves.toMatchObject({
       done: true,
       session_id: "reusable-session",
-      status: "succeeded",
+      status: "resolved",
       task_id: firstTask.task_id,
     });
 
@@ -613,13 +613,13 @@ describe("task repository", () => {
           task_spec: "reuse after completion",
           project_path: "/repo/reuse-session/second",
           session_id: "reusable-session",
-          status: "created",
+          status: "processing",
         }),
       ),
     ).resolves.toMatchObject({
       done: false,
       session_id: "reusable-session",
-      status: "created",
+      status: "processing",
     });
   });
 
@@ -636,14 +636,14 @@ describe("task repository", () => {
         task_spec: "session owner",
         project_path: "/repo/update-conflict/owner",
         session_id: "shared-session",
-        status: "running",
+        status: "processing",
       }),
     );
     const taskToUpdate = await repository.createTask(
       withRequiredCreateFields({
         task_spec: "update me",
         project_path: "/repo/update-conflict/target",
-        status: "created",
+        status: "processing",
       }),
     );
 
