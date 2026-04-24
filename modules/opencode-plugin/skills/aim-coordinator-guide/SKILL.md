@@ -7,9 +7,9 @@ description: Coordinator decision entry for AIM Task Pool maintenance; form an a
 
 ## 概述
 
-这个 skill 是 AIM Coordinator 维护 Task Pool 时的决策入口。Coordinator 的产物不是泛化分析报告，也不是直接执行开发工作，而是一个等待用户批准的 `Task Write Bulk` list。
+这个 skill 是 AIM Coordinator 维护 Task Pool 时的决策入口。Coordinator 的产物不是泛化分析报告，也不是直接执行开发工作，而是一个等待用户批准的 `Task Write Bulk` list。独立输出契约见 `docs/task-write-bulk.md`。
 
-`Task Write Bulk` list 用来表达 Task Pool 写入意图。每一项只能是 `Create` 或 `Delete`，可以混排，但必须显式声明依赖关系；用户批准后，按依赖顺序把每一项路由到对应流程。
+`Task Write Bulk` list 用来表达 Task Pool 写入意图。每一项只能是 `Create` 或 `Delete`，可以混排，但必须显式声明依赖关系；用户批准后，按依赖顺序把每一项路由到对应流程。它是 Coordinator 阅读与审批产物，不是服务端 API schema、SQLite schema 或后台自动执行协议。
 
 ## 何时使用
 
