@@ -192,6 +192,8 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 - 架构文档目录：[`docs/architecture/`](docs/architecture/)
 - CZ-Stack 起源说明：[`CZ-Stack.README.md`](CZ-Stack.README.md)
 
+本地启动 AIM Server：构建 CLI 与 API 后，可使用 `aim server start` 在前台启动本地 Server；默认沿用 API 的 `PORT` / `8192` 语义，也可使用 `aim server start --port 8192` 显式指定端口。
+
 ## 安装、构建与测试
 
 安装: `pnpm install`
