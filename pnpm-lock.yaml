@@ -60,6 +60,9 @@ importers:
 
   modules/cli:
     dependencies:
+      '@aim-ai/api':
+        specifier: workspace:*
+        version: link:../api
       '@aim-ai/contract':
         specifier: workspace:*
         version: link:../contract
