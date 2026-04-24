@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { adaptGeneratedRequestForPublicFetch } from "../src/client.js";
@@ -9,6 +11,7 @@ type RequestInitWithDuplex = RequestInit & {
 };
 
 const contractPackageUrl = new URL("../package.json", import.meta.url);
+const contractRootUrl = new URL("../", import.meta.url);
 const apiPackageUrl = new URL("../../api/package.json", import.meta.url);
 const cliPackageUrl = new URL("../../cli/package.json", import.meta.url);
 const opencodePluginPackageUrl = new URL(
@@ -130,6 +133,8 @@ type _generatedTypesExportTaskCrud = Assert<
     HasExport<GeneratedTypesModule, "TaskListResponse">
 >;
 
+const execFileAsync = promisify(execFile);
+
 let contractPackage: ContractPackageManifest;
 let apiPackage: WorkspacePackageManifest;
 let cliPackage: WorkspacePackageManifest;
@@ -144,6 +149,9 @@ let setupNodePnpmActionSource: string;
 let releaseWorkflowSource: string;
 
 beforeAll(async () => {
+  await execFileAsync("pnpm", ["run", "build:dist"], {
+    cwd: fileURLToPath(contractRootUrl),
+  });
   contractPackage = JSON.parse(
     await readFile(contractPackageUrl, "utf8"),
   ) as ContractPackageManifest;

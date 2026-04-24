@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -10,6 +12,10 @@ const contractEntryUrl = new URL(
   import.meta.url,
 );
 const apiSourceUrl = new URL("../src/app.ts", import.meta.url);
+const apiRootUrl = new URL("../", import.meta.url);
+const contractRootUrl = new URL("../../contract/", import.meta.url);
+
+const execFileAsync = promisify(execFile);
 
 type ApiPackageManifest = {
   name: string;
@@ -30,6 +36,12 @@ let apiModule: ApiPackageModule;
 let contractModule: ContractPackageModule;
 
 beforeAll(async () => {
+  await execFileAsync("pnpm", ["run", "build:dist"], {
+    cwd: fileURLToPath(contractRootUrl),
+  });
+  await execFileAsync("pnpm", ["run", "build:dist"], {
+    cwd: fileURLToPath(apiRootUrl),
+  });
   apiPackage = JSON.parse(
     await readFile(apiPackageUrl, "utf8"),
   ) as ApiPackageManifest;
