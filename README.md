@@ -151,23 +151,13 @@ AIM Manager 的输出：
 
 目前尚不明确 AIM Manager 的输出落点是否为 Repo 内的文件，还是落点在 AIM SQLite。
 
-## 初始项目范围
-
-首版 AIM 聚焦在最小但完整的多 Agent 研发管理闭环：
-
-- Task / Session / worktree / PR 的统一状态建模。
-- 面向“推进基线”的调度与跟进机制。
-- 与 GitHub 的强集成，用于 PR、checks、review 与 merge 闭环。
-- 与 OpenCode 的强 API 集成，用于执行任务。
-- 面向负责人视角的最小管理界面与可脚本化入口。
-
 ## 路线图
 
-1. AIM 落地独立 server、GUI、CLI 与 OpenAPI 入口，形成可部署的产品骨架和部署文档。
-2. AIM Developer 能够稳定完成 AIM Task 定义的基线迭代闭环，且在失败时能提供清晰的反馈信息。
-3. AIM Coordinator 能够基于 AIM Manager 的评估结果和 Task Pool 的状态，合理规划和调整 Task Pool，最大化推进效率。
-4. AIM Manager 能够准确评估基线与目标状态的差距，确定迭代的方向，定义评估的坐标系，并为 AIM Coordinator 提供清晰、准确、可操作的评估结果。
-5. AIM GUI 能够清晰展示当前基线与目标状态之间的差距、迭代的进展、成功率、阻塞点等关键指标，并提供必要的交互功能来支持用户对 AIM Manager 输出的澄清和调整。
+1. [x] AIM 落地独立 server、GUI、CLI 与 OpenAPI 入口，形成可部署的产品骨架和部署文档。
+2. [x] AIM Developer 能够稳定完成 AIM Task 定义的基线迭代闭环，且在失败时能提供清晰的反馈信息。
+3. [ ] AIM Coordinator 能够基于 AIM Manager 的评估结果和 Task Pool 的状态，合理规划和调整 Task Pool，最大化推进效率。
+4. [ ] AIM Manager 能够准确评估基线与目标状态的差距，确定迭代的方向，定义评估的坐标系，并为 AIM Coordinator 提供清晰、准确、可操作的评估结果。
+5. [ ] AIM GUI 能够清晰展示当前基线与目标状态之间的差距、迭代的进展、成功率、阻塞点等关键指标，并提供必要的交互功能来支持用户对 AIM Manager 输出的澄清和调整。
 
 ## 非目标
 
@@ -176,21 +166,13 @@ AIM Manager 的输出：
 - 不把任务成功定义弱化为“代码已写完”或“PR 已创建”。
 - 不追求先覆盖所有语言、仓库形态或组织流程，再开始交付价值。
 
-## 来自 CZ-Stack 的项目起源
-
-AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agent 的研发轨道实践，但它现在要表达的是一个独立产品方向，而不是 CZ-Stack 模板的一页附属说明。
-
-可以把 CZ-Stack 看作这套方法论的起点：它验证了 worktree、PR 闭环、契约驱动与无人值守推进的基础形态；AIM 则进一步把这些经验抽离为独立的调度与管理产品，服务于更高层的研发吞吐提升目标。
-
 ## 面向开发者的仓库入口
 
 当前仓库承载的是 AIM 方法论与调度语义所依赖的现有基线；上文提到的 server / GUI / CLI / OpenAPI 是 AIM 的目标产品形态，不应读成这些表面都已在本仓库内完整落地。今天开始阅读时，优先从当前模块与验证入口进入。
 
 - 当前基线模块入口：[`modules/contract`](modules/contract)（`@aim-ai/contract`）、[`modules/api`](modules/api)（`@aim-ai/api`）、[`modules/web`](modules/web)（`@aim-ai/web`）、[`modules/cli`](modules/cli)（`@aim-ai/cli`）
-- 调度定义与任务成功语义：[`docs/scheduler.md`](docs/scheduler.md)
 - API 文档入口说明：[`docs/api/README.md`](docs/api/README.md)
 - 架构文档目录：[`docs/architecture/`](docs/architecture/)
-- CZ-Stack 起源说明：[`CZ-Stack.README.md`](CZ-Stack.README.md)
 
 本地启动 AIM Server：构建 CLI 与 API 后，可使用 `aim server start` 在前台启动本地 Server；默认沿用 API 的 `PORT` / `8192` 语义，也可使用 `aim server start --port 8192` 显式指定端口。
 
