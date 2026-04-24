@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("boots the dashboard app with Mantine and query providers", async () => {
+test("boots the dashboard app with branded theme providers instead of Mantine", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
     `${process.cwd()}/modules/web/src/main.tsx`,
@@ -10,14 +10,21 @@ test("boots the dashboard app with Mantine and query providers", async () => {
     `${process.cwd()}/modules/web/src/app.tsx`,
     "utf8",
   );
+  const packageSource = await readFile(
+    `${process.cwd()}/modules/web/package.json`,
+    "utf8",
+  );
 
-  expect(mainSource).toContain("@mantine/core/styles.css");
-  expect(mainSource).toContain('<MantineProvider defaultColorScheme="auto">');
+  expect(mainSource).toContain('import "./styles.css"');
+  expect(mainSource).toContain("<ThemeProvider>");
   expect(mainSource).toContain("<QueryClientProvider client={webQueryClient}>");
+  expect(mainSource).not.toContain("@mantine/core");
   expect(appSource).toContain(
     "./features/task-dashboard/components/dashboard-page.js",
   );
-  expect(appSource).not.toContain("CZ-Stack Web");
+  expect(packageSource).not.toContain("@mantine/core");
+  expect(packageSource).not.toContain("@mantine/hooks");
+  expect(packageSource).toContain('"react": "^19.2.0"');
 });
 
 test("keeps task dashboard data behind adapter and local config boundaries", async () => {
@@ -128,9 +135,9 @@ test("keeps task creation inside the dashboard shell", async () => {
   expect(dashboardPageSource).toContain("<CreateTaskForm");
   expect(dashboardPageSource).toContain('kind: "create"');
   expect(dashboardPageSource).not.toContain("react-router");
-  expect(createTaskFormSource).toContain('label="Task Spec"');
-  expect(createTaskFormSource).toContain('label="Project Path"');
-  expect(createTaskFormSource).not.toContain('label="Title"');
+  expect(createTaskFormSource).toContain(">Task Spec</span>");
+  expect(createTaskFormSource).toContain(">Project Path</span>");
+  expect(createTaskFormSource).not.toContain(">Title</span>");
 });
 
 test("routes task creation through feature-local api and mutation helpers", async () => {
@@ -177,7 +184,6 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 
   expect(dashboardPageSource).toContain("const handleRefresh = async () =>");
-  expect(dashboardPageSource).toContain("loading={dashboardQuery.isFetching}");
   expect(dashboardPageSource).toContain("disabled={dashboardQuery.isFetching}");
   expect(dashboardPageSource).toContain("Refresh");
   expect(dashboardPageSource).toContain("onClick={() => void handleRefresh()}");
@@ -190,14 +196,18 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 });
 
-test("shares branded dashboard theme tokens across overview, graph, and table", async () => {
+test("shares branded dashboard shell tokens across overview, graph, and table", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
     `${process.cwd()}/modules/web/src/main.tsx`,
     "utf8",
   );
-  const themeSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-theme.ts`,
+  const stylesSource = await readFile(
+    `${process.cwd()}/modules/web/src/styles.css`,
+    "utf8",
+  );
+  const dashboardPageSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
     "utf8",
   );
   const overviewSource = await readFile(
@@ -213,11 +223,15 @@ test("shares branded dashboard theme tokens across overview, graph, and table", 
     "utf8",
   );
 
-  expect(mainSource).toContain('defaultColorScheme="auto"');
-  expect(themeSource).toContain("getDashboardThemeTokens");
-  expect(themeSource).toContain("panelBorder");
-  expect(themeSource).toContain("graphEdge");
-  expect(overviewSource).toContain("getDashboardThemeTokens");
-  expect(graphSource).toContain("getDashboardThemeTokens");
-  expect(tableSource).toContain("getDashboardThemeTokens");
+  expect(mainSource).toContain("<ThemeProvider>");
+  expect(stylesSource).toContain('html[data-theme="dark"]');
+  expect(stylesSource).toContain('html[data-theme="light"]');
+  expect(stylesSource).toContain("--status-ready");
+  expect(stylesSource).toContain(".graph-node");
+  expect(stylesSource).toContain(".task-table thead th");
+  expect(dashboardPageSource).toContain("ThemeToggle");
+  expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
+  expect(overviewSource).toContain("Recent Active Tasks");
+  expect(graphSource).toContain('className="graph-node nodrag nopan"');
+  expect(tableSource).toContain('data-testid="dashboard-table-header"');
 });
