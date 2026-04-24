@@ -106,6 +106,9 @@ describe("opencode sdk adapter", () => {
       baseUrl: config.baseUrl,
     });
     expect(create).toHaveBeenCalledWith({
+      body: {
+        title: "AIM Developer: Implement coordinator",
+      },
       query: {
         directory: "/repo",
       },
