@@ -149,7 +149,7 @@ AIM Manager 的输出：
 - 迭代方向建议（本质上是基于差距分析结果，给 AIM Coordinator 的一些建议，例如优先推进哪个维度的迭代，或者是否需要先进行一些探索性的迭代来验证某些假设等）
 - 开放问题（本质上是 AIM Manager 在评估过程中发现的 README 不清晰的地方，需要 Director 澄清的地方）
 
-目前尚不明确 AIM Manager 的输出落点是否为 Repo 内的文件，还是落点在 AIM SQLite。
+当前最小产品落点是 [`Manager Report`](docs/manager-report.md)：它是一份可发现、可阅读、可交接给 Coordinator 的 Markdown 方向产物，由 packaged `aim-manager-guide` 入口产出。它定义 Manager 输出的产品语义与交接边界，不是最终 API schema、SQLite schema 或自动执行协议；Coordinator 只能把它作为 `Task Write Bulk` 的方向输入，不能绕过审批直接写入 Task。
 
 ## 路线图
 

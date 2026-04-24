@@ -29,6 +29,10 @@ const taskWriteBulkDocUrl = new URL(
   "../../../docs/task-write-bulk.md",
   import.meta.url,
 );
+const managerReportDocUrl = new URL(
+  "../../../docs/manager-report.md",
+  import.meta.url,
+);
 const pluginSetupGithubRepoSkillUrl = new URL(
   "../skills/aim-setup-github-repo/SKILL.md",
   import.meta.url,
@@ -80,6 +84,7 @@ let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginCoordinatorGuideSkillText: string;
 let taskWriteBulkDocText: string;
+let managerReportDocText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
 let pluginManagerGuideSkillText: string;
@@ -168,6 +173,7 @@ beforeAll(async () => {
     "utf8",
   );
   taskWriteBulkDocText = await readFile(taskWriteBulkDocUrl, "utf8");
+  managerReportDocText = await readFile(managerReportDocUrl, "utf8");
   pluginSetupGithubRepoSkillText = await readFile(
     pluginSetupGithubRepoSkillUrl,
     "utf8",
@@ -714,12 +720,36 @@ describe("opencode plugin package baseline", () => {
       "aim-coordinator-guide",
       "aim-ask-strategy",
       "using-aim",
+      "docs/manager-report.md",
     ]) {
       expect(pluginManagerGuideSkillText).toContain(requiredFragment);
     }
 
     expect(pluginManagerGuideSkillText).not.toContain("TODO");
     expect(pluginManagerGuideSkillText).not.toContain("TBD");
+  });
+
+  it("publishes a standalone manager report product landing point", () => {
+    for (const requiredFragment of [
+      "# Manager Report 产品落点",
+      "可发现、可阅读、可引用的 Markdown 报告",
+      "不是服务端 API schema、不是 SQLite schema、不是后台自动执行协议",
+      "modules/opencode-plugin/skills/aim-manager-guide/SKILL.md",
+      "baseline_ref",
+      "coordinate_system",
+      "gap_analysis",
+      "iteration_direction",
+      "coordinator_handoff",
+      "docs/task-write-bulk.md",
+      "不能替代 Coordinator 审批或 Task 写入流程",
+      "不得",
+      "POST /tasks",
+    ]) {
+      expect(managerReportDocText).toContain(requiredFragment);
+    }
+
+    expect(managerReportDocText).not.toContain("TODO");
+    expect(managerReportDocText).not.toContain("TBD");
   });
 
   it("documents developer guide reporting rules and failure split", () => {
