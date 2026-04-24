@@ -722,6 +722,12 @@ describe("opencode plugin package baseline", () => {
     );
     expect(pluginCreateTasksSkillText).toContain("`task_spec`");
     expect(pluginCreateTasksSkillText).toContain("`project_path`");
+    expect(pluginCreateTasksSkillText).toContain("`title`");
+    expect(pluginCreateTasksSkillText).toContain("`developer_provider_id`");
+    expect(pluginCreateTasksSkillText).toContain("`developer_model_id`");
+    expect(pluginCreateTasksSkillText).toContain(
+      "`title`、`task_spec`、`project_path`、`developer_provider_id` 和 `developer_model_id` 是创建必需字段。",
+    );
     expect(pluginCreateTasksSkillText).toContain("`dependencies` 只是软提示");
     expect(pluginCreateTasksSkillText).toContain(
       "只有用户明确表示批准创建，才能调用 `POST /tasks`。",
