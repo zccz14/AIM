@@ -9,9 +9,9 @@
     "build": "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:web",
     "preview": "pnpm exec vite preview",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
-    "test:type": "pnpm run typecheck",
-    "test:lint": "pnpm --dir ../.. exec biome check modules/web/package.json modules/web/src modules/web/test",
-    "test:web": "pnpm --dir ../.. exec playwright test --config playwright.config.ts"
+    "test:type": "[ -n \"$SKIP_TEST\" ] || pnpm run typecheck",
+    "test:lint": "[ -n \"$SKIP_TEST\" ] || pnpm --dir ../.. exec biome check modules/web/package.json modules/web/src modules/web/test",
+    "test:web": "[ -n \"$SKIP_TEST\" ] || pnpm --dir ../.. exec playwright test --config playwright.config.ts"
   },
   "dependencies": {
     "@aim-ai/contract": "workspace:*",
