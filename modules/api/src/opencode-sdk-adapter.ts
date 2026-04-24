@@ -29,6 +29,9 @@ export const createOpenCodeSdkAdapter = (
     async createSession(task) {
       const session = await client.session.create({
         query: { directory: task.project_path },
+        body: {
+          title: `AIM Developer: ${task.title}`,
+        },
         throwOnError: true,
       });
 
