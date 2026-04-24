@@ -928,6 +928,8 @@ describe("task routes", () => {
   it("triggers a scheduler scan opportunity after resolve succeeds", async () => {
     await useProjectRoot("resolve-triggers-scheduler-scan");
 
+    mockGhMergedOutput("true\n");
+
     const onTaskResolved = vi.fn();
     const app = createTaskRouteApp({ onTaskResolved });
     const createResponse = await app.request(contractModule.tasksPath, {
@@ -941,6 +943,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         status: "running",
       }),
     });
@@ -968,6 +971,8 @@ describe("task routes", () => {
   it("keeps resolve successful and logs when the scheduler scan trigger fails", async () => {
     await useProjectRoot("resolve-scheduler-scan-fails");
 
+    mockGhMergedOutput("true\n");
+
     const logger = createLogger();
     const error = new Error("scan failed");
     const app = createTaskRouteApp({
@@ -985,6 +990,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
         status: "running",
       }),
     });
