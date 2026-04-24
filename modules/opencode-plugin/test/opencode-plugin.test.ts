@@ -157,9 +157,9 @@ beforeAll(async () => {
     try {
       await access(pluginEntryUrl);
     } catch {
-      await execFileAsync("pnpm", ["run", "build:dist"], {
-        cwd: fileURLToPath(new URL("..", import.meta.url)),
-      });
+      throw new Error(
+        "Expected modules/opencode-plugin/dist/index.js to exist before running plugin pack tests. Run pnpm --filter ./modules/opencode-plugin run build:dist first.",
+      );
     }
 
     pluginModule = (await import(
