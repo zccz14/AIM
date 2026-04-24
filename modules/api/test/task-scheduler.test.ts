@@ -388,6 +388,74 @@ describe("task scheduler", () => {
     ]);
   });
 
+  it("prioritizes tasks with existing sessions while preserving stable order", async () => {
+    const firstTask = createTask({ task_id: "task-1" });
+    const secondTask = createTask({
+      session_id: "session-2",
+      task_id: "task-2",
+    });
+    const thirdTask = createTask({ task_id: "task-3" });
+    const fourthTask = createTask({
+      session_id: "session-4",
+      task_id: "task-4",
+    });
+    const events: string[] = [];
+    const coordinator = createCoordinator();
+    coordinator.createSession.mockImplementation(async (task) => {
+      events.push(`create:${task.task_id}`);
+      return { sessionId: `new-${task.task_id}` };
+    });
+    coordinator.getSessionState.mockImplementation(async (sessionId) => {
+      events.push(`state:${sessionId}`);
+      return "idle";
+    });
+    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
+      events.push(`send:${sessionId}`);
+    });
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(async (taskId) => {
+          events.push(`assign:${taskId}`);
+          return null;
+        }),
+        listUnfinishedTasks: vi
+          .fn()
+          .mockResolvedValue([firstTask, secondTask, thirdTask, fourthTask]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(events).toEqual([
+      "state:session-2",
+      "send:session-2",
+      "state:session-4",
+      "send:session-4",
+      "create:task-1",
+      "assign:task-1",
+      "create:task-3",
+      "assign:task-3",
+    ]);
+  });
+
+  it("keeps an empty unfinished task pool as a no-op", async () => {
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+  });
+
   it("does not log task_session_bound when another process assigned a different session", async () => {
     const initialTask = createTask({ task_id: "task-2" });
     const latestSnapshot = createTask({
