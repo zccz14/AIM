@@ -48,6 +48,34 @@ export const openApiDocument = {
         },
       },
     },
+    "/opencode/models": {
+      get: {
+        operationId: "listOpenCodeModels",
+        summary: "List OpenCode provider and model combinations",
+        responses: {
+          "200": {
+            description: "OpenCode provider and model combinations",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeModelsResponse",
+                },
+              },
+            },
+          },
+          "503": {
+            description: "OpenCode models unavailable",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/tasks": {
       post: {
         operationId: "createTask",
@@ -632,6 +660,42 @@ export const openApiDocument = {
           },
         },
       },
+      OpenCodeModelCombination: {
+        type: "object",
+        additionalProperties: false,
+        required: ["provider_id", "provider_name", "model_id", "model_name"],
+        properties: {
+          provider_id: {
+            type: "string",
+            minLength: 1,
+          },
+          provider_name: {
+            type: "string",
+            minLength: 1,
+          },
+          model_id: {
+            type: "string",
+            minLength: 1,
+          },
+          model_name: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      OpenCodeModelsResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["items"],
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/OpenCodeModelCombination",
+            },
+          },
+        },
+      },
       ErrorResponse: {
         type: "object",
         additionalProperties: false,
@@ -644,6 +708,7 @@ export const openApiDocument = {
               "TASK_CONFLICT",
               "TASK_VALIDATION_ERROR",
               "TASK_UNSUPPORTED_STATUS",
+              "OPENCODE_MODELS_UNAVAILABLE",
             ],
           },
           message: {

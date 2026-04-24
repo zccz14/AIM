@@ -1,4 +1,4 @@
-import type { Task } from "@aim-ai/contract";
+import type { OpenCodeModelsResponse, Task } from "@aim-ai/contract";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 
 import { classifySessionMessageState } from "./session-message-state.js";
@@ -14,6 +14,7 @@ export type OpenCodeSdkAdapter = {
     sessionId: string,
     projectPath: string,
   ): Promise<TaskSessionState>;
+  listSupportedModels(): Promise<OpenCodeModelsResponse>;
   sendPrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
@@ -56,6 +57,20 @@ export const createOpenCodeSdkAdapter = (
         idleFallbackTimeoutMs: config.sessionIdleFallbackTimeoutMs,
         nowMs: Date.now(),
       });
+    },
+    async listSupportedModels() {
+      const response = await client.provider.list({ throwOnError: true });
+
+      return {
+        items: response.data.all.flatMap((provider) =>
+          Object.values(provider.models).map((model) => ({
+            model_id: model.id,
+            model_name: model.name,
+            provider_id: provider.id,
+            provider_name: provider.name,
+          })),
+        ),
+      };
     },
     async sendPrompt(sessionId, prompt) {
       await client.session.promptAsync({

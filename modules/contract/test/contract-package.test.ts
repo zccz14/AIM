@@ -278,6 +278,9 @@ describe("contract package baseline", () => {
       "healthResponseSchema",
       "healthStatusSchema",
       "openApiDocument",
+      "opencodeModelCombinationSchema",
+      "opencodeModelsPath",
+      "opencodeModelsResponseSchema",
       "patchTaskRequestSchema",
       "taskByIdPath",
       "taskErrorCodeSchema",
@@ -293,6 +296,9 @@ describe("contract package baseline", () => {
     ]);
     expect(
       contractModule.openApiDocument.paths[contractModule.healthPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.opencodeModelsPath],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.tasksPath],
@@ -329,6 +335,34 @@ describe("contract package baseline", () => {
       code: "UNAVAILABLE",
       message: "offline",
     });
+  });
+
+  it("exports OpenCode model schemas from the built package boundary", () => {
+    expect(contractModule.opencodeModelsPath).toBe("/opencode/models");
+    expect(
+      contractModule.opencodeModelsResponseSchema.parse({
+        items: [
+          {
+            model_id: "claude-sonnet-4-5",
+            model_name: "Claude Sonnet 4.5",
+            provider_id: "anthropic",
+            provider_name: "Anthropic",
+          },
+        ],
+      }),
+    ).toEqual({
+      items: [
+        {
+          model_id: "claude-sonnet-4-5",
+          model_name: "Claude Sonnet 4.5",
+          provider_id: "anthropic",
+          provider_name: "Anthropic",
+        },
+      ],
+    });
+    expect(
+      contractModule.taskErrorCodeSchema.parse("OPENCODE_MODELS_UNAVAILABLE"),
+    ).toBe("OPENCODE_MODELS_UNAVAILABLE");
   });
 
   it("exports task paths and task schemas from the built package boundary", () => {
@@ -660,6 +694,42 @@ describe("contract package baseline", () => {
     expect(
       taskSpecPathItem?.get?.responses?.["404"]?.content?.["application/json"]
         ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
+  });
+
+  it("publishes OpenCode model operations in the shared OpenAPI document", () => {
+    const opencodeModelsPathItem = contractModule.openApiDocument.paths[
+      contractModule.opencodeModelsPath
+    ] as
+      | {
+          get?: {
+            responses: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
+
+    expect(
+      opencodeModelsPathItem?.get?.responses["200"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/OpenCodeModelsResponse",
+    });
+    expect(
+      opencodeModelsPathItem?.get?.responses["503"]?.content?.[
+        "application/json"
+      ]?.schema,
     ).toEqual({
       $ref: "#/components/schemas/ErrorResponse",
     });

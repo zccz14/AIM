@@ -23,6 +23,9 @@ import type {
   GetTaskSpecByIdData,
   GetTaskSpecByIdErrors,
   GetTaskSpecByIdResponses,
+  ListOpenCodeModelsData,
+  ListOpenCodeModelsErrors,
+  ListOpenCodeModelsResponses,
   ListTasksData,
   ListTasksErrors,
   ListTasksResponses,
@@ -66,6 +69,18 @@ export const getHealth = <ThrowOnError extends boolean = false>(
     GetHealthErrors,
     ThrowOnError
   >({ url: "/health", ...options });
+
+/**
+ * List OpenCode provider and model combinations
+ */
+export const listOpenCodeModels = <ThrowOnError extends boolean = false>(
+  options?: Options<ListOpenCodeModelsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListOpenCodeModelsResponses,
+    ListOpenCodeModelsErrors,
+    ThrowOnError
+  >({ url: "/opencode/models", ...options });
 
 /**
  * List tasks

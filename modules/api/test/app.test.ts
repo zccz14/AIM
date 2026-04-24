@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const mockRegisterHealthRoute = vi.fn();
+const mockRegisterOpenCodeModelRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
 vi.mock("@aim-ai/contract", () => ({
@@ -9,6 +10,10 @@ vi.mock("@aim-ai/contract", () => ({
 
 vi.mock("../src/routes/health.js", () => ({
   registerHealthRoute: mockRegisterHealthRoute,
+}));
+
+vi.mock("../src/routes/opencode-models.js", () => ({
+  registerOpenCodeModelRoutes: mockRegisterOpenCodeModelRoutes,
 }));
 
 vi.mock("../src/routes/tasks.js", () => ({
@@ -30,6 +35,21 @@ describe("app wiring", () => {
     expect(mockRegisterTaskRoutes).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ logger }),
+    );
+  });
+
+  it("passes the OpenCode models adapter through to model routes", async () => {
+    const openCodeModelsAdapter = {
+      listSupportedModels: vi.fn(),
+    };
+
+    const { createApp } = await import("../src/app.js");
+
+    createApp({ openCodeModelsAdapter });
+
+    expect(mockRegisterOpenCodeModelRoutes).toHaveBeenCalledWith(
+      expect.anything(),
+      { adapter: openCodeModelsAdapter },
     );
   });
 });

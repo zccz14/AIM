@@ -8,6 +8,29 @@ const HealthError = z
   .object({ code: z.literal("UNAVAILABLE"), message: z.string().min(1) })
   .strict()
   .passthrough();
+const OpenCodeModelCombination = z
+  .object({
+    provider_id: z.string().min(1),
+    provider_name: z.string().min(1),
+    model_id: z.string().min(1),
+    model_name: z.string().min(1),
+  })
+  .strict();
+const OpenCodeModelsResponse = z
+  .object({ items: z.array(OpenCodeModelCombination) })
+  .strict();
+const ErrorResponse = z
+  .object({
+    code: z.enum([
+      "TASK_NOT_FOUND",
+      "TASK_CONFLICT",
+      "TASK_VALIDATION_ERROR",
+      "TASK_UNSUPPORTED_STATUS",
+      "OPENCODE_MODELS_UNAVAILABLE",
+    ]),
+    message: z.string().min(1),
+  })
+  .strict();
 const CreateTaskRequest = z
   .object({
     task_spec: z.string().min(1),
@@ -56,17 +79,6 @@ const Task = z
     updated_at: z.string().datetime({ offset: true }),
   })
   .strict();
-const ErrorResponse = z
-  .object({
-    code: z.enum([
-      "TASK_NOT_FOUND",
-      "TASK_CONFLICT",
-      "TASK_VALIDATION_ERROR",
-      "TASK_UNSUPPORTED_STATUS",
-    ]),
-    message: z.string().min(1),
-  })
-  .strict();
 const TaskListResponse = z.object({ items: z.array(Task) }).strict();
 const PatchTaskRequest = z
   .object({
@@ -101,9 +113,11 @@ const TaskResultRequest = z
 export const schemas = {
   HealthResponse,
   HealthError,
+  OpenCodeModelCombination,
+  OpenCodeModelsResponse,
+  ErrorResponse,
   CreateTaskRequest,
   Task,
-  ErrorResponse,
   TaskListResponse,
   PatchTaskRequest,
   TaskResultRequest,
