@@ -8,6 +8,8 @@ import {
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
+  developer_model_id: "claude-sonnet-4-5",
+  developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
   project_path: "/repo",
@@ -16,6 +18,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   status: "created",
   task_id: "task-1",
   task_spec: "Implement the OpenCode SDK coordinator.",
+  title: "Implement coordinator",
   updated_at: "2026-04-20T00:00:00.000Z",
   worktree_path: "/repo/.worktrees/task-1",
   ...overrides,
@@ -23,8 +26,6 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 
 const config: TaskSessionCoordinatorConfig = {
   baseUrl: "http://127.0.0.1:54321",
-  modelId: "claude-sonnet-4-5",
-  providerId: "anthropic",
 };
 
 describe("task session coordinator", () => {
@@ -47,6 +48,29 @@ describe("task session coordinator", () => {
     await expect(coordinator.createSession(createTask())).resolves.toEqual({
       sessionId: "session-1",
     });
+  });
+
+  it("passes the selected developer provider and model from the task to the adapter", async () => {
+    const createSession = vi.fn().mockResolvedValue({ id: "session-1" });
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession,
+      getSessionState: vi.fn(),
+      sendPrompt: vi.fn(),
+    });
+
+    await coordinator.createSession(
+      createTask({
+        developer_model_id: "gpt-5.5",
+        developer_provider_id: "openai",
+      }),
+    );
+
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        developer_model_id: "gpt-5.5",
+        developer_provider_id: "openai",
+      }),
+    );
   });
 
   it("wraps adapter createSession failures with coordinator context", async () => {
@@ -152,11 +176,13 @@ describe("task session coordinator", () => {
       coordinator.sendContinuePrompt(
         "session-1",
         "Continue implementing task 2",
+        createTask(),
       ),
     ).resolves.toBeUndefined();
     expect(sendPrompt).toHaveBeenCalledWith(
       "session-1",
       "Continue implementing task 2",
+      expect.objectContaining({ task_id: "task-1" }),
     );
   });
 
@@ -172,6 +198,7 @@ describe("task session coordinator", () => {
       coordinator.sendContinuePrompt(
         "session-1",
         "Continue implementing task 2",
+        createTask(),
       ),
     ).rejects.toMatchObject({
       cause: adapterError,
@@ -193,6 +220,7 @@ describe("task session coordinator", () => {
       coordinator.sendContinuePrompt(
         "session-1",
         "Continue implementing task 2",
+        createTask(),
       ),
     ).rejects.toMatchObject({
       cause: adapterError,

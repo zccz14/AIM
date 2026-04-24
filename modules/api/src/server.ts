@@ -33,18 +33,6 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   ? defaultSchedulerIntervalMs
   : parsedSchedulerIntervalMs;
 
-const readRequiredEnv = (
-  name: "OPENCODE_BASE_URL" | "OPENCODE_MODEL_ID" | "OPENCODE_PROVIDER_ID",
-) => {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`${name} is required when TASK_SCHEDULER_ENABLED=true`);
-  }
-
-  return value;
-};
-
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
   const logger = createApiLogger();
@@ -55,8 +43,6 @@ export const startServer = () => {
   if (isTaskSchedulerEnabled) {
     const coordinatorConfig: TaskSessionCoordinatorConfig = {
       baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
-      modelId: readRequiredEnv("OPENCODE_MODEL_ID"),
-      providerId: readRequiredEnv("OPENCODE_PROVIDER_ID"),
       sessionIdleFallbackTimeoutMs,
     };
     const taskRepository = createTaskRepository({

@@ -11,6 +11,8 @@ vi.mock("@opencode-ai/sdk", () => ({
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
+  developer_model_id: "claude-sonnet-4-5",
+  developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
   project_path: "/repo",
@@ -19,6 +21,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   status: "created",
   task_id: "task-1",
   task_spec: "Implement the OpenCode SDK coordinator.",
+  title: "Implement coordinator",
   updated_at: "2026-04-20T00:00:00.000Z",
   worktree_path: "/repo/.worktrees/task-1",
   ...overrides,
@@ -26,8 +29,6 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 
 const config: TaskSessionCoordinatorConfig = {
   baseUrl: "http://127.0.0.1:54321",
-  modelId: "claude-sonnet-4-5",
-  providerId: "anthropic",
 };
 
 const createCompletedAssistantMessage = () => ({
@@ -91,7 +92,14 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(adapter.createSession(createTask())).resolves.toEqual({
+    await expect(
+      adapter.createSession(
+        createTask({
+          developer_model_id: "gpt-5.5",
+          developer_provider_id: "openai",
+        }),
+      ),
+    ).resolves.toEqual({
       id: "session-1",
     });
     expect(mockCreateOpencodeClient).toHaveBeenCalledWith({
@@ -106,8 +114,8 @@ describe("opencode sdk adapter", () => {
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: {
-          modelID: "claude-sonnet-4-5",
-          providerID: "anthropic",
+          modelID: "gpt-5.5",
+          providerID: "openai",
         },
         parts: [
           {
@@ -238,13 +246,20 @@ describe("opencode sdk adapter", () => {
     const adapter = createOpenCodeSdkAdapter(config);
 
     await expect(
-      adapter.sendPrompt("session-1", "Continue implementing task 2"),
+      adapter.sendPrompt(
+        "session-1",
+        "Continue implementing task 2",
+        createTask({
+          developer_model_id: "gpt-5.5",
+          developer_provider_id: "openai",
+        }),
+      ),
     ).resolves.toBeUndefined();
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: {
-          modelID: "claude-sonnet-4-5",
-          providerID: "anthropic",
+          modelID: "gpt-5.5",
+          providerID: "openai",
         },
         parts: [
           {

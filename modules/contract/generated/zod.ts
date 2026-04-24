@@ -33,8 +33,11 @@ const ErrorResponse = z
   .strict();
 const CreateTaskRequest = z
   .object({
+    title: z.string().min(1),
     task_spec: z.string().min(1),
     project_path: z.string().min(1),
+    developer_provider_id: z.string().min(1),
+    developer_model_id: z.string().min(1),
     dependencies: z.array(z.string().min(1)).optional(),
     result: z.string().optional().default(""),
     session_id: z.union([z.string(), z.null()]).optional(),
@@ -58,7 +61,10 @@ const Task = z
   .object({
     task_id: z.string().min(1),
     task_spec: z.string().min(1),
+    title: z.string().min(1),
     project_path: z.string().min(1),
+    developer_provider_id: z.string().min(1),
+    developer_model_id: z.string().min(1),
     result: z.string(),
     session_id: z.union([z.string(), z.null()]),
     worktree_path: z.union([z.string(), z.null()]),

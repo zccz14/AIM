@@ -72,7 +72,7 @@ export const summarizeTaskSpec = (taskSpec: string) => {
 
 export const adaptDashboardTask = (task: Task): DashboardTask => ({
   id: task.task_id,
-  title: summarizeTaskSpec(task.task_spec),
+  title: task.title,
   taskSpec: task.task_spec,
   projectPath: task.project_path,
   contractStatus: task.status,

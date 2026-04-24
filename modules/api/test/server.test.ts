@@ -34,8 +34,6 @@ vi.mock("../src/task-session-coordinator.js", () => ({
 describe("server startup", () => {
   afterEach(() => {
     delete process.env.OPENCODE_BASE_URL;
-    delete process.env.OPENCODE_MODEL_ID;
-    delete process.env.OPENCODE_PROVIDER_ID;
     delete process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS;
     delete process.env.TASK_SCHEDULER_ENABLED;
     vi.resetModules();
@@ -45,8 +43,6 @@ describe("server startup", () => {
   it("passes explicit coordinator config when scheduler is enabled", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
-    process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
-    process.env.OPENCODE_PROVIDER_ID = "anthropic";
     process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS = "60000";
 
     const server = {
@@ -70,16 +66,11 @@ describe("server startup", () => {
 
     expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
       baseUrl: "http://127.0.0.1:54321",
-      modelId: "claude-sonnet-4-5",
-      providerId: "anthropic",
       sessionIdleFallbackTimeoutMs: 60000,
     });
   });
 
   it("defaults scheduler enablement and base url when env vars are unset", async () => {
-    process.env.OPENCODE_PROVIDER_ID = "anthropic";
-    process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
-
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -100,17 +91,36 @@ describe("server startup", () => {
     expect(() => startServer()).not.toThrow();
     expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
       baseUrl: "http://localhost:4096",
-      modelId: "claude-sonnet-4-5",
-      providerId: "anthropic",
       sessionIdleFallbackTimeoutMs: undefined,
     });
+  });
+
+  it("does not require provider or model env vars when scheduler is enabled", async () => {
+    process.env.TASK_SCHEDULER_ENABLED = "true";
+
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+
+    const { startServer } = await import("../src/server.js");
+
+    expect(() => startServer()).not.toThrow();
   });
 
   it("creates one api logger and passes it to app and scheduler", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
-    process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
-    process.env.OPENCODE_PROVIDER_ID = "anthropic";
 
     const logger = {
       error: vi.fn(),
@@ -144,19 +154,6 @@ describe("server startup", () => {
     );
   });
 
-  it("fails fast when required scheduler config is missing", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
-
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
-
-    const { startServer } = await import("../src/server.js");
-
-    expect(() => startServer()).toThrow(
-      "OPENCODE_MODEL_ID is required when TASK_SCHEDULER_ENABLED=true",
-    );
-    expect(mockCreateTaskSessionCoordinator).not.toHaveBeenCalled();
-  });
-
   it("does not read config or construct scheduler dependencies when disabled", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "false";
 
@@ -178,8 +175,6 @@ describe("server startup", () => {
   it("does not leave the server listening when scheduler startup fails", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
-    process.env.OPENCODE_PROVIDER_ID = "anthropic";
-    process.env.OPENCODE_MODEL_ID = "claude-sonnet-4-5";
 
     let listening = false;
     const close = vi.fn(() => {

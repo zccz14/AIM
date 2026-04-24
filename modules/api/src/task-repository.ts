@@ -12,6 +12,8 @@ import { openTaskDatabase } from "./task-database.js";
 
 type TaskRow = {
   created_at: string;
+  developer_model_id: string;
+  developer_provider_id: string;
   dependencies: string;
   done: number;
   pull_request_url: null | string;
@@ -21,6 +23,7 @@ type TaskRow = {
   status: TaskStatus;
   task_id: string;
   task_spec: string;
+  title: string;
   updated_at: string;
   worktree_path: null | string;
 };
@@ -55,8 +58,11 @@ type TaskRepositoryOptions = {
 
 const requiredColumns = [
   { name: "task_id", notnull: 0, pk: 1, type: "TEXT" },
+  { name: "title", notnull: 1, pk: 0, type: "TEXT" },
   { name: "task_spec", notnull: 1, pk: 0, type: "TEXT" },
   { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "developer_provider_id", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "developer_model_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "session_id", notnull: 0, pk: 0, type: "TEXT" },
   { name: "worktree_path", notnull: 0, pk: 0, type: "TEXT" },
   { name: "pull_request_url", notnull: 0, pk: 0, type: "TEXT" },
@@ -126,8 +132,11 @@ const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
 const mapTaskRow = (row: TaskRow) =>
   taskSchema.parse({
     task_id: row.task_id,
+    title: row.title,
     task_spec: row.task_spec,
     project_path: row.project_path,
+    developer_provider_id: row.developer_provider_id,
+    developer_model_id: row.developer_model_id,
     session_id: row.session_id,
     worktree_path: row.worktree_path,
     pull_request_url: row.pull_request_url,
@@ -143,8 +152,11 @@ const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
   database.exec(`
     CREATE TABLE IF NOT EXISTS ${tasksTableName} (
       task_id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
       task_spec TEXT NOT NULL,
       project_path TEXT NOT NULL,
+      developer_provider_id TEXT NOT NULL,
+      developer_model_id TEXT NOT NULL,
       session_id TEXT,
       worktree_path TEXT,
       pull_request_url TEXT,
@@ -245,8 +257,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const insertTaskStatement = database.prepare(`
     INSERT INTO ${tasksTableName} (
       task_id,
+      title,
       task_spec,
       project_path,
+      developer_provider_id,
+      developer_model_id,
       session_id,
       worktree_path,
       pull_request_url,
@@ -256,13 +271,16 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const listTasksStatement = database.prepare(`
     SELECT
       task_id,
+      title,
       task_spec,
       project_path,
+      developer_provider_id,
+      developer_model_id,
       session_id,
       worktree_path,
       pull_request_url,
@@ -278,8 +296,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const getTaskByIdStatement = database.prepare(`
     SELECT
       task_id,
+      title,
       task_spec,
       project_path,
+      developer_provider_id,
+      developer_model_id,
       session_id,
       worktree_path,
       pull_request_url,
@@ -321,8 +342,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const taskId = randomUUID();
       const task = mapTaskRow({
         task_id: taskId,
+        title: input.title,
         task_spec: input.task_spec,
         project_path: input.project_path,
+        developer_provider_id: input.developer_provider_id,
+        developer_model_id: input.developer_model_id,
         session_id: input.session_id ?? null,
         worktree_path: input.worktree_path ?? null,
         pull_request_url: input.pull_request_url ?? null,
@@ -336,8 +360,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
       insertTaskStatement.run(
         task.task_id,
+        task.title,
         task.task_spec,
         task.project_path,
+        task.developer_provider_id,
+        task.developer_model_id,
         task.session_id,
         task.worktree_path,
         task.pull_request_url,
@@ -389,8 +416,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         .prepare(`
           SELECT
             task_id,
+            title,
             task_spec,
             project_path,
+            developer_provider_id,
+            developer_model_id,
             session_id,
             worktree_path,
             pull_request_url,

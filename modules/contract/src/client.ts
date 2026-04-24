@@ -4,6 +4,7 @@ import {
   deleteTaskById,
   getHealth,
   getTaskById,
+  listOpenCodeModels,
   listTasks,
   patchTaskById,
   rejectTaskById,
@@ -23,6 +24,7 @@ import type {
   HealthResponse,
   ListTasksError,
   ListTasksResponse,
+  OpenCodeModelsResponse,
   PatchTaskByIdError,
   PatchTaskByIdResponse,
   PatchTaskRequest,
@@ -60,6 +62,7 @@ export class ContractClientError extends Error {
 
 export type ContractClient = {
   getHealth(): Promise<HealthResponse>;
+  listOpenCodeModels(): Promise<OpenCodeModelsResponse>;
   listTasks(query?: {
     status?: Task["status"];
     done?: boolean;
@@ -79,6 +82,7 @@ const healthResponseSchema = schemas.HealthResponse;
 const healthErrorSchema = schemas.HealthError;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
+const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
 const toForwardedRequestBody = async (request: Request) => {
@@ -192,6 +196,26 @@ export const createContractClient = ({
       return taskListResponseSchema.parse(
         result.data satisfies ListTasksResponse,
       ) satisfies TaskListResponse;
+    },
+
+    async listOpenCodeModels() {
+      const result = await listOpenCodeModels({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error),
+        );
+      }
+
+      return opencodeModelsResponseSchema.parse(
+        result.data,
+      ) satisfies OpenCodeModelsResponse;
     },
 
     async createTask(input) {

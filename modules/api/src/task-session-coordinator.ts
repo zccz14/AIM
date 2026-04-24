@@ -6,8 +6,6 @@ export type TaskSessionState = "idle" | "running";
 
 export type TaskSessionCoordinatorConfig = {
   baseUrl: string;
-  modelId: string;
-  providerId: string;
   sessionIdleFallbackTimeoutMs?: number;
 };
 
@@ -21,7 +19,7 @@ type TaskSessionCoordinatorAdapter = {
     sessionId: string,
     projectPath: string,
   ): Promise<TaskSessionState>;
-  sendPrompt(sessionId: string, prompt: string): Promise<unknown>;
+  sendPrompt(sessionId: string, prompt: string, task: Task): Promise<unknown>;
 };
 
 export type TaskSessionCoordinator = {
@@ -30,7 +28,11 @@ export type TaskSessionCoordinator = {
     sessionId: string,
     projectPath: string,
   ): Promise<TaskSessionState>;
-  sendContinuePrompt(sessionId: string, prompt: string): Promise<void>;
+  sendContinuePrompt(
+    sessionId: string,
+    prompt: string,
+    task: Task,
+  ): Promise<void>;
 };
 
 const actionError = (action: string, cause: unknown) =>
@@ -50,8 +52,6 @@ export const createTaskSessionCoordinator = (
   adapter?: TaskSessionCoordinatorAdapter,
 ): TaskSessionCoordinator => {
   requireNonEmpty(config.baseUrl, "baseUrl");
-  requireNonEmpty(config.modelId, "modelId");
-  requireNonEmpty(config.providerId, "providerId");
 
   const coordinatorAdapter = adapter ?? createOpenCodeSdkAdapter(config);
 
@@ -72,9 +72,9 @@ export const createTaskSessionCoordinator = (
         throw actionError("getSessionState", error);
       }
     },
-    async sendContinuePrompt(sessionId, prompt) {
+    async sendContinuePrompt(sessionId, prompt, task) {
       try {
-        await coordinatorAdapter.sendPrompt(sessionId, prompt);
+        await coordinatorAdapter.sendPrompt(sessionId, prompt, task);
       } catch (error) {
         throw actionError("sendContinuePrompt", error);
       }
