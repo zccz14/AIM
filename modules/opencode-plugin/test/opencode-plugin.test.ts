@@ -25,6 +25,10 @@ const pluginCoordinatorGuideSkillUrl = new URL(
   "../skills/aim-coordinator-guide/SKILL.md",
   import.meta.url,
 );
+const taskWriteBulkDocUrl = new URL(
+  "../../../docs/task-write-bulk.md",
+  import.meta.url,
+);
 const pluginSetupGithubRepoSkillUrl = new URL(
   "../skills/aim-setup-github-repo/SKILL.md",
   import.meta.url,
@@ -75,6 +79,7 @@ let pluginSource: string;
 let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginCoordinatorGuideSkillText: string;
+let taskWriteBulkDocText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
 let pluginManagerGuideSkillText: string;
@@ -162,6 +167,7 @@ beforeAll(async () => {
     pluginCoordinatorGuideSkillUrl,
     "utf8",
   );
+  taskWriteBulkDocText = await readFile(taskWriteBulkDocUrl, "utf8");
   pluginSetupGithubRepoSkillText = await readFile(
     pluginSetupGithubRepoSkillUrl,
     "utf8",
@@ -770,6 +776,8 @@ describe("opencode plugin package baseline", () => {
       "rejected Task",
       "aim-verify-task-spec",
       "aim-create-tasks",
+      "`docs/task-write-bulk.md`",
+      "不是服务端 API schema、SQLite schema 或后台自动执行协议",
       "Director",
       "不得直接调用 `POST /tasks`",
       "不得创建澄清类 Developer Task",
@@ -779,6 +787,27 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginCoordinatorGuideSkillText).not.toContain("TODO");
     expect(pluginCoordinatorGuideSkillText).not.toContain("TBD");
+  });
+
+  it("publishes a standalone task write bulk contract for verification", () => {
+    for (const requiredFragment of [
+      "# Task Write Bulk 输出契约",
+      "人工阅读与审批",
+      "不是服务端 API schema、不是 SQLite schema、不是后台自动执行协议",
+      "`action`：只能是 `Create` 或 `Delete`",
+      "`candidate_task_spec`：完整五段式候选 Task Spec",
+      "`target_task_id`：要删除的未完成 Task",
+      "按 `depends_on` 的拓扑顺序执行",
+      "先经 `aim-verify-task-spec` 独立校验",
+      "使用 `aim-create-tasks` 创建 AIM Task",
+      "禁止由 Coordinator 直接调用 `POST /tasks`",
+      "禁止删除已完成、已 resolved、已 succeeded 或 `done = 1` 的历史 Task",
+    ]) {
+      expect(taskWriteBulkDocText).toContain(requiredFragment);
+    }
+
+    expect(taskWriteBulkDocText).not.toContain("TODO");
+    expect(taskWriteBulkDocText).not.toContain("TBD");
   });
 
   it("documents task creation interview, approval, and boundary rules", () => {
