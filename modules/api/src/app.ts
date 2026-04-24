@@ -22,7 +22,10 @@ export const createApp = (_options: CreateAppOptions = {}) => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerTaskRoutes(app, { logger: _options.logger });
+  registerTaskRoutes(app, {
+    logger: _options.logger,
+    openCodeModelsAdapter: _options.openCodeModelsAdapter,
+  });
 
   app.get("/openapi.json", (context) => context.json(openApiDocument, 200));
 

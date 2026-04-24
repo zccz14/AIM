@@ -14,6 +14,10 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../api-logger.js";
+import {
+  createOpenCodeSdkAdapter,
+  type OpenCodeSdkAdapter,
+} from "../opencode-sdk-adapter.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
@@ -32,6 +36,13 @@ const buildValidationError = (message: string) =>
   taskErrorSchema.parse({
     code: "TASK_VALIDATION_ERROR",
     message,
+  });
+
+const buildOpenCodeModelsUnavailableError = () =>
+  taskErrorSchema.parse({
+    code: "OPENCODE_MODELS_UNAVAILABLE",
+    message:
+      "Cannot validate developer_provider_id and developer_model_id because OpenCode models are unavailable",
   });
 
 const requireTaskId = (taskId: string | undefined) => taskId ?? "task-unknown";
@@ -117,6 +128,7 @@ const parseTaskResultRequest = async (request: Request) => {
 
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
+  openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
 };
 
 export const registerTaskRoutes = (
@@ -125,11 +137,19 @@ export const registerTaskRoutes = (
 ) => {
   const logger = options.logger;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
+  let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {
     repository ??= createTaskRepository({ projectRoot });
 
     return repository;
+  };
+  const getOpenCodeModelsAdapter = () => {
+    openCodeModelsAdapter ??= createOpenCodeSdkAdapter({
+      baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+    });
+
+    return openCodeModelsAdapter;
   };
 
   app.get(tasksPath, async (context) => {
@@ -149,6 +169,29 @@ export const registerTaskRoutes = (
 
     if (!input.ok) {
       return context.json(input.error, 400);
+    }
+
+    let models: Awaited<ReturnType<OpenCodeSdkAdapter["listSupportedModels"]>>;
+
+    try {
+      models = await getOpenCodeModelsAdapter().listSupportedModels();
+    } catch {
+      return context.json(buildOpenCodeModelsUnavailableError(), 503);
+    }
+
+    const matchingModel = models.items.find(
+      (model) =>
+        model.provider_id === input.data.developer_provider_id &&
+        model.model_id === input.data.developer_model_id,
+    );
+
+    if (!matchingModel) {
+      return context.json(
+        buildValidationError(
+          `Requested developer_provider_id "${input.data.developer_provider_id}" with developer_model_id "${input.data.developer_model_id}" is not available. Use GET /opencode/models to choose a supported provider/model combination.`,
+        ),
+        400,
+      );
     }
 
     const payload = await getRepository().createTask(input.data);
