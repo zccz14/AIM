@@ -26,11 +26,11 @@
     "generate": "pnpm run generate:openapi && pnpm run generate:types && pnpm run generate:client && pnpm run generate:zod && pnpm exec biome format --write ./generated/openapi.ts ./generated/types.ts ./generated/_types",
     "generate:check": "pnpm run generate && git diff --exit-code -- generated openapi/openapi.yaml",
     "build:dist": "pnpm run generate && pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/contract/src/index.ts --out-dir modules/contract/dist",
-    "build": "pnpm run test && pnpm run build:dist",
+    "build": "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/contract/package.json modules/contract/src modules/contract/test",
-    "test": "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
+    "test:vitest": "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.96.0",
