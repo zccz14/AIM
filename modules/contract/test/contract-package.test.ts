@@ -135,6 +135,16 @@ type _generatedTypesExportTaskCrud = Assert<
 
 const execFileAsync = promisify(execFile);
 
+const ensureBuiltEntry = async () => {
+  try {
+    await access(contractEntryUrl);
+  } catch {
+    await execFileAsync("pnpm", ["run", "build:dist"], {
+      cwd: fileURLToPath(contractRootUrl),
+    });
+  }
+};
+
 let contractPackage: ContractPackageManifest;
 let apiPackage: WorkspacePackageManifest;
 let cliPackage: WorkspacePackageManifest;
@@ -149,9 +159,7 @@ let setupNodePnpmActionSource: string;
 let releaseWorkflowSource: string;
 
 beforeAll(async () => {
-  await execFileAsync("pnpm", ["run", "build:dist"], {
-    cwd: fileURLToPath(contractRootUrl),
-  });
+  await ensureBuiltEntry();
   contractPackage = JSON.parse(
     await readFile(contractPackageUrl, "utf8"),
   ) as ContractPackageManifest;

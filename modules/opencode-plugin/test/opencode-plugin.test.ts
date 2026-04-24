@@ -154,9 +154,13 @@ beforeAll(async () => {
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
 
   if (shouldRunPackTests) {
-    await execFileAsync("pnpm", ["run", "build:dist"], {
-      cwd: fileURLToPath(new URL("..", import.meta.url)),
-    });
+    try {
+      await access(pluginEntryUrl);
+    } catch {
+      await execFileAsync("pnpm", ["run", "build:dist"], {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+      });
+    }
 
     pluginModule = (await import(
       pathToFileURL(fileURLToPath(pluginEntryUrl)).href
@@ -619,8 +623,13 @@ describe("opencode plugin package baseline", () => {
     const builtPluginModule = pluginModule;
 
     expect(builtPluginModule).toBeDefined();
-    expect(builtPluginModule!.default.id).toBe("@aim-ai/opencode-plugin");
-    expect(typeof builtPluginModule!.default.server).toBe("function");
+
+    if (!builtPluginModule) {
+      throw new Error("expected plugin module to be loaded");
+    }
+
+    expect(builtPluginModule.default.id).toBe("@aim-ai/opencode-plugin");
+    expect(typeof builtPluginModule.default.server).toBe("function");
   });
 
   itPack(

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -16,6 +16,16 @@ const apiRootUrl = new URL("../", import.meta.url);
 const contractRootUrl = new URL("../../contract/", import.meta.url);
 
 const execFileAsync = promisify(execFile);
+
+const ensureBuiltEntry = async (entryUrl: URL, packageRootUrl: URL) => {
+  try {
+    await access(entryUrl);
+  } catch {
+    await execFileAsync("pnpm", ["run", "build:dist"], {
+      cwd: fileURLToPath(packageRootUrl),
+    });
+  }
+};
 
 type ApiPackageManifest = {
   name: string;
@@ -36,12 +46,8 @@ let apiModule: ApiPackageModule;
 let contractModule: ContractPackageModule;
 
 beforeAll(async () => {
-  await execFileAsync("pnpm", ["run", "build:dist"], {
-    cwd: fileURLToPath(contractRootUrl),
-  });
-  await execFileAsync("pnpm", ["run", "build:dist"], {
-    cwd: fileURLToPath(apiRootUrl),
-  });
+  await ensureBuiltEntry(contractEntryUrl, contractRootUrl);
+  await ensureBuiltEntry(apiEntryUrl, apiRootUrl);
   apiPackage = JSON.parse(
     await readFile(apiPackageUrl, "utf8"),
   ) as ApiPackageManifest;
