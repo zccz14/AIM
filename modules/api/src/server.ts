@@ -58,7 +58,13 @@ export const startServer = () => {
     stopScheduler = () => taskScheduler.stop();
   }
 
-  const server = serve({ fetch: createApp({ logger }).fetch, port });
+  const server = serve({
+    fetch: createApp({
+      logger,
+      onTaskResolved: scheduler?.scanOnce,
+    }).fetch,
+    port,
+  });
 
   try {
     if (scheduler && stopScheduler) {

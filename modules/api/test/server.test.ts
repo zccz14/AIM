@@ -50,6 +50,7 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      scanOnce: vi.fn(),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -148,10 +149,40 @@ describe("server startup", () => {
     startServer();
 
     expect(mockCreateApiLogger).toHaveBeenCalledTimes(1);
-    expect(mockCreateApp).toHaveBeenCalledWith({ logger });
+    expect(mockCreateApp).toHaveBeenCalledWith({
+      logger,
+      onTaskResolved: scheduler.scanOnce,
+    });
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.objectContaining({ logger }),
     );
+  });
+
+  it("passes no resolve scheduler hook to the app when scheduler is disabled", async () => {
+    process.env.TASK_SCHEDULER_ENABLED = "false";
+
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+
+    mockCreateApiLogger.mockReturnValue(logger);
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    expect(mockCreateApp).toHaveBeenCalledWith({
+      logger,
+      onTaskResolved: undefined,
+    });
   });
 
   it("does not read config or construct scheduler dependencies when disabled", async () => {

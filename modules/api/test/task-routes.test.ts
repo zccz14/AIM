@@ -740,6 +740,95 @@ describe("task routes", () => {
     });
   });
 
+  it("triggers a scheduler scan opportunity after resolve succeeds", async () => {
+    await useProjectRoot("resolve-triggers-scheduler-scan");
+
+    const onTaskResolved = vi.fn();
+    const app = createTaskRouteApp({ onTaskResolved });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    await vi.waitFor(() => expect(onTaskResolved).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps resolve successful and logs when the scheduler scan trigger fails", async () => {
+    await useProjectRoot("resolve-scheduler-scan-fails");
+
+    const logger = createLogger();
+    const error = new Error("scan failed");
+    const app = createTaskRouteApp({
+      logger,
+      onTaskResolved: vi.fn().mockRejectedValue(error),
+    });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    await vi.waitFor(() =>
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: error, taskId: createdTask.task_id },
+        "Task scheduler scan trigger failed after task resolve",
+      ),
+    );
+  });
+
   it("rejects a task and persists the failed result", async () => {
     await useProjectRoot("rejects-task");
 
@@ -838,6 +927,46 @@ describe("task routes", () => {
       status: "failed",
       task_id: createdTask.task_id,
     });
+  });
+
+  it("does not trigger a scheduler scan opportunity after reject succeeds", async () => {
+    await useProjectRoot("reject-does-not-trigger-scheduler-scan");
+
+    const onTaskResolved = vi.fn();
+    const app = createTaskRouteApp({ onTaskResolved });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "reject me",
+        project_path: "/repo/reject-target",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const rejectResponse = await app.request(
+      resolveTaskRejectPath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "needs more work",
+        }),
+      },
+    );
+
+    expect(rejectResponse.status).toBe(204);
+    expect(onTaskResolved).not.toHaveBeenCalled();
   });
 
   it("rejects PATCH /tasks/{id} when project_path is present", async () => {

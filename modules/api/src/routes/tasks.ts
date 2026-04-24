@@ -128,6 +128,7 @@ const parseTaskResultRequest = async (request: Request) => {
 
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
+  onTaskResolved?: () => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
 };
 
@@ -136,6 +137,7 @@ export const registerTaskRoutes = (
   options: RegisterTaskRoutesOptions = {},
 ) => {
   const logger = options.logger;
+  const onTaskResolved = options.onTaskResolved;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
@@ -266,6 +268,17 @@ export const registerTaskRoutes = (
     }
 
     logger?.info(buildTaskLogFields("task_resolved", payload));
+
+    if (onTaskResolved) {
+      Promise.resolve()
+        .then(onTaskResolved)
+        .catch((error: unknown) => {
+          logger?.error(
+            { err: error, taskId },
+            "Task scheduler scan trigger failed after task resolve",
+          );
+        });
+    }
 
     return new Response(null, { status: 204 });
   });
