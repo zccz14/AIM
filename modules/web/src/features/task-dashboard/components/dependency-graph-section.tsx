@@ -18,7 +18,10 @@ type TaskGraphNodeData = DashboardGraphNode["data"] & {
 };
 
 const formatStatusLabel = (status: TaskGraphNodeData["status"]) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
+  status
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 
 const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
   <>

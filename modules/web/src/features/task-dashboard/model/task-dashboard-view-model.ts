@@ -1,4 +1,12 @@
-export type DashboardStatus = "processing" | "resolved" | "rejected";
+export type DashboardStatus =
+  | "created"
+  | "waiting_assumptions"
+  | "running"
+  | "outbound"
+  | "pr_following"
+  | "closing"
+  | "succeeded"
+  | "failed";
 
 export type DashboardTask = {
   id: string;
@@ -27,7 +35,7 @@ export type DashboardClosureCue = {
 };
 
 export type DashboardSummaryCard = {
-  key: "pool" | "processing" | "historyResolved" | "historyRejected";
+  key: "pool" | "running" | "waiting" | "historySucceeded" | "historyFailed";
   label: string;
   value: number;
 };
@@ -57,11 +65,19 @@ export type DashboardRejectedFeedbackSignal = {
   >[];
 };
 
+export type DashboardDecisionSignal = {
+  key: "coverage" | "flow" | "successRate" | "gap";
+  label: string;
+  value: string;
+  detail: string;
+};
+
 export type TaskDashboardViewModel = {
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
   rejectedFeedbackSignals: DashboardRejectedFeedbackSignal[];
   summaryCards: DashboardSummaryCard[];
+  decisionSignals: DashboardDecisionSignal[];
   statusBoardItems: DashboardMetricItem[];
   activitySeries: DashboardActivityPoint[];
   recentTasks: DashboardTask[];

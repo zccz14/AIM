@@ -5,7 +5,7 @@ const buildTask = ({
   done = false,
   result = "",
   spec,
-  status = "processing",
+  status = "running",
   taskId,
   updatedAt = "2026-04-19T00:00:00.000Z",
 }: {
@@ -57,7 +57,7 @@ test.beforeEach(async ({ page }) => {
                 buildTask({
                   dependencies: ["task-123"],
                   spec: "blocked task spec",
-                  status: "processing",
+                  status: "waiting_assumptions",
                   taskId: "task-456",
                 }),
               ],
@@ -98,6 +98,7 @@ test("renders the overview landing view", async ({ page }) => {
     page.locator(".summary-grid").getByText("Task Pool"),
   ).toBeVisible();
   await expect(page.getByText("Status Board")).toBeVisible();
+  await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
@@ -123,7 +124,7 @@ test("separates unfinished Task Pool data from completed history results", async
                   done: true,
                   result: "Merged and verified.",
                   spec: "Succeeded history task",
-                  status: "resolved",
+                  status: "succeeded",
                   taskId: "task-history-succeeded",
                   updatedAt: "2026-04-19T00:00:04.000Z",
                 }),
@@ -131,7 +132,7 @@ test("separates unfinished Task Pool data from completed history results", async
                   done: true,
                   result: "Rejected feedback: missing acceptance tests.",
                   spec: "Rejected history task",
-                  status: "rejected",
+                  status: "failed",
                   taskId: "task-history-rejected",
                   updatedAt: "2026-04-19T00:00:05.000Z",
                 }),
@@ -145,7 +146,7 @@ test("separates unfinished Task Pool data from completed history results", async
                 buildTask({
                   dependencies: ["task-active-ready"],
                   spec: "Active blocked task",
-                  status: "processing",
+                  status: "waiting_assumptions",
                   taskId: "task-active-blocked",
                   updatedAt: "2026-04-19T00:00:02.000Z",
                 }),
@@ -162,8 +163,18 @@ test("separates unfinished Task Pool data from completed history results", async
   await expect(
     page.locator(".summary-grid").getByText("Task Pool"),
   ).toBeVisible();
-  await expect(page.getByText("History Resolved")).toBeVisible();
-  await expect(page.getByText("History Rejected")).toBeVisible();
+  await expect(page.getByText("History Succeeded")).toBeVisible();
+  await expect(page.getByText("History Failed")).toBeVisible();
+  await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
+  await expect(page.getByText("2 active", { exact: true })).toBeVisible();
+  await expect(page.getByText("2 closed")).toBeVisible();
+  await expect(page.getByText("50%")).toBeVisible();
+  await expect(page.getByText("2 signals")).toBeVisible();
+  await expect(
+    page.getByText(
+      "1 waiting or newly created tasks and 1 failed history items may need Manager/Coordinator attention.",
+    ),
+  ).toBeVisible();
 
   await expect(
     page.getByRole("row", { name: /Active ready task/i }),
@@ -1053,7 +1064,7 @@ test("brands task details with grouped metadata and pull request access", async 
             ...buildTask({
               dependencies: ["task-ops", "task-release"],
               spec: "Branded task title\n\n## Summary\n\n- clarify ownership",
-              status: "processing",
+              status: "running",
               taskId: "task-brand",
             }),
             pull_request_url: "https://github.com/example/repo/pull/42",
@@ -1091,7 +1102,7 @@ test("shows present developer closure cues in task details", async ({
               done: true,
               result: "PR merged, worktree removed, workspace refreshed.",
               spec: "Closure-ready task",
-              status: "resolved",
+              status: "succeeded",
               taskId: "task-closure-ready",
             }),
             pull_request_url: "https://github.com/example/repo/pull/88",
@@ -1113,7 +1124,7 @@ test("shows present developer closure cues in task details", async ({
   await expect(
     page.getByText("PR merged, worktree removed, workspace refreshed."),
   ).toBeVisible();
-  await expect(page.getByText("done=true; status=resolved")).toBeVisible();
+  await expect(page.getByText("done=true; status=succeeded")).toBeVisible();
 });
 
 test("shows missing developer closure cues in task details", async ({
@@ -1126,7 +1137,7 @@ test("shows missing developer closure cues in task details", async ({
         items: [
           buildTask({
             spec: "Closure-missing task",
-            status: "processing",
+            status: "running",
             taskId: "task-closure-missing",
           }),
         ],
@@ -1145,7 +1156,7 @@ test("shows missing developer closure cues in task details", async ({
   await expect(page.getByText("Result Feedback: Missing")).toBeVisible();
   await expect(page.getByText("No result feedback recorded")).toBeVisible();
   await expect(page.getByText("Done / Status: Incomplete")).toBeVisible();
-  await expect(page.getByText("done=false; status=processing")).toBeVisible();
+  await expect(page.getByText("done=false; status=running")).toBeVisible();
 });
 
 test("renders the dependency graph with status-colored nodes", async ({
@@ -1163,7 +1174,7 @@ test("renders the dependency graph with status-colored nodes", async ({
           buildTask({
             dependencies: ["task-123"],
             spec: "Blocked task",
-            status: "processing",
+            status: "waiting_assumptions",
             taskId: "task-456",
           }),
         ],
@@ -1175,18 +1186,18 @@ test("renders the dependency graph with status-colored nodes", async ({
 
   await expect(page.getByText("Dependency Graph")).toBeVisible();
   await expect(page.getByTestId("graph-node-task-123")).toContainText(
-    "Processing",
+    "Running",
   );
   await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
     "border-color",
     "rgb(250, 176, 5)",
   );
   await expect(page.getByTestId("graph-node-task-456")).toContainText(
-    "Processing",
+    "Waiting Assumptions",
   );
   await expect(page.getByTestId("graph-node-task-456")).toHaveCSS(
     "border-color",
-    "rgb(250, 176, 5)",
+    "rgb(255, 146, 43)",
   );
   await expect(page.getByTestId("rf__edge-task-123-task-456")).toHaveCount(1);
   await expect(page.getByLabel("Edge from task-123 to task-456")).toHaveCount(
@@ -1305,7 +1316,7 @@ test("opens the task details page from a graph node", async ({ page }) => {
           buildTask({
             dependencies: ["task-123"],
             spec: "Blocked task",
-            status: "processing",
+            status: "waiting_assumptions",
             taskId: "task-456",
           }),
         ],
@@ -1423,27 +1434,27 @@ test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
           }),
           buildTask({
             spec: "Running task",
-            status: "processing",
+            status: "running",
             taskId: "task-running",
             updatedAt: "2026-04-19T00:00:02.000Z",
           }),
           buildTask({
             spec: "Blocked task",
-            status: "processing",
+            status: "waiting_assumptions",
             taskId: "task-blocked",
             updatedAt: "2026-04-19T00:00:03.000Z",
           }),
           buildTask({
             done: true,
             spec: "Done task",
-            status: "resolved",
+            status: "succeeded",
             taskId: "task-done",
             updatedAt: "2026-04-19T00:00:04.000Z",
           }),
           buildTask({
             done: true,
             spec: "Failed task",
-            status: "rejected",
+            status: "failed",
             taskId: "task-failed",
             updatedAt: "2026-04-19T00:00:05.000Z",
           }),
