@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +17,13 @@ type CommandResult = {
   exitCode: number | null;
   stdout: string;
   stderr: string;
+};
+
+type CliPackageManifest = {
+  name: string;
+  publishConfig?: {
+    access?: string;
+  };
 };
 
 const runCommand = async (
@@ -86,6 +93,15 @@ const packPackage = async (
 };
 
 describe("packaged global install", () => {
+  it("publishes the scoped CLI package as a public npm package", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as CliPackageManifest;
+
+    expect(packageJson.name).toBe("@aim-ai/cli");
+    expect(packageJson.publishConfig?.access).toBe("public");
+  });
+
   it("installs the packed CLI and runs the global aim command", async () => {
     const prefixPath = await mkdtemp(
       path.join(cliRootPath, ".pack-install-test-"),
