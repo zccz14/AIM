@@ -17,7 +17,7 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <MantineProvider>
+    <MantineProvider defaultColorScheme="auto">
       <QueryClientProvider client={webQueryClient}>
         <App />
       </QueryClientProvider>

@@ -1,6 +1,7 @@
 import {
   Alert,
   AppShell,
+  Box,
   Button,
   Center,
   Group,
@@ -8,6 +9,8 @@ import {
   Stack,
   Text,
   Title,
+  useComputedColorScheme,
+  useMantineTheme,
 } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
@@ -23,6 +26,7 @@ import {
 import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { CreateTaskForm } from "./create-task-form.js";
+import { getDashboardThemeTokens } from "./dashboard-theme.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
@@ -63,6 +67,9 @@ const navigateTo = (pathname: string) => {
 };
 
 export const DashboardPage = () => {
+  const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme("light");
+  const tokens = getDashboardThemeTokens(theme, colorScheme);
   const queryClient = useQueryClient();
   const dashboardQuery = useTaskDashboardQuery();
   const createTaskMutation = useTaskCreateMutation();
@@ -217,7 +224,19 @@ export const DashboardPage = () => {
   };
 
   return (
-    <AppShell header={{ height: 76 }} padding="lg">
+    <AppShell
+      header={{ height: 76 }}
+      padding="lg"
+      styles={{
+        header: {
+          backgroundColor: tokens.panelBackground,
+          borderBottom: `1px solid ${tokens.panelBorder}`,
+        },
+        main: {
+          backgroundColor: tokens.shellBackground,
+        },
+      }}
+    >
       <AppShell.Header px="lg" py="md">
         <Group h="100%" justify="space-between">
           <Group align="center" gap="sm">
@@ -271,7 +290,13 @@ export const DashboardPage = () => {
         </Group>
       </AppShell.Header>
       <AppShell.Main>
-        <Stack gap="lg">{renderContent()}</Stack>
+        <Box
+          data-testid="dashboard-shell"
+          mih="calc(100vh - 76px)"
+          style={{ backgroundColor: tokens.shellBackground }}
+        >
+          <Stack gap="lg">{renderContent()}</Stack>
+        </Box>
       </AppShell.Main>
     </AppShell>
   );
