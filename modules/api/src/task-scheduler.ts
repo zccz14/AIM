@@ -34,6 +34,11 @@ const defaultLogger: ApiLogger = {
   warn: console.warn.bind(console),
 };
 
+const prioritizeSessionTasks = (tasks: Task[]) => [
+  ...tasks.filter((task) => task.session_id),
+  ...tasks.filter((task) => !task.session_id),
+];
+
 export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   const logger = options.logger ?? defaultLogger;
   let scanPromise: Promise<void> | null = null;
@@ -135,7 +140,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     scanPromise = (async () => {
       const tasks = await options.taskRepository.listUnfinishedTasks();
 
-      for (const task of tasks) {
+      for (const task of prioritizeSessionTasks(tasks)) {
         await runTask(task);
       }
     })().finally(() => {
