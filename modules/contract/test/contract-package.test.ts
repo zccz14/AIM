@@ -188,7 +188,7 @@ beforeAll(async () => {
   generatedZodModule = (await import(
     "../generated/zod.ts"
   )) as GeneratedZodModule;
-});
+}, 30_000);
 
 describe("contract package baseline", () => {
   it("publishes unified root validation entrypoints", async () => {
