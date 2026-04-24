@@ -107,6 +107,15 @@ const PatchTaskRequest = z
   })
   .partial()
   .strict();
+const TaskWorktreePathRequest = z
+  .object({ worktree_path: z.union([z.string(), z.null()]) })
+  .strict();
+const TaskPullRequestUrlRequest = z
+  .object({ pull_request_url: z.union([z.string(), z.null()]) })
+  .strict();
+const TaskDependenciesRequest = z
+  .object({ dependencies: z.array(z.string().min(1)) })
+  .strict();
 const TaskResultRequest = z
   .object({
     result: z
@@ -126,5 +135,8 @@ export const schemas = {
   Task,
   TaskListResponse,
   PatchTaskRequest,
+  TaskWorktreePathRequest,
+  TaskPullRequestUrlRequest,
+  TaskDependenciesRequest,
   TaskResultRequest,
 };

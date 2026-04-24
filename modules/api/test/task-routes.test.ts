@@ -54,6 +54,9 @@ const createLogger = () => ({
 const resolveTaskByIdPath = (taskId: string) =>
   contractModule.taskByIdPath.replace("{taskId}", taskId);
 
+const resolveTaskFieldPath = (taskId: string, field: string) =>
+  `${resolveTaskByIdPath(taskId)}/${field}`;
+
 const resolveTaskSpecPath = (taskId: string) =>
   contractModule.taskSpecPath.replace("{taskId}", taskId);
 
@@ -650,6 +653,162 @@ describe("task routes", () => {
     expect(patchedTask.project_path).toBe(projectPath);
     expect(patchedTask.worktree_path).toBeNull();
     expect(patchedTask.pull_request_url).toBeNull();
+  });
+
+  it("updates worktree_path through its dedicated field endpoint", async () => {
+    await useProjectRoot("puts-worktree-path");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "record worktree path",
+        project_path: "/repo/worktree-field",
+        dependencies: ["task-a"],
+        pull_request_url: "https://example.test/pr/1",
+        status: "running",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskFieldPath(createdTask.task_id, "worktree_path"),
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          worktree_path: "/repo/.worktrees/task-1",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const updatedTask = await response.json();
+
+    expect(contractModule.taskSchema.safeParse(updatedTask).success).toBe(true);
+    expect(updatedTask.worktree_path).toBe("/repo/.worktrees/task-1");
+    expect(updatedTask.pull_request_url).toBe("https://example.test/pr/1");
+    expect(updatedTask.dependencies).toEqual(["task-a"]);
+    expect(updatedTask.status).toBe("running");
+  });
+
+  it("updates pull_request_url through its dedicated field endpoint", async () => {
+    await useProjectRoot("puts-pull-request-url");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "record pull request url",
+        project_path: "/repo/pr-field",
+        worktree_path: "/repo/.worktrees/task-2",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskFieldPath(createdTask.task_id, "pull_request_url"),
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          pull_request_url: "https://github.com/org/repo/pull/2",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const updatedTask = await response.json();
+
+    expect(contractModule.taskSchema.safeParse(updatedTask).success).toBe(true);
+    expect(updatedTask.pull_request_url).toBe(
+      "https://github.com/org/repo/pull/2",
+    );
+    expect(updatedTask.worktree_path).toBe("/repo/.worktrees/task-2");
+  });
+
+  it("updates dependencies through its dedicated field endpoint with patch validation", async () => {
+    await useProjectRoot("puts-dependencies");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "record dependencies",
+        project_path: "/repo/dependencies-field",
+        dependencies: ["task-old"],
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const invalidResponse = await app.request(
+      resolveTaskFieldPath(createdTask.task_id, "dependencies"),
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          dependencies: [""],
+        }),
+      },
+    );
+
+    expect(invalidResponse.status).toBe(400);
+
+    const invalidPayload = await invalidResponse.json();
+
+    expect(invalidPayload.code).toBe("TASK_VALIDATION_ERROR");
+
+    const response = await app.request(
+      resolveTaskFieldPath(createdTask.task_id, "dependencies"),
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          dependencies: ["task-api", "task-docs"],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const updatedTask = await response.json();
+
+    expect(contractModule.taskSchema.safeParse(updatedTask).success).toBe(true);
+    expect(updatedTask.dependencies).toEqual(["task-api", "task-docs"]);
   });
 
   it("resolves a task and preserves the result when PATCH omits it", async () => {

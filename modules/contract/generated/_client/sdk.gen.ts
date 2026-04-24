@@ -32,6 +32,15 @@ import type {
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
+  PutTaskDependenciesByIdData,
+  PutTaskDependenciesByIdErrors,
+  PutTaskDependenciesByIdResponses,
+  PutTaskPullRequestUrlByIdData,
+  PutTaskPullRequestUrlByIdErrors,
+  PutTaskPullRequestUrlByIdResponses,
+  PutTaskWorktreePathByIdData,
+  PutTaskWorktreePathByIdErrors,
+  PutTaskWorktreePathByIdResponses,
   RejectTaskByIdData,
   RejectTaskByIdErrors,
   RejectTaskByIdResponses,
@@ -149,6 +158,63 @@ export const patchTaskById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: "/tasks/{taskId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update a task worktree path
+ */
+export const putTaskWorktreePathById = <ThrowOnError extends boolean = false>(
+  options: Options<PutTaskWorktreePathByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    PutTaskWorktreePathByIdResponses,
+    PutTaskWorktreePathByIdErrors,
+    ThrowOnError
+  >({
+    url: "/tasks/{taskId}/worktree_path",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update a task pull request URL
+ */
+export const putTaskPullRequestUrlById = <ThrowOnError extends boolean = false>(
+  options: Options<PutTaskPullRequestUrlByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    PutTaskPullRequestUrlByIdResponses,
+    PutTaskPullRequestUrlByIdErrors,
+    ThrowOnError
+  >({
+    url: "/tasks/{taskId}/pull_request_url",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update task dependencies
+ */
+export const putTaskDependenciesById = <ThrowOnError extends boolean = false>(
+  options: Options<PutTaskDependenciesByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    PutTaskDependenciesByIdResponses,
+    PutTaskDependenciesByIdErrors,
+    ThrowOnError
+  >({
+    url: "/tasks/{taskId}/dependencies",
     ...options,
     headers: {
       "Content-Type": "application/json",

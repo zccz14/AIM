@@ -36,6 +36,9 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
 - 读取 Task Spec 只能使用 `GET ${SERVER_BASE_URL}/tasks/${task_id}/spec`。
 - 非终态事实上报使用 `PATCH ${SERVER_BASE_URL}/tasks/${task_id}`。
+- `worktree_path` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/worktree_path`。
+- `pull_request_url` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/pull_request_url`。
+- `dependencies` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/dependencies`。
 - 成功终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
 - 失败终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
 
@@ -79,7 +82,7 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - 只有在验证通过后，才能基于最新 `origin/main` 创建新的 git worktree。
 - worktree 只能创建在 `<repo>/.worktrees/` 下。
 - 所有开发动作都必须在该 worktree 中执行，并与该 Task 绑定到同一分支、同一 PR。
-- worktree 创建后，立即通过 PATCH 上报 `running` 与已知的 `worktree_path`。
+- worktree 创建后，立即通过 PATCH 上报 `running`，并通过字段级 PUT 上报已知的 `worktree_path`。
 
 ### 5. 用 `aim-test-driven-development` 执行
 
@@ -91,7 +94,7 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 - 只有在该 Task 范围内的验证全部通过后，才创建 GitHub PR。
 - PR 创建后立刻尝试启用 Auto Merge，并要求使用 Squash。
-- PR 创建成功后，立即 PATCH `outbound`；若 `pull_request_url` 已知则一并上报，不要拖延。
+- PR 创建成功后，立即 PATCH `outbound`；若 `pull_request_url` 已知则立即通过字段级 PUT 单独上报，不要拖延。
 - 如果 Auto Merge 因权限、仓库策略或平台状态无法立即启用，必须把它当作真实阻塞继续跟进，而不是把流程视为已完成。
 
 ### 7. 持续跟进 PR 直到合并
@@ -150,15 +153,19 @@ description: Required entry skill when you are an AIM Developer working on an ex
 7. 最终成功完成时：`POST /resolve`，请求体只发送非空 `result`。
 8. 任务本身失败时：`POST /reject`，请求体只发送非空 `result`。
 
-只要 `worktree_path` 与 `pull_request_url` 仍然有效，后续 PATCH 应继续携带这些已知事实。
+只要 `worktree_path`、`pull_request_url` 或 `dependencies` 有新增或变化，应使用对应字段级 PUT 单独上报。
 
 ## API 调用规则
 
-- 只能使用 PATCH 来更新已存在 Task 的非终态事实。
+- 只能使用 PATCH 来更新已存在 Task 的非字段级非终态事实。
 - 非终态事实上报只使用 `PATCH /tasks/${task_id}`。
-- `PATCH` 只发送受支持且已知的字段：`status`、`worktree_path`、`pull_request_url`。
+- `PATCH` 只发送受支持且已知的非字段级 patch 字段，例如 `status`。
+- 字段级事实必须使用对应的 PUT 端点单独上报。
+- `PUT /tasks/${task_id}/worktree_path` 的请求体必须且只能包含 `worktree_path`。
+- `PUT /tasks/${task_id}/pull_request_url` 的请求体必须且只能包含 `pull_request_url`。
+- `PUT /tasks/${task_id}/dependencies` 的请求体必须且只能包含 `dependencies`。
 - 未知值必须省略，不能发送空字符串、伪造值或 `null` 占位。
-- 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。
+- 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。
 - 成功终态只能使用 `POST /tasks/${task_id}/resolve`。
 - 失败终态只能使用 `POST /tasks/${task_id}/reject`。
 - 只能使用 `POST /resolve` 上报 `succeeded` 终态结果，且只能使用 `POST /reject` 上报 `failed` 终态结果。
@@ -172,7 +179,12 @@ description: Required entry skill when you are an AIM Developer working on an ex
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   -H "Content-Type: application/json" \
   --data '{
-    "status": "running",
+    "status": "running"
+  }'
+
+curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/worktree_path" \
+  -H "Content-Type: application/json" \
+  --data '{
     "worktree_path": "/repo/.worktrees/task-123"
   }'
 ```
@@ -183,9 +195,23 @@ curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
 curl -X PATCH "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}" \
   -H "Content-Type: application/json" \
   --data '{
-    "status": "outbound",
-    "worktree_path": "/repo/.worktrees/task-123",
+    "status": "outbound"
+  }'
+
+curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/pull_request_url" \
+  -H "Content-Type: application/json" \
+  --data '{
     "pull_request_url": "https://github.com/org/repo/pull/123"
+  }'
+```
+
+### Dependencies 示例
+
+```bash
+curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/dependencies" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "dependencies": ["task-api", "task-docs"]
   }'
 ```
 

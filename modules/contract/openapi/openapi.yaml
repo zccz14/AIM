@@ -150,6 +150,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tasks/{taskId}/worktree_path:
+    put:
+      operationId: putTaskWorktreePathById
+      summary: Update a task worktree path
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskWorktreePathRequest"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid task worktree path payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tasks/{taskId}/pull_request_url:
+    put:
+      operationId: putTaskPullRequestUrlById
+      summary: Update a task pull request URL
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskPullRequestUrlRequest"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid task pull request URL payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tasks/{taskId}/dependencies:
+    put:
+      operationId: putTaskDependenciesById
+      summary: Update task dependencies
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskDependenciesRequest"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid task dependencies payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tasks/{taskId}/resolve:
     post:
       operationId: resolveTaskById
@@ -463,6 +556,37 @@ components:
             - closing
             - succeeded
             - failed
+    TaskWorktreePathRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - worktree_path
+      properties:
+        worktree_path:
+          type:
+            - string
+            - "null"
+    TaskPullRequestUrlRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - pull_request_url
+      properties:
+        pull_request_url:
+          type:
+            - string
+            - "null"
+    TaskDependenciesRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - dependencies
+      properties:
+        dependencies:
+          type: array
+          items:
+            type: string
+            minLength: 1
     TaskResultRequest:
       type: object
       additionalProperties: false

@@ -5,13 +5,19 @@ import {
   patchTaskRequestSchema,
   type TaskStatus,
   taskByIdPath,
+  taskDependenciesPath,
+  taskDependenciesRequestSchema,
   taskErrorSchema,
+  taskPullRequestUrlPath,
+  taskPullRequestUrlRequestSchema,
   taskRejectPath,
   taskResolvePath,
   taskResultRequestSchema,
   taskSpecPath,
   taskStatusSchema,
   tasksPath,
+  taskWorktreePathPath,
+  taskWorktreePathRequestSchema,
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
@@ -24,6 +30,18 @@ import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
+const taskWorktreePathRoutePath = taskWorktreePathPath.replace(
+  "{taskId}",
+  ":taskId",
+);
+const taskPullRequestUrlRoutePath = taskPullRequestUrlPath.replace(
+  "{taskId}",
+  ":taskId",
+);
+const taskDependenciesRoutePath = taskDependenciesPath.replace(
+  "{taskId}",
+  ":taskId",
+);
 const taskSpecRoutePath = taskSpecPath.replace("{taskId}", ":taskId");
 const taskResolveRoutePath = taskResolvePath.replace("{taskId}", ":taskId");
 const taskRejectRoutePath = taskRejectPath.replace("{taskId}", ":taskId");
@@ -165,6 +183,48 @@ const verifyPullRequestMerged = async (pullRequestUrl: string) => {
   return null;
 };
 
+const parseTaskWorktreePathRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = taskWorktreePathRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task worktree_path payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parseTaskPullRequestUrlRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = taskPullRequestUrlRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task pull_request_url payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parseTaskDependenciesRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = taskDependenciesRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task dependencies payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
   onTaskResolved?: () => Promise<void> | void;
@@ -281,6 +341,57 @@ export const registerTaskRoutes = (
     }
 
     const payload = await getRepository().updateTask(taskId, patch.data);
+
+    if (!payload) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return context.json(payload, 200);
+  });
+
+  app.put(taskWorktreePathRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const input = await parseTaskWorktreePathRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const payload = await getRepository().updateTask(taskId, input.data);
+
+    if (!payload) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return context.json(payload, 200);
+  });
+
+  app.put(taskPullRequestUrlRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const input = await parseTaskPullRequestUrlRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const payload = await getRepository().updateTask(taskId, input.data);
+
+    if (!payload) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    return context.json(payload, 200);
+  });
+
+  app.put(taskDependenciesRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const input = await parseTaskDependenciesRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const payload = await getRepository().updateTask(taskId, input.data);
 
     if (!payload) {
       return context.json(buildNotFoundError(taskId), 404);

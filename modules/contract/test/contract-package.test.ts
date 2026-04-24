@@ -316,15 +316,21 @@ describe("contract package baseline", () => {
       "opencodeModelsResponseSchema",
       "patchTaskRequestSchema",
       "taskByIdPath",
+      "taskDependenciesPath",
+      "taskDependenciesRequestSchema",
       "taskErrorCodeSchema",
       "taskErrorSchema",
       "taskListResponseSchema",
+      "taskPullRequestUrlPath",
+      "taskPullRequestUrlRequestSchema",
       "taskRejectPath",
       "taskResolvePath",
       "taskResultRequestSchema",
       "taskSchema",
       "taskSpecPath",
       "taskStatusSchema",
+      "taskWorktreePathPath",
+      "taskWorktreePathRequestSchema",
       "tasksPath",
     ]);
     expect(
@@ -338,6 +344,17 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.taskByIdPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskWorktreePathPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.taskPullRequestUrlPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskDependenciesPath],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.taskResolvePath],
@@ -590,6 +607,28 @@ describe("contract package baseline", () => {
           };
         }
       | undefined;
+    const taskWorktreePathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/worktree_path"
+    ] as
+      | {
+          put?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+    const taskPullRequestUrlPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/pull_request_url"
+    ] as typeof taskWorktreePathItem;
+    const taskDependenciesPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/dependencies"
+    ] as typeof taskWorktreePathItem;
     const resolveTaskByIdPathItem = contractModule.openApiDocument.paths[
       "/tasks/{taskId}/resolve"
     ] as
@@ -653,6 +692,9 @@ describe("contract package baseline", () => {
 
     expect(tasksPathItem).toBeDefined();
     expect(taskByIdPathItem).toBeDefined();
+    expect(taskWorktreePathItem).toBeDefined();
+    expect(taskPullRequestUrlPathItem).toBeDefined();
+    expect(taskDependenciesPathItem).toBeDefined();
     expect(resolveTaskByIdPathItem).toBeDefined();
     expect(rejectTaskByIdPathItem).toBeDefined();
     expect(contractModule.taskSpecPath).toBe("/tasks/{taskId}/spec");
@@ -691,6 +733,34 @@ describe("contract package baseline", () => {
     });
     expect(taskByIdPathItem?.delete?.responses["204"]).toBeDefined();
     expect(taskByIdPathItem?.get?.responses["404"]).toBeDefined();
+    expect(
+      taskWorktreePathItem?.put?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskWorktreePathRequest",
+    });
+    expect(taskWorktreePathItem?.put?.responses["200"]).toBeDefined();
+    expect(taskWorktreePathItem?.put?.responses["400"]).toBeDefined();
+    expect(taskWorktreePathItem?.put?.responses["404"]).toBeDefined();
+    expect(
+      taskPullRequestUrlPathItem?.put?.requestBody?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskPullRequestUrlRequest",
+    });
+    expect(taskPullRequestUrlPathItem?.put?.responses["200"]).toBeDefined();
+    expect(taskPullRequestUrlPathItem?.put?.responses["400"]).toBeDefined();
+    expect(taskPullRequestUrlPathItem?.put?.responses["404"]).toBeDefined();
+    expect(
+      taskDependenciesPathItem?.put?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskDependenciesRequest",
+    });
+    expect(taskDependenciesPathItem?.put?.responses["200"]).toBeDefined();
+    expect(taskDependenciesPathItem?.put?.responses["400"]).toBeDefined();
+    expect(taskDependenciesPathItem?.put?.responses["404"]).toBeDefined();
     expect(
       resolveTaskByIdPathItem?.post?.requestBody?.content?.["application/json"]
         ?.schema,

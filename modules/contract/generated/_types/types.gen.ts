@@ -92,6 +92,18 @@ export type PatchTaskRequest = {
     | "failed";
 };
 
+export type TaskWorktreePathRequest = {
+  worktree_path: string | null;
+};
+
+export type TaskPullRequestUrlRequest = {
+  pull_request_url: string | null;
+};
+
+export type TaskDependenciesRequest = {
+  dependencies: Array<string>;
+};
+
 export type TaskResultRequest = {
   result: string;
 };
@@ -365,6 +377,105 @@ export type PatchTaskByIdResponses = {
 
 export type PatchTaskByIdResponse =
   PatchTaskByIdResponses[keyof PatchTaskByIdResponses];
+
+export type PutTaskWorktreePathByIdData = {
+  body: TaskWorktreePathRequest;
+  path: {
+    taskId: string;
+  };
+  query?: never;
+  url: "/tasks/{taskId}/worktree_path";
+};
+
+export type PutTaskWorktreePathByIdErrors = {
+  /**
+   * Invalid task worktree path payload
+   */
+  400: ErrorResponse;
+  /**
+   * Task not found
+   */
+  404: ErrorResponse;
+};
+
+export type PutTaskWorktreePathByIdError =
+  PutTaskWorktreePathByIdErrors[keyof PutTaskWorktreePathByIdErrors];
+
+export type PutTaskWorktreePathByIdResponses = {
+  /**
+   * Updated task
+   */
+  200: Task;
+};
+
+export type PutTaskWorktreePathByIdResponse =
+  PutTaskWorktreePathByIdResponses[keyof PutTaskWorktreePathByIdResponses];
+
+export type PutTaskPullRequestUrlByIdData = {
+  body: TaskPullRequestUrlRequest;
+  path: {
+    taskId: string;
+  };
+  query?: never;
+  url: "/tasks/{taskId}/pull_request_url";
+};
+
+export type PutTaskPullRequestUrlByIdErrors = {
+  /**
+   * Invalid task pull request URL payload
+   */
+  400: ErrorResponse;
+  /**
+   * Task not found
+   */
+  404: ErrorResponse;
+};
+
+export type PutTaskPullRequestUrlByIdError =
+  PutTaskPullRequestUrlByIdErrors[keyof PutTaskPullRequestUrlByIdErrors];
+
+export type PutTaskPullRequestUrlByIdResponses = {
+  /**
+   * Updated task
+   */
+  200: Task;
+};
+
+export type PutTaskPullRequestUrlByIdResponse =
+  PutTaskPullRequestUrlByIdResponses[keyof PutTaskPullRequestUrlByIdResponses];
+
+export type PutTaskDependenciesByIdData = {
+  body: TaskDependenciesRequest;
+  path: {
+    taskId: string;
+  };
+  query?: never;
+  url: "/tasks/{taskId}/dependencies";
+};
+
+export type PutTaskDependenciesByIdErrors = {
+  /**
+   * Invalid task dependencies payload
+   */
+  400: ErrorResponse;
+  /**
+   * Task not found
+   */
+  404: ErrorResponse;
+};
+
+export type PutTaskDependenciesByIdError =
+  PutTaskDependenciesByIdErrors[keyof PutTaskDependenciesByIdErrors];
+
+export type PutTaskDependenciesByIdResponses = {
+  /**
+   * Updated task
+   */
+  200: Task;
+};
+
+export type PutTaskDependenciesByIdResponse =
+  PutTaskDependenciesByIdResponses[keyof PutTaskDependenciesByIdResponses];
 
 export type ResolveTaskByIdData = {
   body: TaskResultRequest;
