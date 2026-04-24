@@ -727,16 +727,22 @@ describe("opencode plugin package baseline", () => {
       /`SERVER_BASE_URL` 默认为 `http:\/\/localhost:8192`。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /PATCH \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}/,
+      /PUT \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}\/worktree_path/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /只能使用 PATCH 来更新已存在 Task 的非终态事实。/,
+      /PUT \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}\/pull_request_url/,
+    );
+    expect(pluginDeveloperGuideSkillText).toMatch(
+      /PUT \$\{SERVER_BASE_URL\}\/tasks\/\$\{task_id\}\/dependencies/,
+    );
+    expect(pluginDeveloperGuideSkillText).toMatch(
+      /字段级事实必须使用对应的 PUT 端点单独上报。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /只能使用 `POST \/resolve` 上报 `succeeded` 终态结果，且只能使用 `POST \/reject` 上报 `failed` 终态结果。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done` 来指挥 AIM。/,
+      /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。/,
@@ -757,6 +763,9 @@ describe("opencode plugin package baseline", () => {
       '"status": "outbound"',
       `POST /tasks/\${task_id}/resolve`,
       `POST /tasks/\${task_id}/reject`,
+      `PUT /tasks/\${task_id}/worktree_path`,
+      `PUT /tasks/\${task_id}/pull_request_url`,
+      `PUT /tasks/\${task_id}/dependencies`,
       "AIM 上报阻塞",
     ]) {
       expect(pluginDeveloperGuideSkillText).toContain(requiredFragment);
