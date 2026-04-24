@@ -10,6 +10,7 @@ import { registerTaskRoutes } from "./routes/tasks.js";
 
 type CreateAppOptions = {
   logger?: ApiLogger;
+  onTaskResolved?: () => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
 };
 
@@ -24,6 +25,7 @@ export const createApp = (_options: CreateAppOptions = {}) => {
   });
   registerTaskRoutes(app, {
     logger: _options.logger,
+    onTaskResolved: _options.onTaskResolved,
     openCodeModelsAdapter: _options.openCodeModelsAdapter,
   });
 
