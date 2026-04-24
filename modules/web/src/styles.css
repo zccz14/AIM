@@ -460,8 +460,11 @@ a {
   border-top: 1px solid var(--border);
 }
 
-.task-table thead th {
+.task-table thead {
   background: var(--card-strong);
+}
+
+.task-table thead th {
   border-top: 0;
   font-size: 0.82rem;
   text-transform: uppercase;
