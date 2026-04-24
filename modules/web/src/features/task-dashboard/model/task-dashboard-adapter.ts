@@ -1,6 +1,7 @@
 import type { Task, TaskListResponse, TaskStatus } from "@aim-ai/contract";
 
 import type {
+  DashboardClosureCue,
   DashboardStatus,
   DashboardTask,
   TaskDashboardViewModel,
@@ -70,16 +71,68 @@ export const summarizeTaskSpec = (taskSpec: string) => {
   return summary.length <= 72 ? summary : `${summary.slice(0, 69)}...`;
 };
 
+const summarizeTaskResult = (result: string) => {
+  const trimmedResult = result.trim();
+
+  if (trimmedResult.length === 0) {
+    return "No result feedback recorded";
+  }
+
+  return trimmedResult.length <= 96
+    ? trimmedResult
+    : `${trimmedResult.slice(0, 93)}...`;
+};
+
+const buildClosureChecklist = (task: Task): DashboardClosureCue[] => {
+  const hasPullRequest = task.pull_request_url !== null;
+  const hasWorktree = task.worktree_path !== null;
+  const hasResult = task.result.trim().length > 0;
+  const hasSucceededCompletion = task.done && task.status === "succeeded";
+
+  return [
+    {
+      key: "pullRequest",
+      label: "Pull Request",
+      statusLabel: hasPullRequest ? "Present" : "Missing",
+      detail: task.pull_request_url ?? "No pull_request_url recorded",
+      isComplete: hasPullRequest,
+    },
+    {
+      key: "worktree",
+      label: "Worktree",
+      statusLabel: hasWorktree ? "Present" : "Missing",
+      detail: task.worktree_path ?? "No worktree_path recorded",
+      isComplete: hasWorktree,
+    },
+    {
+      key: "result",
+      label: "Result Feedback",
+      statusLabel: hasResult ? "Present" : "Missing",
+      detail: summarizeTaskResult(task.result),
+      isComplete: hasResult,
+    },
+    {
+      key: "completion",
+      label: "Done / Status",
+      statusLabel: hasSucceededCompletion ? "Complete" : "Incomplete",
+      detail: `done=${String(task.done)}; status=${task.status}`,
+      isComplete: hasSucceededCompletion,
+    },
+  ];
+};
+
 export const adaptDashboardTask = (task: Task): DashboardTask => ({
   id: task.task_id,
   title: task.title,
   taskSpec: task.task_spec,
+  result: task.result,
   projectPath: task.project_path,
   contractStatus: task.status,
   dashboardStatus: toDashboardStatus(task.status),
   sessionId: task.session_id,
   worktreePath: task.worktree_path,
   pullRequestUrl: task.pull_request_url,
+  closureChecklist: buildClosureChecklist(task),
   dependencies: task.dependencies,
   createdAt: task.created_at,
   updatedAt: task.updated_at,

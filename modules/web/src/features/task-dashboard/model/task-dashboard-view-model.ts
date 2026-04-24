@@ -9,16 +9,26 @@ export type DashboardTask = {
   id: string;
   title: string;
   taskSpec: string;
+  result: string;
   projectPath: string;
   contractStatus: string;
   dashboardStatus: DashboardStatus;
   sessionId: string | null;
   worktreePath: string | null;
   pullRequestUrl: string | null;
+  closureChecklist: DashboardClosureCue[];
   dependencies: string[];
   createdAt: string;
   updatedAt: string;
   isDone: boolean;
+};
+
+export type DashboardClosureCue = {
+  key: "pullRequest" | "worktree" | "result" | "completion";
+  label: string;
+  statusLabel: string;
+  detail: string;
+  isComplete: boolean;
 };
 
 export type DashboardSummaryCard = {
