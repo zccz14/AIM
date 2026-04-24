@@ -26,9 +26,9 @@
     "build:dist": "pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/api/src/app.ts --entry modules/api/src/server.ts --out-dir modules/api/dist",
     "build": "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
-    "test:type": "pnpm run typecheck",
-    "test:lint": "pnpm --dir ../.. exec biome check modules/api/package.json modules/api/src modules/api/test",
-    "test:vitest": "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api"
+    "test:type": "[ -n \"$SKIP_TEST\" ] || pnpm run typecheck",
+    "test:lint": "[ -n \"$SKIP_TEST\" ] || pnpm --dir ../.. exec biome check modules/api/package.json modules/api/src modules/api/test",
+    "test:vitest": "[ -n \"$SKIP_TEST\" ] || pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api"
   },
   "dependencies": {
     "@aim-ai/contract": "workspace:*",
