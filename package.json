@@ -26,7 +26,7 @@
     "test:lint:repo": "pnpm run lint",
     "test:smoke": "pnpm -r --if-present run test:smoke",
     "test:web": "pnpm -r --if-present run test:web",
-    "build": "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
+    "build": "node ./scripts/build.mjs",
     "gcm": "git fetch origin && git checkout origin/main",
     "smoke": "pnpm run test:smoke",
     "validate": "pnpm run build",
