@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+
 import {
   createTaskRequestSchema,
   patchTaskRequestSchema,
@@ -124,6 +126,43 @@ const parseTaskResultRequest = async (request: Request) => {
   }
 
   return { data: result.data, ok: true as const };
+};
+
+const getPullRequestMergedOutput = (pullRequestUrl: string) =>
+  new Promise<string>((resolve, reject) => {
+    execFile(
+      "gh",
+      ["pr", "view", pullRequestUrl, "--json", "merged", "--jq", ".merged"],
+      { encoding: "utf8" },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+
+          return;
+        }
+
+        resolve(stdout);
+      },
+    );
+  });
+
+const verifyPullRequestMerged = async (pullRequestUrl: string) => {
+  let stdout: string;
+  try {
+    stdout = await getPullRequestMergedOutput(pullRequestUrl);
+  } catch {
+    return buildValidationError(
+      "Could not confirm pull_request_url is merged with gh. Make sure GitHub CLI is installed, authenticated, and the PR exists.",
+    );
+  }
+
+  if (stdout.trim() !== "true") {
+    return buildValidationError(
+      "Task cannot be resolved until pull_request_url points to a merged pull request.",
+    );
+  }
+
+  return null;
 };
 
 type RegisterTaskRoutesOptions = {
@@ -256,6 +295,29 @@ export const registerTaskRoutes = (
 
     if (!input.ok) {
       return context.json(input.error, 400);
+    }
+
+    const task = await getRepository().getTaskById(taskId);
+
+    if (!task) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    if (!task.pull_request_url) {
+      return context.json(
+        buildValidationError(
+          "Task cannot be resolved until pull_request_url is recorded.",
+        ),
+        400,
+      );
+    }
+
+    const pullRequestError = await verifyPullRequestMerged(
+      task.pull_request_url,
+    );
+
+    if (pullRequestError) {
+      return context.json(pullRequestError, 400);
     }
 
     const payload = await getRepository().resolveTask(
