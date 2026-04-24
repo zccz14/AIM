@@ -28,7 +28,7 @@
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/api/package.json modules/api/src modules/api/test",
-    "test": "pnpm run test:type && pnpm run test:lint && pnpm run build:dist && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api"
+    "test": "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api"
   },
   "dependencies": {
     "@aim-ai/contract": "workspace:*",
