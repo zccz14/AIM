@@ -1,6 +1,6 @@
 ---
 name: aim-ask-strategy
-description: Strongly recommended when you need to clarify questions, converge directions and uncertainties, do design or orienting work, or answer open-ended questions before deciding how to proceed and producing a task spec.
+description: Strongly recommended when you need to clarify questions, converge directions and uncertainties, do design or orienting work, or answer open-ended questions before deciding how to proceed and producing a task spec, especially when key clarifications could change the route.
 ---
 
 # aim-ask-strategy
