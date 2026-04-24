@@ -356,6 +356,45 @@ a {
   padding-bottom: 0;
 }
 
+.rejected-feedback-filters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.35fr) minmax(16rem, 1fr);
+  gap: 12px;
+}
+
+.rejected-feedback-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+}
+
+.rejected-feedback-card:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rejected-feedback-card:last-child {
+  padding-bottom: 0;
+}
+
+.rejected-feedback-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rejected-feedback-count {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--status-failed) 45%, var(--border));
+  background: color-mix(in srgb, var(--status-failed) 12%, var(--card-strong));
+  color: var(--status-failed);
+  padding: 8px 12px;
+}
+
 .interactive-link,
 .ui-button,
 .theme-toggle,
@@ -629,6 +668,7 @@ a {
   .app-shell__hero-main,
   .hero-actions,
   .server-form,
+  .rejected-feedback-filters,
   .summary-grid,
   .split-grid,
   .details-grid {

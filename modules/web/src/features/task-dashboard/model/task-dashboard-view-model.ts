@@ -43,9 +43,24 @@ export type DashboardActivityPoint = {
   value: number;
 };
 
+export type DashboardRejectedFeedbackSignal = {
+  key: string;
+  reasonCategory: "stale_spec" | "scheduler_session" | "general";
+  reasonCategoryLabel: string;
+  reasonSummary: string;
+  count: number;
+  latestAt: string;
+  coordinates: string[];
+  sampleTasks: Pick<
+    DashboardTask,
+    "id" | "title" | "projectPath" | "updatedAt"
+  >[];
+};
+
 export type TaskDashboardViewModel = {
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
+  rejectedFeedbackSignals: DashboardRejectedFeedbackSignal[];
   summaryCards: DashboardSummaryCard[];
   statusBoardItems: DashboardMetricItem[];
   activitySeries: DashboardActivityPoint[];
