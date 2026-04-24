@@ -374,8 +374,8 @@ describe("opencode plugin package baseline", () => {
     expect(pluginAskStrategySkillText).toContain("README");
     expect(pluginAskStrategySkillText).toContain("方向选择");
     expect(pluginAskStrategySkillText).toContain("开放问题");
-    expect(pluginAskStrategySkillText).toContain("creative/design 探索");
-    expect(pluginAskStrategySkillText).toContain("关键澄清");
+    expect(pluginAskStrategySkillText).toContain("design or orienting work");
+    expect(pluginAskStrategySkillText).toContain("key clarifications");
     expect(pluginAskStrategySkillText).toContain("上策");
     expect(pluginAskStrategySkillText).toContain("中策");
     expect(pluginAskStrategySkillText).toContain("下策");
