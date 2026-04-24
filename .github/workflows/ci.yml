@@ -7,8 +7,8 @@ on:
       - main
 
 jobs:
-  quality:
-    name: Quality gates
+  build:
+    name: Build
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
@@ -37,12 +37,3 @@ jobs:
 
       - name: Run root build contract
         run: pnpm build
-
-  playwright:
-    name: Playwright
-    runs-on: ubuntu-latest
-    needs: quality
-    if: ${{ success() }}
-    steps:
-      - name: Confirm Playwright is covered by root test gate
-        run: true
