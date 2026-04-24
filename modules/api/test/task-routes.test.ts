@@ -277,7 +277,7 @@ describe("task routes", () => {
         project_path: projectPath,
         session_id: "session-1",
         dependencies: ["task-0"],
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -384,7 +384,7 @@ describe("task routes", () => {
         title: "Test task",
         project_path: "/repo/main",
         session_id: "session-1",
-        status: "running",
+        status: "processing",
         task_spec: "write sqlite-backed route tests",
       }),
     });
@@ -397,7 +397,7 @@ describe("task routes", () => {
       event: "task_created",
       project_path: "/repo/main",
       session_id: "session-1",
-      status: "running",
+      status: "processing",
       task_id: createdTask.task_id,
     });
   });
@@ -449,7 +449,7 @@ describe("task routes", () => {
         task_spec: "keep running",
         project_path: "/repo/session-a/running",
         session_id: "session-a",
-        status: "running",
+        status: "processing",
       }),
     });
     const secondCreateResponse = await app.request(contractModule.tasksPath, {
@@ -464,7 +464,7 @@ describe("task routes", () => {
         task_spec: "already done",
         project_path: "/repo/session-a/done",
         session_id: "session-a",
-        status: "failed",
+        status: "rejected",
       }),
     });
     const thirdCreateResponse = await app.request(contractModule.tasksPath, {
@@ -479,7 +479,7 @@ describe("task routes", () => {
         task_spec: "different session",
         project_path: "/repo/session-b/running",
         session_id: "session-b",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -488,7 +488,7 @@ describe("task routes", () => {
     expect(thirdCreateResponse.status).toBe(201);
 
     const statusFilteredResponse = await app.request(
-      `${contractModule.tasksPath}?status=running`,
+      `${contractModule.tasksPath}?status=processing`,
     );
     const doneFilteredResponse = await app.request(
       `${contractModule.tasksPath}?done=true`,
@@ -515,7 +515,7 @@ describe("task routes", () => {
       "different session",
     ]);
     expect(
-      statusFilteredPayload.items.every((task) => task.status === "running"),
+      statusFilteredPayload.items.every((task) => task.status === "processing"),
     ).toBe(true);
 
     expect(
@@ -524,7 +524,7 @@ describe("task routes", () => {
     ).toBe(true);
     expect(doneFilteredPayload.items).toHaveLength(1);
     expect(doneFilteredPayload.items[0].task_spec).toBe("already done");
-    expect(doneFilteredPayload.items[0].status).toBe("failed");
+    expect(doneFilteredPayload.items[0].status).toBe("rejected");
     expect(doneFilteredPayload.items[0].done).toBe(true);
 
     expect(
@@ -560,7 +560,7 @@ describe("task routes", () => {
         project_path: "/repo/patch-target",
         session_id: "session-7",
         dependencies: ["task-a"],
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -578,7 +578,7 @@ describe("task routes", () => {
         body: JSON.stringify({
           task_spec: "after patch",
           pull_request_url: "https://example.test/pr/7",
-          status: "failed",
+          status: "rejected",
         }),
       },
     );
@@ -594,7 +594,7 @@ describe("task routes", () => {
     expect(patchedTask.session_id).toBe("session-7");
     expect(patchedTask.dependencies).toEqual(["task-a"]);
     expect(patchedTask.pull_request_url).toBe("https://example.test/pr/7");
-    expect(patchedTask.status).toBe("failed");
+    expect(patchedTask.status).toBe("rejected");
     expect(patchedTask.done).toBe(true);
 
     const detailResponse = await app.request(
@@ -672,7 +672,7 @@ describe("task routes", () => {
         project_path: "/repo/worktree-field",
         dependencies: ["task-a"],
         pull_request_url: "https://example.test/pr/1",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -700,7 +700,7 @@ describe("task routes", () => {
     expect(updatedTask.worktree_path).toBe("/repo/.worktrees/task-1");
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/1");
     expect(updatedTask.dependencies).toEqual(["task-a"]);
-    expect(updatedTask.status).toBe("running");
+    expect(updatedTask.status).toBe("processing");
   });
 
   it("updates pull_request_url through its dedicated field endpoint", async () => {
@@ -829,7 +829,7 @@ describe("task routes", () => {
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -860,7 +860,7 @@ describe("task routes", () => {
 
     const resolvedTask = await resolvedDetailResponse.json();
 
-    expect(resolvedTask.status).toBe("succeeded");
+    expect(resolvedTask.status).toBe("resolved");
     expect(resolvedTask.done).toBe(true);
     expect(resolvedTask.result).toBe("ship it");
 
@@ -882,7 +882,7 @@ describe("task routes", () => {
     const patchedTask = await patchResponse.json();
 
     expect(patchedTask.task_spec).toBe("resolved task");
-    expect(patchedTask.status).toBe("succeeded");
+    expect(patchedTask.status).toBe("resolved");
     expect(patchedTask.done).toBe(true);
     expect(patchedTask.result).toBe("ship it");
   });
@@ -902,7 +902,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -952,7 +952,7 @@ describe("task routes", () => {
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1001,7 +1001,7 @@ describe("task routes", () => {
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1052,7 +1052,7 @@ describe("task routes", () => {
         pull_request_url: "https://github.com/example/repo/pull/42",
         session_id: "session-7",
         task_spec: "resolve me",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1079,7 +1079,7 @@ describe("task routes", () => {
       project_path: "/repo/resolve-target",
       result_preview: longResult.slice(0, 200),
       session_id: "session-7",
-      status: "succeeded",
+      status: "resolved",
       task_id: createdTask.task_id,
     });
   });
@@ -1103,7 +1103,7 @@ describe("task routes", () => {
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1150,7 +1150,7 @@ describe("task routes", () => {
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1194,7 +1194,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "reject me",
         project_path: "/repo/reject-target",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1225,7 +1225,7 @@ describe("task routes", () => {
 
     const rejectedTask = await detailResponse.json();
 
-    expect(rejectedTask.status).toBe("failed");
+    expect(rejectedTask.status).toBe("rejected");
     expect(rejectedTask.done).toBe(true);
     expect(rejectedTask.result).toBe("needs more work");
   });
@@ -1247,7 +1247,7 @@ describe("task routes", () => {
         project_path: "/repo/reject-target",
         session_id: "session-8",
         task_spec: "reject me",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1274,7 +1274,7 @@ describe("task routes", () => {
       project_path: "/repo/reject-target",
       result_preview: longResult.slice(0, 200),
       session_id: "session-8",
-      status: "failed",
+      status: "rejected",
       task_id: createdTask.task_id,
     });
   });
@@ -1295,7 +1295,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "reject me",
         project_path: "/repo/reject-target",
-        status: "running",
+        status: "processing",
       }),
     });
 
@@ -1644,7 +1644,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        status: "running",
+        status: "processing",
       }),
     });
 

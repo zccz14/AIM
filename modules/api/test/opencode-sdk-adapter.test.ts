@@ -18,7 +18,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   project_path: "/repo",
   pull_request_url: null,
   session_id: null,
-  status: "created",
+  status: "processing",
   task_id: "task-1",
   task_spec: "Implement the OpenCode SDK coordinator.",
   title: "Implement coordinator",

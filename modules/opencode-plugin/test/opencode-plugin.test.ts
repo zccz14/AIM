@@ -739,7 +739,7 @@ describe("opencode plugin package baseline", () => {
       /字段级事实必须使用对应的 PUT 端点单独上报。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /只能使用 `POST \/resolve` 上报 `succeeded` 终态结果，且只能使用 `POST \/reject` 上报 `failed` 终态结果。/,
+      /只能使用 `POST \/resolve` 上报 `resolved` 终态结果，且只能使用 `POST \/reject` 上报 `rejected` 终态结果。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。/,
@@ -758,9 +758,9 @@ describe("opencode plugin package baseline", () => {
     );
 
     for (const requiredFragment of [
-      "waiting_assumptions",
-      "pr_following",
-      '"status": "outbound"',
+      '"status": "processing"',
+      "resolved",
+      "rejected",
       `POST /tasks/\${task_id}/resolve`,
       `POST /tasks/\${task_id}/reject`,
       `PUT /tasks/\${task_id}/worktree_path`,
@@ -810,7 +810,7 @@ describe("opencode plugin package baseline", () => {
       "先经 `aim-verify-task-spec` 独立校验",
       "使用 `aim-create-tasks` 创建 AIM Task",
       "禁止由 Coordinator 直接调用 `POST /tasks`",
-      "禁止删除已完成、已 resolved、已 succeeded 或 `done = 1` 的历史 Task",
+      "禁止删除已完成、已 resolved 或 `done = 1` 的历史 Task",
     ]) {
       expect(taskWriteBulkDocText).toContain(requiredFragment);
     }

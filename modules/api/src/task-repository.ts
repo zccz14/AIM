@@ -75,7 +75,7 @@ const requiredColumns = [
 ] as const;
 
 const isDoneStatus = (status: TaskStatus) =>
-  status === "succeeded" || status === "failed";
+  status === "resolved" || status === "rejected";
 
 const buildSchemaError = () => new Error("tasks schema is incompatible");
 
@@ -352,8 +352,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         pull_request_url: input.pull_request_url ?? null,
         dependencies: JSON.stringify(input.dependencies ?? []),
         result: input.result ?? "",
-        done: Number(isDoneStatus(input.status ?? "created")),
-        status: input.status ?? "created",
+        done: Number(isDoneStatus(input.status ?? "processing")),
+        status: input.status ?? "processing",
         created_at: timestamp,
         updated_at: timestamp,
       });
@@ -489,10 +489,10 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       return updatedTask;
     },
     resolveTask(taskId: string, result: string): Promise<null | Task> {
-      return this.updateTask(taskId, { result, status: "succeeded" });
+      return this.updateTask(taskId, { result, status: "resolved" });
     },
     rejectTask(taskId: string, result: string): Promise<null | Task> {
-      return this.updateTask(taskId, { result, status: "failed" });
+      return this.updateTask(taskId, { result, status: "rejected" });
     },
     deleteTask(taskId: string): Promise<boolean> {
       const result = deleteTaskStatement.run(taskId);

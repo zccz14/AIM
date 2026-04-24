@@ -55,7 +55,7 @@ describe("task session coordinator default adapter", () => {
         project_path: "/repo",
         pull_request_url: null,
         session_id: null,
-        status: "created",
+        status: "processing",
         task_id: "task-1",
         task_spec: "Implement the OpenCode SDK coordinator.",
         updated_at: "2026-04-20T00:00:00.000Z",

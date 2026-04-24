@@ -336,14 +336,9 @@ components:
       schema:
         type: string
         enum:
-          - created
-          - waiting_assumptions
-          - running
-          - outbound
-          - pr_following
-          - closing
-          - succeeded
-          - failed
+          - processing
+          - resolved
+          - rejected
     TaskDoneQueryParameter:
       name: done
       in: query
@@ -447,14 +442,9 @@ components:
         status:
           type: string
           enum:
-            - created
-            - waiting_assumptions
-            - running
-            - outbound
-            - pr_following
-            - closing
-            - succeeded
-            - failed
+            - processing
+            - resolved
+            - rejected
         created_at:
           type: string
           format: date-time
@@ -511,14 +501,9 @@ components:
         status:
           type: string
           enum:
-            - created
-            - waiting_assumptions
-            - running
-            - outbound
-            - pr_following
-            - closing
-            - succeeded
-            - failed
+            - processing
+            - resolved
+            - rejected
     PatchTaskRequest:
       type: object
       additionalProperties: false
@@ -548,14 +533,9 @@ components:
         status:
           type: string
           enum:
-            - created
-            - waiting_assumptions
-            - running
-            - outbound
-            - pr_following
-            - closing
-            - succeeded
-            - failed
+            - processing
+            - resolved
+            - rejected
     TaskWorktreePathRequest:
       type: object
       additionalProperties: false

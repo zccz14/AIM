@@ -1,47 +1,33 @@
 import type { DashboardStatus } from "../model/task-dashboard-view-model.js";
 
 const statusLabelMap: Record<DashboardStatus, string> = {
-  ready: "Ready",
-  running: "Running",
-  blocked: "Blocked",
-  done: "Done",
-  failed: "Failed",
+  processing: "Processing",
+  rejected: "Rejected",
+  resolved: "Resolved",
 };
 
 const statusAccentColorMap: Record<DashboardStatus, string> = {
-  ready: "#7ab4ff",
-  running: "#bfa0ff",
-  blocked: "#ffb86c",
-  done: "#87e5a0",
-  failed: "#ff9b9b",
+  processing: "#bfa0ff",
+  rejected: "#ff9b9b",
+  resolved: "#87e5a0",
 };
 
 export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
   const palette = {
-    blocked: {
-      background: "rgba(245, 159, 0, 0.18)",
-      border: "#f59f00",
-      text: "#ffd8a8",
+    processing: {
+      background: "rgba(151, 117, 250, 0.2)",
+      border: "#9775fa",
+      text: "#e5dbff",
     },
-    done: {
-      background: "rgba(64, 192, 87, 0.18)",
-      border: "#40c057",
-      text: "#b2f2bb",
-    },
-    failed: {
+    rejected: {
       background: "rgba(250, 82, 82, 0.2)",
       border: "#fa5252",
       text: "#ffc9c9",
     },
-    ready: {
-      background: "rgba(77, 171, 247, 0.18)",
-      border: "#4dabf7",
-      text: "#d0ebff",
-    },
-    running: {
-      background: "rgba(151, 117, 250, 0.2)",
-      border: "#9775fa",
-      text: "#e5dbff",
+    resolved: {
+      background: "rgba(64, 192, 87, 0.18)",
+      border: "#40c057",
+      text: "#b2f2bb",
     },
   }[status];
 

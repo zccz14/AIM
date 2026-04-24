@@ -567,16 +567,7 @@ export const openApiDocument = {
         required: false,
         schema: {
           type: "string",
-          enum: [
-            "created",
-            "waiting_assumptions",
-            "running",
-            "outbound",
-            "pr_following",
-            "closing",
-            "succeeded",
-            "failed",
-          ],
+          enum: ["processing", "resolved", "rejected"],
         },
       },
       TaskDoneQueryParameter: {
@@ -696,16 +687,7 @@ export const openApiDocument = {
           },
           status: {
             type: "string",
-            enum: [
-              "created",
-              "waiting_assumptions",
-              "running",
-              "outbound",
-              "pr_following",
-              "closing",
-              "succeeded",
-              "failed",
-            ],
+            enum: ["processing", "resolved", "rejected"],
           },
           created_at: {
             type: "string",
@@ -772,16 +754,7 @@ export const openApiDocument = {
           },
           status: {
             type: "string",
-            enum: [
-              "created",
-              "waiting_assumptions",
-              "running",
-              "outbound",
-              "pr_following",
-              "closing",
-              "succeeded",
-              "failed",
-            ],
+            enum: ["processing", "resolved", "rejected"],
           },
         },
       },
@@ -814,16 +787,7 @@ export const openApiDocument = {
           },
           status: {
             type: "string",
-            enum: [
-              "created",
-              "waiting_assumptions",
-              "running",
-              "outbound",
-              "pr_following",
-              "closing",
-              "succeeded",
-              "failed",
-            ],
+            enum: ["processing", "resolved", "rejected"],
           },
         },
       },

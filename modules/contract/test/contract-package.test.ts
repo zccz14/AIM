@@ -420,7 +420,9 @@ describe("contract package baseline", () => {
     expect(contractModule.taskByIdPath).toBe("/tasks/{taskId}");
     expect(contractModule.taskResolvePath).toBe("/tasks/{taskId}/resolve");
     expect(contractModule.taskRejectPath).toBe("/tasks/{taskId}/reject");
-    expect(contractModule.taskStatusSchema.parse("running")).toBe("running");
+    expect(contractModule.taskStatusSchema.parse("processing")).toBe(
+      "processing",
+    );
     expect(contractModule.taskErrorCodeSchema.parse("TASK_NOT_FOUND")).toBe(
       "TASK_NOT_FOUND",
     );
@@ -448,11 +450,11 @@ describe("contract package baseline", () => {
     ).toBe(false);
     expect(
       contractModule.patchTaskRequestSchema.parse({
-        status: "succeeded",
+        status: "resolved",
         result: "final output",
       }),
     ).toEqual({
-      status: "succeeded",
+      status: "resolved",
       result: "final output",
     });
     expect(
@@ -476,14 +478,14 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "running",
+        status: "processing",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }),
     ).toMatchObject({
       task_id: "task-1",
       result: "complete",
-      status: "running",
+      status: "processing",
     });
     expect(
       contractModule.taskListResponseSchema.parse({
@@ -501,7 +503,7 @@ describe("contract package baseline", () => {
             pull_request_url: null,
             dependencies: [],
             done: false,
-            status: "running",
+            status: "processing",
             created_at: "2026-04-19T00:00:00.000Z",
             updated_at: "2026-04-19T00:00:00.000Z",
           },
@@ -528,7 +530,7 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "running",
+        status: "processing",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }).success,
@@ -541,6 +543,38 @@ describe("contract package baseline", () => {
     ).toEqual({
       code: "TASK_VALIDATION_ERROR",
       message: "bad input",
+    });
+  });
+
+  it("limits the public task status contract to processing, resolved, and rejected", () => {
+    const publicStatuses = ["processing", "resolved", "rejected"];
+    const retiredStatuses = [
+      "created",
+      "waiting_assumptions",
+      "running",
+      "outbound",
+      "pr_following",
+      "closing",
+      "succeeded",
+      "failed",
+    ];
+    const createTaskRequestSchema = contractModule.openApiDocument.components
+      .schemas.CreateTaskRequest as {
+      properties: Record<string, { enum?: string[] }>;
+    };
+
+    for (const status of publicStatuses) {
+      expect(contractModule.taskStatusSchema.parse(status)).toBe(status);
+    }
+
+    for (const status of retiredStatuses) {
+      expect(contractModule.taskStatusSchema.safeParse(status).success).toBe(
+        false,
+      );
+    }
+
+    expect(createTaskRequestSchema.properties.status).toMatchObject({
+      enum: publicStatuses,
     });
   });
 
@@ -932,16 +966,7 @@ describe("contract package baseline", () => {
         }
       ).properties.status,
     ).toMatchObject({
-      enum: [
-        "created",
-        "waiting_assumptions",
-        "running",
-        "outbound",
-        "pr_following",
-        "closing",
-        "succeeded",
-        "failed",
-      ],
+      enum: ["processing", "resolved", "rejected"],
     });
     expect(
       contractModule.openApiDocument.components.schemas.Task,
@@ -1040,7 +1065,7 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "created",
+        status: "processing",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }).success,
@@ -1341,7 +1366,7 @@ describe("contract package baseline", () => {
       pull_request_url: null,
       dependencies: [],
       done: false,
-      status: "created",
+      status: "processing",
       created_at: "2026-04-20T00:00:00.000Z",
       updated_at: "2026-04-20T00:00:00.000Z",
     };
@@ -1413,10 +1438,10 @@ describe("contract package baseline", () => {
           if (
             request.method === "PATCH" &&
             url.pathname === "/tasks/task-1" &&
-            bodyText === JSON.stringify({ status: "running" })
+            bodyText === JSON.stringify({ status: "processing" })
           ) {
             return new Response(
-              JSON.stringify({ ...task, status: "running" }),
+              JSON.stringify({ ...task, status: "processing" }),
               {
                 status: 200,
                 headers: { "content-type": "application/json" },
@@ -1458,7 +1483,7 @@ describe("contract package baseline", () => {
       client.listTasks({
         done: false,
         session_id: "session-1",
-        status: "created",
+        status: "processing",
       }),
     ).resolves.toEqual({
       items: [],
@@ -1477,16 +1502,16 @@ describe("contract package baseline", () => {
       task_spec: "write spec",
       project_path: "/repo",
       result: "",
-      status: "created",
+      status: "processing",
     });
     await expect(client.getTaskById("task-1")).resolves.toMatchObject({
       task_id: "task-1",
     });
     await expect(
-      client.patchTaskById("task-1", { status: "running" }),
+      client.patchTaskById("task-1", { status: "processing" }),
     ).resolves.toMatchObject({
       task_id: "task-1",
-      status: "running",
+      status: "processing",
     });
     await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
     await expect(
@@ -1505,7 +1530,7 @@ describe("contract package baseline", () => {
         searchParams: {
           done: "false",
           session_id: "session-1",
-          status: "created",
+          status: "processing",
         },
       },
       {
@@ -1528,7 +1553,7 @@ describe("contract package baseline", () => {
         searchParams: {},
       },
       {
-        body: { status: "running" },
+        body: { status: "processing" },
         method: "PATCH",
         pathname: "/tasks/task-1",
         searchParams: {},
