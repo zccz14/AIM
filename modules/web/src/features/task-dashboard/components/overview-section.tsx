@@ -12,6 +12,18 @@ import {
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
+const summarizeResult = (result: string) => {
+  const trimmedResult = result.trim();
+
+  if (trimmedResult.length === 0) {
+    return "No result feedback recorded";
+  }
+
+  return trimmedResult.length <= 120
+    ? trimmedResult
+    : `${trimmedResult.slice(0, 117)}...`;
+};
+
 export const OverviewSection = ({
   dashboard,
   onSelectTask,
@@ -32,7 +44,7 @@ export const OverviewSection = ({
     <div className="split-grid">
       <section className="surface-card section-stack">
         <div>
-          <p className="eyebrow">Throughput</p>
+          <p className="eyebrow">Task Pool</p>
           <h2 className="section-title">Status Board</h2>
         </div>
         <div className="chart-frame">
@@ -49,8 +61,8 @@ export const OverviewSection = ({
 
       <section className="surface-card section-stack">
         <div>
-          <p className="eyebrow">Cadence</p>
-          <h2 className="section-title">Recent Activity</h2>
+          <p className="eyebrow">History</p>
+          <h2 className="section-title">Completed Result Activity</h2>
         </div>
         <div className="chart-frame">
           <ResponsiveContainer height="100%" width="100%">
@@ -86,6 +98,37 @@ export const OverviewSection = ({
             <TaskStatusBadge status={task.dashboardStatus} />
           </div>
         ))}
+      </div>
+    </section>
+
+    <section className="surface-card section-stack">
+      <div>
+        <p className="eyebrow">History Results</p>
+        <h2 className="section-title">Completed Task Feedback</h2>
+      </div>
+      <div className="task-list">
+        {dashboard.historyTasks
+          .slice()
+          .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+          .slice(0, 5)
+          .map((task) => (
+            <div className="task-list__item" key={task.id}>
+              <div className="panel-stack">
+                <button
+                  className="task-title-button"
+                  onClick={() => onSelectTask(task.id)}
+                  type="button"
+                >
+                  {task.title}
+                </button>
+                <p className="table-meta">{summarizeResult(task.result)}</p>
+              </div>
+              <TaskStatusBadge status={task.dashboardStatus} />
+            </div>
+          ))}
+        {dashboard.historyTasks.length === 0 ? (
+          <p className="muted-text">No completed task history yet.</p>
+        ) : null}
       </div>
     </section>
   </div>

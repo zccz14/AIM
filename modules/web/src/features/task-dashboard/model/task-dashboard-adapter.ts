@@ -1,5 +1,6 @@
-import type { Task, TaskListResponse, TaskStatus } from "@aim-ai/contract";
+import type { Task, TaskStatus } from "@aim-ai/contract";
 
+import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
   DashboardClosureCue,
   DashboardStatus,
@@ -177,12 +178,13 @@ const getTaskDepth = (
 };
 
 export const adaptTaskDashboard = (
-  response: TaskListResponse,
+  response: TaskDashboardResponse,
 ): TaskDashboardViewModel & {
   graphEdges: DashboardGraphEdge[];
   graphNodes: DashboardGraphNode[];
 } => {
-  const tasks = response.items.map(adaptDashboardTask);
+  const tasks = response.active.items.map(adaptDashboardTask);
+  const historyTasks = response.history.items.map(adaptDashboardTask);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const depthByTaskId = new Map<string, number>();
   const rowByDepth = new Map<number, number>();
@@ -222,9 +224,10 @@ export const adaptTaskDashboard = (
   return {
     graphEdges,
     graphNodes,
+    historyTasks,
     tasks,
     summaryCards: [
-      { key: "total", label: "Total Tasks", value: tasks.length },
+      { key: "pool", label: "Task Pool", value: tasks.length },
       {
         key: "running",
         label: "Running",
@@ -236,9 +239,14 @@ export const adaptTaskDashboard = (
         value: countTasksByStatus(tasks, "blocked"),
       },
       {
-        key: "done",
-        label: "Done",
-        value: countTasksByStatus(tasks, "done"),
+        key: "historySucceeded",
+        label: "History Succeeded",
+        value: countTasksByStatus(historyTasks, "done"),
+      },
+      {
+        key: "historyFailed",
+        label: "History Failed / Rejected",
+        value: countTasksByStatus(historyTasks, "failed"),
       },
     ],
     statusBoardItems: [
@@ -257,18 +265,8 @@ export const adaptTaskDashboard = (
         label: "Blocked",
         value: countTasksByStatus(tasks, "blocked"),
       },
-      {
-        key: "done",
-        label: "Done",
-        value: countTasksByStatus(tasks, "done"),
-      },
-      {
-        key: "failed",
-        label: "Failed",
-        value: countTasksByStatus(tasks, "failed"),
-      },
     ],
-    activitySeries: [...tasks]
+    activitySeries: [...historyTasks]
       .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt))
       .map((task, index) => ({
         label: task.updatedAt.slice(0, 10),

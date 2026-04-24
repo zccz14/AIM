@@ -67,7 +67,14 @@ export const DashboardPage = () => {
   const selectedTaskId = route.kind === "task" ? route.taskId : null;
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
+    dashboardQuery.data?.historyTasks.find(
+      (task) => task.id === selectedTaskId,
+    ) ??
     (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
+  const hasDashboardData =
+    dashboardQuery.data !== undefined &&
+    (dashboardQuery.data.tasks.length > 0 ||
+      dashboardQuery.data.historyTasks.length > 0);
 
   useEffect(() => {
     const handlePopState = () => setPathname(getCurrentPath());
@@ -217,15 +224,16 @@ export const DashboardPage = () => {
           </section>
         ) : null}
 
-        {dashboardQuery.isSuccess && dashboardQuery.data.tasks.length === 0 ? (
+        {dashboardQuery.isSuccess && !hasDashboardData ? (
           <section className="surface-card">
             <p className="muted-text">
-              No tasks available from the configured server.
+              No active Task Pool or completed task history available from the
+              configured server.
             </p>
           </section>
         ) : null}
 
-        {dashboardQuery.isSuccess && dashboardQuery.data.tasks.length > 0 ? (
+        {dashboardQuery.isSuccess && hasDashboardData ? (
           <>
             <OverviewSection
               dashboard={dashboardQuery.data}

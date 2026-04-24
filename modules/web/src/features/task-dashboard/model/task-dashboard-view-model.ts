@@ -32,7 +32,7 @@ export type DashboardClosureCue = {
 };
 
 export type DashboardSummaryCard = {
-  key: "total" | "running" | "blocked" | "done";
+  key: "pool" | "running" | "blocked" | "historySucceeded" | "historyFailed";
   label: string;
   value: number;
 };
@@ -50,6 +50,7 @@ export type DashboardActivityPoint = {
 
 export type TaskDashboardViewModel = {
   tasks: DashboardTask[];
+  historyTasks: DashboardTask[];
   summaryCards: DashboardSummaryCard[];
   statusBoardItems: DashboardMetricItem[];
   activitySeries: DashboardActivityPoint[];

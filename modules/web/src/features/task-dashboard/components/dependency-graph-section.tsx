@@ -64,7 +64,7 @@ export const DependencyGraphSection = ({
   return (
     <section className="surface-card section-stack">
       <div>
-        <p className="eyebrow">Topology</p>
+        <p className="eyebrow">Task Pool Topology</p>
         <h2 className="section-title">Dependency Graph</h2>
       </div>
       <div className="graph-frame">
