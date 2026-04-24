@@ -1,6 +1,7 @@
 import {
   ContractClientError,
   createContractClient,
+  type Task,
   type TaskError,
   type TaskListResponse,
   taskErrorSchema,
@@ -98,7 +99,35 @@ const toAbsoluteRequestInit = async (
 };
 
 type WebApiClient = ReturnType<typeof createContractClient> & {
-  listTasks(): Promise<TaskListResponse>;
+  listTasks(query?: {
+    status?: Task["status"];
+    done?: boolean;
+    session_id?: string;
+  }): Promise<TaskListResponse>;
+};
+
+const buildTaskListPath = (query?: {
+  status?: Task["status"];
+  done?: boolean;
+  session_id?: string;
+}) => {
+  const searchParams = new URLSearchParams();
+
+  if (query?.status !== undefined) {
+    searchParams.set("status", query.status);
+  }
+
+  if (query?.done !== undefined) {
+    searchParams.set("done", String(query.done));
+  }
+
+  if (query?.session_id !== undefined) {
+    searchParams.set("session_id", query.session_id);
+  }
+
+  const queryString = searchParams.toString();
+
+  return queryString.length === 0 ? tasksPath : `${tasksPath}?${queryString}`;
 };
 
 export const createWebApiClient = (
@@ -119,10 +148,10 @@ export const createWebApiClient = (
 
   return {
     ...contractClient,
-    async listTasks() {
+    async listTasks(query) {
       const [requestInput, requestInit] = await toAbsoluteRequestInit(
         resolvedBaseUrl,
-        tasksPath,
+        buildTaskListPath(query),
         {
           headers: {
             accept: "application/json",

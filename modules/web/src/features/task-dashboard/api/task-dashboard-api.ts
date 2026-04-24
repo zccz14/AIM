@@ -14,10 +14,20 @@ export type CreateDashboardTaskInput = {
   developerModelId: string;
 };
 
-export const getTaskDashboard = async (): Promise<TaskListResponse> => {
+export type TaskDashboardResponse = {
+  active: TaskListResponse;
+  history: TaskListResponse;
+};
+
+export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const client = createWebApiClient();
 
-  return client.listTasks();
+  const [active, history] = await Promise.all([
+    client.listTasks({ done: false }),
+    client.listTasks({ done: true }),
+  ]);
+
+  return { active, history };
 };
 
 export const createTaskFromDashboard = async (

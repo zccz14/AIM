@@ -39,22 +39,28 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
   });
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const doneFilter = requestUrl.searchParams.get("done");
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        items: [
-          buildTask({
-            spec: "stub task spec",
-            taskId: "task-123",
-          }),
-          buildTask({
-            dependencies: ["task-123"],
-            spec: "blocked task spec",
-            status: "waiting_assumptions",
-            taskId: "task-456",
-          }),
-        ],
+        items:
+          doneFilter === "true"
+            ? []
+            : [
+                buildTask({
+                  spec: "stub task spec",
+                  taskId: "task-123",
+                }),
+                buildTask({
+                  dependencies: ["task-123"],
+                  spec: "blocked task spec",
+                  status: "waiting_assumptions",
+                  taskId: "task-456",
+                }),
+              ],
       }),
     });
   });
@@ -88,10 +94,103 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Task Dashboard" }),
   ).toBeVisible();
-  await expect(page.getByText("Total Tasks")).toBeVisible();
+  await expect(
+    page.locator(".summary-grid").getByText("Task Pool"),
+  ).toBeVisible();
   await expect(page.getByText("Status Board")).toBeVisible();
-  await expect(page.getByText("Recent Activity")).toBeVisible();
+  await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
+});
+
+test("separates unfinished Task Pool data from completed history results", async ({
+  page,
+}) => {
+  const requestedDoneFilters: string[] = [];
+
+  await page.route("**/tasks**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const doneFilter = requestUrl.searchParams.get("done");
+
+    requestedDoneFilters.push(doneFilter ?? "missing");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? [
+                buildTask({
+                  done: true,
+                  result: "Merged and verified.",
+                  spec: "Succeeded history task",
+                  status: "succeeded",
+                  taskId: "task-history-succeeded",
+                  updatedAt: "2026-04-19T00:00:04.000Z",
+                }),
+                buildTask({
+                  done: true,
+                  result: "Rejected feedback: missing acceptance tests.",
+                  spec: "Rejected history task",
+                  status: "failed",
+                  taskId: "task-history-rejected",
+                  updatedAt: "2026-04-19T00:00:05.000Z",
+                }),
+              ]
+            : [
+                buildTask({
+                  spec: "Active ready task",
+                  taskId: "task-active-ready",
+                  updatedAt: "2026-04-19T00:00:01.000Z",
+                }),
+                buildTask({
+                  dependencies: ["task-active-ready"],
+                  spec: "Active blocked task",
+                  status: "waiting_assumptions",
+                  taskId: "task-active-blocked",
+                  updatedAt: "2026-04-19T00:00:02.000Z",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect
+    .poll(() => requestedDoneFilters.sort())
+    .toEqual(["false", "true"]);
+  await expect(
+    page.locator(".summary-grid").getByText("Task Pool"),
+  ).toBeVisible();
+  await expect(page.getByText("History Succeeded")).toBeVisible();
+  await expect(page.getByText("History Failed / Rejected")).toBeVisible();
+
+  await expect(
+    page.getByRole("row", { name: /Active ready task/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Rejected history task/i }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("graph-node-task-active-ready")).toBeVisible();
+  await expect(
+    page.getByTestId("graph-node-task-history-succeeded"),
+  ).toHaveCount(0);
+
+  const recentActiveSection = page.locator("section", {
+    has: page.getByRole("heading", { name: "Recent Active Tasks" }),
+  });
+
+  await expect(
+    recentActiveSection.getByRole("button", { name: "Active blocked task" }),
+  ).toBeVisible();
+  await expect(
+    recentActiveSection.getByRole("button", { name: "Rejected history task" }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Completed Task Feedback")).toBeVisible();
+  await expect(page.getByText("Merged and verified.")).toBeVisible();
+  await expect(
+    page.getByText("Rejected feedback: missing acceptance tests."),
+  ).toBeVisible();
 });
 
 test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
@@ -135,7 +234,7 @@ test("toggles the branded shell between dark and light themes", async ({
 test("toggles task details AIM panel colors with the app theme", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -266,7 +365,7 @@ test("renders the task table with core columns", async ({ page }) => {
 });
 
 test("filters tasks by free-text input", async ({ page }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -303,7 +402,7 @@ test("filters tasks by free-text input", async ({ page }) => {
 test("filters tasks by text that appears only in later task_spec lines", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -338,7 +437,7 @@ test("refreshes the dashboard without clearing the current task filter", async (
 }) => {
   let dashboardRequestCount = 0;
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -374,9 +473,9 @@ test("refreshes the dashboard without clearing the current task filter", async (
     0,
   );
 
-  await page.getByRole("button", { name: "Refresh" }).click();
+  await page.getByRole("button", { exact: true, name: "Refresh" }).click();
 
-  await expect.poll(() => dashboardRequestCount).toBe(2);
+  await expect.poll(() => dashboardRequestCount).toBe(4);
   await expect(page.getByLabel("Filter Tasks")).toHaveValue("needle");
   await expect(
     page.getByRole("row", { name: /needle task refreshed/i }),
@@ -443,7 +542,7 @@ test("submits title, task_spec, project_path, and selected developer model to th
 }) => {
   let createRequestBodyText: null | string = null;
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() === "POST") {
       createRequestBodyText = route.request().postData();
 
@@ -511,7 +610,7 @@ test("shows a local create error when the task API rejects the request", async (
 }) => {
   let finishCreateRequest: null | (() => Promise<void>) = null;
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() === "POST") {
       await new Promise<void>((resolve) => {
         finishCreateRequest = async () => {
@@ -572,7 +671,7 @@ test("shows a local create error when the task API rejects the request", async (
 test("brands the create flow with guidance and a dedicated feedback panel", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
         status: 422,
@@ -614,7 +713,7 @@ test("navigates from create page to task details after refresh", async ({
 }) => {
   let listRequestCount = 0;
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
         status: 201,
@@ -678,7 +777,7 @@ test("navigates from create page to task details after refresh", async ({
   await expect(
     page.getByRole("row", { name: /Create release checklist/i }),
   ).toBeVisible();
-  await expect.poll(() => listRequestCount).toBe(2);
+  await expect.poll(() => listRequestCount).toBe(4);
 });
 
 test("opens created task details from the create response when the dashboard refresh fails", async ({
@@ -686,7 +785,7 @@ test("opens created task details from the create response when the dashboard ref
 }) => {
   let listRequestCount = 0;
 
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
         status: 201,
@@ -747,13 +846,13 @@ test("opens created task details from the create response when the dashboard ref
     page.getByText("still visible after refresh failure"),
   ).toBeVisible();
   await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
-  await expect.poll(() => listRequestCount).toBe(2);
+  await expect.poll(() => listRequestCount).toBe(4);
 });
 
 test("uses the first task_spec line as the task title while keeping the full body in details", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -787,7 +886,7 @@ test("uses the first task_spec line as the task title while keeping the full bod
 test("renders task spec markdown with GFM tables in task details", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -821,7 +920,7 @@ test("renders task spec markdown with GFM tables in task details", async ({
 test("brands task details with grouped metadata and pull request access", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -858,7 +957,7 @@ test("brands task details with grouped metadata and pull request access", async 
 test("shows present developer closure cues in task details", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -896,7 +995,7 @@ test("shows present developer closure cues in task details", async ({
 test("shows missing developer closure cues in task details", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -928,7 +1027,7 @@ test("shows missing developer closure cues in task details", async ({
 test("renders the dependency graph with status-colored nodes", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -973,7 +1072,7 @@ test("renders the dependency graph with status-colored nodes", async ({
 });
 
 test("lays out prerequisites to the left of dependents", async ({ page }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -1010,7 +1109,7 @@ test("lays out prerequisites to the left of dependents", async ({ page }) => {
 test("lays out branching dependencies by depth across multiple columns", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -1068,7 +1167,7 @@ test("lays out branching dependencies by depth across multiple columns", async (
 });
 
 test("opens the task details page from a graph node", async ({ page }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -1098,7 +1197,7 @@ test("opens the task details page from a graph node", async ({ page }) => {
 test("shows a clear error state when the task request fails", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -1134,7 +1233,7 @@ test("falls back to the default localhost SERVER_BASE_URL when local storage is 
 test("refetches the dashboard after saving a new SERVER_BASE_URL", async ({
   page,
 }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     const requestUrl = new URL(route.request().url());
 
     if (requestUrl.pathname === "/api/tasks") {
@@ -1173,22 +1272,20 @@ test("refetches the dashboard after saving a new SERVER_BASE_URL", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("button", { exact: true, name: "Initial task" }),
+    page.getByRole("row", { exact: true, name: /Initial task/ }),
   ).toBeVisible();
 
   await page.getByLabel("SERVER_BASE_URL").fill("/alt");
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(
-    page.getByRole("button", { exact: true, name: "Updated task" }),
+    page.getByRole("row", { exact: true, name: /Updated task/ }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { exact: true, name: "Initial task" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("row", { name: /Initial task/ })).toHaveCount(0);
 });
 
 test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
-  await page.route("**/tasks", async (route) => {
+  await page.route("**/tasks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -1231,20 +1328,36 @@ test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
 
   await page.goto("/");
 
+  const recentActiveSection = page.locator("section", {
+    has: page.getByRole("heading", { name: "Recent Active Tasks" }),
+  });
+
   await expect(
-    page.getByRole("button", { exact: true, name: "Ready task" }),
+    recentActiveSection.getByRole("button", {
+      exact: true,
+      name: "Ready task",
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { exact: true, name: "Running task" }),
+    recentActiveSection.getByRole("button", {
+      exact: true,
+      name: "Running task",
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { exact: true, name: "Blocked task" }),
+    recentActiveSection.getByRole("button", {
+      exact: true,
+      name: "Blocked task",
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { exact: true, name: "Done task" }),
+    recentActiveSection.getByRole("button", { exact: true, name: "Done task" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { exact: true, name: "Failed task" }),
+    recentActiveSection.getByRole("button", {
+      exact: true,
+      name: "Failed task",
+    }),
   ).toHaveCount(0);
 });
 

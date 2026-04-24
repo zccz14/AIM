@@ -73,6 +73,10 @@ export const TaskTableSection = ({
 
   return (
     <section className="surface-table section-stack">
+      <div>
+        <p className="eyebrow">Task Pool</p>
+        <h2 className="section-title">Active Unfinished Tasks</h2>
+      </div>
       <label className="field-stack">
         <span className="field-label">Filter Tasks</span>
         <input
