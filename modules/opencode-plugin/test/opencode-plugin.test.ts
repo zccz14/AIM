@@ -21,6 +21,10 @@ const pluginCreateTasksSkillUrl = new URL(
   "../skills/aim-create-tasks/SKILL.md",
   import.meta.url,
 );
+const pluginCoordinatorGuideSkillUrl = new URL(
+  "../skills/aim-coordinator-guide/SKILL.md",
+  import.meta.url,
+);
 const pluginSetupGithubRepoSkillUrl = new URL(
   "../skills/aim-setup-github-repo/SKILL.md",
   import.meta.url,
@@ -66,6 +70,7 @@ let pluginModule: { default: { id?: string; server: unknown } } | undefined;
 let pluginSource: string;
 let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
+let pluginCoordinatorGuideSkillText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
 let pluginAskStrategySkillText: string;
@@ -148,6 +153,10 @@ beforeAll(async () => {
     pluginCreateTasksSkillUrl,
     "utf8",
   );
+  pluginCoordinatorGuideSkillText = await readFile(
+    pluginCoordinatorGuideSkillUrl,
+    "utf8",
+  );
   pluginSetupGithubRepoSkillText = await readFile(
     pluginSetupGithubRepoSkillUrl,
     "utf8",
@@ -214,6 +223,12 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginCreateTasksSkillUrl)).resolves.toBeUndefined();
   });
 
+  it("ships the aim-coordinator-guide skill resource", async () => {
+    await expect(
+      access(pluginCoordinatorGuideSkillUrl),
+    ).resolves.toBeUndefined();
+  });
+
   it("ships the aim-setup-github-repo skill resource", async () => {
     await expect(
       access(pluginSetupGithubRepoSkillUrl),
@@ -245,6 +260,7 @@ describe("opencode plugin package baseline", () => {
       "package/package.json",
       "package/skills/README.md",
       "package/skills/aim-ask-strategy/SKILL.md",
+      "package/skills/aim-coordinator-guide/SKILL.md",
       "package/skills/aim-create-tasks/SKILL.md",
       "package/skills/aim-developer-guide/SKILL.md",
       "package/skills/aim-evaluate-readme/SKILL.md",
@@ -261,6 +277,15 @@ describe("opencode plugin package baseline", () => {
     async () => {
       await expect(listPackedFiles()).resolves.toContain(
         "package/skills/aim-create-tasks/SKILL.md",
+      );
+    },
+  );
+
+  itPack(
+    "packs the aim-coordinator-guide skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-coordinator-guide/SKILL.md",
       );
     },
   );
@@ -329,6 +354,18 @@ describe("opencode plugin package baseline", () => {
     expect(pluginSkillsReadme).toContain("packaging and discovery boundaries");
 
     expect(pluginReadme).toContain("aim-create-tasks");
+    expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
+    expect(pluginReadme).toContain("Does not inject bootstrap prompts");
+    expect(pluginReadme).toContain("workflow automation");
+  });
+
+  it("documents aim-coordinator-guide as packaged documentation only", () => {
+    expect(pluginSkillsReadme).toContain("aim-coordinator-guide");
+    expect(pluginSkillsReadme).toContain("Task Write Bulk");
+    expect(pluginSkillsReadme).toContain("Coordinator decision entry");
+
+    expect(pluginReadme).toContain("aim-coordinator-guide");
+    expect(pluginReadme).toContain("Coordinator Task Pool decisions");
     expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
@@ -425,6 +462,18 @@ describe("opencode plugin package baseline", () => {
     expect(usingAimSkillText).toContain(
       "direct entry when the user wants to verify or standardize GitHub merge settings",
     );
+  });
+
+  it("documents using-aim discovery for aim-coordinator-guide", async () => {
+    const usingAimSkillText = await readFile(
+      new URL("../skills/using-aim/SKILL.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(usingAimSkillText).toContain("aim-coordinator-guide");
+    expect(usingAimSkillText).toContain("Coordinator Task Pool maintenance");
+    expect(usingAimSkillText).toContain("Task Write Bulk");
+    expect(usingAimSkillText).toContain("rejected Task feedback");
   });
 
   it("documents using-aim discovery for aim-writing-tests", async () => {
@@ -632,6 +681,27 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginDeveloperGuideSkillText).not.toContain("TODO");
     expect(pluginDeveloperGuideSkillText).not.toContain("TBD");
+  });
+
+  it("documents coordinator guide task write bulk rules", () => {
+    for (const requiredFragment of [
+      "name: aim-coordinator-guide",
+      "Coordinator decision entry",
+      "Task Write Bulk",
+      "Create",
+      "Delete",
+      "rejected Task",
+      "aim-verify-task-spec",
+      "aim-create-tasks",
+      "Director",
+      "不得直接调用 `POST /tasks`",
+      "不得创建澄清类 Developer Task",
+    ]) {
+      expect(pluginCoordinatorGuideSkillText).toContain(requiredFragment);
+    }
+
+    expect(pluginCoordinatorGuideSkillText).not.toContain("TODO");
+    expect(pluginCoordinatorGuideSkillText).not.toContain("TBD");
   });
 
   it("documents task creation interview, approval, and boundary rules", () => {
