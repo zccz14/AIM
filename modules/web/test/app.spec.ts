@@ -27,6 +27,26 @@ test("boots the dashboard app with branded theme providers instead of Mantine", 
   expect(packageSource).toContain('"react": "^19.2.0"');
 });
 
+test("keeps task details and create flow free of direct Mantine component imports", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const taskDetailsSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-details-page.tsx`,
+    "utf8",
+  );
+  const createTaskFormSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-form.tsx`,
+    "utf8",
+  );
+  const taskStatusBadgeSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-status-badge.tsx`,
+    "utf8",
+  );
+
+  expect(taskDetailsSource).not.toContain("@mantine/core");
+  expect(createTaskFormSource).not.toContain("@mantine/core");
+  expect(taskStatusBadgeSource).not.toContain("@mantine/core");
+});
+
 test("keeps task dashboard data behind adapter and local config boundaries", async () => {
   const { readFile } = await import("node:fs/promises");
   const appSource = await readFile(
@@ -135,9 +155,11 @@ test("keeps task creation inside the dashboard shell", async () => {
   expect(dashboardPageSource).toContain("<CreateTaskForm");
   expect(dashboardPageSource).toContain('kind: "create"');
   expect(dashboardPageSource).not.toContain("react-router");
-  expect(createTaskFormSource).toContain(">Task Spec</span>");
-  expect(createTaskFormSource).toContain(">Project Path</span>");
-  expect(createTaskFormSource).not.toContain(">Title</span>");
+  expect(createTaskFormSource).toContain('htmlFor="create-task-spec"');
+  expect(createTaskFormSource).toContain(">Task Spec</label>");
+  expect(createTaskFormSource).toContain('htmlFor="create-task-project-path"');
+  expect(createTaskFormSource).toContain(">Project Path</label>");
+  expect(createTaskFormSource).not.toContain('label="Title"');
 });
 
 test("routes task creation through feature-local api and mutation helpers", async () => {

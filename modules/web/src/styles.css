@@ -591,3 +591,406 @@ a {
     transform: rotate(360deg);
   }
 }
+
+.aim-surface {
+  border: 1px solid rgba(122, 162, 255, 0.18);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(20, 28, 54, 0.96), rgba(9, 13, 28, 0.98)),
+    #0b1020;
+  box-shadow: 0 28px 70px rgba(4, 8, 20, 0.35);
+  color: #eef3ff;
+}
+
+.aim-muted {
+  color: rgba(216, 227, 255, 0.72);
+}
+
+.aim-kicker {
+  margin: 0;
+  color: #8fb2ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aim-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aim-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aim-status-badge[data-status="ready"] {
+  color: #7ab4ff;
+  background: rgba(47, 104, 214, 0.18);
+}
+
+.aim-status-badge[data-status="running"] {
+  color: #ffd466;
+  background: rgba(201, 138, 0, 0.2);
+}
+
+.aim-status-badge[data-status="blocked"] {
+  color: #ffb86c;
+  background: rgba(191, 95, 29, 0.22);
+}
+
+.aim-status-badge[data-status="done"] {
+  color: #87e5a0;
+  background: rgba(33, 122, 66, 0.2);
+}
+
+.aim-status-badge[data-status="failed"] {
+  color: #ff9b9b;
+  background: rgba(153, 40, 40, 0.22);
+}
+
+.aim-task-details,
+.aim-task-form {
+  max-width: 960px;
+  padding: 1.5rem;
+}
+
+.aim-task-details-header,
+.aim-task-form-header,
+.aim-task-form-main,
+.aim-task-form-sidebar,
+.aim-task-panel,
+.aim-task-error,
+.aim-empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.aim-task-details-header {
+  gap: 1rem;
+}
+
+.aim-task-title-row,
+.aim-task-form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.aim-task-title,
+.aim-task-form-header h2,
+.aim-empty-state h2 {
+  margin: 0;
+  font-size: clamp(1.85rem, 3vw, 2.5rem);
+  line-height: 1.05;
+}
+
+.aim-task-summary {
+  max-width: 44rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.aim-task-grid,
+.aim-task-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.aim-task-grid {
+  grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 1fr);
+}
+
+.aim-task-form-grid {
+  grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
+}
+
+.aim-task-panel,
+.aim-task-form-main,
+.aim-task-form-sidebar,
+.aim-task-error {
+  border: 1px solid rgba(122, 162, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(10, 16, 33, 0.74);
+  padding: 1.25rem;
+}
+
+.aim-task-panel h3,
+.aim-task-form-main h3,
+.aim-task-form-sidebar h3,
+.aim-task-error h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.aim-task-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aim-task-metadata {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.aim-task-meta-row {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.aim-task-meta-row dt {
+  color: rgba(216, 227, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aim-task-meta-row dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.aim-task-markdown {
+  color: #f3f7ff;
+  line-height: 1.7;
+}
+
+.aim-task-markdown > :first-child {
+  margin-top: 0;
+}
+
+.aim-task-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.aim-task-markdown a,
+.aim-task-link {
+  color: #9bc2ff;
+}
+
+.aim-task-markdown code {
+  border-radius: 8px;
+  background: rgba(152, 192, 255, 0.12);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.92em;
+}
+
+.aim-task-markdown pre {
+  overflow-x: auto;
+  border-radius: 16px;
+  background: rgba(3, 8, 19, 0.85);
+  padding: 1rem;
+}
+
+.aim-task-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.aim-task-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.aim-task-markdown th,
+.aim-task-markdown td {
+  border: 1px solid rgba(122, 162, 255, 0.12);
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+}
+
+.aim-task-markdown th {
+  background: rgba(122, 162, 255, 0.12);
+}
+
+.aim-task-chip-list,
+.aim-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.aim-task-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(122, 162, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(122, 162, 255, 0.09);
+  padding: 0.45rem 0.8rem;
+}
+
+.aim-checklist {
+  flex-direction: column;
+}
+
+.aim-checklist-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  color: #eef3ff;
+}
+
+.aim-checkmark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  min-height: 1.3rem;
+  border-radius: 999px;
+  background: rgba(122, 162, 255, 0.16);
+  color: #9bc2ff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.aim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.aim-field label {
+  font-weight: 700;
+}
+
+.aim-field textarea,
+.aim-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(122, 162, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(4, 9, 22, 0.8);
+  color: #f5f8ff;
+  padding: 0.95rem 1rem;
+  font: inherit;
+}
+
+.aim-field textarea {
+  min-height: 16rem;
+  resize: vertical;
+}
+
+.aim-field textarea:focus,
+.aim-field input:focus,
+.aim-task-button:focus {
+  outline: 2px solid rgba(155, 194, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.aim-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.aim-task-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.8rem 1.15rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aim-task-button:disabled,
+.aim-field textarea:disabled,
+.aim-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.aim-task-button-primary {
+  background: linear-gradient(135deg, #7aa2ff, #88f0ff);
+  color: #08111f;
+}
+
+.aim-task-button-secondary {
+  border-color: rgba(122, 162, 255, 0.24);
+  background: rgba(122, 162, 255, 0.08);
+  color: #eef3ff;
+}
+
+.aim-task-error {
+  border-color: rgba(255, 133, 133, 0.28);
+  background: rgba(54, 11, 20, 0.72);
+}
+
+.aim-task-error h3,
+.aim-task-error p {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .aim-task-grid,
+  .aim-task-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aim-task-details,
+  .aim-task-form {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .aim-surface {
+    border-color: rgba(67, 96, 181, 0.16);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.96),
+        rgba(242, 246, 255, 0.98)
+      ),
+      #f4f7ff;
+    box-shadow: 0 24px 60px rgba(69, 91, 160, 0.12);
+    color: #10203d;
+  }
+
+  .aim-muted,
+  .aim-task-meta-row dt {
+    color: rgba(35, 52, 96, 0.7);
+  }
+
+  .aim-task-panel,
+  .aim-task-form-main,
+  .aim-task-form-sidebar,
+  .aim-task-error {
+    background: rgba(255, 255, 255, 0.78);
+  }
+
+  .aim-task-markdown,
+  .aim-checklist-item,
+  .aim-task-button-secondary,
+  .aim-field textarea,
+  .aim-field input {
+    color: #10203d;
+  }
+
+  .aim-field textarea,
+  .aim-field input {
+    background: rgba(246, 249, 255, 0.94);
+  }
+
+  .aim-task-markdown pre {
+    background: rgba(225, 233, 250, 0.9);
+  }
+}

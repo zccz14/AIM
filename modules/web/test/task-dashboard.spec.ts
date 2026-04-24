@@ -250,7 +250,9 @@ test("opens the task details page from overview and table", async ({
     .first()
     .click();
   await expect(page).toHaveURL(/\/tasks\/task-123$/);
-  await expect(page.getByText("Contract Status")).toBeVisible();
+  await expect(
+    page.getByText("Contract Status", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Back to Dashboard" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -394,6 +396,45 @@ test("shows a local create error when the task API rejects the request", async (
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Create Task" }),
+  ).toBeVisible();
+});
+
+test("brands the create flow with guidance and a dedicated feedback panel", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "TASK_VALIDATION_ERROR",
+          message: "task_spec cannot be blank",
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+
+  await expect(page.getByText("Task Brief")).toBeVisible();
+  await expect(page.getByText("Workspace Target")).toBeVisible();
+  await expect(page.getByText("Submission Checklist")).toBeVisible();
+
+  await page.getByLabel("Task Spec").fill("Ship create flow");
+  await page.getByLabel("Project Path").fill("/repo/dashboard");
+  await page.getByRole("button", { name: "Create Task" }).click();
+
+  await expect(page.getByText("Request Blocked")).toBeVisible();
+  await expect(
+    page.getByText("Task creation failed: task_spec cannot be blank"),
   ).toBeVisible();
 });
 
@@ -602,6 +643,43 @@ test("renders task spec markdown with GFM tables in task details", async ({
   await expect(page.getByRole("table")).toBeVisible();
   await expect(page.getByRole("cell", { name: "Ship" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Ops" })).toBeVisible();
+});
+
+test("brands task details with grouped metadata and pull request access", async ({
+  page,
+}) => {
+  await page.route("**/tasks", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            ...buildTask({
+              dependencies: ["task-ops", "task-release"],
+              spec: "Branded task title\n\n## Summary\n\n- clarify ownership",
+              status: "running",
+              taskId: "task-brand",
+            }),
+            pull_request_url: "https://github.com/example/repo/pull/42",
+            session_id: "ses-42",
+            worktree_path: "/repo/.worktrees/task-brand",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("row", { name: /Branded task title/i }).click();
+
+  await expect(page.getByText("Task Overview")).toBeVisible();
+  await expect(page.getByText("Execution Metadata")).toBeVisible();
+  await expect(page.getByText("Task Relationships")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open Pull Request" }),
+  ).toBeVisible();
+  await expect(page.getByText("task-ops")).toBeVisible();
+  await expect(page.getByText("task-release")).toBeVisible();
 });
 
 test("renders the dependency graph with status-colored nodes", async ({
