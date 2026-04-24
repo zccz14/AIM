@@ -183,8 +183,8 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 
 安装: `pnpm install`
 
-测试并构建：`pnpm build`
+构建并验证：`pnpm build`
 
-- 在 repo 根执行时，固定等价于 `pnpm -r --if-present build && pnpm test`：先完成各 workspace 包各自作用域内的“先测后构建”，再执行仅属于 repo 根的测试与校验。
-- 在任一 workspace 包内执行时，`pnpm build` 都表示先完成该包要求的测试与校验，再输出该包构建产物。
-- `pnpm test` 在 repo 根只代表 repo-only 校验；在各 workspace 包内只代表该包自己的测试与校验入口。
+- 在 repo 根执行时，固定等价于先运行所有 workspace 包的 `build`，再运行 repo-only 的 typecheck、lint、Vitest、OpenAPI 与 changeset 校验。
+- 在任一 workspace 包内执行时，`pnpm build` 都表示先产出该包构建产物，再运行该包要求的显式 `test:*` 校验。
+- 仓库不提供精确名为 `test` 的脚本；需要局部验证时使用显式命名入口，例如 `test:type`、`test:lint`、`test:vitest`、`test:smoke` 或 `test:web`。

@@ -10,13 +10,12 @@
 
 1. `pnpm lint`
 2. `pnpm typecheck`
-3. `pnpm test`
-4. `pnpm build`
-5. `pnpm smoke`
-6. `pnpm openapi:check`
-7. `pnpm release:check`
+3. `pnpm build`
+4. `pnpm smoke`
+5. `pnpm openapi:check`
+6. `pnpm release:check`
 
-如果只是快速回归，也可以先跑 `pnpm lint && pnpm test && pnpm smoke`。
+如果只是快速回归，也可以先跑 `pnpm lint && pnpm build && pnpm smoke`。
 
 ## 命令、预期结果与排查起点
 
@@ -32,21 +31,11 @@
 - 预期结果：root `tsc --noEmit` 与各 workspace 包 `typecheck` 全部通过。
 - 失败先看：模块间导出路径、NodeNext 解析、`modules/*/tsconfig.json` 与 package `exports` 是否对应。
 
-### `pnpm test`
-
-- 目的：执行 contract / api / cli / web 的统一测试链路。
-- 预期结果：Vitest workspace 与 Playwright 主路径全部通过。
-- 失败先看：
-  - contract 失败：`modules/contract/src/*` 的 schema、OpenAPI 或 client 导出。
-  - api 失败：`modules/api/src/app.ts`、`modules/api/src/routes/health.ts` 与 `/health` / `/openapi.json` 行为。
-  - cli 失败：`modules/cli/src/commands/health.ts` 与共享 client 使用方式。
-  - web / Playwright 失败：`modules/web/src/*`、测试启动依赖与 contract-driven client 交互。
-
 ### `pnpm build`
 
-- 目的：确认 contract / api / cli 构建与 web 产物生成仍可完成。
-- 预期结果：所有带 `build` 脚本的模块退出码为 0。
-- 失败先看：`tsdown` 入口、Vite 配置、包 `exports` 与 dist 目标路径是否一致。
+- 目的：确认 contract / api / cli 构建、web 产物生成、repo-only 校验与各 package 显式 `test:*` 校验仍可完成。
+- 预期结果：所有带 `build` 脚本的模块退出码为 0，且 `modules/web/dist` 等构建产物已生成。
+- 失败先看：`tsdown` 入口、Vite 配置、包 `exports`、dist 目标路径，以及失败 package 的显式 `test:*` 脚本。
 
 ### `pnpm smoke`
 

@@ -56,7 +56,7 @@ contract <- cli
 2. 文档入口与命令示例保持一致；
 3. 模块角色与禁止反向依赖规则不被破坏。
 
-如果目录演进会影响 `pnpm build`、`pnpm test`、`pnpm openapi:check`、`pnpm smoke` 等验证脚本，则脚本与文档必须同步更新，保证验证入口仍反映仓库现实。
+如果目录演进会影响 `pnpm build`、显式 `test:*` 脚本、`pnpm openapi:check`、`pnpm smoke` 等验证脚本，则脚本与文档必须同步更新，保证验证入口仍反映仓库现实。
 
 同时，workspace 发现规则不代表这些路径下已经存在已实现模块；它们只是为后续任务预留的发现入口。
 

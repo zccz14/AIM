@@ -1,7 +1,5 @@
-import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { adaptGeneratedRequestForPublicFetch } from "../src/client.js";
@@ -11,13 +9,17 @@ type RequestInitWithDuplex = RequestInit & {
 };
 
 const contractPackageUrl = new URL("../package.json", import.meta.url);
-const contractRootUrl = new URL("../", import.meta.url);
+const contractPackageTestUrl = new URL(
+  "./contract-package.test.ts",
+  import.meta.url,
+);
 const apiPackageUrl = new URL("../../api/package.json", import.meta.url);
 const cliPackageUrl = new URL("../../cli/package.json", import.meta.url);
 const opencodePluginPackageUrl = new URL(
   "../../opencode-plugin/package.json",
   import.meta.url,
 );
+const webPackageUrl = new URL("../../web/package.json", import.meta.url);
 const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractTypeDefinitionUrl = new URL(
   "../dist/index.d.mts",
@@ -133,15 +135,13 @@ type _generatedTypesExportTaskCrud = Assert<
     HasExport<GeneratedTypesModule, "TaskListResponse">
 >;
 
-const execFileAsync = promisify(execFile);
-
-const ensureBuiltEntry = async () => {
+const assertBuiltEntry = async () => {
   try {
     await access(contractEntryUrl);
   } catch {
-    await execFileAsync("pnpm", ["run", "build:dist"], {
-      cwd: fileURLToPath(contractRootUrl),
-    });
+    throw new Error(
+      "Expected modules/contract/dist/index.mjs to exist before running contract package tests. Run pnpm --filter ./modules/contract run build:dist first.",
+    );
   }
 };
 
@@ -150,6 +150,7 @@ let apiPackage: WorkspacePackageManifest;
 let cliPackage: WorkspacePackageManifest;
 let rootPackage: RootPackageManifest;
 let opencodePluginPackage: WorkspacePackageManifest;
+let webPackage: WorkspacePackageManifest;
 let contractModule: ContractPackageModule;
 let generatedClientModule: GeneratedClientModule;
 let generatedZodModule: GeneratedZodModule;
@@ -157,9 +158,10 @@ let playwrightConfigSource: string;
 let ciWorkflowSource: string;
 let setupNodePnpmActionSource: string;
 let releaseWorkflowSource: string;
+let contractPackageTestSource: string;
 
 beforeAll(async () => {
-  await ensureBuiltEntry();
+  await assertBuiltEntry();
   contractPackage = JSON.parse(
     await readFile(contractPackageUrl, "utf8"),
   ) as ContractPackageManifest;
@@ -172,6 +174,9 @@ beforeAll(async () => {
   opencodePluginPackage = JSON.parse(
     await readFile(opencodePluginPackageUrl, "utf8"),
   ) as WorkspacePackageManifest;
+  webPackage = JSON.parse(
+    await readFile(webPackageUrl, "utf8"),
+  ) as WorkspacePackageManifest;
   rootPackage = JSON.parse(
     await readFile(rootPackageUrl, "utf8"),
   ) as RootPackageManifest;
@@ -179,6 +184,7 @@ beforeAll(async () => {
   ciWorkflowSource = await readFile(ciWorkflowUrl, "utf8");
   setupNodePnpmActionSource = await readFile(setupNodePnpmActionUrl, "utf8");
   releaseWorkflowSource = await readFile(releaseWorkflowUrl, "utf8");
+  contractPackageTestSource = await readFile(contractPackageTestUrl, "utf8");
   contractModule = (await import(
     pathToFileURL(fileURLToPath(contractEntryUrl)).href
   )) as ContractPackageModule;
@@ -191,6 +197,25 @@ beforeAll(async () => {
 }, 30_000);
 
 describe("contract package baseline", () => {
+  it("keeps package scripts free of ambiguous exact test entrypoints and test-time builds", () => {
+    const manifests = [
+      ["root", rootPackage],
+      ["contract", contractPackage],
+      ["api", apiPackage],
+      ["cli", cliPackage],
+      ["opencode-plugin", opencodePluginPackage],
+      ["web", webPackage],
+    ] as const;
+
+    expect(
+      manifests
+        .filter(([, manifest]) => Object.hasOwn(manifest.scripts ?? {}, "test"))
+        .map(([name]) => name),
+    ).toEqual([]);
+    expect(contractPackageTestSource).not.toContain("ensure" + "BuiltEntry");
+    expect(contractPackageTestSource).not.toContain("execFile" + "Async");
+  });
+
   it("publishes unified root validation entrypoints", async () => {
     await expect(access(vitestWorkspaceUrl)).resolves.toBeUndefined();
     await expect(access(playwrightConfigUrl)).resolves.toBeUndefined();
@@ -213,15 +238,13 @@ describe("contract package baseline", () => {
     expect(rootPackage.scripts["test:web"]).toBe(
       "pnpm -r --if-present run test:web",
     );
-    expect(rootPackage.scripts.test).toBe(
-      "pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
-    );
+    expect(rootPackage.scripts).not.toHaveProperty("test");
     expect(rootPackage.scripts.build).toBe(
-      "pnpm -r --if-present build && pnpm test",
+      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run changeset:check",
     );
     expect(rootPackage.scripts["release:check"]).toBe("pnpm run build");
     expect(rootPackage.scripts.smoke).toBe("pnpm run test:smoke");
-    expect(rootPackage.scripts.validate).toBe("pnpm run test");
+    expect(rootPackage.scripts.validate).toBe("pnpm run build");
     expect(rootPackage.scripts).not.toHaveProperty("test:unit");
     expect(rootPackage.scripts).not.toHaveProperty("test:integration");
     expect(rootPackage.scripts).not.toHaveProperty("test:e2e");
@@ -986,33 +1009,38 @@ describe("contract package baseline", () => {
       "pnpm run generate",
     );
     expect(contractPackage.scripts?.build).toBe(
-      "pnpm run test && pnpm run build:dist",
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
-    expect(contractPackage.scripts?.test).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract",
+    expect(contractPackage.scripts?.["test:vitest"]).toBe(
+      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract",
     );
     expect(apiPackage.scripts?.build).toBe(
-      "pnpm run test && pnpm run build:dist",
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
-    expect(apiPackage.scripts?.test).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
+    expect(apiPackage.scripts?.["test:vitest"]).toBe(
+      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
     );
     expect(opencodePluginPackage.scripts?.build).toBe(
-      "pnpm run test && pnpm run build:dist",
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
-    expect(opencodePluginPackage.scripts?.test).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
+    expect(opencodePluginPackage.scripts?.["test:vitest"]).toBe(
+      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
     );
     expect(opencodePluginPackage.scripts?.["test:pack"]).toContain(
       "pnpm run build:dist",
     );
     expect(cliPackage.scripts?.build).toBe(
-      "pnpm run test && pnpm run build:dist",
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest && pnpm run test:smoke",
     );
-    expect(cliPackage.scripts?.test).toBe(
-      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project cli",
+    expect(cliPackage.scripts?.["test:vitest"]).toBe(
+      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project cli",
     );
-    expect(cliPackage.scripts?.["test:smoke"]).toContain("pnpm run build:dist");
+    expect(cliPackage.scripts?.["test:smoke"]).not.toContain(
+      "pnpm run build:dist",
+    );
+    expect(webPackage.scripts?.build).toBe(
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:web",
+    );
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
     expect(contractPackage.devDependencies?.yaml).toBe("^2.8.3");
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(
