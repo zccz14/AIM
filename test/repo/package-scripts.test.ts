@@ -24,7 +24,23 @@ describe("package scripts", () => {
     const packageJson = await readPackageJson("package.json");
 
     expect(packageJson.scripts?.build).toBe(
-      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm run openapi:check && pnpm run test:changeset",
+      "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm --filter ./modules/contract run openapi:check && pnpm run test:changeset",
+    );
+  });
+
+  it("keeps pruned root validation aliases out of the public script contract", async () => {
+    const packageJson = await readPackageJson("package.json");
+    const contractPackageJson = await readPackageJson(
+      "modules/contract/package.json",
+    );
+
+    expect(packageJson.scripts).not.toHaveProperty("openapi:generate");
+    expect(packageJson.scripts).not.toHaveProperty("openapi:check");
+    expect(packageJson.scripts).not.toHaveProperty("release:check");
+    expect(packageJson.scripts).not.toHaveProperty("smoke");
+    expect(packageJson.scripts).not.toHaveProperty("validate");
+    expect(contractPackageJson.scripts?.["openapi:check"]).toContain(
+      "generate:check",
     );
   });
 
