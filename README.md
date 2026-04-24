@@ -198,6 +198,10 @@ AIM 起源于 [`CZ-Stack.README.md`](CZ-Stack.README.md) 中那条面向 AI Agen
 
 安装: `pnpm install`
 
+全局安装 CLI（包发布后）: `npm i -g @aim-ai/cli`
+
+安装后可直接使用 `aim` 命令，例如 `aim --help` 查看可用命令，或用 `aim health --base-url http://localhost:8192` 查询本地 AIM Server 健康状态。
+
 构建并验证：`pnpm build`
 
 - 在 repo 根执行时，固定等价于先运行所有 workspace 包的 `build`，再运行 repo-only 的 typecheck、lint、Vitest、OpenAPI 与 changeset 校验。

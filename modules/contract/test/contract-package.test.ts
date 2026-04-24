@@ -1077,7 +1077,7 @@ describe("contract package baseline", () => {
       "pnpm run build:dist",
     );
     expect(cliPackage.scripts?.build).toBe(
-      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest && pnpm run test:smoke",
+      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest && pnpm run test:smoke && pnpm run test:pack",
     );
     expect(cliPackage.scripts?.["test:vitest"]).toBe(
       skipTest(

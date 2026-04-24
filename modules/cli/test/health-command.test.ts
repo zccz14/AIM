@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 const cliPackageUrl = new URL("../package.json", import.meta.url);
-const cliBinUrl = new URL("../bin/dev.js", import.meta.url);
+const cliBinUrl = new URL("../bin/aim.js", import.meta.url);
 const cliCommandSourceUrl = new URL(
   "../src/commands/health.ts",
   import.meta.url,
@@ -19,6 +19,7 @@ describe("cli package baseline", () => {
     const cliPackage = JSON.parse(await readFile(cliPackageUrl, "utf8")) as {
       name: string;
       bin: Record<string, string>;
+      private?: boolean;
       oclif?: {
         bin?: string;
         commands?: {
@@ -30,8 +31,9 @@ describe("cli package baseline", () => {
     };
 
     expect(cliPackage.name).toBe("@aim-ai/cli");
+    expect(cliPackage.private).toBeUndefined();
     expect(cliPackage.bin).toEqual({
-      aim: "bin/dev.js",
+      aim: "bin/aim.js",
     });
     expect(cliPackage.oclif).toEqual({
       bin: "aim",
