@@ -3,6 +3,7 @@ import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
+import { getOpenCodeModels } from "../api/task-dashboard-api.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import {
@@ -57,6 +58,9 @@ export const DashboardPage = () => {
   const dashboardQuery = useTaskDashboardQuery();
   const createTaskMutation = useTaskCreateMutation();
   const [pathname, setPathname] = useState(getCurrentPath);
+  const [models, setModels] = useState<
+    Awaited<ReturnType<typeof getOpenCodeModels>>["items"]
+  >([]);
   const [selectedTaskFallback, setSelectedTaskFallback] =
     useState<DashboardTask | null>(null);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
@@ -72,6 +76,30 @@ export const DashboardPage = () => {
 
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (route.kind !== "create") {
+      return;
+    }
+
+    let isActive = true;
+
+    void getOpenCodeModels()
+      .then((response) => {
+        if (isActive) {
+          setModels(response.items);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setModels([]);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [route.kind]);
 
   const handleRefresh = async () => {
     await dashboardQuery.refetch();
@@ -92,8 +120,11 @@ export const DashboardPage = () => {
   };
 
   const handleCreateTask = async (input: {
+    title: string;
     projectPath: string;
     taskSpec: string;
+    developerProviderId: string;
+    developerModelId: string;
   }) => {
     createTaskMutation.reset();
 
@@ -140,6 +171,7 @@ export const DashboardPage = () => {
                 : null
             }
             isSubmitting={createTaskMutation.isPending}
+            models={models}
             onCancel={goToDashboard}
             onSubmit={handleCreateTask}
           />

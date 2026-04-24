@@ -112,6 +112,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       await options.coordinator.sendContinuePrompt(
         sessionId,
         buildTaskSessionPrompt(latestTask),
+        latestTask,
       );
 
       logger.info(buildTaskLogFields("task_session_continued", latestTask));

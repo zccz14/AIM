@@ -17,6 +17,8 @@ const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-scheduler");
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
+  developer_model_id: "claude-sonnet-4-5",
+  developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
   project_path: join(tempRoot, overrides.task_id ?? "task-1"),
@@ -25,6 +27,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   status: "created",
   task_id: "task-1",
   task_spec: "Continue implementing the scheduler.",
+  title: "Continue scheduler",
   updated_at: "2026-04-20T00:00:00.000Z",
   worktree_path: null,
   ...overrides,
@@ -151,6 +154,10 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).toContain(
       initialTask.task_id,
     );
+    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[2]).toMatchObject({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
+    });
   });
 
   it("skips a task whose bound session is running", async () => {
@@ -191,6 +198,7 @@ describe("task scheduler", () => {
       expect.stringContaining(
         `Read the task spec by GET /tasks/${task.task_id}/spec.`,
       ),
+      task,
     );
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
@@ -241,6 +249,7 @@ describe("task scheduler", () => {
       expect.stringContaining(
         `Read the task spec by GET /tasks/${task.task_id}/spec.`,
       ),
+      task,
     );
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
       "task_spec_file:",
@@ -410,6 +419,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "existing-session",
       expect.stringContaining(latestSnapshot.task_id),
+      latestSnapshot,
     );
     expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith({

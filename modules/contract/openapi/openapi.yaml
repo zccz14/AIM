@@ -295,8 +295,11 @@ components:
       additionalProperties: false
       required:
         - task_id
+        - title
         - task_spec
         - project_path
+        - developer_provider_id
+        - developer_model_id
         - result
         - session_id
         - worktree_path
@@ -314,7 +317,16 @@ components:
         task_spec:
           type: string
           minLength: 1
+        title:
+          type: string
+          minLength: 1
         project_path:
+          type: string
+          minLength: 1
+        developer_provider_id:
+          type: string
+          minLength: 1
+        developer_model_id:
           type: string
           minLength: 1
         result:
@@ -362,13 +374,25 @@ components:
       type: object
       additionalProperties: false
       required:
+        - title
         - task_spec
         - project_path
+        - developer_provider_id
+        - developer_model_id
       properties:
+        title:
+          type: string
+          minLength: 1
         task_spec:
           type: string
           minLength: 1
         project_path:
+          type: string
+          minLength: 1
+        developer_provider_id:
+          type: string
+          minLength: 1
+        developer_model_id:
           type: string
           minLength: 1
         dependencies:

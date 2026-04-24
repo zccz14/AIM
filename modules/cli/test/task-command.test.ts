@@ -53,8 +53,11 @@ const startTaskServer = async () => {
   const requests: RecordedRequest[] = [];
   const task = {
     task_id: "task-1",
+    title: "Write spec",
     task_spec: "write spec",
     project_path: "/repo/main",
+    developer_provider_id: "anthropic",
+    developer_model_id: "claude-sonnet-4-5",
     session_id: "session-1",
     worktree_path: null,
     pull_request_url: "https://example.test/pr/2",
@@ -183,10 +186,16 @@ describe("task cli command baseline", () => {
       "create",
       "--base-url",
       `${server.baseUrl}/api`,
+      "--title",
+      "Write spec",
       "--task-spec",
       "write spec",
       "--project-path",
       "/repo/main",
+      "--developer-provider-id",
+      "anthropic",
+      "--developer-model-id",
+      "claude-sonnet-4-5",
       "--dependency",
       "task-a",
       "--dependency",
@@ -205,8 +214,11 @@ describe("task cli command baseline", () => {
       method: "POST",
       path: "/api/tasks",
       json: {
+        title: "Write spec",
         task_spec: "write spec",
         project_path: "/repo/main",
+        developer_provider_id: "anthropic",
+        developer_model_id: "claude-sonnet-4-5",
         dependencies: ["task-a", "task-b"],
         pull_request_url: "https://example.test/pr/2",
       },
@@ -491,6 +503,14 @@ describe("task cli command baseline", () => {
       "create",
       "--base-url",
       `${server.baseUrl}/api`,
+      "--title",
+      "Write spec",
+      "--project-path",
+      "/repo/main",
+      "--developer-provider-id",
+      "anthropic",
+      "--developer-model-id",
+      "claude-sonnet-4-5",
     ]);
 
     expect(result.exitCode).toBe(1);
@@ -509,8 +529,14 @@ describe("task cli command baseline", () => {
       "create",
       "--base-url",
       `${server.baseUrl}/api`,
+      "--title",
+      "Write spec",
       "--task-spec",
       "write spec",
+      "--developer-provider-id",
+      "anthropic",
+      "--developer-model-id",
+      "claude-sonnet-4-5",
     ]);
 
     expect(result.exitCode).toBe(1);

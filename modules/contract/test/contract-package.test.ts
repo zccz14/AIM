@@ -399,14 +399,26 @@ describe("contract package baseline", () => {
     );
     expect(
       contractModule.createTaskRequestSchema.parse({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
         task_spec: "Ship contract",
         project_path: "/repo",
+        title: "Ship contract",
       }),
     ).toEqual({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
       task_spec: "Ship contract",
       project_path: "/repo",
       result: "",
+      title: "Ship contract",
     });
+    expect(
+      contractModule.createTaskRequestSchema.safeParse({
+        project_path: "/repo/main",
+        task_spec: "Create the required model fields",
+      }).success,
+    ).toBe(false);
     expect(
       contractModule.patchTaskRequestSchema.parse({
         status: "succeeded",
@@ -425,8 +437,11 @@ describe("contract package baseline", () => {
     });
     expect(
       contractModule.taskSchema.parse({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
         task_id: "task-1",
         task_spec: "Ship contract",
+        title: "Ship contract",
         project_path: "/repo",
         result: "complete",
         session_id: null,
@@ -447,8 +462,11 @@ describe("contract package baseline", () => {
       contractModule.taskListResponseSchema.parse({
         items: [
           {
+            developer_model_id: "claude-sonnet-4-5",
+            developer_provider_id: "anthropic",
             task_id: "task-1",
             task_spec: "Ship contract",
+            title: "Ship contract",
             project_path: "/repo",
             result: "complete",
             session_id: null,
@@ -780,7 +798,13 @@ describe("contract package baseline", () => {
     ).toBeDefined();
 
     expect(createTaskRequestSchema).toMatchObject({
-      required: ["task_spec", "project_path"],
+      required: [
+        "title",
+        "task_spec",
+        "project_path",
+        "developer_provider_id",
+        "developer_model_id",
+      ],
     });
     expect(
       Object.keys(
@@ -789,12 +813,15 @@ describe("contract package baseline", () => {
       ).sort(),
     ).toEqual([
       "dependencies",
+      "developer_model_id",
+      "developer_provider_id",
       "project_path",
       "pull_request_url",
       "result",
       "session_id",
       "status",
       "task_spec",
+      "title",
       "worktree_path",
     ]);
     expect(
@@ -1211,8 +1238,11 @@ describe("contract package baseline", () => {
   it("creates typed task CRUD client helpers", async () => {
     const task = {
       task_id: "task-1",
+      title: "Write spec",
       task_spec: "write spec",
       project_path: "/repo",
+      developer_provider_id: "anthropic",
+      developer_model_id: "claude-sonnet-4-5",
       result: "",
       session_id: null,
       worktree_path: null,
@@ -1267,8 +1297,11 @@ describe("contract package baseline", () => {
             url.pathname === "/tasks" &&
             bodyText ===
               JSON.stringify({
+                title: "Write spec",
                 task_spec: "write spec",
                 project_path: "/repo",
+                developer_provider_id: "anthropic",
+                developer_model_id: "claude-sonnet-4-5",
                 dependencies: [],
               })
           ) {
@@ -1340,8 +1373,11 @@ describe("contract package baseline", () => {
     });
     await expect(
       client.createTask({
+        title: "Write spec",
         task_spec: "write spec",
         project_path: "/repo",
+        developer_provider_id: "anthropic",
+        developer_model_id: "claude-sonnet-4-5",
         dependencies: [],
       }),
     ).resolves.toMatchObject({
@@ -1382,8 +1418,11 @@ describe("contract package baseline", () => {
       },
       {
         body: {
+          title: "Write spec",
           task_spec: "write spec",
           project_path: "/repo",
+          developer_provider_id: "anthropic",
+          developer_model_id: "claude-sonnet-4-5",
           dependencies: [],
         },
         method: "POST",

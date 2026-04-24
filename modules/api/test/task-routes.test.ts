@@ -109,6 +109,57 @@ describe("task routes", () => {
     expect(logger.info).not.toHaveBeenCalled();
   });
 
+  it("rejects POST /tasks when required title or developer model fields are missing", async () => {
+    await useProjectRoot("rejects-missing-developer-model-fields");
+
+    const app = apiModule.createApp();
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/main",
+        task_spec: "write sqlite-backed route tests",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+
+    const payload = await response.json();
+
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+  });
+
+  it("persists required title and developer model fields when creating a task", async () => {
+    await useProjectRoot("persists-developer-model-fields");
+
+    const app = apiModule.createApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        project_path: "/repo/main",
+        task_spec: "write sqlite-backed route tests",
+        title: "SQLite route tests",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+
+    expect(createdTask).toMatchObject({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
+      title: "SQLite route tests",
+    });
+  });
+
   it("persists a created task and reads the same record through both GET routes", async () => {
     await useProjectRoot("persists-create-and-read");
 
@@ -120,6 +171,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "write sqlite-backed route tests",
         project_path: projectPath,
         session_id: "session-1",
@@ -176,6 +230,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: taskSpec,
         project_path: "/repo/task-spec",
       }),
@@ -223,6 +280,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         project_path: "/repo/main",
         session_id: "session-1",
         status: "running",
@@ -256,6 +316,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "stays on app root",
         project_path: "/repo/app-root",
       }),
@@ -281,6 +344,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "keep running",
         project_path: "/repo/session-a/running",
         session_id: "session-a",
@@ -293,6 +359,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "already done",
         project_path: "/repo/session-a/done",
         session_id: "session-a",
@@ -305,6 +374,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "different session",
         project_path: "/repo/session-b/running",
         session_id: "session-b",
@@ -382,6 +454,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "before patch",
         project_path: "/repo/patch-target",
         session_id: "session-7",
@@ -442,6 +517,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "clear patch fields",
         project_path: projectPath,
         session_id: "session-9",
@@ -488,6 +566,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "resolve me",
         project_path: "/repo/resolve-target",
         status: "running",
@@ -559,6 +640,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         project_path: "/repo/resolve-target",
         session_id: "session-7",
         task_spec: "resolve me",
@@ -604,6 +688,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "reject me",
         project_path: "/repo/reject-target",
         status: "running",
@@ -653,6 +740,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         project_path: "/repo/reject-target",
         session_id: "session-8",
         task_spec: "reject me",
@@ -698,6 +788,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "patch validation target",
         project_path: "/repo/original",
       }),
@@ -739,6 +832,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "delete me",
         project_path: "/repo/delete-me",
       }),
@@ -823,6 +919,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "patch validation target",
         project_path: "/repo/invalid-patch",
       }),
@@ -864,6 +963,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "resolve validation target",
         project_path: "/repo/invalid-resolve",
       }),
@@ -911,6 +1013,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "reject validation target",
         project_path: "/repo/invalid-reject",
       }),
@@ -959,6 +1064,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
         task_spec: "reject validation target",
         project_path: "/repo/invalid-reject",
       }),

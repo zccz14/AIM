@@ -15,7 +15,7 @@ export type OpenCodeSdkAdapter = {
     projectPath: string,
   ): Promise<TaskSessionState>;
   listSupportedModels(): Promise<OpenCodeModelsResponse>;
-  sendPrompt(sessionId: string, prompt: string): Promise<void>;
+  sendPrompt(sessionId: string, prompt: string, task: Task): Promise<void>;
 };
 
 export const createOpenCodeSdkAdapter = (
@@ -35,8 +35,8 @@ export const createOpenCodeSdkAdapter = (
       await client.session.promptAsync({
         body: {
           model: {
-            modelID: config.modelId,
-            providerID: config.providerId,
+            modelID: task.developer_model_id,
+            providerID: task.developer_provider_id,
           },
           parts: [{ text: buildTaskSessionPrompt(task), type: "text" }],
         },
@@ -72,12 +72,12 @@ export const createOpenCodeSdkAdapter = (
         ),
       };
     },
-    async sendPrompt(sessionId, prompt) {
+    async sendPrompt(sessionId, prompt, task) {
       await client.session.promptAsync({
         body: {
           model: {
-            modelID: config.modelId,
-            providerID: config.providerId,
+            modelID: task.developer_model_id,
+            providerID: task.developer_provider_id,
           },
           parts: [{ text: prompt, type: "text" }],
         },

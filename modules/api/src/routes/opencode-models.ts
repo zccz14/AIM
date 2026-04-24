@@ -28,8 +28,6 @@ export const registerOpenCodeModelRoutes = (
   const getAdapter = () => {
     adapter ??= createOpenCodeSdkAdapter({
       baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-      modelId: "unused-for-model-list",
-      providerId: "unused-for-model-list",
     });
 
     return adapter;

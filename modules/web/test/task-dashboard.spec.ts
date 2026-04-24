@@ -18,8 +18,11 @@ const buildTask = ({
   updatedAt?: string;
 }) => ({
   task_id: taskId,
+  title: spec.split("\n", 1)[0] ?? spec,
   task_spec: spec,
   project_path: "/repo/dashboard",
+  developer_provider_id: "anthropic",
+  developer_model_id: "claude-sonnet-4-5",
   session_id: null,
   worktree_path: null,
   pull_request_url: null,
@@ -51,6 +54,28 @@ test.beforeEach(async ({ page }) => {
             status: "waiting_assumptions",
             taskId: "task-456",
           }),
+        ],
+      }),
+    });
+  });
+
+  await page.route("**/opencode/models", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            model_id: "claude-sonnet-4-5",
+            model_name: "Claude Sonnet 4.5",
+            provider_id: "anthropic",
+            provider_name: "Anthropic",
+          },
+          {
+            model_id: "gpt-5.5",
+            model_name: "GPT 5.5",
+            provider_id: "openai",
+            provider_name: "OpenAI",
+          },
         ],
       }),
     });
@@ -292,7 +317,7 @@ test("opens and closes the create task page from the dashboard header", async ({
   await expect(page.getByLabel("Project Path")).toHaveValue("");
 });
 
-test("submits task_spec and project_path to the existing task API", async ({
+test("submits title, task_spec, project_path, and selected developer model to the task API", async ({
   page,
 }) => {
   let createRequestBodyText: null | string = null;
@@ -323,18 +348,41 @@ test("submits task_spec and project_path to the existing task API", async ({
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
   await expect(page).toHaveURL(/\/tasks\/new$/);
+  await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
+  await page.getByLabel("Developer Model").selectOption("openai::gpt-5.5");
   await page.getByRole("button", { name: "Create Task" }).click();
 
   await expect
     .poll(() => createRequestBodyText)
     .toEqual(
       JSON.stringify({
+        title: "Ship create flow",
         task_spec: "Ship create flow",
         project_path: "/repo/dashboard",
+        developer_provider_id: "openai",
+        developer_model_id: "gpt-5.5",
       }),
     );
+});
+
+test("uses a saved developer model preference only when it is still available", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "aim.createTaskDeveloperModel",
+      JSON.stringify({ providerId: "openai", modelId: "gpt-5.5" }),
+    );
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create Task" }).click();
+
+  await expect(page.getByLabel("Developer Model")).toHaveValue(
+    "openai::gpt-5.5",
+  );
 });
 
 test("shows a local create error when the task API rejects the request", async ({
@@ -369,6 +417,7 @@ test("shows a local create error when the task API rejects the request", async (
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
   await expect(page).toHaveURL(/\/tasks\/new$/);
+  await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).click();
@@ -428,6 +477,7 @@ test("brands the create flow with guidance and a dedicated feedback panel", asyn
   await expect(page.getByText("Workspace Target")).toBeVisible();
   await expect(page.getByText("Submission Checklist")).toBeVisible();
 
+  await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).click();
@@ -487,6 +537,7 @@ test("navigates from create page to task details after refresh", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Title").fill("Create release checklist");
   await page
     .getByLabel("Task Spec")
     .fill("Create release checklist\n- draft notes\n- notify team");
@@ -558,6 +609,7 @@ test("opens created task details from the create response when the dashboard ref
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
+  await page.getByLabel("Title").fill("Fallback task title");
   await page
     .getByLabel("Task Spec")
     .fill("Fallback task title\n- still visible after refresh failure");
