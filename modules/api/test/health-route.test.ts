@@ -1,14 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
 const apiPackageUrl = new URL("../package.json", import.meta.url);
-const apiEntryUrl = new URL("../dist/app.mjs", import.meta.url);
-const contractEntryUrl = new URL(
-  "../../contract/dist/index.mjs",
-  import.meta.url,
-);
 const apiSourceUrl = new URL("../src/app.ts", import.meta.url);
 
 type ApiPackageManifest = {
@@ -33,11 +27,9 @@ beforeAll(async () => {
   apiPackage = JSON.parse(
     await readFile(apiPackageUrl, "utf8"),
   ) as ApiPackageManifest;
-  apiModule = (await import(
-    pathToFileURL(fileURLToPath(apiEntryUrl)).href
-  )) as ApiPackageModule;
+  apiModule = (await import("../src/app.ts")) as ApiPackageModule;
   contractModule = (await import(
-    pathToFileURL(fileURLToPath(contractEntryUrl)).href
+    "../../contract/src/index.ts"
   )) as ContractPackageModule;
 });
 

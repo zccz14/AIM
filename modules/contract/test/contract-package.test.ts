@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { adaptGeneratedRequestForPublicFetch } from "../src/client.js";
@@ -9,6 +11,13 @@ type RequestInitWithDuplex = RequestInit & {
 };
 
 const contractPackageUrl = new URL("../package.json", import.meta.url);
+const contractRootUrl = new URL("../", import.meta.url);
+const apiPackageUrl = new URL("../../api/package.json", import.meta.url);
+const cliPackageUrl = new URL("../../cli/package.json", import.meta.url);
+const opencodePluginPackageUrl = new URL(
+  "../../opencode-plugin/package.json",
+  import.meta.url,
+);
 const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractTypeDefinitionUrl = new URL(
   "../dist/index.d.mts",
@@ -76,6 +85,10 @@ type ContractPackageManifest = {
   devDependencies?: Record<string, string>;
 };
 
+type WorkspacePackageManifest = {
+  scripts?: Record<string, string>;
+};
+
 type RootPackageManifest = {
   scripts: Record<string, string>;
 };
@@ -120,8 +133,23 @@ type _generatedTypesExportTaskCrud = Assert<
     HasExport<GeneratedTypesModule, "TaskListResponse">
 >;
 
+const execFileAsync = promisify(execFile);
+
+const ensureBuiltEntry = async () => {
+  try {
+    await access(contractEntryUrl);
+  } catch {
+    await execFileAsync("pnpm", ["run", "build:dist"], {
+      cwd: fileURLToPath(contractRootUrl),
+    });
+  }
+};
+
 let contractPackage: ContractPackageManifest;
+let apiPackage: WorkspacePackageManifest;
+let cliPackage: WorkspacePackageManifest;
 let rootPackage: RootPackageManifest;
+let opencodePluginPackage: WorkspacePackageManifest;
 let contractModule: ContractPackageModule;
 let generatedClientModule: GeneratedClientModule;
 let generatedZodModule: GeneratedZodModule;
@@ -131,9 +159,19 @@ let setupNodePnpmActionSource: string;
 let releaseWorkflowSource: string;
 
 beforeAll(async () => {
+  await ensureBuiltEntry();
   contractPackage = JSON.parse(
     await readFile(contractPackageUrl, "utf8"),
   ) as ContractPackageManifest;
+  apiPackage = JSON.parse(
+    await readFile(apiPackageUrl, "utf8"),
+  ) as WorkspacePackageManifest;
+  cliPackage = JSON.parse(
+    await readFile(cliPackageUrl, "utf8"),
+  ) as WorkspacePackageManifest;
+  opencodePluginPackage = JSON.parse(
+    await readFile(opencodePluginPackageUrl, "utf8"),
+  ) as WorkspacePackageManifest;
   rootPackage = JSON.parse(
     await readFile(rootPackageUrl, "utf8"),
   ) as RootPackageManifest;
@@ -880,9 +918,31 @@ describe("contract package baseline", () => {
     expect(contractPackage.scripts?.build).toBe(
       "pnpm run test && pnpm run build:dist",
     );
-    expect(contractPackage.scripts?.test).toContain(
-      "pnpm run build:dist && pnpm run test:type",
+    expect(contractPackage.scripts?.test).toBe(
+      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract",
     );
+    expect(apiPackage.scripts?.build).toBe(
+      "pnpm run test && pnpm run build:dist",
+    );
+    expect(apiPackage.scripts?.test).toBe(
+      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
+    );
+    expect(opencodePluginPackage.scripts?.build).toBe(
+      "pnpm run test && pnpm run build:dist",
+    );
+    expect(opencodePluginPackage.scripts?.test).toBe(
+      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
+    );
+    expect(opencodePluginPackage.scripts?.["test:pack"]).toContain(
+      "pnpm run build:dist",
+    );
+    expect(cliPackage.scripts?.build).toBe(
+      "pnpm run test && pnpm run build:dist",
+    );
+    expect(cliPackage.scripts?.test).toBe(
+      "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project cli",
+    );
+    expect(cliPackage.scripts?.["test:smoke"]).toContain("pnpm run build:dist");
     expect(contractPackage.dependencies?.yaml).toBeUndefined();
     expect(contractPackage.devDependencies?.yaml).toBe("^2.8.3");
     expect(contractPackage.scripts?.["generate:zod"]).not.toContain(

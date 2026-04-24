@@ -54,7 +54,7 @@ type ConfigWithSkills = Config & {
 };
 
 let pluginPackage: PluginPackageManifest;
-let pluginModule: { default: { id?: string; server: unknown } };
+let pluginModule: { default: { id?: string; server: unknown } } | undefined;
 let pluginSource: string;
 let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
@@ -67,6 +67,8 @@ let packedFilesPromise: Promise<string[]> | undefined;
 const packagedSkillsPath = fileURLToPath(new URL("../skills/", pluginEntryUrl));
 const artifactsDirUrl = new URL("../.artifacts/test-pack/", import.meta.url);
 const execFileAsync = promisify(execFile);
+const shouldRunPackTests = process.env.AIM_RUN_PACK_TESTS === "1";
+const itPack = shouldRunPackTests ? it : it.skip;
 
 async function listPackedFiles() {
   if (packedFilesPromise) {
@@ -105,6 +107,10 @@ async function listPackedFiles() {
 }
 
 async function loadPluginHooks() {
+  if (!pluginModule) {
+    throw new Error("Expected built plugin module to be loaded");
+  }
+
   return (
     pluginModule.default.server as (input: PluginInput) => Promise<{
       config?: (input: Config) => Promise<void>;
@@ -146,9 +152,20 @@ beforeAll(async () => {
   ).catch(() => "");
   pluginSkillsReadme = await readFile(pluginSkillsReadmeUrl, "utf8");
   pluginReadme = await readFile(pluginReadmeUrl, "utf8");
-  pluginModule = (await import(
-    pathToFileURL(fileURLToPath(pluginEntryUrl)).href
-  )) as { default: { id?: string; server: unknown } };
+
+  if (shouldRunPackTests) {
+    try {
+      await access(pluginEntryUrl);
+    } catch {
+      await execFileAsync("pnpm", ["run", "build:dist"], {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+      });
+    }
+
+    pluginModule = (await import(
+      pathToFileURL(fileURLToPath(pluginEntryUrl)).href
+    )) as { default: { id?: string; server: unknown } };
+  }
 });
 
 describe("opencode plugin package baseline", () => {
@@ -193,7 +210,7 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAskStrategySkillUrl)).resolves.toBeUndefined();
   });
 
-  it("packs the expected publishable tarball contents", async () => {
+  itPack("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
       "package/README.md",
@@ -216,29 +233,41 @@ describe("opencode plugin package baseline", () => {
     ]);
   });
 
-  it("packs the aim-create-tasks skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-create-tasks/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-create-tasks skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-create-tasks/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-setup-github-repo skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-setup-github-repo/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-setup-github-repo skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-setup-github-repo/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-evaluate-readme skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-evaluate-readme/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-evaluate-readme skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-evaluate-readme/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-ask-strategy skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-ask-strategy/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-ask-strategy skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-ask-strategy/SKILL.md",
+      );
+    },
+  );
 
   it("documents lifecycle reporting as packaged documentation only", () => {
     expect(pluginSkillsReadme).not.toContain("aim-placeholder");
@@ -590,28 +619,39 @@ describe("opencode plugin package baseline", () => {
     expect(pluginSetupGithubRepoSkillText).not.toContain("TBD");
   });
 
-  it("exports a default plugin module from the built entry", () => {
-    expect(pluginModule.default.id).toBe("@aim-ai/opencode-plugin");
-    expect(typeof pluginModule.default.server).toBe("function");
+  itPack("exports a default plugin module from the built entry", () => {
+    const builtPluginModule = pluginModule;
+
+    expect(builtPluginModule).toBeDefined();
+
+    if (!builtPluginModule) {
+      throw new Error("expected plugin module to be loaded");
+    }
+
+    expect(builtPluginModule.default.id).toBe("@aim-ai/opencode-plugin");
+    expect(typeof builtPluginModule.default.server).toBe("function");
   });
 
-  it("appends the packaged skills path without overwriting existing entries", async () => {
-    const hooks = await loadPluginHooks();
-    const config: ConfigWithSkills = {
-      skills: {
-        paths: ["/tmp/existing-skills"],
-      },
-    };
+  itPack(
+    "appends the packaged skills path without overwriting existing entries",
+    async () => {
+      const hooks = await loadPluginHooks();
+      const config: ConfigWithSkills = {
+        skills: {
+          paths: ["/tmp/existing-skills"],
+        },
+      };
 
-    await hooks.config?.(config);
+      await hooks.config?.(config);
 
-    expect(config.skills?.paths).toEqual([
-      "/tmp/existing-skills",
-      packagedSkillsPath,
-    ]);
-  });
+      expect(config.skills?.paths).toEqual([
+        "/tmp/existing-skills",
+        packagedSkillsPath,
+      ]);
+    },
+  );
 
-  it("creates skills config when it is initially missing", async () => {
+  itPack("creates skills config when it is initially missing", async () => {
     const hooks = await loadPluginHooks();
     const config: ConfigWithSkills = {};
 
@@ -620,37 +660,43 @@ describe("opencode plugin package baseline", () => {
     expect(config.skills?.paths).toEqual([packagedSkillsPath]);
   });
 
-  it("dedupes the packaged skills path when it is already configured", async () => {
-    const hooks = await loadPluginHooks();
-    const config: ConfigWithSkills = {
-      skills: {
-        paths: [packagedSkillsPath],
-      },
-    };
+  itPack(
+    "dedupes the packaged skills path when it is already configured",
+    async () => {
+      const hooks = await loadPluginHooks();
+      const config: ConfigWithSkills = {
+        skills: {
+          paths: [packagedSkillsPath],
+        },
+      };
 
-    await hooks.config?.(config);
+      await hooks.config?.(config);
 
-    expect(config.skills?.paths).toEqual([packagedSkillsPath]);
-  });
+      expect(config.skills?.paths).toEqual([packagedSkillsPath]);
+    },
+  );
 
-  it("keeps the packaged skills path deduped across repeated config hook calls", async () => {
-    const hooks = await loadPluginHooks();
-    const config: ConfigWithSkills = {
-      skills: {
-        paths: ["/tmp/existing-skills"],
-      },
-    };
+  itPack(
+    "keeps the packaged skills path deduped across repeated config hook calls",
+    async () => {
+      const hooks = await loadPluginHooks();
+      const config: ConfigWithSkills = {
+        skills: {
+          paths: ["/tmp/existing-skills"],
+        },
+      };
 
-    await hooks.config?.(config);
-    await hooks.config?.(config);
+      await hooks.config?.(config);
+      await hooks.config?.(config);
 
-    expect(config.skills?.paths).toEqual([
-      "/tmp/existing-skills",
-      packagedSkillsPath,
-    ]);
-  });
+      expect(config.skills?.paths).toEqual([
+        "/tmp/existing-skills",
+        packagedSkillsPath,
+      ]);
+    },
+  );
 
-  it("only registers the config hook for packaged skills", async () => {
+  itPack("only registers the config hook for packaged skills", async () => {
     const hooks = await loadPluginHooks();
 
     expect(typeof hooks.config).toBe("function");
