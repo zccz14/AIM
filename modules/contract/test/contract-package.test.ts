@@ -95,6 +95,8 @@ type RootPackageManifest = {
   scripts: Record<string, string>;
 };
 
+const skipTest = (command: string) => `[ -n "$SKIP_TEST" ] || ${command}`;
+
 type ContractPackageModule = typeof import("../src/index.js");
 type ContractPackageConsumerModule = typeof import("../dist/index.mjs");
 type GeneratedClientModule = typeof import("../generated/client.js");
@@ -220,23 +222,27 @@ describe("contract package baseline", () => {
     await expect(access(vitestWorkspaceUrl)).resolves.toBeUndefined();
     await expect(access(playwrightConfigUrl)).resolves.toBeUndefined();
     expect(rootPackage.scripts["test:repo"]).toBe(
-      "pnpm exec vitest run --config vitest.workspace.ts --project repo",
+      skipTest(
+        "pnpm exec vitest run --config vitest.workspace.ts --project repo",
+      ),
     );
     expect(rootPackage.scripts["test:type"]).toBe(
-      "pnpm run typecheck && pnpm -r --if-present run test:type",
+      skipTest("{ pnpm run typecheck && pnpm -r --if-present run test:type; }"),
     );
     expect(rootPackage.scripts["test:type:repo"]).toBe(
-      "pnpm run typecheck:repo",
+      skipTest("pnpm run typecheck:repo"),
     );
     expect(rootPackage.scripts["test:lint"]).toBe(
-      "pnpm run lint && pnpm -r --if-present run test:lint",
+      skipTest("{ pnpm run lint && pnpm -r --if-present run test:lint; }"),
     );
-    expect(rootPackage.scripts["test:lint:repo"]).toBe("pnpm run lint");
+    expect(rootPackage.scripts["test:lint:repo"]).toBe(
+      skipTest("pnpm run lint"),
+    );
     expect(rootPackage.scripts["test:smoke"]).toBe(
-      "pnpm -r --if-present run test:smoke",
+      skipTest("pnpm -r --if-present run test:smoke"),
     );
     expect(rootPackage.scripts["test:web"]).toBe(
-      "pnpm -r --if-present run test:web",
+      skipTest("pnpm -r --if-present run test:web"),
     );
     expect(rootPackage.scripts).not.toHaveProperty("test");
     expect(rootPackage.scripts.build).toBe(
@@ -1039,19 +1045,25 @@ describe("contract package baseline", () => {
       "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
     expect(contractPackage.scripts?.["test:vitest"]).toBe(
-      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract",
+      skipTest(
+        "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project contract",
+      ),
     );
     expect(apiPackage.scripts?.build).toBe(
       "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
     expect(apiPackage.scripts?.["test:vitest"]).toBe(
-      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
+      skipTest(
+        "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
+      ),
     );
     expect(opencodePluginPackage.scripts?.build).toBe(
       "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     );
     expect(opencodePluginPackage.scripts?.["test:vitest"]).toBe(
-      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
+      skipTest(
+        "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
+      ),
     );
     expect(opencodePluginPackage.scripts?.["test:pack"]).toContain(
       "pnpm run build:dist",
@@ -1060,7 +1072,9 @@ describe("contract package baseline", () => {
       "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest && pnpm run test:smoke",
     );
     expect(cliPackage.scripts?.["test:vitest"]).toBe(
-      "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project cli",
+      skipTest(
+        "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project cli",
+      ),
     );
     expect(cliPackage.scripts?.["test:smoke"]).not.toContain(
       "pnpm run build:dist",
