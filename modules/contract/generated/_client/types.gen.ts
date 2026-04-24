@@ -94,12 +94,24 @@ export type TaskListResponse = {
   items: Array<Task>;
 };
 
+export type OpenCodeModelCombination = {
+  provider_id: string;
+  provider_name: string;
+  model_id: string;
+  model_name: string;
+};
+
+export type OpenCodeModelsResponse = {
+  items: Array<OpenCodeModelCombination>;
+};
+
 export type ErrorResponse = {
   code:
     | "TASK_NOT_FOUND"
     | "TASK_CONFLICT"
     | "TASK_VALIDATION_ERROR"
-    | "TASK_UNSUPPORTED_STATUS";
+    | "TASK_UNSUPPORTED_STATUS"
+    | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
 
@@ -166,6 +178,33 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListOpenCodeModelsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/opencode/models";
+};
+
+export type ListOpenCodeModelsErrors = {
+  /**
+   * OpenCode models unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type ListOpenCodeModelsError =
+  ListOpenCodeModelsErrors[keyof ListOpenCodeModelsErrors];
+
+export type ListOpenCodeModelsResponses = {
+  /**
+   * OpenCode provider and model combinations
+   */
+  200: OpenCodeModelsResponse;
+};
+
+export type ListOpenCodeModelsResponse =
+  ListOpenCodeModelsResponses[keyof ListOpenCodeModelsResponses];
 
 export type ListTasksData = {
   body?: never;
