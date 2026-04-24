@@ -67,6 +67,7 @@ let packedFilesPromise: Promise<string[]> | undefined;
 const packagedSkillsPath = fileURLToPath(new URL("../skills/", pluginEntryUrl));
 const artifactsDirUrl = new URL("../.artifacts/test-pack/", import.meta.url);
 const execFileAsync = promisify(execFile);
+const itPack = process.env.AIM_RUN_PACK_TESTS ? it : it.skip;
 
 async function listPackedFiles() {
   if (packedFilesPromise) {
@@ -193,7 +194,7 @@ describe("opencode plugin package baseline", () => {
     await expect(access(pluginAskStrategySkillUrl)).resolves.toBeUndefined();
   });
 
-  it("packs the expected publishable tarball contents", async () => {
+  itPack("packs the expected publishable tarball contents", async () => {
     await expect(listPackedFiles()).resolves.toEqual([
       "package/LICENSE",
       "package/README.md",
@@ -216,29 +217,41 @@ describe("opencode plugin package baseline", () => {
     ]);
   });
 
-  it("packs the aim-create-tasks skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-create-tasks/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-create-tasks skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-create-tasks/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-setup-github-repo skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-setup-github-repo/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-setup-github-repo skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-setup-github-repo/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-evaluate-readme skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-evaluate-readme/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-evaluate-readme skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-evaluate-readme/SKILL.md",
+      );
+    },
+  );
 
-  it("packs the aim-ask-strategy skill into the publishable tarball", async () => {
-    await expect(listPackedFiles()).resolves.toContain(
-      "package/skills/aim-ask-strategy/SKILL.md",
-    );
-  });
+  itPack(
+    "packs the aim-ask-strategy skill into the publishable tarball",
+    async () => {
+      await expect(listPackedFiles()).resolves.toContain(
+        "package/skills/aim-ask-strategy/SKILL.md",
+      );
+    },
+  );
 
   it("documents lifecycle reporting as packaged documentation only", () => {
     expect(pluginSkillsReadme).not.toContain("aim-placeholder");

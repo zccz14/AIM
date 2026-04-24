@@ -917,6 +917,9 @@ describe("contract package baseline", () => {
     expect(opencodePluginPackage.scripts?.test).toBe(
       "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
     );
+    expect(opencodePluginPackage.scripts?.["test:pack"]).toContain(
+      "pnpm run build:dist",
+    );
     expect(cliPackage.scripts?.build).toBe(
       "pnpm run test && pnpm run build:dist",
     );

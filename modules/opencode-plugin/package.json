@@ -25,7 +25,8 @@
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "pnpm run typecheck",
     "test:lint": "pnpm --dir ../.. exec biome check modules/opencode-plugin/package.json modules/opencode-plugin/src modules/opencode-plugin/test modules/opencode-plugin/tsconfig.json modules/opencode-plugin/tsdown.config.ts modules/opencode-plugin/README.md modules/opencode-plugin/skills modules/opencode-plugin/agents",
-    "test": "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin"
+    "test": "pnpm run test:type && pnpm run test:lint && pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
+    "test:pack": "pnpm run build:dist && AIM_RUN_PACK_TESTS=1 pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.18"

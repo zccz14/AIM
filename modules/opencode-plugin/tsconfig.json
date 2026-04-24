@@ -6,7 +6,8 @@
     "outDir": "./dist",
     "lib": ["ES2022"],
     "types": ["node"],
-    "exactOptionalPropertyTypes": false
+    "exactOptionalPropertyTypes": false,
+    "incremental": false
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }
