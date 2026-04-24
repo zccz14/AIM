@@ -96,8 +96,8 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 ### 7. 持续跟进 PR 直到合并
 
-- PR 创建后，不得立刻开始第一次 follow-up；必须先主动等待 1 到 10 分钟。
-- 完成这次有意等待后，PATCH `pr_following`，并持续跟进 checks、review、mergeability 与 auto-merge 状态。
+- PR 创建后，PATCH `pr_following`，并持续跟进 checks、review、mergeability 与 auto-merge 状态；跟进 required checks 时可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化，避免手动轮询。
+- 跟进时必须检查 PR 是否需要 update、是否落后于 base branch、或是否被 Linear History Rule 阻塞；若需要 update，必须在同一 worktree、同一分支、同一 PR 中按仓库规则处理，优先执行 `git fetch origin` 与 `git rebase origin/main` 更新分支后再 push，并继续跟进。
 - 如果 checks 失败且原因仍在当前任务 scope 内，必须在同一 worktree、同一分支、同一 PR 中修复、验证、push，并继续跟进。
 - 如果 checks 失败原因超出当前任务 scope，或 review 意见与 spec / scope / 权限边界冲突，必须升级决策，不得擅自扩大范围。
 - 当 checks 全部通过、没有 blocking review、没有 merge conflict、保护规则满足且 auto-merge 可用时，应继续推动合并；不要把“PR 已创建”当作任务完成。
@@ -114,8 +114,8 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - `created`：Task 已存在，但执行尚未真正开始。
 - `waiting_assumptions`：执行因缺失前提、用户输入或外部条件而阻塞。
 - `running`：已开始执行，且仍处于 PR 创建前的阶段；包括最新基线验证通过后、worktree 创建后、TDD / 实现 / 验证 / commit / push 前后的执行期。
-- `outbound`：PR 已创建，并且已进入“刚出站、尚未首次 follow-up”的窗口。
-- `pr_following`：完成首次主动等待后，正在跟进 checks、review、mergeability 或 auto-merge。
+- `outbound`：PR 已创建，并已上报 `pull_request_url`。
+- `pr_following`：正在跟进 checks、review、mergeability 或 auto-merge。
 - `closing`：PR 已合并、关闭或确认废弃，正在做 review 收尾、worktree 删除与主工作区基线刷新。
 - `succeeded`：任务已成功完成，并通过 `POST /resolve` 上报。
 - `failed`：任务已失败结束，并通过 `POST /reject` 上报。
@@ -145,7 +145,7 @@ description: Required entry skill when you are an AIM Developer working on an ex
 2. worktree 创建后：继续 PATCH `running`，并补充 `worktree_path`。
 3. 因缺失前提而阻塞时：PATCH `waiting_assumptions`。
 4. PR 创建后：PATCH `outbound`，并在已知时携带 `pull_request_url`。
-5. 完成首次 1 到 10 分钟主动等待并开始跟进时：PATCH `pr_following`。
+5. 开始跟进 PR 时：PATCH `pr_following`。
 6. PR 已合并、关闭或确认废弃后：PATCH `closing`。
 7. 最终成功完成时：`POST /resolve`，请求体只发送非空 `result`。
 8. 任务本身失败时：`POST /reject`，请求体只发送非空 `result`。

@@ -83,18 +83,19 @@
 4. 在 worktree 中 push 分支。
 5. 创建 PR。
 6. PR 创建后，必须立即启用 auto-merge；若仓库策略、权限或平台状态暂时不允许启用，必须记录阻塞原因并持续跟进，直到启用或确认无法启用。
-7. PR 创建后，不得立刻进入第一次跟进；必须主动执行一次有意的等待，sleep 1 到 10 分钟后，才开始首次 follow-up。原因是 checks 刚启动时立即跟进通常没有有效增量信息。
+7. PR 创建后，应进入 PR 跟进；跟进 required checks 时可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化，避免手动轮询。
 
 ### 阶段 D：PR 跟进
 
 1. 创建 PR 只是进入 PR 跟进阶段，不是任务终态；不得把“已开 PR”视为完成。
-2. 完成首次延时 follow-up 后，必须主动持续跟进 checks、review 状态与 mergeability，不得等待用户再次提醒。
+2. 进入 PR 跟进后，必须主动持续跟进 checks、review 状态与 mergeability，不得等待用户再次提醒；跟进 required checks 时可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化，避免手动轮询。
 3. 若当前仅剩 checks 运行中、等待 reviewer 响应或等待外部平台状态变化，且已无新的 scope 内动作可执行，则应进入待跟进状态，而不是无界轮询；外部状态变化后应继续推进。
-4. 若 checks 失败，必须先查看失败详情；若失败原因仍在当前任务 scope 内，必须在同一 worktree、同一分支、同一 PR 中修复、验证、push，并继续跟进。
-5. 若 checks 失败原因超出当前任务 scope，必须先升级决策，不得擅自扩大范围。
-6. 若存在 blocking review 或其他必须处理的 review 意见，必须在同一 worktree、同一分支、同一 PR 中继续处理、验证、push，并在阻塞解除前停止推进合并。
-7. 若 review 意见与 spec、scope 或权限边界冲突，必须保持阻塞并升级决策。
-8. 当 checks 全部通过、不存在 blocking review、merge conflict 或仓库保护规则阻塞时，必须按仓库允许策略主动完成合并；不得等待用户手动点击 merge，也不得绕过任何保护规则。
+4. 跟进时必须检查 PR 是否需要 update、是否落后于 base branch、或是否被 Linear History Rule 阻塞；若需要 update，必须在同一 worktree、同一分支、同一 PR 中按仓库规则处理，优先执行 `git fetch origin` 与 `git rebase origin/main` 更新分支后再 push，并继续跟进。
+5. 若 checks 失败，必须先查看失败详情；若失败原因仍在当前任务 scope 内，必须在同一 worktree、同一分支、同一 PR 中修复、验证、push，并继续跟进。
+6. 若 checks 失败原因超出当前任务 scope，必须先升级决策，不得擅自扩大范围。
+7. 若存在 blocking review 或其他必须处理的 review 意见，必须在同一 worktree、同一分支、同一 PR 中继续处理、验证、push，并在阻塞解除前停止推进合并。
+8. 若 review 意见与 spec、scope 或权限边界冲突，必须保持阻塞并升级决策。
+9. 当 checks 全部通过、不存在 blocking review、merge conflict 或仓库保护规则阻塞时，必须按仓库允许策略主动完成合并；不得等待用户手动点击 merge，也不得绕过任何保护规则。
 
 ### 阶段 E：收尾与关闭
 
@@ -136,7 +137,7 @@
 13. 禁止在 repo 外写入文件或留下持久化产物。
 14. 禁止把“已创建 PR”视为开发任务终点。
 15. 禁止在 PR 创建后未启用 auto-merge 就将流程视为正常出站完成；若无法启用，必须显式记录阻塞。
-16. 禁止在 PR 创建后立即开始第一次 follow-up；首次跟进前必须先 sleep 1 到 10 分钟。
+16. 禁止对 required checks 做无界手动轮询；可使用 `gh pr checks <pull_request_url or pr_number> --watch --required` 等待状态变化。
 17. 禁止在 PR checks 失败、存在 blocking review、存在 merge conflict 或存在仓库保护规则阻塞时提前合并。
 18. 禁止通过绕过审批、绕过 checks 或其他 bypass 保护规则的方式强行合并 PR。
 19. 禁止在仍需继续处理 checks / review / merge / worktree 清理 / 主工作区基线刷新时宣告任务完成。
