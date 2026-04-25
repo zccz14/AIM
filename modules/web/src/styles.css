@@ -481,6 +481,64 @@ a {
   padding-bottom: 0;
 }
 
+.task-write-bulk-list,
+.task-write-bulk-entry-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+[data-slot="button"].task-write-bulk-row {
+  height: auto;
+  justify-content: space-between;
+  border-radius: 18px;
+  padding: 1rem;
+  text-align: left;
+}
+
+.task-write-bulk-row__main,
+.task-write-bulk-row__meta,
+.task-write-bulk-entry {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-write-bulk-row__main {
+  gap: 0.25rem;
+}
+
+.task-write-bulk-row__main span,
+.task-write-bulk-row__meta {
+  color: var(--foreground-muted);
+}
+
+.task-write-bulk-row__meta {
+  align-items: flex-end;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
+.task-write-bulk-entry {
+  gap: 0.75rem;
+  border-top: 1px solid var(--aim-panel-border);
+  padding-top: 1rem;
+}
+
+.task-write-bulk-entry:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.task-write-bulk-entry__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-write-bulk-entry__header h4 {
+  margin: 0.2rem 0 0;
+}
+
 .rejected-feedback-filters {
   display: grid;
   grid-template-columns: minmax(12rem, 0.35fr) minmax(16rem, 1fr);
@@ -826,6 +884,8 @@ a {
   .app-shell__hero-main,
   .director-rail,
   .hero-actions,
+  .task-write-bulk-row,
+  .task-write-bulk-entry__header,
   .server-form,
   .region-header,
   .rejected-feedback-filters,
@@ -835,6 +895,10 @@ a {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .task-write-bulk-row__meta {
+    align-items: flex-start;
   }
 
   .hero-title {

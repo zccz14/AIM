@@ -2,6 +2,7 @@ import type {
   OpenCodeModelsResponse,
   Task,
   TaskListResponse,
+  TaskWriteBulkListResponse,
 } from "@aim-ai/contract";
 
 import { createWebApiClient } from "../../../lib/api-client.js";
@@ -17,6 +18,7 @@ export type CreateDashboardTaskInput = {
 export type TaskDashboardResponse = {
   active: TaskListResponse;
   history: TaskListResponse;
+  taskWriteBulks: TaskWriteBulkListResponse;
 };
 
 export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
@@ -26,8 +28,22 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     client.listTasks({ done: false }),
     client.listTasks({ done: true }),
   ]);
+  const projectPaths = [
+    ...new Set(
+      [...active.items, ...history.items].map((task) => task.project_path),
+    ),
+  ];
+  const taskWriteBulks = {
+    items: (
+      await Promise.all(
+        projectPaths.map((projectPath) =>
+          client.listTaskWriteBulks({ project_path: projectPath }),
+        ),
+      )
+    ).flatMap((response) => response.items),
+  } satisfies TaskWriteBulkListResponse;
 
-  return { active, history };
+  return { active, history, taskWriteBulks };
 };
 
 export const createTaskFromDashboard = async (

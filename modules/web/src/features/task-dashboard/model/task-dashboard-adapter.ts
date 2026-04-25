@@ -329,6 +329,7 @@ export const adaptTaskDashboard = (
     graphNodes,
     historyTasks,
     rejectedFeedbackSignals,
+    taskWriteBulks: response.taskWriteBulks.items,
     tasks,
     summaryCards: [
       { key: "pool", label: "Task Pool", value: tasks.length },

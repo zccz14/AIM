@@ -1,3 +1,5 @@
+import type { TaskWriteBulk } from "@aim-ai/contract";
+
 export type DashboardStatus = "processing" | "resolved" | "rejected";
 
 export type DashboardTask = {
@@ -67,6 +69,7 @@ export type DashboardDecisionSignal = {
 export type TaskDashboardViewModel = {
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
+  taskWriteBulks: TaskWriteBulk[];
   rejectedFeedbackSignals: DashboardRejectedFeedbackSignal[];
   summaryCards: DashboardSummaryCard[];
   decisionSignals: DashboardDecisionSignal[];

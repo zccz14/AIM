@@ -21,10 +21,13 @@ import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
 import { TaskTableSection } from "./task-table-section.js";
+import { TaskWriteBulkDetailsPage } from "./task-write-bulk-details-page.js";
+import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
 
 type DashboardRoute =
   | { kind: "dashboard" }
   | { kind: "create" }
+  | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
 
 const DASHBOARD_PATH = "/";
@@ -48,6 +51,19 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
 
     if (taskId) {
       return { kind: "task", taskId: decodeURIComponent(taskId) };
+    }
+  }
+
+  const taskWriteBulkMatch = pathname.match(/^\/task-write-bulks\/([^/]+)$/);
+
+  if (taskWriteBulkMatch) {
+    const bulkId = taskWriteBulkMatch[1];
+
+    if (bulkId) {
+      return {
+        kind: "task-write-bulk",
+        bulkId: decodeURIComponent(bulkId),
+      };
     }
   }
 
@@ -77,10 +93,17 @@ export const DashboardPage = () => {
       (task) => task.id === selectedTaskId,
     ) ??
     (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
+  const selectedTaskWriteBulkId =
+    route.kind === "task-write-bulk" ? route.bulkId : null;
+  const selectedTaskWriteBulk =
+    dashboardQuery.data?.taskWriteBulks.find(
+      (bulk) => bulk.bulk_id === selectedTaskWriteBulkId,
+    ) ?? null;
   const hasDashboardData =
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
-      dashboardQuery.data.historyTasks.length > 0);
+      dashboardQuery.data.historyTasks.length > 0 ||
+      dashboardQuery.data.taskWriteBulks.length > 0);
 
   useEffect(() => {
     const handleHashChange = () => setPathname(getCurrentPath());
@@ -132,6 +155,10 @@ export const DashboardPage = () => {
     navigateTo(`/tasks/${encodeURIComponent(taskId)}`);
   };
 
+  const goToTaskWriteBulk = (bulkId: string) => {
+    navigateTo(`/task-write-bulks/${encodeURIComponent(bulkId)}`);
+  };
+
   const handleCreateTask = async (input: {
     title: string;
     projectPath: string;
@@ -168,7 +195,9 @@ export const DashboardPage = () => {
       ? "Baseline Convergence Cockpit"
       : route.kind === "create"
         ? "Create Task"
-        : "Task Details";
+        : route.kind === "task-write-bulk"
+          ? "Task Write Bulk Details"
+          : "Task Details";
 
   const renderDirectorRail = () => (
     <aside
@@ -187,6 +216,7 @@ export const DashboardPage = () => {
       </p>
       <ul aria-label="Director checkpoints" className="rail-checkpoints">
         <li>Baseline review</li>
+        <li>Write intent review</li>
         <li>Dependency pressure</li>
         <li>Rejected feedback</li>
         <li>Task intake</li>
@@ -223,6 +253,10 @@ export const DashboardPage = () => {
 
     if (route.kind === "task") {
       return <TaskDetailsPage task={selectedTask} />;
+    }
+
+    if (route.kind === "task-write-bulk") {
+      return <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />;
     }
 
     return (
@@ -275,6 +309,10 @@ export const DashboardPage = () => {
               <OverviewSection
                 dashboard={dashboardQuery.data}
                 onSelectTask={goToTask}
+              />
+              <TaskWriteBulkSection
+                bulks={dashboardQuery.data.taskWriteBulks}
+                onSelectBulk={goToTaskWriteBulk}
               />
               <DependencyGraphSection
                 graphEdges={dashboardQuery.data.graphEdges}
@@ -367,6 +405,10 @@ export const DashboardPage = () => {
                   >
                     {renderWorkspaceLink("#convergence-map", "Convergence Map")}
                     {renderWorkspaceLink("#evidence-ledger", "Evidence Ledger")}
+                    {renderWorkspaceLink(
+                      "#task-write-bulks",
+                      "Task Write Bulks",
+                    )}
                     {renderWorkspaceLink(
                       "#intervention-rail",
                       "Intervention Rail",
