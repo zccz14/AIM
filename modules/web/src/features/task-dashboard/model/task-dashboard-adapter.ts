@@ -120,7 +120,7 @@ const buildRejectedFeedbackSignals = (
   const signalsByKey = new Map<string, DashboardRejectedFeedbackSignal>();
 
   for (const task of historyTasks) {
-    if (task.dashboardStatus !== "rejected") {
+    if (task.dashboardStatus !== "failed") {
       continue;
     }
 
