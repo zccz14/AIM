@@ -1,6 +1,13 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import {
+  LyraKicker,
+  LyraMuted,
+  LyraPanel,
+  LyraStack,
+  LyraSurface,
+} from "../../../components/ui/lyra-surface.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
@@ -18,36 +25,36 @@ const metadataRows = (task: DashboardTask) => [
 export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
   if (!task) {
     return (
-      <section className="aim-empty-state aim-surface aim-task-details">
-        <p className="aim-kicker">Task Details</p>
+      <LyraSurface className="aim-empty-state aim-task-details">
+        <LyraKicker>Task Details</LyraKicker>
         <h2>Task not found</h2>
-        <p className="aim-muted">
+        <LyraMuted>
           The requested task is not available from the current dashboard data.
-        </p>
-      </section>
+        </LyraMuted>
+      </LyraSurface>
     );
   }
 
   return (
-    <section className="aim-surface aim-task-details aim-stack">
+    <LyraSurface className="aim-task-details aim-stack">
       <header className="aim-task-details-header">
         <div className="aim-task-title-row">
-          <div className="aim-stack">
-            <p className="aim-kicker">Task Overview</p>
+          <LyraStack>
+            <LyraKicker>Task Overview</LyraKicker>
             <h2 className="aim-task-title">{task.title}</h2>
-          </div>
+          </LyraStack>
           <TaskStatusBadge status={task.dashboardStatus} />
         </div>
-        <p className="aim-task-summary aim-muted">
+        <LyraMuted className="aim-task-summary">
           Review the task brief, delivery metadata, and outbound context without
           losing the dark-theme reading rhythm established on the dashboard.
-        </p>
+        </LyraMuted>
       </header>
 
       <div className="aim-task-grid">
-        <section className="aim-task-panel">
+        <LyraPanel>
           <div className="aim-task-panel-header">
-            <p className="aim-kicker">Task Spec</p>
+            <LyraKicker>Task Spec</LyraKicker>
             <h3>{task.title}</h3>
           </div>
           <div className="aim-task-markdown">
@@ -55,12 +62,12 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
               {task.taskSpec}
             </ReactMarkdown>
           </div>
-        </section>
+        </LyraPanel>
 
-        <div className="aim-stack">
-          <section className="aim-task-panel">
+        <LyraStack>
+          <LyraPanel>
             <div className="aim-task-panel-header">
-              <p className="aim-kicker">Execution Metadata</p>
+              <LyraKicker>Execution Metadata</LyraKicker>
               <h3>Delivery Context</h3>
             </div>
             <dl className="aim-task-metadata">
@@ -71,11 +78,11 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                 </div>
               ))}
             </dl>
-          </section>
+          </LyraPanel>
 
-          <section className="aim-task-panel">
+          <LyraPanel>
             <div className="aim-task-panel-header">
-              <p className="aim-kicker">Developer Closure Cues</p>
+              <LyraKicker>Developer Closure Cues</LyraKicker>
               <h3>Checklist Facts</h3>
             </div>
             <div className="aim-checklist">
@@ -86,16 +93,16 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                   </span>
                   <div>
                     <strong>{`${cue.label}: ${cue.statusLabel}`}</strong>
-                    <p className="aim-muted">{cue.detail}</p>
+                    <LyraMuted>{cue.detail}</LyraMuted>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
+          </LyraPanel>
 
-          <section className="aim-task-panel">
+          <LyraPanel>
             <div className="aim-task-panel-header">
-              <p className="aim-kicker">Task Relationships</p>
+              <LyraKicker>Task Relationships</LyraKicker>
               <h3>Dependencies and PR</h3>
             </div>
             <div className="aim-task-chip-list">
@@ -121,9 +128,9 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
             ) : (
               <span className="aim-muted">Pull Request: None</span>
             )}
-          </section>
-        </div>
+          </LyraPanel>
+        </LyraStack>
       </div>
-    </section>
+    </LyraSurface>
   );
 };

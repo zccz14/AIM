@@ -8,6 +8,7 @@ import {
 } from "reactflow";
 
 import { Button } from "../../../components/ui/button.js";
+import { Card } from "../../../components/ui/card.js";
 import type {
   DashboardGraphEdge,
   DashboardGraphNode,
@@ -66,7 +67,7 @@ export const DependencyGraphSection = ({
   }));
 
   return (
-    <section className="surface-card section-stack">
+    <Card className="section-stack">
       <div>
         <p className="eyebrow">Task Pool Topology</p>
         <h2 className="section-title">Dependency Graph</h2>
@@ -86,6 +87,6 @@ export const DependencyGraphSection = ({
           <Controls />
         </ReactFlow>
       </div>
-    </section>
+    </Card>
   );
 };

@@ -1,101 +1,100 @@
 @import "reactflow/dist/style.css";
+@import "./components/ui/lyra-preset.css";
 
 :root,
 html[data-theme="dark"] {
-  --background: #07111f;
-  --background-accent: rgba(61, 214, 208, 0.16);
-  --background-elevated: rgba(10, 18, 33, 0.86);
-  --border: rgba(148, 163, 184, 0.2);
-  --card: rgba(15, 23, 42, 0.84);
-  --card-strong: rgba(15, 23, 42, 0.96);
-  --foreground: #e2e8f0;
-  --foreground-muted: #94a3b8;
-  --hero: linear-gradient(
-    135deg,
-    rgba(34, 211, 238, 0.18),
-    rgba(99, 102, 241, 0.24)
-  );
-  --input: rgba(15, 23, 42, 0.74);
-  --ring: rgba(94, 234, 212, 0.5);
-  --shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
+  --background: var(--lyra-background);
+  --background-accent: var(--lyra-background-accent);
+  --background-elevated: var(--lyra-background-elevated);
+  --border: var(--lyra-border);
+  --card: var(--lyra-card);
+  --card-strong: var(--lyra-card-strong);
+  --foreground: var(--lyra-foreground);
+  --foreground-muted: var(--lyra-foreground-muted);
+  --primary: var(--lyra-primary);
+  --primary-foreground: var(--lyra-primary-foreground);
+  --secondary: var(--lyra-secondary);
+  --secondary-foreground: var(--lyra-secondary-foreground);
+  --accent: var(--lyra-accent);
+  --accent-foreground: var(--lyra-accent-foreground);
+  --destructive: var(--lyra-destructive);
+  --hero: var(--lyra-hero);
+  --input: var(--lyra-input);
+  --ring: var(--lyra-ring);
+  --shadow: var(--lyra-shadow);
   --status-blocked: #f59e0b;
   --status-done: #34d399;
   --status-failed: #fb7185;
   --status-ready: #38bdf8;
   --status-running: #a78bfa;
-  --aim-surface-background:
-    linear-gradient(180deg, rgba(20, 28, 54, 0.96), rgba(9, 13, 28, 0.98)),
-    #0b1020;
-  --aim-surface-border: rgba(122, 162, 255, 0.18);
-  --aim-surface-shadow: 0 28px 70px rgba(4, 8, 20, 0.35);
-  --aim-panel-background: rgba(10, 16, 33, 0.74);
-  --aim-panel-border: rgba(122, 162, 255, 0.14);
-  --aim-text: #eef3ff;
-  --aim-text-strong: #f3f7ff;
-  --aim-muted: rgba(216, 227, 255, 0.72);
-  --aim-meta: rgba(216, 227, 255, 0.68);
-  --aim-accent: #8fb2ff;
-  --aim-link: #9bc2ff;
-  --aim-code-background: rgba(152, 192, 255, 0.12);
-  --aim-pre-background: rgba(3, 8, 19, 0.85);
+  --aim-surface-background: var(--lyra-surface-background);
+  --aim-surface-border: var(--lyra-surface-border);
+  --aim-surface-shadow: var(--lyra-surface-shadow);
+  --aim-panel-background: var(--lyra-panel-background);
+  --aim-panel-border: var(--lyra-panel-border);
+  --aim-text: var(--lyra-text);
+  --aim-text-strong: var(--lyra-text-strong);
+  --aim-muted: var(--lyra-muted);
+  --aim-meta: var(--lyra-meta);
+  --aim-accent: var(--lyra-link);
+  --aim-link: var(--lyra-link);
+  --aim-code-background: var(--lyra-code-background);
+  --aim-pre-background: var(--lyra-pre-background);
   --aim-table-border: rgba(122, 162, 255, 0.12);
   --aim-table-header: rgba(122, 162, 255, 0.12);
-  --aim-chip-background: rgba(122, 162, 255, 0.09);
-  --aim-chip-border: rgba(122, 162, 255, 0.22);
-  --aim-checkmark-background: rgba(122, 162, 255, 0.16);
-  --aim-field-background: rgba(4, 9, 22, 0.8);
-  --aim-field-border: rgba(122, 162, 255, 0.18);
-  --aim-focus: rgba(155, 194, 255, 0.7);
-  --aim-error-background: rgba(54, 11, 20, 0.72);
-  --aim-error-border: rgba(255, 133, 133, 0.28);
+  --aim-chip-background: var(--lyra-chip-background);
+  --aim-chip-border: var(--lyra-chip-border);
+  --aim-checkmark-background: var(--lyra-checkmark-background);
+  --aim-field-background: var(--lyra-field-background);
+  --aim-field-border: var(--lyra-field-border);
+  --aim-focus: var(--lyra-ring);
+  --aim-error-background: var(--lyra-error-background);
+  --aim-error-border: var(--lyra-error-border);
 }
 
 html[data-theme="light"] {
-  --background: #f8fafc;
-  --background-accent: rgba(56, 189, 248, 0.12);
-  --background-elevated: rgba(255, 255, 255, 0.88);
-  --border: rgba(15, 23, 42, 0.08);
-  --card: rgba(255, 255, 255, 0.9);
-  --card-strong: rgba(255, 255, 255, 0.98);
-  --foreground: #0f172a;
-  --foreground-muted: #475569;
-  --hero: linear-gradient(
-    135deg,
-    rgba(56, 189, 248, 0.16),
-    rgba(99, 102, 241, 0.14)
-  );
-  --input: rgba(255, 255, 255, 0.92);
-  --ring: rgba(14, 165, 233, 0.3);
-  --shadow: 0 24px 64px rgba(148, 163, 184, 0.28);
-  --aim-surface-background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.96),
-      rgba(242, 246, 255, 0.98)
-    ),
-    #f4f7ff;
-  --aim-surface-border: rgba(67, 96, 181, 0.16);
-  --aim-surface-shadow: 0 24px 60px rgba(69, 91, 160, 0.12);
-  --aim-panel-background: rgba(255, 255, 255, 0.78);
-  --aim-panel-border: rgba(67, 96, 181, 0.14);
-  --aim-text: #10203d;
-  --aim-text-strong: #10203d;
-  --aim-muted: rgba(35, 52, 96, 0.7);
-  --aim-meta: rgba(35, 52, 96, 0.7);
-  --aim-accent: #3c64c7;
-  --aim-link: #3157bd;
-  --aim-code-background: rgba(67, 96, 181, 0.11);
-  --aim-pre-background: rgba(225, 233, 250, 0.9);
+  --background: var(--lyra-background);
+  --background-accent: var(--lyra-background-accent);
+  --background-elevated: var(--lyra-background-elevated);
+  --border: var(--lyra-border);
+  --card: var(--lyra-card);
+  --card-strong: var(--lyra-card-strong);
+  --foreground: var(--lyra-foreground);
+  --foreground-muted: var(--lyra-foreground-muted);
+  --primary: var(--lyra-primary);
+  --primary-foreground: var(--lyra-primary-foreground);
+  --secondary: var(--lyra-secondary);
+  --secondary-foreground: var(--lyra-secondary-foreground);
+  --accent: var(--lyra-accent);
+  --accent-foreground: var(--lyra-accent-foreground);
+  --destructive: var(--lyra-destructive);
+  --hero: var(--lyra-hero);
+  --input: var(--lyra-input);
+  --ring: var(--lyra-ring);
+  --shadow: var(--lyra-shadow);
+  --aim-surface-background: var(--lyra-surface-background);
+  --aim-surface-border: var(--lyra-surface-border);
+  --aim-surface-shadow: var(--lyra-surface-shadow);
+  --aim-panel-background: var(--lyra-panel-background);
+  --aim-panel-border: var(--lyra-panel-border);
+  --aim-text: var(--lyra-text);
+  --aim-text-strong: var(--lyra-text-strong);
+  --aim-muted: var(--lyra-muted);
+  --aim-meta: var(--lyra-meta);
+  --aim-accent: var(--lyra-link);
+  --aim-link: var(--lyra-link);
+  --aim-code-background: var(--lyra-code-background);
+  --aim-pre-background: var(--lyra-pre-background);
   --aim-table-border: rgba(67, 96, 181, 0.12);
   --aim-table-header: rgba(67, 96, 181, 0.1);
-  --aim-chip-background: rgba(67, 96, 181, 0.08);
-  --aim-chip-border: rgba(67, 96, 181, 0.18);
-  --aim-checkmark-background: rgba(67, 96, 181, 0.12);
-  --aim-field-background: rgba(246, 249, 255, 0.94);
-  --aim-field-border: rgba(67, 96, 181, 0.18);
-  --aim-focus: rgba(49, 87, 189, 0.5);
-  --aim-error-background: rgba(255, 241, 242, 0.88);
-  --aim-error-border: rgba(225, 29, 72, 0.28);
+  --aim-chip-background: var(--lyra-chip-background);
+  --aim-chip-border: var(--lyra-chip-border);
+  --aim-checkmark-background: var(--lyra-checkmark-background);
+  --aim-field-background: var(--lyra-field-background);
+  --aim-field-border: var(--lyra-field-border);
+  --aim-focus: var(--lyra-ring);
+  --aim-error-background: var(--lyra-error-background);
+  --aim-error-border: var(--lyra-error-border);
 }
 
 * {
@@ -153,6 +152,7 @@ a {
 }
 
 .app-shell__hero,
+.ui-card,
 .surface-card,
 .surface-panel,
 .surface-table,
@@ -305,6 +305,7 @@ a {
 }
 
 .surface-panel,
+.ui-card,
 .surface-card,
 .surface-table,
 .surface-stat {
@@ -429,6 +430,7 @@ a {
 .interactive-link:focus-visible,
 .field-input:focus-visible,
 .field-textarea:focus-visible,
+.ui-input:focus-visible,
 .table-row:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
@@ -453,7 +455,8 @@ a {
 }
 
 .field-input,
-.field-textarea {
+.field-textarea,
+.ui-input {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -462,9 +465,62 @@ a {
   padding: 12px 14px;
 }
 
-.field-textarea {
+.field-textarea,
+.ui-textarea {
   min-height: 220px;
   resize: vertical;
+}
+
+[data-slot="button"] {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 0.35rem);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.45rem 1rem;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+[data-slot="button"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+[data-slot="button"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+[data-slot="button"][class*="border"] {
+  border-color: var(--border);
+  background: var(--background-elevated);
+  color: var(--foreground);
+}
+
+[data-slot="button"][class*="text-primary"] {
+  min-height: auto;
+  justify-content: flex-start;
+  border-color: transparent;
+  background: transparent;
+  color: var(--primary);
+  padding: 0;
+}
+
+[data-slot="button"][class*="size-9"] {
+  min-width: 2.25rem;
+  padding: 0;
 }
 
 .alert-card {
@@ -602,6 +658,10 @@ a {
   background: var(--card-strong);
   color: var(--foreground);
   text-align: left;
+}
+
+[data-slot="button"].graph-node {
+  background: var(--card-strong);
 }
 
 .graph-node__status {
@@ -919,19 +979,24 @@ a {
   font-weight: 800;
 }
 
-.aim-field {
+.aim-field,
+.lyra-field-control {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
 
-.aim-field label {
+.aim-field label,
+.lyra-field-control {
   font-weight: 700;
 }
 
 .aim-field textarea,
 .aim-field input,
-.aim-field select {
+.aim-field select,
+.lyra-field-control textarea,
+.lyra-field-control input,
+.lyra-field-control select {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--aim-field-border);
@@ -942,14 +1007,18 @@ a {
   font: inherit;
 }
 
-.aim-field textarea {
+.aim-field textarea,
+.lyra-field-control textarea {
   min-height: 16rem;
   resize: vertical;
 }
 
 .aim-field textarea:focus,
 .aim-field input:focus,
-.aim-field select:focus {
+.aim-field select:focus,
+.lyra-field-control textarea:focus,
+.lyra-field-control input:focus,
+.lyra-field-control select:focus {
   outline: 2px solid var(--aim-focus);
   outline-offset: 2px;
 }
@@ -963,7 +1032,10 @@ a {
 
 .aim-field textarea:disabled,
 .aim-field input:disabled,
-.aim-field select:disabled {
+.aim-field select:disabled,
+.lyra-field-control textarea:disabled,
+.lyra-field-control input:disabled,
+.lyra-field-control select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }

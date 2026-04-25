@@ -1,6 +1,9 @@
 import { useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
+import { Card } from "../../../components/ui/card.js";
+import { Input } from "../../../components/ui/input.js";
+import { Label } from "../../../components/ui/label.js";
 import {
   readServerBaseUrl,
   saveServerBaseUrl,
@@ -15,7 +18,7 @@ export const ServerBaseUrlForm = ({
   const [savedValue, setSavedValue] = useState<string | null>(null);
 
   return (
-    <section className="surface-panel section-stack">
+    <Card className="surface-panel section-stack">
       <div>
         <p className="eyebrow">Connection</p>
         <h2 className="section-title">Server Base URL</h2>
@@ -24,17 +27,16 @@ export const ServerBaseUrlForm = ({
         </p>
       </div>
       <div className="server-form">
-        <label className="field-stack">
+        <Label className="field-stack">
           <span className="field-label">SERVER_BASE_URL</span>
-          <input
-            className="field-input"
+          <Input
             onChange={(event) => {
               setValue(event.currentTarget.value);
               setSavedValue(null);
             }}
             value={value}
           />
-        </label>
+        </Label>
         <Button
           onClick={async () => {
             setSavedValue(saveServerBaseUrl(value));
@@ -45,6 +47,6 @@ export const ServerBaseUrlForm = ({
         </Button>
       </div>
       {savedValue ? <p className="muted-text">Saved: {savedValue}</p> : null}
-    </section>
+    </Card>
   );
 };

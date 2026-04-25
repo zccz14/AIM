@@ -2,6 +2,17 @@ import type { OpenCodeModelCombination } from "@aim-ai/contract";
 import { useEffect, useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
+import { Input } from "../../../components/ui/input.js";
+import { Label } from "../../../components/ui/label.js";
+import {
+  LyraKicker,
+  LyraMuted,
+  LyraPanel,
+  LyraStack,
+  LyraSurface,
+} from "../../../components/ui/lyra-surface.js";
+import { Select } from "../../../components/ui/select.js";
+import { Textarea } from "../../../components/ui/textarea.js";
 
 const developerModelPreferenceKey = "aim.createTaskDeveloperModel";
 
@@ -75,7 +86,8 @@ export const CreateTaskForm = ({
   }, [models, selectedModelKey]);
 
   return (
-    <form
+    <LyraSurface
+      as="form"
       className="aim-surface aim-task-form aim-stack"
       onSubmit={(event) => {
         event.preventDefault();
@@ -102,34 +114,34 @@ export const CreateTaskForm = ({
       }}
     >
       <header className="aim-task-form-header">
-        <p className="aim-kicker">Create Task</p>
+        <LyraKicker>Create Task</LyraKicker>
         <h2>Shape a focused brief before it leaves the dashboard.</h2>
-        <p className="aim-task-summary aim-muted">
+        <LyraMuted className="aim-task-summary">
           Draft the task in the same branded workspace used for review, so the
           handoff into AIM stays readable in both light and dark themes.
-        </p>
+        </LyraMuted>
       </header>
 
       {errorMessage ? (
         <section className="aim-task-error" role="alert">
-          <p className="aim-kicker">Request Blocked</p>
+          <LyraKicker>Request Blocked</LyraKicker>
           <h3>{errorMessage}</h3>
-          <p className="aim-muted">
+          <LyraMuted>
             Adjust the task brief or project path, then retry from this panel.
-          </p>
+          </LyraMuted>
         </section>
       ) : null}
 
       <div className="aim-task-form-grid">
-        <section className="aim-task-form-main">
-          <div className="aim-stack">
+        <LyraPanel className="aim-task-form-main">
+          <LyraStack>
             <div>
-              <p className="aim-kicker">Task Brief</p>
+              <LyraKicker>Task Brief</LyraKicker>
               <h3>Task Spec</h3>
             </div>
-            <div className="aim-field">
-              <label htmlFor="create-task-title">Title</label>
-              <input
+            <Label className="lyra-field-control" htmlFor="create-task-title">
+              <span>Title</span>
+              <Input
                 disabled={isSubmitting}
                 id="create-task-title"
                 onChange={(event) => setTitle(event.currentTarget.value)}
@@ -137,29 +149,32 @@ export const CreateTaskForm = ({
                 type="text"
                 value={title}
               />
-            </div>
-            <div className="aim-field">
-              <label htmlFor="create-task-spec">Task Spec</label>
-              <textarea
+            </Label>
+            <Label className="lyra-field-control" htmlFor="create-task-spec">
+              <span>Task Spec</span>
+              <Textarea
                 disabled={isSubmitting}
                 id="create-task-spec"
                 onChange={(event) => setTaskSpec(event.currentTarget.value)}
                 placeholder="Describe the task to create"
                 value={taskSpec}
               />
-            </div>
-          </div>
-        </section>
+            </Label>
+          </LyraStack>
+        </LyraPanel>
 
         <aside className="aim-task-form-sidebar">
-          <div className="aim-stack">
+          <LyraStack>
             <div>
-              <p className="aim-kicker">Workspace Target</p>
+              <LyraKicker>Workspace Target</LyraKicker>
               <h3>Project Path</h3>
             </div>
-            <div className="aim-field">
-              <label htmlFor="create-task-project-path">Project Path</label>
-              <input
+            <Label
+              className="lyra-field-control"
+              htmlFor="create-task-project-path"
+            >
+              <span>Project Path</span>
+              <Input
                 disabled={isSubmitting}
                 id="create-task-project-path"
                 onChange={(event) => setProjectPath(event.currentTarget.value)}
@@ -167,13 +182,14 @@ export const CreateTaskForm = ({
                 type="text"
                 value={projectPath}
               />
-            </div>
+            </Label>
 
-            <div className="aim-field">
-              <label htmlFor="create-task-developer-model">
-                Developer Model
-              </label>
-              <select
+            <Label
+              className="lyra-field-control"
+              htmlFor="create-task-developer-model"
+            >
+              <span>Developer Model</span>
+              <Select
                 disabled={isSubmitting || models.length === 0}
                 id="create-task-developer-model"
                 onChange={(event) =>
@@ -192,12 +208,12 @@ export const CreateTaskForm = ({
                     {model.provider_name} / {model.model_name}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Label>
 
-            <div className="aim-stack">
+            <LyraStack>
               <div>
-                <p className="aim-kicker">Submission Checklist</p>
+                <LyraKicker>Submission Checklist</LyraKicker>
                 <h3>Before You Send</h3>
               </div>
               <div className="aim-checklist">
@@ -210,16 +226,16 @@ export const CreateTaskForm = ({
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </LyraStack>
+          </LyraStack>
         </aside>
       </div>
 
       <div className="aim-task-form-footer">
-        <p className="aim-muted">
+        <LyraMuted>
           The create flow keeps the existing API contract and trims accidental
           whitespace before submit.
-        </p>
+        </LyraMuted>
         <div className="aim-task-actions">
           <Button disabled={isSubmitting} onClick={onCancel} variant="outline">
             Cancel
@@ -229,6 +245,6 @@ export const CreateTaskForm = ({
           </Button>
         </div>
       </div>
-    </form>
+    </LyraSurface>
   );
 };
