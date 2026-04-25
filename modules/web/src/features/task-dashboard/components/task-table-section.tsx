@@ -75,12 +75,12 @@ export const TaskTableSection = ({
   });
 
   return (
-    <Card className="surface-table section-stack">
+    <Card>
       <div>
         <p className="eyebrow">Task Pool</p>
         <h2 className="section-title">Active Unfinished Tasks</h2>
       </div>
-      <Label className="field-stack">
+      <Label>
         <span className="field-label">Filter Tasks</span>
         <Input
           onChange={(event) => setFilterValue(event.currentTarget.value)}

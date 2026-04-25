@@ -139,7 +139,7 @@ export const CreateTaskForm = ({
               <LyraKicker>Task Brief</LyraKicker>
               <h3>Task Spec</h3>
             </div>
-            <Label className="lyra-field-control" htmlFor="create-task-title">
+            <Label htmlFor="create-task-title">
               <span>Title</span>
               <Input
                 disabled={isSubmitting}
@@ -150,7 +150,7 @@ export const CreateTaskForm = ({
                 value={title}
               />
             </Label>
-            <Label className="lyra-field-control" htmlFor="create-task-spec">
+            <Label htmlFor="create-task-spec">
               <span>Task Spec</span>
               <Textarea
                 disabled={isSubmitting}
@@ -169,10 +169,7 @@ export const CreateTaskForm = ({
               <LyraKicker>Workspace Target</LyraKicker>
               <h3>Project Path</h3>
             </div>
-            <Label
-              className="lyra-field-control"
-              htmlFor="create-task-project-path"
-            >
+            <Label htmlFor="create-task-project-path">
               <span>Project Path</span>
               <Input
                 disabled={isSubmitting}
@@ -184,10 +181,7 @@ export const CreateTaskForm = ({
               />
             </Label>
 
-            <Label
-              className="lyra-field-control"
-              htmlFor="create-task-developer-model"
-            >
+            <Label htmlFor="create-task-developer-model">
               <span>Developer Model</span>
               <Select
                 disabled={isSubmitting || models.length === 0}

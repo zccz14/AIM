@@ -58,6 +58,8 @@ test("publishes Lyra preset tokens through CSS variables instead of an imagined 
   expect(stylesSource).toContain('@import "./components/ui/lyra-preset.css"');
   expect(stylesSource).toContain("--background: var(--lyra-background)");
   expect(stylesSource).toContain("--primary: var(--lyra-primary)");
+  expect(stylesSource).not.toContain("aim-status-badge");
+  expect(stylesSource).not.toContain(".graph-node");
 });
 
 test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
@@ -331,7 +333,7 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 });
 
-test("shares branded dashboard shell tokens across overview, graph, and table", async () => {
+test("keeps dashboard shell on shared primitives without bespoke graph status styles", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
     `${process.cwd()}/modules/web/src/main.tsx`,
@@ -361,12 +363,14 @@ test("shares branded dashboard shell tokens across overview, graph, and table", 
   expect(mainSource).toContain("<ThemeProvider>");
   expect(stylesSource).toContain('html[data-theme="dark"]');
   expect(stylesSource).toContain('html[data-theme="light"]');
-  expect(stylesSource).toContain("--status-ready");
-  expect(stylesSource).toContain(".graph-node");
   expect(stylesSource).toContain(".task-table thead th");
+  expect(stylesSource).not.toContain("--status-ready");
+  expect(stylesSource).not.toContain(".graph-node");
+  expect(stylesSource).not.toContain("aim-status-badge");
   expect(dashboardPageSource).toContain("ThemeToggle");
   expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
   expect(overviewSource).toContain("Recent Active Tasks");
-  expect(graphSource).toContain('className="graph-node nodrag nopan"');
+  expect(graphSource).toContain('className="nodrag nopan"');
+  expect(graphSource).not.toContain("style=");
   expect(tableSource).toContain('data-testid="dashboard-table-header"');
 });

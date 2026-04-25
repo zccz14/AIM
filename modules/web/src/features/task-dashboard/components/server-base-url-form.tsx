@@ -18,7 +18,7 @@ export const ServerBaseUrlForm = ({
   const [savedValue, setSavedValue] = useState<string | null>(null);
 
   return (
-    <Card className="surface-panel section-stack">
+    <Card>
       <div>
         <p className="eyebrow">Connection</p>
         <h2 className="section-title">Server Base URL</h2>
@@ -27,7 +27,7 @@ export const ServerBaseUrlForm = ({
         </p>
       </div>
       <div className="server-form">
-        <Label className="field-stack">
+        <Label>
           <span className="field-label">SERVER_BASE_URL</span>
           <Input
             onChange={(event) => {

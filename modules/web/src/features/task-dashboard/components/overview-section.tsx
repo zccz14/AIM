@@ -79,7 +79,7 @@ export const OverviewSection = ({
       </div>
 
       <div className="split-grid">
-        <Card className="section-stack">
+        <Card>
           <div>
             <p className="eyebrow">Task Pool</p>
             <h2 className="section-title">Status Board</h2>
@@ -96,7 +96,7 @@ export const OverviewSection = ({
           </div>
         </Card>
 
-        <Card className="section-stack">
+        <Card>
           <div>
             <p className="eyebrow">History</p>
             <h2 className="section-title">Completed Result Activity</h2>
@@ -114,7 +114,7 @@ export const OverviewSection = ({
         </Card>
       </div>
 
-      <Card className="section-stack">
+      <Card>
         <div>
           <p className="eyebrow">Decision Observability</p>
           <h2 className="section-title">Task Pool Decision Signals</h2>
@@ -136,7 +136,7 @@ export const OverviewSection = ({
         </div>
       </Card>
 
-      <Card className="section-stack">
+      <Card>
         <div>
           <p className="eyebrow">Signal</p>
           <h2 className="section-title">Recent Active Tasks</h2>
@@ -156,7 +156,7 @@ export const OverviewSection = ({
         </div>
       </Card>
 
-      <Card className="section-stack">
+      <Card>
         <div>
           <p className="eyebrow">Coordinator Input</p>
           <h2 className="section-title">Rejected Feedback Signals</h2>
@@ -166,7 +166,7 @@ export const OverviewSection = ({
           </p>
         </div>
         <div className="rejected-feedback-filters">
-          <Label className="field-stack">
+          <Label>
             <span className="field-label">Reason category</span>
             <Select
               onChange={(event) =>
@@ -181,7 +181,7 @@ export const OverviewSection = ({
               ))}
             </Select>
           </Label>
-          <Label className="field-stack">
+          <Label>
             <span className="field-label">Coordinate or task</span>
             <Input
               onChange={(event) =>
@@ -237,7 +237,7 @@ export const OverviewSection = ({
         </div>
       </Card>
 
-      <Card className="section-stack">
+      <Card>
         <div>
           <p className="eyebrow">History Results</p>
           <h2 className="section-title">Completed Task Feedback</h2>

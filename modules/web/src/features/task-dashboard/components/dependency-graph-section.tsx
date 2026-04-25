@@ -28,17 +28,13 @@ const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
   <>
     <Handle position={Position.Top} type="target" />
     <Button
-      className="graph-node nodrag nopan"
+      className="nodrag nopan"
       data-testid={data.testId}
       onClick={data.onSelect}
-      style={{
-        borderColor: data.color,
-        pointerEvents: "all",
-      }}
       variant="outline"
     >
       <strong>{data.label}</strong>
-      <div className="graph-node__status">{formatStatusLabel(data.status)}</div>
+      <span>{formatStatusLabel(data.status)}</span>
     </Button>
     <Handle position={Position.Bottom} type="source" />
   </>
@@ -67,7 +63,7 @@ export const DependencyGraphSection = ({
   }));
 
   return (
-    <Card className="section-stack">
+    <Card>
       <div>
         <p className="eyebrow">Task Pool Topology</p>
         <h2 className="section-title">Dependency Graph</h2>
