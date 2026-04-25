@@ -140,6 +140,20 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(publicFaviconSource).toBe(faviconSource);
 });
 
+test("serves the SPA entrypoint when refreshing nested dashboard routes", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vercelConfig = JSON.parse(
+    await readFile(`${process.cwd()}/modules/web/vercel.json`, "utf8"),
+  ) as {
+    rewrites?: Array<{ destination?: string; source?: string }>;
+  };
+
+  expect(vercelConfig.rewrites).toContainEqual({
+    source: "/(.*)",
+    destination: "/index.html",
+  });
+});
+
 test("keeps task creation inside the dashboard shell", async () => {
   const { readFile } = await import("node:fs/promises");
   const dashboardPageSource = await readFile(
