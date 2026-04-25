@@ -3,6 +3,7 @@ import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
+import { Card } from "../../../components/ui/card.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { getOpenCodeModels } from "../api/task-dashboard-api.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
@@ -196,14 +197,14 @@ export const DashboardPage = () => {
         <ServerBaseUrlForm onSave={handleRefresh} />
 
         {dashboardQuery.isPending ? (
-          <section className="surface-card">
+          <Card>
             <div className="hero-actions">
               <LoaderCircle
                 aria-label="Loading task dashboard"
                 className="animate-spin"
               />
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {dashboardQuery.isError ? (
@@ -225,12 +226,12 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isSuccess && !hasDashboardData ? (
-          <section className="surface-card">
+          <Card>
             <p className="muted-text">
               No active Task Pool or completed task history available from the
               configured server.
             </p>
-          </section>
+          </Card>
         ) : null}
 
         {dashboardQuery.isSuccess && hasDashboardData ? (

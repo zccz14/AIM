@@ -7,6 +7,9 @@ import {
 } from "@tanstack/react-table";
 import { useState } from "react";
 
+import { Card } from "../../../components/ui/card.js";
+import { Input } from "../../../components/ui/input.js";
+import { Label } from "../../../components/ui/label.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
@@ -72,19 +75,18 @@ export const TaskTableSection = ({
   });
 
   return (
-    <section className="surface-table section-stack">
+    <Card className="surface-table section-stack">
       <div>
         <p className="eyebrow">Task Pool</p>
         <h2 className="section-title">Active Unfinished Tasks</h2>
       </div>
-      <label className="field-stack">
+      <Label className="field-stack">
         <span className="field-label">Filter Tasks</span>
-        <input
-          className="field-input"
+        <Input
           onChange={(event) => setFilterValue(event.currentTarget.value)}
           value={filterValue}
         />
-      </label>
+      </Label>
 
       <div className="table-scroll">
         <table className="task-table">
@@ -133,6 +135,6 @@ export const TaskTableSection = ({
       {table.getRowModel().rows.length === 0 ? (
         <p className="muted-text">No matching tasks.</p>
       ) : null}
-    </section>
+    </Card>
   );
 };

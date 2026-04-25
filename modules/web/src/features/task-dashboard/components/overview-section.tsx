@@ -11,6 +11,10 @@ import {
 } from "recharts";
 
 import { Button } from "../../../components/ui/button.js";
+import { Card } from "../../../components/ui/card.js";
+import { Input } from "../../../components/ui/input.js";
+import { Label } from "../../../components/ui/label.js";
+import { Select } from "../../../components/ui/select.js";
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
@@ -75,7 +79,7 @@ export const OverviewSection = ({
       </div>
 
       <div className="split-grid">
-        <section className="surface-card section-stack">
+        <Card className="section-stack">
           <div>
             <p className="eyebrow">Task Pool</p>
             <h2 className="section-title">Status Board</h2>
@@ -90,9 +94,9 @@ export const OverviewSection = ({
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </Card>
 
-        <section className="surface-card section-stack">
+        <Card className="section-stack">
           <div>
             <p className="eyebrow">History</p>
             <h2 className="section-title">Completed Result Activity</h2>
@@ -107,10 +111,10 @@ export const OverviewSection = ({
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </Card>
       </div>
 
-      <section className="surface-card section-stack">
+      <Card className="section-stack">
         <div>
           <p className="eyebrow">Decision Observability</p>
           <h2 className="section-title">Task Pool Decision Signals</h2>
@@ -130,9 +134,9 @@ export const OverviewSection = ({
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="surface-card section-stack">
+      <Card className="section-stack">
         <div>
           <p className="eyebrow">Signal</p>
           <h2 className="section-title">Recent Active Tasks</h2>
@@ -150,9 +154,9 @@ export const OverviewSection = ({
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="surface-card section-stack">
+      <Card className="section-stack">
         <div>
           <p className="eyebrow">Coordinator Input</p>
           <h2 className="section-title">Rejected Feedback Signals</h2>
@@ -162,10 +166,9 @@ export const OverviewSection = ({
           </p>
         </div>
         <div className="rejected-feedback-filters">
-          <label className="field-stack">
+          <Label className="field-stack">
             <span className="field-label">Reason category</span>
-            <select
-              className="field-input"
+            <Select
               onChange={(event) =>
                 setRejectedCategoryFilter(event.target.value)
               }
@@ -176,12 +179,11 @@ export const OverviewSection = ({
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="field-stack">
+            </Select>
+          </Label>
+          <Label className="field-stack">
             <span className="field-label">Coordinate or task</span>
-            <input
-              className="field-input"
+            <Input
               onChange={(event) =>
                 setRejectedCoordinateFilter(event.target.value)
               }
@@ -189,7 +191,7 @@ export const OverviewSection = ({
               type="search"
               value={rejectedCoordinateFilter}
             />
-          </label>
+          </Label>
         </div>
         <div className="task-list">
           {filteredRejectedFeedbackSignals.map((signal) => (
@@ -233,9 +235,9 @@ export const OverviewSection = ({
             <p className="muted-text">No rejected feedback matches filters.</p>
           ) : null}
         </div>
-      </section>
+      </Card>
 
-      <section className="surface-card section-stack">
+      <Card className="section-stack">
         <div>
           <p className="eyebrow">History Results</p>
           <h2 className="section-title">Completed Task Feedback</h2>
@@ -262,7 +264,7 @@ export const OverviewSection = ({
             <p className="muted-text">No completed task history yet.</p>
           ) : null}
         </div>
-      </section>
+      </Card>
     </div>
   );
 };

@@ -449,8 +449,8 @@ test("toggles create task AIM form colors with the app theme", async ({
   const readCreateStyles = async () =>
     page.evaluate(() => {
       const surface = document.querySelector(".aim-surface");
-      const input = document.querySelector(".aim-field input");
-      const select = document.querySelector(".aim-field select");
+      const input = document.querySelector("#create-task-project-path");
+      const select = document.querySelector("#create-task-developer-model");
       const helper = document.querySelector(".aim-task-form-footer .aim-muted");
 
       if (!surface || !input || !select || !helper) {

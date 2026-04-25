@@ -1,3 +1,4 @@
+import { Badge } from "../../../components/ui/badge.js";
 import type { DashboardStatus } from "../model/task-dashboard-view-model.js";
 
 const statusLabelMap: Record<DashboardStatus, string> = {
@@ -32,7 +33,7 @@ export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
   }[status];
 
   return (
-    <span
+    <Badge
       className="aim-status-badge"
       data-status={status}
       style={{
@@ -43,6 +44,6 @@ export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
       }}
     >
       {statusLabelMap[status]}
-    </span>
+    </Badge>
   );
 };

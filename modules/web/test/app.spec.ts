@@ -1,5 +1,118 @@
 import { expect, test } from "@playwright/test";
 
+test("fixes the Shadcn UI registry contract for the web workspace", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const componentsConfig = JSON.parse(
+    await readFile(`${process.cwd()}/components.json`, "utf8"),
+  ) as {
+    aliases?: Record<string, string>;
+    iconLibrary?: string;
+    rsc?: boolean;
+    style?: string;
+    tailwind?: { css?: string; cssVariables?: boolean };
+    tsx?: boolean;
+  };
+  const packageSource = await readFile(
+    `${process.cwd()}/modules/web/package.json`,
+    "utf8",
+  );
+
+  expect(componentsConfig).toMatchObject({
+    aliases: {
+      components: "modules/web/src/components",
+      lib: "modules/web/src/lib",
+      ui: "modules/web/src/components/ui",
+    },
+    iconLibrary: "lucide",
+    rsc: false,
+    style: "new-york",
+    tailwind: {
+      css: "modules/web/src/styles.css",
+      cssVariables: true,
+    },
+    tsx: true,
+  });
+  expect(packageSource).toContain('"@radix-ui/react-slot"');
+  expect(packageSource).toContain('"class-variance-authority"');
+  expect(packageSource).toContain('"lucide-react"');
+  expect(packageSource).not.toContain('"@lyra');
+});
+
+test("publishes Lyra preset tokens through CSS variables instead of an imagined package", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const lyraPresetSource = await readFile(
+    `${process.cwd()}/modules/web/src/components/ui/lyra-preset.css`,
+    "utf8",
+  );
+  const stylesSource = await readFile(
+    `${process.cwd()}/modules/web/src/styles.css`,
+    "utf8",
+  );
+
+  expect(lyraPresetSource).toContain("--lyra-background");
+  expect(lyraPresetSource).toContain("--lyra-primary");
+  expect(lyraPresetSource).toContain("--lyra-ring");
+  expect(lyraPresetSource).toContain("--radius");
+  expect(lyraPresetSource).toContain('html[data-theme="dark"]');
+  expect(lyraPresetSource).toContain('html[data-theme="light"]');
+  expect(stylesSource).toContain('@import "./components/ui/lyra-preset.css"');
+  expect(stylesSource).toContain("--background: var(--lyra-background)");
+  expect(stylesSource).toContain("--primary: var(--lyra-primary)");
+});
+
+test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const primitiveFiles = [
+    "badge.tsx",
+    "button.tsx",
+    "card.tsx",
+    "input.tsx",
+    "label.tsx",
+    "lyra-surface.tsx",
+    "select.tsx",
+    "textarea.tsx",
+    "theme-provider.tsx",
+    "theme-toggle.tsx",
+  ];
+
+  for (const fileName of primitiveFiles) {
+    await expect(
+      readFile(
+        `${process.cwd()}/modules/web/src/components/ui/${fileName}`,
+        "utf8",
+      ),
+    ).resolves.toBeTruthy();
+  }
+
+  const pageSources = await Promise.all(
+    [
+      "dashboard-page.tsx",
+      "overview-section.tsx",
+      "dependency-graph-section.tsx",
+      "task-table-section.tsx",
+      "server-base-url-form.tsx",
+      "create-task-form.tsx",
+      "task-details-page.tsx",
+      "task-status-badge.tsx",
+    ].map((fileName) =>
+      readFile(
+        `${process.cwd()}/modules/web/src/features/task-dashboard/components/${fileName}`,
+        "utf8",
+      ),
+    ),
+  );
+  const combinedPageSource = pageSources.join("\n");
+
+  expect(combinedPageSource).toContain("components/ui/card.js");
+  expect(combinedPageSource).toContain("components/ui/input.js");
+  expect(combinedPageSource).toContain("components/ui/lyra-surface.js");
+  expect(combinedPageSource).toContain("components/ui/select.js");
+  expect(combinedPageSource).toContain("components/ui/textarea.js");
+  expect(combinedPageSource).not.toContain('className="field-input"');
+  expect(combinedPageSource).not.toContain('className="surface-card');
+  expect(combinedPageSource).not.toContain('className="aim-field"');
+});
+
 test("boots the dashboard app with branded theme providers instead of Mantine", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
@@ -170,9 +283,9 @@ test("keeps task creation inside the dashboard shell", async () => {
   expect(dashboardPageSource).toContain('kind: "create"');
   expect(dashboardPageSource).not.toContain("react-router");
   expect(createTaskFormSource).toContain('htmlFor="create-task-spec"');
-  expect(createTaskFormSource).toContain(">Task Spec</label>");
+  expect(createTaskFormSource).toContain("<span>Task Spec</span>");
   expect(createTaskFormSource).toContain('htmlFor="create-task-project-path"');
-  expect(createTaskFormSource).toContain(">Project Path</label>");
+  expect(createTaskFormSource).toContain("<span>Project Path</span>");
   expect(createTaskFormSource).not.toContain('label="Title"');
 });
 
