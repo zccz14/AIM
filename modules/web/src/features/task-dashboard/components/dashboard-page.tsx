@@ -17,6 +17,8 @@ import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { CreateTaskForm } from "./create-task-form.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
+import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
+import { ManagerReportSection } from "./manager-report-section.js";
 import { OverviewSection } from "./overview-section.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
@@ -27,6 +29,7 @@ import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
 type DashboardRoute =
   | { kind: "dashboard" }
   | { kind: "create" }
+  | { kind: "managerReport"; projectPath: string; reportId: string }
   | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
 
@@ -67,6 +70,23 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
     }
   }
 
+  const managerReportMatch = pathname.match(
+    /^\/manager-reports\/([^/]+)\/([^/]+)$/,
+  );
+
+  if (managerReportMatch) {
+    const projectPath = managerReportMatch[1];
+    const reportId = managerReportMatch[2];
+
+    if (projectPath && reportId) {
+      return {
+        kind: "managerReport",
+        projectPath: decodeURIComponent(projectPath),
+        reportId: decodeURIComponent(reportId),
+      };
+    }
+  }
+
   return { kind: "dashboard" };
 };
 
@@ -87,6 +107,14 @@ export const DashboardPage = () => {
     useState<DashboardTask | null>(null);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
   const selectedTaskId = route.kind === "task" ? route.taskId : null;
+  const selectedReport =
+    route.kind === "managerReport"
+      ? (dashboardQuery.data?.managerReports.find(
+          (report) =>
+            report.id === route.reportId &&
+            report.projectPath === route.projectPath,
+        ) ?? null)
+      : null;
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
     dashboardQuery.data?.historyTasks.find(
@@ -159,6 +187,12 @@ export const DashboardPage = () => {
     navigateTo(`/task-write-bulks/${encodeURIComponent(bulkId)}`);
   };
 
+  const goToManagerReport = (report: { id: string; projectPath: string }) => {
+    navigateTo(
+      `/manager-reports/${encodeURIComponent(report.projectPath)}/${encodeURIComponent(report.id)}`,
+    );
+  };
+
   const handleCreateTask = async (input: {
     title: string;
     projectPath: string;
@@ -195,9 +229,11 @@ export const DashboardPage = () => {
       ? "Baseline Convergence Cockpit"
       : route.kind === "create"
         ? "Create Task"
-        : route.kind === "task-write-bulk"
-          ? "Task Write Bulk Details"
-          : "Task Details";
+        : route.kind === "managerReport"
+          ? "Manager Report"
+          : route.kind === "task-write-bulk"
+            ? "Task Write Bulk Details"
+            : "Task Details";
 
   const renderDirectorRail = () => (
     <aside
@@ -218,6 +254,7 @@ export const DashboardPage = () => {
         <li>Baseline review</li>
         <li>Write intent review</li>
         <li>Dependency pressure</li>
+        <li>Manager handoff report</li>
         <li>Rejected feedback</li>
         <li>Task intake</li>
       </ul>
@@ -257,6 +294,10 @@ export const DashboardPage = () => {
 
     if (route.kind === "task-write-bulk") {
       return <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />;
+    }
+
+    if (route.kind === "managerReport") {
+      return <ManagerReportDetailsPage report={selectedReport} />;
     }
 
     return (
@@ -318,6 +359,10 @@ export const DashboardPage = () => {
                 graphEdges={dashboardQuery.data.graphEdges}
                 graphNodes={dashboardQuery.data.graphNodes}
                 onSelectTask={goToTask}
+              />
+              <ManagerReportSection
+                managerReports={dashboardQuery.data.managerReports}
+                onSelectReport={goToManagerReport}
               />
               <TaskTableSection
                 onSelectTask={goToTask}
@@ -405,6 +450,7 @@ export const DashboardPage = () => {
                   >
                     {renderWorkspaceLink("#convergence-map", "Convergence Map")}
                     {renderWorkspaceLink("#evidence-ledger", "Evidence Ledger")}
+                    {renderWorkspaceLink("#manager-reports", "Manager Reports")}
                     {renderWorkspaceLink(
                       "#task-write-bulks",
                       "Task Write Bulks",

@@ -1,8 +1,9 @@
-import type { Task, TaskStatus } from "@aim-ai/contract";
+import type { ManagerReport, Task, TaskStatus } from "@aim-ai/contract";
 
 import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
   DashboardClosureCue,
+  DashboardManagerReport,
   DashboardRejectedFeedbackSignal,
   DashboardStatus,
   DashboardTask,
@@ -232,6 +233,16 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   isDone: task.done,
 });
 
+export const adaptDashboardManagerReport = (
+  report: ManagerReport,
+): DashboardManagerReport => ({
+  id: report.report_id,
+  projectPath: report.project_path,
+  contentMarkdown: report.content_markdown,
+  baselineRef: report.baseline_ref,
+  createdAt: report.created_at,
+});
+
 const getTaskDepth = (
   task: DashboardTask,
   tasksById: Map<string, DashboardTask>,
@@ -277,6 +288,9 @@ export const adaptTaskDashboard = (
 } => {
   const tasks = response.active.items.map(adaptDashboardTask);
   const historyTasks = response.history.items.map(adaptDashboardTask);
+  const managerReports = response.managerReports.map(
+    adaptDashboardManagerReport,
+  );
   const rejectedFeedbackSignals = buildRejectedFeedbackSignals(historyTasks);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const depthByTaskId = new Map<string, number>();
@@ -328,6 +342,7 @@ export const adaptTaskDashboard = (
     graphEdges,
     graphNodes,
     historyTasks,
+    managerReports,
     rejectedFeedbackSignals,
     taskWriteBulks: response.taskWriteBulks.items,
     tasks,

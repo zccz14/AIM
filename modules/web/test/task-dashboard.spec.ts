@@ -74,6 +74,30 @@ const buildTaskWriteBulk = () => ({
   updated_at: "2026-04-20T10:05:00.000Z",
 });
 
+const buildManagerReport = ({
+  baselineRef = "origin/main",
+  contentMarkdown = "# Direction\n\nKeep convergence calm and evidence-led.",
+  createdAt = "2026-04-19T00:00:06.000Z",
+  projectPath = "/repo/dashboard",
+  reportId = "manager-report-1",
+  updatedAt = createdAt,
+}: {
+  baselineRef?: string | null;
+  contentMarkdown?: string;
+  createdAt?: string;
+  projectPath?: string;
+  reportId?: string;
+  updatedAt?: string;
+} = {}) => ({
+  project_path: projectPath,
+  report_id: reportId,
+  content_markdown: contentMarkdown,
+  baseline_ref: baselineRef,
+  source_metadata: [],
+  created_at: createdAt,
+  updated_at: updatedAt,
+});
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
@@ -131,6 +155,15 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.route("**/manager_reports**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [buildManagerReport()],
+      }),
     });
   });
 });
@@ -825,6 +858,85 @@ test("refreshes a hash task details route without a server rewrite", async ({
   await expect(
     page.getByRole("heading", { level: 2, name: "stub task spec" }),
   ).toBeVisible();
+});
+
+test("lists Manager Reports from the visible task project paths", async ({
+  page,
+}) => {
+  const requestedProjectPaths: string[] = [];
+
+  await page.route("**/manager_reports**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+
+    requestedProjectPaths.push(
+      requestUrl.searchParams.get("project_path") ?? "",
+    );
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildManagerReport({
+            baselineRef: "origin/main@manager",
+            contentMarkdown:
+              "# Manager Direction\n\nCoordinate the next slice.",
+            reportId: "manager-report-visible",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", { name: "Manager Reports" }),
+  ).toBeVisible();
+  await expect(page.getByText("manager-report-visible")).toBeVisible();
+  await expect(page.getByText("origin/main@manager")).toBeVisible();
+  expect(requestedProjectPaths).toEqual(["/repo/dashboard"]);
+});
+
+test("opens a read-only Manager Report detail reader", async ({ page }) => {
+  await page.route("**/manager_reports**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildManagerReport({
+            baselineRef: "origin/main@handoff",
+            contentMarkdown:
+              "# Handoff Direction\n\n- Preserve quiet evidence density.\n- Avoid task writes.",
+            createdAt: "2026-04-19T00:00:07.000Z",
+            reportId: "manager-report-detail",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Read Report" }).click();
+
+  await expect(page).toHaveURL(
+    /\/#\/manager-reports\/%2Frepo%2Fdashboard\/manager-report-detail$/,
+  );
+  await expect(
+    page.getByRole("heading", { level: 2, name: "manager-report-detail" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Baseline Ref: origin/main@handoff"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Created At: 2026-04-19T00:00:07.000Z"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Handoff Direction" }),
+  ).toBeVisible();
+  await expect(page.getByText("Avoid task writes.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /create manager report/i }),
+  ).toHaveCount(0);
 });
 
 test("opens and closes the create task page from the dashboard header", async ({
