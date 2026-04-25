@@ -46,10 +46,6 @@ html[data-theme="dark"] {
   --aim-field-background: rgba(4, 9, 22, 0.8);
   --aim-field-border: rgba(122, 162, 255, 0.18);
   --aim-focus: rgba(155, 194, 255, 0.7);
-  --aim-primary-button-background: linear-gradient(135deg, #7aa2ff, #88f0ff);
-  --aim-primary-button-text: #08111f;
-  --aim-secondary-button-background: rgba(122, 162, 255, 0.08);
-  --aim-secondary-button-border: rgba(122, 162, 255, 0.24);
   --aim-error-background: rgba(54, 11, 20, 0.72);
   --aim-error-border: rgba(255, 133, 133, 0.28);
 }
@@ -98,10 +94,6 @@ html[data-theme="light"] {
   --aim-field-background: rgba(246, 249, 255, 0.94);
   --aim-field-border: rgba(67, 96, 181, 0.18);
   --aim-focus: rgba(49, 87, 189, 0.5);
-  --aim-primary-button-background: linear-gradient(135deg, #436bd8, #0ea5e9);
-  --aim-primary-button-text: #ffffff;
-  --aim-secondary-button-background: rgba(67, 96, 181, 0.08);
-  --aim-secondary-button-border: rgba(67, 96, 181, 0.2);
   --aim-error-background: rgba(255, 241, 242, 0.88);
   --aim-error-border: rgba(225, 29, 72, 0.28);
 }
@@ -395,10 +387,7 @@ a {
   padding: 8px 12px;
 }
 
-.interactive-link,
-.ui-button,
-.theme-toggle,
-.nav-pill {
+.interactive-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -414,33 +403,22 @@ a {
     transform 120ms ease;
 }
 
-.interactive-link,
-.ui-button,
-.theme-toggle,
-.nav-pill {
+.interactive-link {
   min-height: 40px;
   padding: 0 16px;
 }
 
-.interactive-link,
-.ui-button--primary,
-.theme-toggle,
-.nav-pill--active {
+.interactive-link {
   background: color-mix(in srgb, #22d3ee 30%, var(--card-strong));
   border-color: color-mix(in srgb, #67e8f9 30%, var(--border));
 }
 
-.ui-button--ghost,
-.nav-pill,
 .interactive-link--subtle {
   background: color-mix(in srgb, var(--card-strong) 88%, transparent);
   border-color: var(--border);
 }
 
-.interactive-link:hover,
-.ui-button:hover,
-.theme-toggle:hover,
-.nav-pill:hover {
+.interactive-link:hover {
   transform: translateY(-1px);
 }
 
@@ -449,21 +427,11 @@ a {
 }
 
 .interactive-link:focus-visible,
-.ui-button:focus-visible,
-.theme-toggle:focus-visible,
-.nav-pill:focus-visible,
 .field-input:focus-visible,
 .field-textarea:focus-visible,
 .table-row:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
-}
-
-.ui-button:disabled,
-.theme-toggle:disabled {
-  cursor: wait;
-  opacity: 0.6;
-  transform: none;
 }
 
 .nav-group,
@@ -583,16 +551,6 @@ a {
     var(--card-strong) 90%,
     var(--background-accent)
   );
-}
-
-.task-title-button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  font-weight: 600;
 }
 
 .details-grid {
@@ -991,8 +949,7 @@ a {
 
 .aim-field textarea:focus,
 .aim-field input:focus,
-.aim-field select:focus,
-.aim-task-button:focus {
+.aim-field select:focus {
   outline: 2px solid var(--aim-focus);
   outline-offset: 2px;
 }
@@ -1004,32 +961,11 @@ a {
   gap: 0.75rem;
 }
 
-.aim-task-button {
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 0.8rem 1.15rem;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.aim-task-button:disabled,
 .aim-field textarea:disabled,
 .aim-field input:disabled,
 .aim-field select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-.aim-task-button-primary {
-  background: var(--aim-primary-button-background);
-  color: var(--aim-primary-button-text);
-}
-
-.aim-task-button-secondary {
-  border-color: var(--aim-secondary-button-border);
-  background: var(--aim-secondary-button-background);
-  color: var(--aim-text);
 }
 
 .aim-task-error {

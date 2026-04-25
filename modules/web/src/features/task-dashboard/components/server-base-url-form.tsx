@@ -40,7 +40,6 @@ export const ServerBaseUrlForm = ({
             setSavedValue(saveServerBaseUrl(value));
             await onSave?.();
           }}
-          variant="primary"
         >
           Save
         </Button>

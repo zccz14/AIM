@@ -441,17 +441,12 @@ test("toggles create task AIM form colors with the app theme", async ({
       const input = document.querySelector(".aim-field input");
       const select = document.querySelector(".aim-field select");
       const helper = document.querySelector(".aim-task-form-footer .aim-muted");
-      const secondaryButton = document.querySelector(
-        ".aim-task-button-secondary",
-      );
 
-      if (!surface || !input || !select || !helper || !secondaryButton) {
+      if (!surface || !input || !select || !helper) {
         throw new Error("Expected create task theme elements to render");
       }
 
       return {
-        buttonBackground: getComputedStyle(secondaryButton).backgroundColor,
-        buttonColor: getComputedStyle(secondaryButton).color,
         helperColor: getComputedStyle(helper).color,
         inputBackground: getComputedStyle(input).backgroundColor,
         inputColor: getComputedStyle(input).color,
@@ -462,8 +457,6 @@ test("toggles create task AIM form colors with the app theme", async ({
 
   const darkStyles = await readCreateStyles();
   expect(darkStyles).toEqual({
-    buttonBackground: "rgba(122, 162, 255, 0.08)",
-    buttonColor: "rgb(238, 243, 255)",
     helperColor: "rgba(216, 227, 255, 0.72)",
     inputBackground: "rgba(4, 9, 22, 0.8)",
     inputColor: "rgb(243, 247, 255)",
@@ -475,8 +468,6 @@ test("toggles create task AIM form colors with the app theme", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await expect.poll(readCreateStyles).toEqual({
-    buttonBackground: "rgba(67, 96, 181, 0.08)",
-    buttonColor: "rgb(16, 32, 61)",
     helperColor: "rgba(35, 52, 96, 0.7)",
     inputBackground: "rgba(246, 249, 255, 0.94)",
     inputColor: "rgb(16, 32, 61)",

@@ -216,7 +216,7 @@ export const DashboardPage = () => {
               <Button
                 disabled={dashboardQuery.isFetching}
                 onClick={() => void handleRefresh()}
-                variant="ghost"
+                variant="outline"
               >
                 Retry
               </Button>
@@ -263,7 +263,7 @@ export const DashboardPage = () => {
     <Button
       disabled={isDisabled}
       onClick={onClick}
-      variant={isActive ? "navActive" : "nav"}
+      variant={isActive ? "default" : "outline"}
     >
       {label}
     </Button>
@@ -330,14 +330,14 @@ export const DashboardPage = () => {
                   <Button
                     disabled={dashboardQuery.isFetching}
                     onClick={() => void handleRefresh()}
-                    variant="ghost"
+                    variant="outline"
                   >
                     <RefreshCw size={16} />
                     Refresh
                   </Button>
                 ) : null}
                 {route.kind === "dashboard" ? (
-                  <Button onClick={goToCreateTask} variant="primary">
+                  <Button onClick={goToCreateTask}>
                     <Plus size={16} />
                     Create Task
                   </Button>
