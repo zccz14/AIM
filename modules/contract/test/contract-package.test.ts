@@ -306,6 +306,7 @@ describe("contract package baseline", () => {
       "createContractClient",
       "createManagerReportRequestSchema",
       "createTaskRequestSchema",
+      "createTaskWriteBulkRequestSchema",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
@@ -336,6 +337,11 @@ describe("contract package baseline", () => {
       "taskStatusSchema",
       "taskWorktreePathPath",
       "taskWorktreePathRequestSchema",
+      "taskWriteBulkByIdPath",
+      "taskWriteBulkEntrySchema",
+      "taskWriteBulkListResponseSchema",
+      "taskWriteBulkSchema",
+      "taskWriteBulksPath",
       "tasksPath",
     ]);
     expect(
@@ -376,6 +382,14 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.managerReportByIdPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.taskWriteBulksPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.taskWriteBulkByIdPath
       ],
     ).toBeDefined();
   });
@@ -1154,6 +1168,9 @@ describe("contract package baseline", () => {
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
       "managerReportsPath",
+    );
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "taskWriteBulksPath",
     );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(
