@@ -1,4 +1,5 @@
 import type {
+  ManagerReport,
   OpenCodeModelsResponse,
   Task,
   TaskListResponse,
@@ -18,8 +19,17 @@ export type CreateDashboardTaskInput = {
 export type TaskDashboardResponse = {
   active: TaskListResponse;
   history: TaskListResponse;
+  managerReports: ManagerReport[];
   taskWriteBulks: TaskWriteBulkListResponse;
 };
+
+const getProjectPaths = (responses: TaskListResponse[]) => [
+  ...new Set(
+    responses.flatMap((response) =>
+      response.items.map((task) => task.project_path).filter(Boolean),
+    ),
+  ),
+];
 
 export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const client = createWebApiClient();
@@ -28,22 +38,27 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     client.listTasks({ done: false }),
     client.listTasks({ done: true }),
   ]);
-  const projectPaths = [
-    ...new Set(
-      [...active.items, ...history.items].map((task) => task.project_path),
+  const projectPaths = getProjectPaths([active, history]);
+  const [managerReportResponses, taskWriteBulkResponses] = await Promise.all([
+    Promise.all(
+      projectPaths.map((projectPath) =>
+        client.listManagerReports({ project_path: projectPath }),
+      ),
     ),
-  ];
+    Promise.all(
+      projectPaths.map((projectPath) =>
+        client.listTaskWriteBulks({ project_path: projectPath }),
+      ),
+    ),
+  ]);
+  const managerReports = managerReportResponses
+    .flatMap((response) => response.items)
+    .sort((left, right) => right.created_at.localeCompare(left.created_at));
   const taskWriteBulks = {
-    items: (
-      await Promise.all(
-        projectPaths.map((projectPath) =>
-          client.listTaskWriteBulks({ project_path: projectPath }),
-        ),
-      )
-    ).flatMap((response) => response.items),
+    items: taskWriteBulkResponses.flatMap((response) => response.items),
   } satisfies TaskWriteBulkListResponse;
 
-  return { active, history, taskWriteBulks };
+  return { active, history, managerReports, taskWriteBulks };
 };
 
 export const createTaskFromDashboard = async (

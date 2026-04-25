@@ -562,6 +562,77 @@ a {
   padding-bottom: 0;
 }
 
+.manager-report-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.manager-report-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding: 1rem 0;
+}
+
+.manager-report-card:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.manager-report-card:last-child {
+  padding-bottom: 0;
+}
+
+.manager-report-card__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.manager-report-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--foreground);
+}
+
+.manager-report-card__title-row h3 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.manager-report-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.manager-report-facts div {
+  min-width: 0;
+}
+
+.manager-report-facts dt {
+  color: var(--foreground-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.manager-report-facts dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.manager-report-empty {
+  margin-top: 1rem;
+}
+
 .rejected-feedback-card__header {
   display: flex;
   align-items: flex-start;
@@ -884,6 +955,7 @@ a {
   .app-shell__hero-main,
   .director-rail,
   .hero-actions,
+  .manager-report-card,
   .task-write-bulk-row,
   .task-write-bulk-entry__header,
   .server-form,
@@ -891,6 +963,7 @@ a {
   .rejected-feedback-filters,
   .summary-grid,
   .split-grid,
+  .manager-report-facts,
   .details-grid {
     grid-template-columns: 1fr;
     flex-direction: column;
