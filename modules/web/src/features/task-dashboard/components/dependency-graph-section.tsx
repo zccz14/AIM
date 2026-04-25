@@ -31,7 +31,7 @@ const TaskGraphNode = ({ data }: NodeProps<TaskGraphNodeData>) => (
         borderColor: data.color,
         pointerEvents: "all",
       }}
-      variant="unstyled"
+      variant="outline"
     >
       <strong>{data.label}</strong>
       <div className="graph-node__status">{formatStatusLabel(data.status)}</div>

@@ -119,10 +119,7 @@ export const OverviewSection = ({
           {dashboard.recentTasks.map((task) => (
             <div className="task-list__item" key={task.id}>
               <div className="panel-stack">
-                <Button
-                  onClick={() => onSelectTask(task.id)}
-                  variant="taskTitle"
-                >
+                <Button onClick={() => onSelectTask(task.id)} variant="link">
                   {task.title}
                 </Button>
                 <p className="table-meta">{task.id}</p>
@@ -194,7 +191,7 @@ export const OverviewSection = ({
                     <div className="panel-stack">
                       <Button
                         onClick={() => onSelectTask(task.id)}
-                        variant="taskTitle"
+                        variant="link"
                       >
                         {task.title}
                       </Button>
@@ -231,10 +228,7 @@ export const OverviewSection = ({
             .map((task) => (
               <div className="task-list__item" key={task.id}>
                 <div className="panel-stack">
-                  <Button
-                    onClick={() => onSelectTask(task.id)}
-                    variant="taskTitle"
-                  >
+                  <Button onClick={() => onSelectTask(task.id)} variant="link">
                     {task.title}
                   </Button>
                   <p className="table-meta">{summarizeResult(task.result)}</p>

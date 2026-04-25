@@ -221,18 +221,10 @@ export const CreateTaskForm = ({
           whitespace before submit.
         </p>
         <div className="aim-task-actions">
-          <Button
-            disabled={isSubmitting}
-            onClick={onCancel}
-            variant="taskSecondary"
-          >
+          <Button disabled={isSubmitting} onClick={onCancel} variant="outline">
             Cancel
           </Button>
-          <Button
-            disabled={!canSubmit || isSubmitting}
-            type="submit"
-            variant="taskPrimary"
-          >
+          <Button disabled={!canSubmit || isSubmitting} type="submit">
             {isSubmitting ? "Creating Task..." : "Create Task"}
           </Button>
         </div>
