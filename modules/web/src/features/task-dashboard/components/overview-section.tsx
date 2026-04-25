@@ -112,6 +112,28 @@ export const OverviewSection = ({
 
       <section className="surface-card section-stack">
         <div>
+          <p className="eyebrow">Decision Observability</p>
+          <h2 className="section-title">Task Pool Decision Signals</h2>
+          <p className="section-copy">
+            Read-only signals derived from existing Task fields for coverage,
+            progress, success, and blocker review.
+          </p>
+        </div>
+        <div className="task-list">
+          {dashboard.decisionSignals.map((signal) => (
+            <div className="task-list__item" key={signal.key}>
+              <div className="panel-stack">
+                <p className="field-label">{signal.label}</p>
+                <p className="table-meta">{signal.detail}</p>
+              </div>
+              <strong>{signal.value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="surface-card section-stack">
+        <div>
           <p className="eyebrow">Signal</p>
           <h2 className="section-title">Recent Active Tasks</h2>
         </div>

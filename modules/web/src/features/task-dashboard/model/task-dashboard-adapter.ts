@@ -313,6 +313,16 @@ export const adaptTaskDashboard = (
       target: task.id,
     })),
   );
+  const processingCount = countTasksByStatus(tasks, "processing");
+  const resolvedCount = countTasksByStatus(historyTasks, "resolved");
+  const rejectedCount = countTasksByStatus(historyTasks, "rejected");
+  const historyCount = historyTasks.length;
+  const successRate =
+    historyCount === 0 ? 0 : Math.round((resolvedCount / historyCount) * 100);
+  const dependencyLinkedCount = tasks.filter(
+    (task) => task.dependencies.length > 0,
+  ).length;
+  const attentionSignalCount = dependencyLinkedCount + rejectedCount;
 
   return {
     graphEdges,
@@ -325,24 +335,53 @@ export const adaptTaskDashboard = (
       {
         key: "processing",
         label: "Processing",
-        value: countTasksByStatus(tasks, "processing"),
+        value: processingCount,
       },
       {
         key: "historyResolved",
         label: "History Resolved",
-        value: countTasksByStatus(historyTasks, "resolved"),
+        value: resolvedCount,
       },
       {
         key: "historyRejected",
         label: "History Rejected",
-        value: countTasksByStatus(historyTasks, "rejected"),
+        value: rejectedCount,
+      },
+    ],
+    decisionSignals: [
+      {
+        key: "coverage",
+        label: "Coverage",
+        value: `${tasks.length} active`,
+        detail: `${processingCount} processing tasks currently carry the task pool direction, including ${dependencyLinkedCount} with dependencies.`,
+      },
+      {
+        key: "flow",
+        label: "Flow To History",
+        value: `${historyCount} closed`,
+        detail: `${historyCount} tasks have reached history while ${tasks.length} remain active.`,
+      },
+      {
+        key: "successRate",
+        label: "Success Rate",
+        value: historyCount === 0 ? "No history" : `${successRate}%`,
+        detail:
+          historyCount === 0
+            ? "No completed task history is available yet."
+            : `${resolvedCount} resolved and ${rejectedCount} rejected in completed history.`,
+      },
+      {
+        key: "gap",
+        label: "Gap / Blocker Signal",
+        value: `${attentionSignalCount} signals`,
+        detail: `${dependencyLinkedCount} active dependency-linked tasks and ${rejectedCount} rejected history items may need Manager/Coordinator attention.`,
       },
     ],
     statusBoardItems: [
       {
         key: "processing",
         label: "Processing",
-        value: countTasksByStatus(tasks, "processing"),
+        value: processingCount,
       },
     ],
     activitySeries: [...historyTasks]

@@ -98,6 +98,7 @@ test("renders the overview landing view", async ({ page }) => {
     page.locator(".summary-grid").getByText("Task Pool"),
   ).toBeVisible();
   await expect(page.getByText("Status Board")).toBeVisible();
+  await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
@@ -164,6 +165,16 @@ test("separates unfinished Task Pool data from completed history results", async
   ).toBeVisible();
   await expect(page.getByText("History Resolved")).toBeVisible();
   await expect(page.getByText("History Rejected")).toBeVisible();
+  await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
+  await expect(page.getByText("2 active", { exact: true })).toBeVisible();
+  await expect(page.getByText("2 closed")).toBeVisible();
+  await expect(page.getByText("50%")).toBeVisible();
+  await expect(page.getByText("2 signals")).toBeVisible();
+  await expect(
+    page.getByText(
+      "1 active dependency-linked tasks and 1 rejected history items may need Manager/Coordinator attention.",
+    ),
+  ).toBeVisible();
 
   await expect(
     page.getByRole("row", { name: /Active ready task/i }),

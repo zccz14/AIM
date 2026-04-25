@@ -57,11 +57,19 @@ export type DashboardRejectedFeedbackSignal = {
   >[];
 };
 
+export type DashboardDecisionSignal = {
+  key: "coverage" | "flow" | "successRate" | "gap";
+  label: string;
+  value: string;
+  detail: string;
+};
+
 export type TaskDashboardViewModel = {
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
   rejectedFeedbackSignals: DashboardRejectedFeedbackSignal[];
   summaryCards: DashboardSummaryCard[];
+  decisionSignals: DashboardDecisionSignal[];
   statusBoardItems: DashboardMetricItem[];
   activitySeries: DashboardActivityPoint[];
   recentTasks: DashboardTask[];
