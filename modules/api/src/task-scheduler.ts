@@ -28,15 +28,74 @@ type StartOptions = {
   intervalMs: number;
 };
 
+export type SchedulerScanContext = {
+  resolvedTaskId?: string;
+};
+
 const defaultLogger: ApiLogger = {
   error: console.error.bind(console),
   info: console.info.bind(console),
   warn: console.warn.bind(console),
 };
 
-const prioritizeSessionTasks = (tasks: Task[]) => [
-  ...tasks.filter((task) => task.session_id),
-  ...tasks.filter((task) => !task.session_id),
+const getDependencyRank = (task: Task, resolvedTaskId: string) => {
+  if (task.dependencies.includes(resolvedTaskId)) {
+    return 0;
+  }
+
+  if (task.dependencies.length === 0) {
+    return 1;
+  }
+
+  return 2;
+};
+
+const prioritizeDependencyTasks = (
+  tasks: Task[],
+  context: SchedulerScanContext | undefined,
+) => {
+  if (!context?.resolvedTaskId) {
+    return tasks;
+  }
+
+  const { resolvedTaskId } = context;
+
+  return tasks
+    .map((task, index) => ({ index, task }))
+    .sort((left, right) => {
+      const leftRank = getDependencyRank(left.task, resolvedTaskId);
+      const rightRank = getDependencyRank(right.task, resolvedTaskId);
+
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      if (leftRank === 2) {
+        const dependencyCountDifference =
+          left.task.dependencies.length - right.task.dependencies.length;
+
+        if (dependencyCountDifference !== 0) {
+          return dependencyCountDifference;
+        }
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ task }) => task);
+};
+
+const prioritizeSessionTasks = (
+  tasks: Task[],
+  context: SchedulerScanContext | undefined,
+) => [
+  ...prioritizeDependencyTasks(
+    tasks.filter((task) => task.session_id),
+    context,
+  ),
+  ...prioritizeDependencyTasks(
+    tasks.filter((task) => !task.session_id),
+    context,
+  ),
 ];
 
 export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
@@ -132,7 +191,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     }
   };
 
-  const beginScan = () => {
+  const beginScan = (context?: SchedulerScanContext) => {
     if (scanPromise) {
       return scanPromise;
     }
@@ -140,7 +199,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     scanPromise = (async () => {
       const tasks = await options.taskRepository.listUnfinishedTasks();
 
-      for (const task of prioritizeSessionTasks(tasks)) {
+      for (const task of prioritizeSessionTasks(tasks, context)) {
         await runTask(task);
       }
     })().finally(() => {
@@ -151,8 +210,8 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   };
 
   return {
-    scanOnce() {
-      return beginScan();
+    scanOnce(context?: SchedulerScanContext) {
+      return beginScan(context);
     },
     start(startOptions: StartOptions) {
       if (loopPromise) {

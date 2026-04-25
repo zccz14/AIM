@@ -8,10 +8,11 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerManagerReportRoutes } from "./routes/manager-reports.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
+import type { SchedulerScanContext } from "./task-scheduler.js";
 
 type CreateAppOptions = {
   logger?: ApiLogger;
-  onTaskResolved?: () => Promise<void> | void;
+  onTaskResolved?: (context: SchedulerScanContext) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
 };
 

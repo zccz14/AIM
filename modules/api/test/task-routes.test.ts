@@ -1124,7 +1124,12 @@ describe("task routes", () => {
     );
 
     expect(resolveResponse.status).toBe(204);
-    await vi.waitFor(() => expect(onTaskResolved).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(onTaskResolved).toHaveBeenCalledWith({
+        resolvedTaskId: createdTask.task_id,
+      }),
+    );
+    expect(onTaskResolved).toHaveBeenCalledTimes(1);
   });
 
   it("keeps resolve successful and logs when the scheduler scan trigger fails", async () => {
