@@ -69,210 +69,250 @@ export const OverviewSection = ({
 
   return (
     <div className="section-stack">
-      <div className="summary-grid">
-        {dashboard.summaryCards.map((card) => (
-          <section className="surface-stat" key={card.key}>
-            <p className="eyebrow">{card.label}</p>
-            <h2 className="page-title">{card.value}</h2>
-          </section>
-        ))}
-      </div>
-
-      <div className="split-grid">
-        <Card className="section-stack">
+      <section
+        aria-label="Baseline convergence map"
+        className="section-stack cockpit-region"
+        id="convergence-map"
+      >
+        <div className="region-header">
           <div>
-            <p className="eyebrow">Task Pool</p>
-            <h2 className="section-title">Status Board</h2>
+            <p className="eyebrow">Baseline convergence map</p>
+            <h2 className="section-title">Goal State Review</h2>
           </div>
-          <div className="chart-frame">
-            <ResponsiveContainer height="100%" width="100%">
-              <BarChart data={dashboard.statusBoardItems}>
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar
-                  dataKey="value"
-                  fill="var(--status-blocked)"
-                  radius={[8, 8, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="section-stack">
-          <div>
-            <p className="eyebrow">History</p>
-            <h2 className="section-title">Completed Result Activity</h2>
-          </div>
-          <div className="chart-frame">
-            <ResponsiveContainer height="100%" width="100%">
-              <AreaChart data={dashboard.activitySeries}>
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Area
-                  dataKey="value"
-                  fill="var(--status-ready)"
-                  stroke="var(--primary)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="section-stack">
-        <div>
-          <p className="eyebrow">Decision Observability</p>
-          <h2 className="section-title">Task Pool Decision Signals</h2>
           <p className="section-copy">
-            Read-only signals derived from existing Task fields for coverage,
-            progress, success, and blocker review.
+            Current task pool, completed history, flow pressure, and rejected
+            feedback are presented as one planning surface.
           </p>
         </div>
-        <div className="task-list">
-          {dashboard.decisionSignals.map((signal) => (
-            <div className="task-list__item" key={signal.key}>
-              <div className="panel-stack">
-                <p className="field-label">{signal.label}</p>
-                <p className="table-meta">{signal.detail}</p>
-              </div>
-              <strong>{signal.value}</strong>
-            </div>
+        <div className="summary-grid">
+          {dashboard.summaryCards.map((card) => (
+            <section className="surface-stat" key={card.key}>
+              <p className="eyebrow">{card.label}</p>
+              <h2 className="page-title">{card.value}</h2>
+            </section>
           ))}
         </div>
-      </Card>
 
-      <Card className="section-stack">
-        <div>
-          <p className="eyebrow">Signal</p>
-          <h2 className="section-title">Recent Active Tasks</h2>
-        </div>
-        <div className="task-list">
-          {dashboard.recentTasks.map((task) => (
-            <div className="task-list__item" key={task.id}>
-              <div className="panel-stack">
-                <Button onClick={() => onSelectTask(task.id)} variant="link">
-                  {task.title}
-                </Button>
-                <p className="table-meta">{task.id}</p>
-              </div>
-              <TaskStatusBadge status={task.dashboardStatus} />
+        <div className="split-grid">
+          <Card className="section-stack evidence-panel">
+            <div>
+              <p className="eyebrow">Task Pool</p>
+              <h2 className="section-title">Status Board</h2>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="chart-frame">
+              <ResponsiveContainer height="100%" width="100%">
+                <BarChart data={dashboard.statusBoardItems}>
+                  <XAxis dataKey="label" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar
+                    dataKey="value"
+                    fill="var(--status-blocked)"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
 
-      <Card className="section-stack">
-        <div>
-          <p className="eyebrow">Coordinator Input</p>
-          <h2 className="section-title">Rejected Feedback Signals</h2>
-          <p className="section-copy">
-            Deduplicated failed task feedback for planning review only;
-            historical task records stay unchanged.
-          </p>
+          <Card className="section-stack evidence-panel">
+            <div>
+              <p className="eyebrow">History</p>
+              <h2 className="section-title">Completed Result Activity</h2>
+            </div>
+            <div className="chart-frame">
+              <ResponsiveContainer height="100%" width="100%">
+                <AreaChart data={dashboard.activitySeries}>
+                  <XAxis dataKey="label" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Area
+                    dataKey="value"
+                    fill="var(--status-ready)"
+                    stroke="var(--primary)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </div>
-        <div className="rejected-feedback-filters">
-          <Label className="field-stack">
-            <span className="field-label">Reason category</span>
-            <Select
-              onChange={(event) =>
-                setRejectedCategoryFilter(event.target.value)
-              }
-              value={rejectedCategoryFilter}
-            >
-              {rejectedCategoryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </Label>
-          <Label className="field-stack">
-            <span className="field-label">Coordinate or task</span>
-            <Input
-              onChange={(event) =>
-                setRejectedCoordinateFilter(event.target.value)
-              }
-              placeholder="Filter by project path, title, or task id"
-              type="search"
-              value={rejectedCoordinateFilter}
-            />
-          </Label>
-        </div>
-        <div className="task-list">
-          {filteredRejectedFeedbackSignals.map((signal) => (
-            <article className="rejected-feedback-card" key={signal.key}>
-              <div className="rejected-feedback-card__header">
+
+        <Card className="section-stack evidence-panel">
+          <div>
+            <p className="eyebrow">Decision Observability</p>
+            <h2 className="section-title">Task Pool Decision Signals</h2>
+            <p className="section-copy">
+              Read-only signals derived from existing Task fields for coverage,
+              progress, success, and blocker review.
+            </p>
+          </div>
+          <div className="task-list">
+            {dashboard.decisionSignals.map((signal) => (
+              <div className="task-list__item" key={signal.key}>
                 <div className="panel-stack">
-                  <p className="eyebrow">{signal.reasonCategoryLabel}</p>
-                  <h3 className="section-title">{signal.reasonSummary}</h3>
+                  <p className="field-label">{signal.label}</p>
+                  <p className="table-meta">{signal.detail}</p>
                 </div>
-                <strong className="rejected-feedback-count">
-                  {signal.count} {signal.count === 1 ? "task" : "tasks"}
-                </strong>
+                <strong>{signal.value}</strong>
               </div>
-              <p className="table-meta">Latest: {signal.latestAt}</p>
-              <p className="table-meta">
-                Coordinates: {signal.coordinates.join(", ")}
-              </p>
-              <div className="task-list">
-                {signal.sampleTasks.map((task) => (
-                  <div className="task-list__item" key={task.id}>
-                    <div className="panel-stack">
-                      <Button
-                        onClick={() => onSelectTask(task.id)}
-                        variant="link"
-                      >
-                        {task.title}
-                      </Button>
-                      <p className="table-meta">{task.id}</p>
-                    </div>
-                    <p className="table-meta">{task.updatedAt.slice(0, 10)}</p>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-          {dashboard.rejectedFeedbackSignals.length === 0 ? (
-            <p className="muted-text">No rejected feedback recorded yet.</p>
-          ) : null}
-          {dashboard.rejectedFeedbackSignals.length > 0 &&
-          filteredRejectedFeedbackSignals.length === 0 ? (
-            <p className="muted-text">No rejected feedback matches filters.</p>
-          ) : null}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      </section>
 
-      <Card className="section-stack">
-        <div>
-          <p className="eyebrow">History Results</p>
-          <h2 className="section-title">Completed Task Feedback</h2>
+      <section
+        aria-label="Evidence ledger"
+        className="section-stack cockpit-region"
+        id="evidence-ledger"
+      >
+        <div className="region-header">
+          <div>
+            <p className="eyebrow">Evidence ledger</p>
+            <h2 className="section-title">Task Evidence and Feedback</h2>
+          </div>
+          <p className="section-copy">
+            The ledger keeps active tasks, Coordinator feedback, and completed
+            outcomes in separate scan paths.
+          </p>
         </div>
-        <div className="task-list">
-          {dashboard.historyTasks
-            .slice()
-            .sort((left, right) =>
-              right.updatedAt.localeCompare(left.updatedAt),
-            )
-            .slice(0, 5)
-            .map((task) => (
+
+        <Card className="section-stack evidence-panel">
+          <div>
+            <p className="eyebrow">Signal</p>
+            <h2 className="section-title">Recent Active Tasks</h2>
+          </div>
+          <div className="task-list">
+            {dashboard.recentTasks.map((task) => (
               <div className="task-list__item" key={task.id}>
                 <div className="panel-stack">
                   <Button onClick={() => onSelectTask(task.id)} variant="link">
                     {task.title}
                   </Button>
-                  <p className="table-meta">{summarizeResult(task.result)}</p>
+                  <p className="table-meta">{task.id}</p>
                 </div>
                 <TaskStatusBadge status={task.dashboardStatus} />
               </div>
             ))}
-          {dashboard.historyTasks.length === 0 ? (
-            <p className="muted-text">No completed task history yet.</p>
-          ) : null}
-        </div>
-      </Card>
+          </div>
+        </Card>
+
+        <Card className="section-stack evidence-panel">
+          <div>
+            <p className="eyebrow">Coordinator Input</p>
+            <h2 className="section-title">Rejected Feedback Signals</h2>
+            <p className="section-copy">
+              Deduplicated failed task feedback for planning review only;
+              historical task records stay unchanged.
+            </p>
+          </div>
+          <div className="rejected-feedback-filters">
+            <Label className="field-stack">
+              <span className="field-label">Reason category</span>
+              <Select
+                onChange={(event) =>
+                  setRejectedCategoryFilter(event.target.value)
+                }
+                value={rejectedCategoryFilter}
+              >
+                {rejectedCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </Label>
+            <Label className="field-stack">
+              <span className="field-label">Coordinate or task</span>
+              <Input
+                onChange={(event) =>
+                  setRejectedCoordinateFilter(event.target.value)
+                }
+                placeholder="Filter by project path, title, or task id"
+                type="search"
+                value={rejectedCoordinateFilter}
+              />
+            </Label>
+          </div>
+          <div className="task-list">
+            {filteredRejectedFeedbackSignals.map((signal) => (
+              <article className="rejected-feedback-card" key={signal.key}>
+                <div className="rejected-feedback-card__header">
+                  <div className="panel-stack">
+                    <p className="eyebrow">{signal.reasonCategoryLabel}</p>
+                    <h3 className="section-title">{signal.reasonSummary}</h3>
+                  </div>
+                  <strong className="rejected-feedback-count">
+                    {signal.count} {signal.count === 1 ? "task" : "tasks"}
+                  </strong>
+                </div>
+                <p className="table-meta">Latest: {signal.latestAt}</p>
+                <p className="table-meta">
+                  Coordinates: {signal.coordinates.join(", ")}
+                </p>
+                <div className="task-list">
+                  {signal.sampleTasks.map((task) => (
+                    <div className="task-list__item" key={task.id}>
+                      <div className="panel-stack">
+                        <Button
+                          onClick={() => onSelectTask(task.id)}
+                          variant="link"
+                        >
+                          {task.title}
+                        </Button>
+                        <p className="table-meta">{task.id}</p>
+                      </div>
+                      <p className="table-meta">
+                        {task.updatedAt.slice(0, 10)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+            {dashboard.rejectedFeedbackSignals.length === 0 ? (
+              <p className="muted-text">No rejected feedback recorded yet.</p>
+            ) : null}
+            {dashboard.rejectedFeedbackSignals.length > 0 &&
+            filteredRejectedFeedbackSignals.length === 0 ? (
+              <p className="muted-text">
+                No rejected feedback matches filters.
+              </p>
+            ) : null}
+          </div>
+        </Card>
+
+        <Card className="section-stack evidence-panel">
+          <div>
+            <p className="eyebrow">History Results</p>
+            <h2 className="section-title">Completed Task Feedback</h2>
+          </div>
+          <div className="task-list">
+            {dashboard.historyTasks
+              .slice()
+              .sort((left, right) =>
+                right.updatedAt.localeCompare(left.updatedAt),
+              )
+              .slice(0, 5)
+              .map((task) => (
+                <div className="task-list__item" key={task.id}>
+                  <div className="panel-stack">
+                    <Button
+                      onClick={() => onSelectTask(task.id)}
+                      variant="link"
+                    >
+                      {task.title}
+                    </Button>
+                    <p className="table-meta">{summarizeResult(task.result)}</p>
+                  </div>
+                  <TaskStatusBadge status={task.dashboardStatus} />
+                </div>
+              ))}
+            {dashboard.historyTasks.length === 0 ? (
+              <p className="muted-text">No completed task history yet.</p>
+            ) : null}
+          </div>
+        </Card>
+      </section>
     </div>
   );
 };

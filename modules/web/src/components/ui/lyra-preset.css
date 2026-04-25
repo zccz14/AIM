@@ -1,27 +1,27 @@
 :root,
 html[data-theme="dark"] {
   --radius: 0.875rem;
-  --lyra-background: oklch(16% 0.018 72deg);
-  --lyra-background-accent: oklch(45% 0.04 82deg / 0.16);
-  --lyra-background-elevated: oklch(20% 0.02 72deg / 0.9);
-  --lyra-border: oklch(74% 0.035 78deg / 0.22);
-  --lyra-card: oklch(22% 0.022 72deg / 0.88);
-  --lyra-card-strong: oklch(25% 0.024 72deg / 0.98);
-  --lyra-foreground: oklch(91% 0.018 82deg);
-  --lyra-foreground-muted: oklch(73% 0.024 82deg);
-  --lyra-primary: oklch(77% 0.12 85deg);
-  --lyra-primary-foreground: oklch(18% 0.018 72deg);
-  --lyra-secondary: oklch(52% 0.05 82deg / 0.2);
-  --lyra-secondary-foreground: oklch(94% 0.015 82deg);
-  --lyra-accent: oklch(77% 0.12 85deg / 0.16);
-  --lyra-accent-foreground: oklch(91% 0.018 82deg);
+  --lyra-background: oklch(15% 0.014 64deg);
+  --lyra-background-accent: oklch(47% 0.045 86deg / 0.12);
+  --lyra-background-elevated: oklch(19% 0.016 64deg / 0.94);
+  --lyra-border: oklch(74% 0.03 78deg / 0.2);
+  --lyra-card: oklch(21% 0.018 64deg / 0.92);
+  --lyra-card-strong: oklch(24% 0.02 66deg / 0.98);
+  --lyra-foreground: oklch(91% 0.014 78deg);
+  --lyra-foreground-muted: oklch(72% 0.02 78deg);
+  --lyra-primary: oklch(76% 0.115 86deg);
+  --lyra-primary-foreground: oklch(17% 0.014 64deg);
+  --lyra-secondary: oklch(49% 0.035 78deg / 0.18);
+  --lyra-secondary-foreground: oklch(93% 0.012 78deg);
+  --lyra-accent: oklch(76% 0.115 86deg / 0.14);
+  --lyra-accent-foreground: oklch(91% 0.014 78deg);
   --lyra-destructive: oklch(68% 0.15 25deg);
   --lyra-input: oklch(18% 0.02 72deg / 0.86);
   --lyra-ring: oklch(82% 0.13 88deg / 0.46);
   --lyra-hero: linear-gradient(
     145deg,
-    oklch(27% 0.028 74deg),
-    oklch(20% 0.018 72deg)
+    oklch(25% 0.023 68deg),
+    oklch(17% 0.014 64deg)
   );
   --lyra-shadow: 0 30px 80px oklch(8% 0.018 72deg / 0.46);
   --lyra-surface-background:
@@ -52,20 +52,20 @@ html[data-theme="dark"] {
 }
 
 html[data-theme="light"] {
-  --lyra-background: oklch(96% 0.012 82deg);
-  --lyra-background-accent: oklch(82% 0.08 88deg / 0.12);
-  --lyra-background-elevated: oklch(98% 0.008 82deg / 0.9);
-  --lyra-border: oklch(45% 0.03 72deg / 0.12);
-  --lyra-card: oklch(98% 0.008 82deg / 0.92);
-  --lyra-card-strong: oklch(99% 0.006 82deg / 0.98);
-  --lyra-foreground: oklch(23% 0.024 72deg);
-  --lyra-foreground-muted: oklch(45% 0.028 72deg);
-  --lyra-primary: oklch(54% 0.11 88deg);
-  --lyra-primary-foreground: oklch(98% 0.008 82deg);
-  --lyra-secondary: oklch(76% 0.08 88deg / 0.14);
-  --lyra-secondary-foreground: oklch(28% 0.026 72deg);
-  --lyra-accent: oklch(80% 0.08 88deg / 0.16);
-  --lyra-accent-foreground: oklch(28% 0.026 72deg);
+  --lyra-background: oklch(95% 0.01 78deg);
+  --lyra-background-accent: oklch(78% 0.07 88deg / 0.1);
+  --lyra-background-elevated: oklch(98% 0.006 78deg / 0.92);
+  --lyra-border: oklch(42% 0.025 70deg / 0.13);
+  --lyra-card: oklch(98% 0.006 78deg / 0.94);
+  --lyra-card-strong: oklch(99% 0.005 78deg / 0.99);
+  --lyra-foreground: oklch(22% 0.02 68deg);
+  --lyra-foreground-muted: oklch(44% 0.024 68deg);
+  --lyra-primary: oklch(52% 0.105 88deg);
+  --lyra-primary-foreground: oklch(98% 0.006 78deg);
+  --lyra-secondary: oklch(75% 0.07 88deg / 0.13);
+  --lyra-secondary-foreground: oklch(27% 0.022 68deg);
+  --lyra-accent: oklch(78% 0.07 88deg / 0.14);
+  --lyra-accent-foreground: oklch(27% 0.022 68deg);
   --lyra-destructive: oklch(55% 0.16 25deg);
   --lyra-input: oklch(98% 0.008 82deg / 0.94);
   --lyra-ring: oklch(64% 0.12 88deg / 0.34);

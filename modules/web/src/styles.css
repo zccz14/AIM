@@ -118,7 +118,7 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top, var(--background-accent), transparent 34%),
+    radial-gradient(circle at 20% 0%, var(--background-accent), transparent 28%),
     linear-gradient(
       180deg,
       var(--background),
@@ -139,15 +139,15 @@ a {
 
 .app-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
 }
 
 .app-shell__frame {
-  width: min(1400px, 100%);
+  width: min(1480px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
   background: var(--background);
 }
 
@@ -165,8 +165,8 @@ a {
 .app-shell__hero {
   position: relative;
   overflow: hidden;
-  border-radius: 28px;
-  padding: 28px;
+  border-radius: 26px;
+  padding: 22px;
   background-image: var(--hero);
 }
 
@@ -184,14 +184,14 @@ a {
 
 .app-shell__hero-content {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.32fr);
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .app-shell__topbar,
 .app-shell__hero-main {
-  grid-column: 1 / 2;
+  width: 100%;
 }
 
 .app-shell__topbar,
@@ -220,9 +220,9 @@ a {
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--card-strong);
   padding: 8px;
@@ -272,9 +272,10 @@ a {
 }
 
 .hero-title {
-  font-size: 2.6rem;
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  max-width: 13ch;
+  font-size: 2.25rem;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
 }
 
 .page-title {
@@ -303,7 +304,19 @@ a {
 }
 
 .hero-copy {
-  max-width: 720px;
+  max-width: 760px;
+}
+
+.route-kicker {
+  width: fit-content;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-strong) 72%, transparent);
+  color: var(--foreground-muted);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .hero-actions {
@@ -314,17 +327,87 @@ a {
 }
 
 .director-rail {
-  grid-column: 2 / 3;
-  grid-row: 1 / span 2;
+  position: sticky;
+  top: 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   align-self: stretch;
-  justify-content: space-between;
+  justify-content: flex-start;
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: 24px;
   background: color-mix(in srgb, var(--card-strong) 86%, transparent);
   padding: 20px;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.director-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.28fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.director-workspace__main {
+  min-width: 0;
+}
+
+.workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+.workspace-link {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-elevated) 86%, transparent);
+  color: var(--foreground);
+  padding: 0.48rem 0.82rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workspace-link:hover,
+.workspace-link:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  background: color-mix(
+    in srgb,
+    var(--primary) 12%,
+    var(--background-elevated)
+  );
+  color: var(--primary);
+  outline: none;
+}
+
+.cockpit-region {
+  scroll-margin-top: 1rem;
+}
+
+.region-header {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.36fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  padding: 1.1rem;
+}
+
+.evidence-panel {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
 }
 
 .rail-checkpoints {
@@ -356,8 +439,8 @@ a {
 .surface-card,
 .surface-table,
 .surface-stat {
-  border-radius: 24px;
-  padding: 24px;
+  border-radius: 22px;
+  padding: 20px;
 }
 
 .surface-table {
@@ -367,11 +450,13 @@ a {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .split-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 12px;
 }
 
 .chart-frame {
@@ -383,7 +468,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 0;
+  padding: 13px 0;
   border-top: 1px solid var(--border);
 }
 
@@ -717,15 +802,12 @@ a {
 }
 
 @media (max-width: 1100px) {
-  .app-shell__hero-content {
+  .director-workspace {
     grid-template-columns: 1fr;
   }
 
-  .app-shell__topbar,
-  .app-shell__hero-main,
   .director-rail {
-    grid-column: auto;
-    grid-row: auto;
+    position: static;
   }
 
   .summary-grid,
@@ -745,6 +827,7 @@ a {
   .director-rail,
   .hero-actions,
   .server-form,
+  .region-header,
   .rejected-feedback-filters,
   .summary-grid,
   .split-grid,
