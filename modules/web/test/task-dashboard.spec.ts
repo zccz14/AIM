@@ -629,15 +629,27 @@ test("opens the task details page from overview and table", async ({
     .getByRole("button", { name: /stub task spec/i })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/tasks\/task-123$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/task-123$/);
   await expect(
     page.getByText("Contract Status", { exact: true }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Back to Dashboard" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/#\/$/);
   await page.getByRole("row", { name: /stub task spec/i }).click();
-  await expect(page).toHaveURL(/\/tasks\/task-123$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/task-123$/);
+});
+
+test("refreshes a hash task details route without a server rewrite", async ({
+  page,
+}) => {
+  await page.goto("/#/tasks/task-123");
+
+  await expect(page).toHaveURL(/\/#\/tasks\/task-123$/);
+  await expect(page.getByText("Task ID: task-123")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "stub task spec" }),
+  ).toBeVisible();
 });
 
 test("opens and closes the create task page from the dashboard header", async ({
@@ -651,7 +663,7 @@ test("opens and closes the create task page from the dashboard header", async ({
 
   await headerCreateTaskButton.click();
 
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
   await expect(
     page.getByRole("heading", { name: "Create Task" }),
   ).toBeVisible();
@@ -665,7 +677,7 @@ test("opens and closes the create task page from the dashboard header", async ({
   await page.getByLabel("Project Path").fill("/repo/dashboard");
 
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/#\/$/);
 
   await headerCreateTaskButton.click();
   await expect(page.getByLabel("Task Spec")).toHaveValue("");
@@ -702,7 +714,7 @@ test("submits title, task_spec, project_path, and selected developer model to th
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
   await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
@@ -771,7 +783,7 @@ test("shows a local create error when the task API rejects the request", async (
 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
   await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
@@ -781,13 +793,13 @@ test("shows a local create error when the task API rejects the request", async (
   await expect(
     page.getByRole("button", { name: "Back to Dashboard" }),
   ).toBeDisabled();
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
 
   await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
 
   await page.mouse.click(8, 8);
-  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
 
   if (finishCreateRequest === null) {
     throw new Error("Expected the create request to be pending");
@@ -899,7 +911,7 @@ test("navigates from create page to task details after refresh", async ({
   await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).click();
 
-  await expect(page).toHaveURL(/\/tasks\/task-created$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/task-created$/);
   await expect(page.getByText("Task ID: task-created")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Create release checklist" }),
@@ -971,7 +983,7 @@ test("opens created task details from the create response when the dashboard ref
   await page.getByLabel("Project Path").fill("/repo/dashboard");
   await page.getByRole("button", { name: "Create Task" }).click();
 
-  await expect(page).toHaveURL(/\/tasks\/task-created$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/task-created$/);
   await expect(page.getByText("Task ID: task-created")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Fallback task title" }),
@@ -1327,7 +1339,7 @@ test("opens the task details page from a graph node", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("graph-node-task-123").click();
 
-  await expect(page).toHaveURL(/\/tasks\/task-123$/);
+  await expect(page).toHaveURL(/\/#\/tasks\/task-123$/);
   await expect(page.getByText("Task ID: task-123")).toBeVisible();
 });
 

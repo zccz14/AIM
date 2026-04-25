@@ -30,7 +30,11 @@ type DashboardRoute =
 const DASHBOARD_PATH = "/";
 const CREATE_TASK_PATH = "/tasks/new";
 
-const getCurrentPath = () => window.location.pathname;
+const getCurrentPath = () => {
+  const hashPath = window.location.hash.slice(1);
+
+  return hashPath.startsWith("/") ? hashPath : DASHBOARD_PATH;
+};
 
 const getDashboardRoute = (pathname: string): DashboardRoute => {
   if (pathname === CREATE_TASK_PATH) {
@@ -51,8 +55,8 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
 };
 
 const navigateTo = (pathname: string) => {
-  window.history.pushState({}, "", pathname);
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  window.location.hash = pathname;
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
 };
 
 export const DashboardPage = () => {
@@ -79,11 +83,11 @@ export const DashboardPage = () => {
       dashboardQuery.data.historyTasks.length > 0);
 
   useEffect(() => {
-    const handlePopState = () => setPathname(getCurrentPath());
+    const handleHashChange = () => setPathname(getCurrentPath());
 
-    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("hashchange", handleHashChange);
 
-    return () => window.removeEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   useEffect(() => {
