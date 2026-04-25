@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Button } from "../../../components/ui/button.js";
 import {
   readServerBaseUrl,
   saveServerBaseUrl,
@@ -34,16 +35,15 @@ export const ServerBaseUrlForm = ({
             value={value}
           />
         </label>
-        <button
-          className="ui-button ui-button--primary"
+        <Button
           onClick={async () => {
             setSavedValue(saveServerBaseUrl(value));
             await onSave?.();
           }}
-          type="button"
+          variant="primary"
         >
           Save
-        </button>
+        </Button>
       </div>
       {savedValue ? <p className="muted-text">Saved: {savedValue}</p> : null}
     </section>

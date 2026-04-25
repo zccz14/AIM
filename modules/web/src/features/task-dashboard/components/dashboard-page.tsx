@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { Button } from "../../../components/ui/button.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { getOpenCodeModels } from "../api/task-dashboard-api.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
@@ -212,14 +213,13 @@ export const DashboardPage = () => {
                 <AlertCircle aria-hidden="true" size={16} /> Dashboard Error
               </p>
               <p>{getTaskDashboardErrorMessage(dashboardQuery.error)}</p>
-              <button
-                className="ui-button ui-button--ghost"
+              <Button
                 disabled={dashboardQuery.isFetching}
                 onClick={() => void handleRefresh()}
-                type="button"
+                variant="ghost"
               >
                 Retry
-              </button>
+              </Button>
             </div>
           </section>
         ) : null}
@@ -260,14 +260,13 @@ export const DashboardPage = () => {
     label: string,
     onClick: () => void,
   ) => (
-    <button
-      className={`nav-pill ${isActive ? "nav-pill--active" : ""}`}
+    <Button
       disabled={isDisabled}
       onClick={onClick}
-      type="button"
+      variant={isActive ? "navActive" : "nav"}
     >
       {label}
-    </button>
+    </Button>
   );
 
   return (
@@ -328,25 +327,20 @@ export const DashboardPage = () => {
 
               <div className="hero-actions">
                 {route.kind !== "create" ? (
-                  <button
-                    className="ui-button ui-button--ghost"
+                  <Button
                     disabled={dashboardQuery.isFetching}
                     onClick={() => void handleRefresh()}
-                    type="button"
+                    variant="ghost"
                   >
                     <RefreshCw size={16} />
                     Refresh
-                  </button>
+                  </Button>
                 ) : null}
                 {route.kind === "dashboard" ? (
-                  <button
-                    className="ui-button ui-button--primary"
-                    onClick={goToCreateTask}
-                    type="button"
-                  >
+                  <Button onClick={goToCreateTask} variant="primary">
                     <Plus size={16} />
                     Create Task
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </div>

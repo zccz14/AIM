@@ -1,5 +1,6 @@
 import { MoonStar, SunMedium } from "lucide-react";
 
+import { Button } from "./button.js";
 import { useTheme } from "./theme-provider.js";
 
 export const ThemeToggle = () => {
@@ -7,14 +8,13 @@ export const ThemeToggle = () => {
   const isDark = theme === "dark";
 
   return (
-    <button
+    <Button
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className="theme-toggle"
       onClick={toggleTheme}
-      type="button"
+      variant="theme"
     >
       {isDark ? <SunMedium size={16} /> : <MoonStar size={16} />}
       <span>{isDark ? "Light mode" : "Dark mode"}</span>
-    </button>
+    </Button>
   );
 };

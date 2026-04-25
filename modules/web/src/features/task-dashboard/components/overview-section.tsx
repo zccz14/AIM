@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Button } from "../../../components/ui/button.js";
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
@@ -118,13 +119,12 @@ export const OverviewSection = ({
           {dashboard.recentTasks.map((task) => (
             <div className="task-list__item" key={task.id}>
               <div className="panel-stack">
-                <button
-                  className="task-title-button"
+                <Button
                   onClick={() => onSelectTask(task.id)}
-                  type="button"
+                  variant="taskTitle"
                 >
                   {task.title}
-                </button>
+                </Button>
                 <p className="table-meta">{task.id}</p>
               </div>
               <TaskStatusBadge status={task.dashboardStatus} />
@@ -192,13 +192,12 @@ export const OverviewSection = ({
                 {signal.sampleTasks.map((task) => (
                   <div className="task-list__item" key={task.id}>
                     <div className="panel-stack">
-                      <button
-                        className="task-title-button"
+                      <Button
                         onClick={() => onSelectTask(task.id)}
-                        type="button"
+                        variant="taskTitle"
                       >
                         {task.title}
-                      </button>
+                      </Button>
                       <p className="table-meta">{task.id}</p>
                     </div>
                     <p className="table-meta">{task.updatedAt.slice(0, 10)}</p>
@@ -232,13 +231,12 @@ export const OverviewSection = ({
             .map((task) => (
               <div className="task-list__item" key={task.id}>
                 <div className="panel-stack">
-                  <button
-                    className="task-title-button"
+                  <Button
                     onClick={() => onSelectTask(task.id)}
-                    type="button"
+                    variant="taskTitle"
                   >
                     {task.title}
-                  </button>
+                  </Button>
                   <p className="table-meta">{summarizeResult(task.result)}</p>
                 </div>
                 <TaskStatusBadge status={task.dashboardStatus} />
