@@ -14,6 +14,9 @@ import type {
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskResponses,
+  CreateTaskWriteBulkData,
+  CreateTaskWriteBulkErrors,
+  CreateTaskWriteBulkResponses,
   DeleteTaskByIdData,
   DeleteTaskByIdErrors,
   DeleteTaskByIdResponses,
@@ -29,6 +32,9 @@ import type {
   GetTaskSpecByIdData,
   GetTaskSpecByIdErrors,
   GetTaskSpecByIdResponses,
+  GetTaskWriteBulkByIdData,
+  GetTaskWriteBulkByIdErrors,
+  GetTaskWriteBulkByIdResponses,
   ListManagerReportsData,
   ListManagerReportsErrors,
   ListManagerReportsResponses,
@@ -38,6 +44,9 @@ import type {
   ListTasksData,
   ListTasksErrors,
   ListTasksResponses,
+  ListTaskWriteBulksData,
+  ListTaskWriteBulksErrors,
+  ListTaskWriteBulksResponses,
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
@@ -323,3 +332,46 @@ export const getManagerReportById = <ThrowOnError extends boolean = false>(
     GetManagerReportByIdErrors,
     ThrowOnError
   >({ url: "/manager_reports/{reportId}", ...options });
+
+/**
+ * List coordinator task write bulk intents for a project
+ */
+export const listTaskWriteBulks = <ThrowOnError extends boolean = false>(
+  options: Options<ListTaskWriteBulksData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListTaskWriteBulksResponses,
+    ListTaskWriteBulksErrors,
+    ThrowOnError
+  >({ url: "/task_write_bulks", ...options });
+
+/**
+ * Create a coordinator task write bulk intent
+ */
+export const createTaskWriteBulk = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTaskWriteBulkData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateTaskWriteBulkResponses,
+    CreateTaskWriteBulkErrors,
+    ThrowOnError
+  >({
+    url: "/task_write_bulks",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read a coordinator task write bulk intent
+ */
+export const getTaskWriteBulkById = <ThrowOnError extends boolean = false>(
+  options: Options<GetTaskWriteBulkByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetTaskWriteBulkByIdResponses,
+    GetTaskWriteBulkByIdErrors,
+    ThrowOnError
+  >({ url: "/task_write_bulks/{bulkId}", ...options });

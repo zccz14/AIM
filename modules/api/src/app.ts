@@ -7,6 +7,7 @@ import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerManagerReportRoutes } from "./routes/manager-reports.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
+import { registerTaskWriteBulkRoutes } from "./routes/task-write-bulks.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 import type { SchedulerScanContext } from "./task-scheduler.js";
 
@@ -26,6 +27,7 @@ export const createApp = (_options: CreateAppOptions = {}) => {
     adapter: _options.openCodeModelsAdapter,
   });
   registerManagerReportRoutes(app);
+  registerTaskWriteBulkRoutes(app);
   registerTaskRoutes(app, {
     logger: _options.logger,
     onTaskResolved: _options.onTaskResolved,

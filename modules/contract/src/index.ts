@@ -17,6 +17,8 @@ export {
   taskSpecPath,
   tasksPath,
   taskWorktreePathPath,
+  taskWriteBulkByIdPath,
+  taskWriteBulksPath,
 } from "./openapi.js";
 export const healthResponseSchema = schemas.HealthResponse;
 export const healthStatusSchema = healthResponseSchema.shape.status;
@@ -36,6 +38,12 @@ export const createManagerReportRequestSchema =
   schemas.CreateManagerReportRequest;
 export const managerReportListResponseSchema =
   schemas.ManagerReportListResponse;
+export const taskWriteBulkSchema = schemas.TaskWriteBulk;
+export const taskWriteBulkEntrySchema = schemas.TaskWriteBulkEntry;
+export const createTaskWriteBulkRequestSchema =
+  schemas.CreateTaskWriteBulkRequest;
+export const taskWriteBulkListResponseSchema =
+  schemas.TaskWriteBulkListResponse;
 export const opencodeModelCombinationSchema = schemas.OpenCodeModelCombination;
 export const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 export const taskErrorSchema = schemas.ErrorResponse;
@@ -67,6 +75,14 @@ export type CreateManagerReportRequest = Input<
 export type ManagerReportListResponse = Infer<
   typeof managerReportListResponseSchema
 >;
+export type TaskWriteBulk = Infer<typeof taskWriteBulkSchema>;
+export type TaskWriteBulkEntry = Infer<typeof taskWriteBulkEntrySchema>;
+export type CreateTaskWriteBulkRequest = Input<
+  typeof createTaskWriteBulkRequestSchema
+>;
+export type TaskWriteBulkListResponse = Infer<
+  typeof taskWriteBulkListResponseSchema
+>;
 export type OpenCodeModelCombination = Infer<
   typeof opencodeModelCombinationSchema
 >;
@@ -94,6 +110,12 @@ export type CreateManagerReportRequestSchema =
   typeof createManagerReportRequestSchema;
 export type ManagerReportListResponseSchema =
   typeof managerReportListResponseSchema;
+export type TaskWriteBulkSchema = typeof taskWriteBulkSchema;
+export type TaskWriteBulkEntrySchema = typeof taskWriteBulkEntrySchema;
+export type CreateTaskWriteBulkRequestSchema =
+  typeof createTaskWriteBulkRequestSchema;
+export type TaskWriteBulkListResponseSchema =
+  typeof taskWriteBulkListResponseSchema;
 export type OpenCodeModelCombinationSchema =
   typeof opencodeModelCombinationSchema;
 export type OpenCodeModelsResponseSchema = typeof opencodeModelsResponseSchema;
@@ -115,6 +137,12 @@ export type ParsedCreateManagerReportRequest = Output<
   typeof createManagerReportRequestSchema
 >;
 export type ParsedManagerReportListResponse = ManagerReportListResponse;
+export type ParsedTaskWriteBulk = TaskWriteBulk;
+export type ParsedTaskWriteBulkEntry = TaskWriteBulkEntry;
+export type ParsedCreateTaskWriteBulkRequest = Output<
+  typeof createTaskWriteBulkRequestSchema
+>;
+export type ParsedTaskWriteBulkListResponse = TaskWriteBulkListResponse;
 export type ParsedOpenCodeModelCombination = OpenCodeModelCombination;
 export type ParsedOpenCodeModelsResponse = OpenCodeModelsResponse;
 export type ParsedTaskError = TaskError;

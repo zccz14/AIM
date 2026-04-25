@@ -2,13 +2,16 @@ import { createClient as createGeneratedClient } from "../generated/_client/clie
 import {
   createManagerReport,
   createTask,
+  createTaskWriteBulk,
   deleteTaskById,
   getHealth,
   getManagerReportById,
   getTaskById,
+  getTaskWriteBulkById,
   listManagerReports,
   listOpenCodeModels,
   listTasks,
+  listTaskWriteBulks,
   patchTaskById,
   rejectTaskById,
   resolveTaskById,
@@ -20,6 +23,9 @@ import type {
   CreateTaskError,
   CreateTaskRequest,
   CreateTaskResponse,
+  CreateTaskWriteBulkError,
+  CreateTaskWriteBulkRequest,
+  CreateTaskWriteBulkResponse,
   DeleteTaskByIdError,
   ErrorResponse,
   GetHealthError,
@@ -28,12 +34,16 @@ import type {
   GetManagerReportByIdResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
+  GetTaskWriteBulkByIdError,
+  GetTaskWriteBulkByIdResponse,
   HealthError,
   HealthResponse,
   ListManagerReportsError,
   ListManagerReportsResponse,
   ListTasksError,
   ListTasksResponse,
+  ListTaskWriteBulksError,
+  ListTaskWriteBulksResponse,
   ManagerReport,
   ManagerReportListResponse,
   OpenCodeModelsResponse,
@@ -45,6 +55,8 @@ import type {
   Task,
   TaskListResponse,
   TaskResultRequest,
+  TaskWriteBulk,
+  TaskWriteBulkListResponse,
 } from "../generated/types.js";
 import { schemas } from "../generated/zod.js";
 
@@ -90,6 +102,16 @@ export type ContractClient = {
     reportId: string,
     query: { project_path: string },
   ): Promise<ManagerReport>;
+  listTaskWriteBulks(query: {
+    project_path: string;
+  }): Promise<TaskWriteBulkListResponse>;
+  createTaskWriteBulk(
+    input: CreateTaskWriteBulkRequest,
+  ): Promise<TaskWriteBulk>;
+  getTaskWriteBulkById(
+    bulkId: string,
+    query: { project_path: string },
+  ): Promise<TaskWriteBulk>;
   createTask(input: CreateTaskRequest): Promise<Task>;
   getTaskById(taskId: string): Promise<Task>;
   patchTaskById(taskId: string, input: PatchTaskRequest): Promise<Task>;
@@ -106,6 +128,8 @@ const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const managerReportSchema = schemas.ManagerReport;
 const managerReportListResponseSchema = schemas.ManagerReportListResponse;
+const taskWriteBulkSchema = schemas.TaskWriteBulk;
+const taskWriteBulkListResponseSchema = schemas.TaskWriteBulkListResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
@@ -310,6 +334,76 @@ export const createContractClient = ({
       return managerReportSchema.parse(
         result.data satisfies GetManagerReportByIdResponse,
       ) satisfies ManagerReport;
+    },
+
+    async listTaskWriteBulks(query) {
+      const result = await listTaskWriteBulks({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        query,
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies ListTaskWriteBulksError),
+        );
+      }
+
+      return taskWriteBulkListResponseSchema.parse(
+        result.data satisfies ListTaskWriteBulksResponse,
+      ) satisfies TaskWriteBulkListResponse;
+    },
+
+    async createTaskWriteBulk(input) {
+      const result = await createTaskWriteBulk({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies CreateTaskWriteBulkError,
+          ),
+        );
+      }
+
+      return taskWriteBulkSchema.parse(
+        result.data satisfies CreateTaskWriteBulkResponse,
+      ) satisfies TaskWriteBulk;
+    },
+
+    async getTaskWriteBulkById(bulkId, query) {
+      const result = await getTaskWriteBulkById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          bulkId,
+        },
+        query,
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies GetTaskWriteBulkByIdError,
+          ),
+        );
+      }
+
+      return taskWriteBulkSchema.parse(
+        result.data satisfies GetTaskWriteBulkByIdResponse,
+      ) satisfies TaskWriteBulk;
     },
 
     async createTask(input) {

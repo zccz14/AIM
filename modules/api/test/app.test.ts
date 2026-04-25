@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const mockRegisterHealthRoute = vi.fn();
 const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
+const mockRegisterTaskWriteBulkRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
 vi.mock("@aim-ai/contract", () => ({
@@ -19,6 +20,10 @@ vi.mock("../src/routes/manager-reports.js", () => ({
 
 vi.mock("../src/routes/opencode-models.js", () => ({
   registerOpenCodeModelRoutes: mockRegisterOpenCodeModelRoutes,
+}));
+
+vi.mock("../src/routes/task-write-bulks.js", () => ({
+  registerTaskWriteBulkRoutes: mockRegisterTaskWriteBulkRoutes,
 }));
 
 vi.mock("../src/routes/tasks.js", () => ({
