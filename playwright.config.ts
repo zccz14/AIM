@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const apiPort = 43100;
-const webPort = 43173;
+const apiPort = Number(process.env.API_PORT ?? 43100);
+const webPort = Number(process.env.WEB_PORT ?? 43173);
 export default defineConfig({
   testDir: "./modules/web/test",
   fullyParallel: false,
