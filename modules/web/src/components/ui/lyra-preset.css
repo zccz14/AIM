@@ -1,99 +1,103 @@
 :root,
 html[data-theme="dark"] {
   --radius: 0.875rem;
-  --lyra-background: #07111f;
-  --lyra-background-accent: rgba(61, 214, 208, 0.16);
-  --lyra-background-elevated: rgba(10, 18, 33, 0.86);
-  --lyra-border: rgba(148, 163, 184, 0.2);
-  --lyra-card: rgba(15, 23, 42, 0.84);
-  --lyra-card-strong: rgba(15, 23, 42, 0.96);
-  --lyra-foreground: #e2e8f0;
-  --lyra-foreground-muted: #94a3b8;
-  --lyra-primary: #22d3ee;
-  --lyra-primary-foreground: #04111f;
-  --lyra-secondary: rgba(99, 102, 241, 0.22);
-  --lyra-secondary-foreground: #eef3ff;
-  --lyra-accent: rgba(34, 211, 238, 0.18);
-  --lyra-accent-foreground: #e2e8f0;
-  --lyra-destructive: #fb7185;
-  --lyra-input: rgba(15, 23, 42, 0.74);
-  --lyra-ring: rgba(94, 234, 212, 0.5);
+  --lyra-background: oklch(16% 0.018 72deg);
+  --lyra-background-accent: oklch(45% 0.04 82deg / 0.16);
+  --lyra-background-elevated: oklch(20% 0.02 72deg / 0.9);
+  --lyra-border: oklch(74% 0.035 78deg / 0.22);
+  --lyra-card: oklch(22% 0.022 72deg / 0.88);
+  --lyra-card-strong: oklch(25% 0.024 72deg / 0.98);
+  --lyra-foreground: oklch(91% 0.018 82deg);
+  --lyra-foreground-muted: oklch(73% 0.024 82deg);
+  --lyra-primary: oklch(77% 0.12 85deg);
+  --lyra-primary-foreground: oklch(18% 0.018 72deg);
+  --lyra-secondary: oklch(52% 0.05 82deg / 0.2);
+  --lyra-secondary-foreground: oklch(94% 0.015 82deg);
+  --lyra-accent: oklch(77% 0.12 85deg / 0.16);
+  --lyra-accent-foreground: oklch(91% 0.018 82deg);
+  --lyra-destructive: oklch(68% 0.15 25deg);
+  --lyra-input: oklch(18% 0.02 72deg / 0.86);
+  --lyra-ring: oklch(82% 0.13 88deg / 0.46);
   --lyra-hero: linear-gradient(
-    135deg,
-    rgba(34, 211, 238, 0.18),
-    rgba(99, 102, 241, 0.24)
+    145deg,
+    oklch(27% 0.028 74deg),
+    oklch(20% 0.018 72deg)
   );
-  --lyra-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
-  --lyra-surface-background:
-    linear-gradient(180deg, rgba(20, 28, 54, 0.96), rgba(9, 13, 28, 0.98)),
-    #0b1020;
-  --lyra-surface-border: rgba(122, 162, 255, 0.18);
-  --lyra-surface-shadow: 0 28px 70px rgba(4, 8, 20, 0.35);
-  --lyra-panel-background: rgba(10, 16, 33, 0.74);
-  --lyra-panel-border: rgba(122, 162, 255, 0.14);
-  --lyra-text: #eef3ff;
-  --lyra-text-strong: #f3f7ff;
-  --lyra-muted: rgba(216, 227, 255, 0.72);
-  --lyra-meta: rgba(216, 227, 255, 0.68);
-  --lyra-link: #9bc2ff;
-  --lyra-code-background: rgba(152, 192, 255, 0.12);
-  --lyra-pre-background: rgba(3, 8, 19, 0.85);
-  --lyra-chip-background: rgba(122, 162, 255, 0.09);
-  --lyra-chip-border: rgba(122, 162, 255, 0.22);
-  --lyra-checkmark-background: rgba(122, 162, 255, 0.16);
-  --lyra-field-background: rgba(4, 9, 22, 0.8);
-  --lyra-field-border: rgba(122, 162, 255, 0.18);
-  --lyra-error-background: rgba(54, 11, 20, 0.72);
-  --lyra-error-border: rgba(255, 133, 133, 0.28);
-}
-
-html[data-theme="light"] {
-  --lyra-background: #f8fafc;
-  --lyra-background-accent: rgba(56, 189, 248, 0.12);
-  --lyra-background-elevated: rgba(255, 255, 255, 0.88);
-  --lyra-border: rgba(15, 23, 42, 0.08);
-  --lyra-card: rgba(255, 255, 255, 0.9);
-  --lyra-card-strong: rgba(255, 255, 255, 0.98);
-  --lyra-foreground: #0f172a;
-  --lyra-foreground-muted: #475569;
-  --lyra-primary: #2563eb;
-  --lyra-primary-foreground: #ffffff;
-  --lyra-secondary: rgba(37, 99, 235, 0.12);
-  --lyra-secondary-foreground: #10203d;
-  --lyra-accent: rgba(56, 189, 248, 0.16);
-  --lyra-accent-foreground: #10203d;
-  --lyra-destructive: #e11d48;
-  --lyra-input: rgba(255, 255, 255, 0.92);
-  --lyra-ring: rgba(14, 165, 233, 0.3);
-  --lyra-hero: linear-gradient(
-    135deg,
-    rgba(56, 189, 248, 0.16),
-    rgba(99, 102, 241, 0.14)
-  );
-  --lyra-shadow: 0 24px 64px rgba(148, 163, 184, 0.28);
+  --lyra-shadow: 0 30px 80px oklch(8% 0.018 72deg / 0.46);
   --lyra-surface-background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.96),
-      rgba(242, 246, 255, 0.98)
+      oklch(24% 0.025 72deg / 0.96),
+      oklch(17% 0.018 72deg / 0.98)
     ),
-    #f4f7ff;
-  --lyra-surface-border: rgba(67, 96, 181, 0.16);
-  --lyra-surface-shadow: 0 24px 60px rgba(69, 91, 160, 0.12);
-  --lyra-panel-background: rgba(255, 255, 255, 0.78);
-  --lyra-panel-border: rgba(67, 96, 181, 0.14);
-  --lyra-text: #10203d;
-  --lyra-text-strong: #10203d;
-  --lyra-muted: rgba(35, 52, 96, 0.7);
-  --lyra-meta: rgba(35, 52, 96, 0.7);
-  --lyra-link: #3157bd;
-  --lyra-code-background: rgba(67, 96, 181, 0.11);
-  --lyra-pre-background: rgba(225, 233, 250, 0.9);
-  --lyra-chip-background: rgba(67, 96, 181, 0.08);
-  --lyra-chip-border: rgba(67, 96, 181, 0.18);
-  --lyra-checkmark-background: rgba(67, 96, 181, 0.12);
-  --lyra-field-background: rgba(246, 249, 255, 0.94);
-  --lyra-field-border: rgba(67, 96, 181, 0.18);
-  --lyra-error-background: rgba(255, 241, 242, 0.88);
-  --lyra-error-border: rgba(225, 29, 72, 0.28);
+    oklch(18% 0.018 72deg);
+  --lyra-surface-border: oklch(74% 0.06 85deg / 0.2);
+  --lyra-surface-shadow: 0 28px 70px oklch(9% 0.018 72deg / 0.35);
+  --lyra-panel-background: oklch(20% 0.02 72deg / 0.76);
+  --lyra-panel-border: oklch(74% 0.06 85deg / 0.16);
+  --lyra-text: oklch(94% 0.015 82deg);
+  --lyra-text-strong: oklch(96% 0.012 82deg);
+  --lyra-muted: oklch(82% 0.025 82deg / 0.74);
+  --lyra-meta: oklch(82% 0.025 82deg / 0.68);
+  --lyra-link: oklch(82% 0.13 88deg);
+  --lyra-code-background: oklch(74% 0.06 85deg / 0.12);
+  --lyra-pre-background: oklch(13% 0.018 72deg / 0.88);
+  --lyra-chip-background: oklch(74% 0.06 85deg / 0.1);
+  --lyra-chip-border: oklch(74% 0.06 85deg / 0.22);
+  --lyra-checkmark-background: oklch(77% 0.12 85deg / 0.16);
+  --lyra-field-background: oklch(15% 0.018 72deg / 0.84);
+  --lyra-field-border: oklch(74% 0.06 85deg / 0.2);
+  --lyra-error-background: oklch(22% 0.055 25deg / 0.72);
+  --lyra-error-border: oklch(72% 0.14 25deg / 0.32);
+}
+
+html[data-theme="light"] {
+  --lyra-background: oklch(96% 0.012 82deg);
+  --lyra-background-accent: oklch(82% 0.08 88deg / 0.12);
+  --lyra-background-elevated: oklch(98% 0.008 82deg / 0.9);
+  --lyra-border: oklch(45% 0.03 72deg / 0.12);
+  --lyra-card: oklch(98% 0.008 82deg / 0.92);
+  --lyra-card-strong: oklch(99% 0.006 82deg / 0.98);
+  --lyra-foreground: oklch(23% 0.024 72deg);
+  --lyra-foreground-muted: oklch(45% 0.028 72deg);
+  --lyra-primary: oklch(54% 0.11 88deg);
+  --lyra-primary-foreground: oklch(98% 0.008 82deg);
+  --lyra-secondary: oklch(76% 0.08 88deg / 0.14);
+  --lyra-secondary-foreground: oklch(28% 0.026 72deg);
+  --lyra-accent: oklch(80% 0.08 88deg / 0.16);
+  --lyra-accent-foreground: oklch(28% 0.026 72deg);
+  --lyra-destructive: oklch(55% 0.16 25deg);
+  --lyra-input: oklch(98% 0.008 82deg / 0.94);
+  --lyra-ring: oklch(64% 0.12 88deg / 0.34);
+  --lyra-hero: linear-gradient(
+    145deg,
+    oklch(98% 0.012 82deg),
+    oklch(92% 0.022 82deg)
+  );
+  --lyra-shadow: 0 24px 64px oklch(54% 0.028 72deg / 0.18);
+  --lyra-surface-background:
+    linear-gradient(
+      180deg,
+      oklch(99% 0.006 82deg / 0.96),
+      oklch(95% 0.012 82deg / 0.98)
+    ),
+    oklch(96% 0.012 82deg);
+  --lyra-surface-border: oklch(54% 0.06 88deg / 0.18);
+  --lyra-surface-shadow: 0 24px 60px oklch(54% 0.03 72deg / 0.12);
+  --lyra-panel-background: oklch(99% 0.006 82deg / 0.8);
+  --lyra-panel-border: oklch(54% 0.06 88deg / 0.16);
+  --lyra-text: oklch(28% 0.026 72deg);
+  --lyra-text-strong: oklch(24% 0.026 72deg);
+  --lyra-muted: oklch(43% 0.03 72deg / 0.72);
+  --lyra-meta: oklch(43% 0.03 72deg / 0.7);
+  --lyra-link: oklch(46% 0.11 88deg);
+  --lyra-code-background: oklch(54% 0.06 88deg / 0.11);
+  --lyra-pre-background: oklch(90% 0.018 82deg / 0.9);
+  --lyra-chip-background: oklch(54% 0.06 88deg / 0.08);
+  --lyra-chip-border: oklch(54% 0.06 88deg / 0.18);
+  --lyra-checkmark-background: oklch(54% 0.08 88deg / 0.12);
+  --lyra-field-background: oklch(97% 0.01 82deg / 0.94);
+  --lyra-field-border: oklch(54% 0.06 88deg / 0.18);
+  --lyra-error-background: oklch(96% 0.025 25deg / 0.88);
+  --lyra-error-border: oklch(55% 0.16 25deg / 0.28);
 }

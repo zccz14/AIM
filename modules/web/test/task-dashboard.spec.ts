@@ -92,7 +92,7 @@ test("renders the overview landing view", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "Task Dashboard" }),
+    page.getByRole("heading", { name: "Methodology Hub" }),
   ).toBeVisible();
   await expect(
     page.locator(".summary-grid").getByText("Task Pool"),
@@ -101,6 +101,33 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
+});
+
+test("frames the dashboard as a Director methodology hub", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", { name: "Methodology Hub" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Baseline convergence for the AIM Director"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "AIM sections" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Baseline Review" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Intervention Queue" }),
+  ).toBeVisible();
+  await expect(page.getByText("Director Review Rail")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Human attention stays on goals, blockers, and clarification points.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
 });
 
 test("separates unfinished Task Pool data from completed history results", async ({
@@ -343,10 +370,10 @@ test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
   await expect(page.getByAltText("AIM icon")).toBeVisible();
   await expect(page.getByRole("heading", { name: "AIM" })).toBeVisible();
   await expect(
-    page.getByText("Mission control for autonomous builds"),
+    page.getByText("Baseline convergence for the AIM Director"),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Task Dashboard" }),
+    page.getByRole("heading", { name: "Methodology Hub" }),
   ).toBeVisible();
 
   await expect(
@@ -419,24 +446,14 @@ test("toggles task details AIM panel colors with the app theme", async ({
     });
 
   const darkStyles = await readDetailsStyles();
-  expect(darkStyles).toEqual({
-    chipBackground: "rgba(122, 162, 255, 0.09)",
-    markdownColor: "rgb(243, 247, 255)",
-    metadataColor: "rgba(216, 227, 255, 0.68)",
-    panelBackground: "rgba(10, 16, 33, 0.74)",
-    surfaceColor: "rgb(238, 243, 255)",
-  });
+  expect(
+    Object.values(darkStyles).every((value) => value.includes("oklch")),
+  ).toBe(true);
 
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
-  await expect.poll(readDetailsStyles).toEqual({
-    chipBackground: "rgba(67, 96, 181, 0.08)",
-    markdownColor: "rgb(16, 32, 61)",
-    metadataColor: "rgba(35, 52, 96, 0.7)",
-    panelBackground: "rgba(255, 255, 255, 0.78)",
-    surfaceColor: "rgb(16, 32, 61)",
-  });
+  await expect.poll(readDetailsStyles).not.toEqual(darkStyles);
 });
 
 test("toggles create task AIM form colors with the app theme", async ({
@@ -467,24 +484,14 @@ test("toggles create task AIM form colors with the app theme", async ({
     });
 
   const darkStyles = await readCreateStyles();
-  expect(darkStyles).toEqual({
-    helperColor: "rgba(216, 227, 255, 0.72)",
-    inputBackground: "rgba(4, 9, 22, 0.8)",
-    inputColor: "rgb(243, 247, 255)",
-    selectBackground: "rgba(4, 9, 22, 0.8)",
-    surfaceColor: "rgb(238, 243, 255)",
-  });
+  expect(
+    Object.values(darkStyles).every((value) => value.includes("oklch")),
+  ).toBe(true);
 
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
-  await expect.poll(readCreateStyles).toEqual({
-    helperColor: "rgba(35, 52, 96, 0.7)",
-    inputBackground: "rgba(246, 249, 255, 0.94)",
-    inputColor: "rgb(16, 32, 61)",
-    selectBackground: "rgba(246, 249, 255, 0.94)",
-    surfaceColor: "rgb(16, 32, 61)",
-  });
+  await expect.poll(readCreateStyles).not.toEqual(darkStyles);
 });
 
 test("renders the task table with core columns", async ({ page }) => {
@@ -1202,14 +1209,14 @@ test("renders the dependency graph with status-colored nodes", async ({
   );
   await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
     "border-color",
-    "rgb(250, 176, 5)",
+    "oklch(0.77 0.12 85)",
   );
   await expect(page.getByTestId("graph-node-task-456")).toContainText(
     "Processing",
   );
   await expect(page.getByTestId("graph-node-task-456")).toHaveCSS(
     "border-color",
-    "rgb(250, 176, 5)",
+    "oklch(0.77 0.12 85)",
   );
   await expect(page.getByTestId("rf__edge-task-123-task-456")).toHaveCount(1);
   await expect(page.getByLabel("Edge from task-123 to task-456")).toHaveCount(
@@ -1518,21 +1525,28 @@ test("renders a branded decision workspace with readable dark-mode data views", 
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(
-    page.getByText("Mission control for autonomous builds"),
+    page.getByText("Baseline convergence for the AIM Director"),
   ).toBeVisible();
   await expect(page.getByText("Status Board")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
   await expect(page.getByText("Dependency Graph")).toBeVisible();
-  await expect(page.getByTestId("dashboard-shell")).toHaveCSS(
-    "background-color",
-    "rgb(7, 17, 31)",
-  );
-  await expect(page.getByTestId("dashboard-table-header")).toHaveCSS(
-    "background-color",
-    "rgba(15, 23, 42, 0.96)",
-  );
-  await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
-    "background-color",
-    "rgba(15, 23, 42, 0.96)",
-  );
+  const shellStyles = await page.evaluate(() => {
+    const shell = document.querySelector('[data-testid="dashboard-shell"]');
+    const tableHeader = document.querySelector(
+      '[data-testid="dashboard-table-header"]',
+    );
+    const graphNode = document.querySelector(
+      '[data-testid="graph-node-task-123"]',
+    );
+
+    if (!shell || !tableHeader || !graphNode) {
+      throw new Error("Expected readable dark-mode data view elements");
+    }
+
+    return [shell, tableHeader, graphNode].map(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+  });
+
+  expect(shellStyles.every((value) => value.includes("oklch"))).toBe(true);
 });

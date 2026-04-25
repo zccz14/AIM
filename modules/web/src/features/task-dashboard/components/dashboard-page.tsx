@@ -165,7 +165,7 @@ export const DashboardPage = () => {
 
   const headerTitle =
     route.kind === "dashboard"
-      ? "Task Dashboard"
+      ? "Methodology Hub"
       : route.kind === "create"
         ? "Create Task"
         : "Task Details";
@@ -201,12 +201,13 @@ export const DashboardPage = () => {
         <ServerBaseUrlForm onSave={handleRefresh} />
 
         {dashboardQuery.isPending ? (
-          <Card>
-            <div className="hero-actions">
+          <Card className="state-card">
+            <div className="state-card__content">
               <LoaderCircle
                 aria-label="Loading task dashboard"
                 className="animate-spin"
               />
+              <p className="muted-text">Loading convergence evidence.</p>
             </div>
           </Card>
         ) : null}
@@ -230,10 +231,11 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isSuccess && !hasDashboardData ? (
-          <Card>
+          <Card className="state-card">
             <p className="muted-text">
               No active Task Pool or completed task history available from the
-              configured server.
+              configured server. Check the server target or create the first AIM
+              task when the baseline direction is ready.
             </p>
           </Card>
         ) : null}
@@ -308,17 +310,25 @@ export const DashboardPage = () => {
 
             <div className="app-shell__hero-main">
               <div className="hero-copy">
-                <p className="eyebrow">Mission control for autonomous builds</p>
+                <p className="eyebrow">
+                  Baseline convergence for the AIM Director
+                </p>
                 <h2 className="hero-title">{headerTitle}</h2>
                 <p className="section-copy">
-                  Branded command surfaces, shared light and dark tokens, and
-                  the existing AIM task workflows on one stable shell.
+                  A quiet command surface for reading goal alignment, task pool
+                  pressure, rejected feedback, and the next human intervention.
                 </p>
-                <div className="nav-group">
+                <nav aria-label="AIM sections" className="nav-group">
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
-                    "Dashboard",
+                    "Baseline Review",
+                    goToDashboard,
+                  )}
+                  {renderNavAction(
+                    route.kind === "dashboard",
+                    false,
+                    "Intervention Queue",
                     goToDashboard,
                   )}
                   {renderNavAction(
@@ -327,7 +337,7 @@ export const DashboardPage = () => {
                     "Task Intake",
                     goToCreateTask,
                   )}
-                </div>
+                </nav>
               </div>
 
               <div className="hero-actions">
@@ -349,6 +359,29 @@ export const DashboardPage = () => {
                 ) : null}
               </div>
             </div>
+            {route.kind === "dashboard" ? (
+              <aside
+                aria-label="Director review rail"
+                className="director-rail"
+              >
+                <div>
+                  <p className="eyebrow">Review stance</p>
+                  <h3 className="section-title">Director Review Rail</h3>
+                </div>
+                <p className="section-copy">
+                  Human attention stays on goals, blockers, and clarification
+                  points.
+                </p>
+                <ul
+                  aria-label="Director checkpoints"
+                  className="rail-checkpoints"
+                >
+                  <li>Baseline review</li>
+                  <li>Dependency pressure</li>
+                  <li>Rejected feedback</li>
+                </ul>
+              </aside>
+            ) : null}
           </div>
         </header>
 
