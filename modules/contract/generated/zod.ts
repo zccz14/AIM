@@ -26,6 +26,9 @@ const ErrorResponse = z
       "TASK_CONFLICT",
       "TASK_VALIDATION_ERROR",
       "TASK_UNSUPPORTED_STATUS",
+      "MANAGER_REPORT_NOT_FOUND",
+      "MANAGER_REPORT_CONFLICT",
+      "MANAGER_REPORT_VALIDATION_ERROR",
       "OPENCODE_MODELS_UNAVAILABLE",
     ]),
     message: z.string().min(1),
@@ -95,6 +98,32 @@ const TaskResultRequest = z
       .regex(/^(?!\s*$).+/),
   })
   .strict();
+const SourceMetadataEntry = z
+  .object({ key: z.string().min(1), value: z.string() })
+  .strict();
+const CreateManagerReportRequest = z
+  .object({
+    project_path: z.string().min(1),
+    report_id: z.string().min(1),
+    content_markdown: z.string().min(1),
+    baseline_ref: z.union([z.string(), z.null()]).optional(),
+    source_metadata: z.array(SourceMetadataEntry).optional(),
+  })
+  .strict();
+const ManagerReport = z
+  .object({
+    project_path: z.string().min(1),
+    report_id: z.string().min(1),
+    content_markdown: z.string().min(1),
+    baseline_ref: z.union([z.string(), z.null()]),
+    source_metadata: z.array(SourceMetadataEntry),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const ManagerReportListResponse = z
+  .object({ items: z.array(ManagerReport) })
+  .strict();
 
 export const schemas = {
   HealthResponse,
@@ -110,4 +139,8 @@ export const schemas = {
   TaskPullRequestUrlRequest,
   TaskDependenciesRequest,
   TaskResultRequest,
+  SourceMetadataEntry,
+  CreateManagerReportRequest,
+  ManagerReport,
+  ManagerReportListResponse,
 };

@@ -68,6 +68,15 @@ const startTaskServer = async () => {
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
+  const managerReport = {
+    project_path: "/repo/main",
+    report_id: "baseline-1",
+    content_markdown: "# Manager Report\n\nPersisted report.",
+    baseline_ref: "origin/main@abc123",
+    source_metadata: [{ key: "readme", value: "README.md" }],
+    created_at: "2026-04-20T00:00:00.000Z",
+    updated_at: "2026-04-20T00:00:00.000Z",
+  };
 
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
@@ -106,6 +115,34 @@ const startTaskServer = async () => {
               : [],
         }),
       );
+      return;
+    }
+
+    if (request.method === "POST" && path === "/api/manager_reports") {
+      response.writeHead(201, { "content-type": "application/json" });
+      response.end(JSON.stringify(managerReport));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/manager_reports") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          items:
+            url.searchParams.get("project_path") === "/repo/main"
+              ? [managerReport]
+              : [],
+        }),
+      );
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      url.pathname === "/api/manager_reports/baseline-1"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(managerReport));
       return;
     }
 
@@ -313,6 +350,115 @@ describe("task cli command baseline", () => {
       data: {
         task_id: "task-1",
         task_spec: "write spec",
+      },
+    });
+  });
+
+  it("registers manager-report create with the expected API request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "manager-report",
+      "create",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+      "--report-id",
+      "baseline-1",
+      "--content-markdown",
+      "# Manager Report\n\nPersisted report.",
+      "--baseline-ref",
+      "origin/main@abc123",
+      "--source-metadata-json",
+      '{"readme":"README.md"}',
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "POST",
+      path: "/api/manager_reports",
+      json: {
+        project_path: "/repo/main",
+        report_id: "baseline-1",
+        content_markdown: "# Manager Report\n\nPersisted report.",
+        baseline_ref: "origin/main@abc123",
+        source_metadata: [{ key: "readme", value: "README.md" }],
+      },
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        project_path: "/repo/main",
+        report_id: "baseline-1",
+      },
+    });
+  });
+
+  it("registers manager-report list and get with project path queries", async () => {
+    const server = await startTaskServer();
+
+    const listResult = await runCli([
+      "manager-report",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+    ]);
+    const getResult = await runCli([
+      "manager-report",
+      "get",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+      "--report-id",
+      "baseline-1",
+    ]);
+
+    expect({
+      exitCode: listResult.exitCode,
+      stderr: listResult.stderr,
+    }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect({ exitCode: getResult.exitCode, stderr: getResult.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests.at(-2)).toMatchObject({
+      method: "GET",
+      pathname: "/api/manager_reports",
+      searchParams: {
+        project_path: "/repo/main",
+      },
+    });
+    expect(server.requests.at(-1)).toMatchObject({
+      method: "GET",
+      pathname: "/api/manager_reports/baseline-1",
+      searchParams: {
+        project_path: "/repo/main",
+      },
+    });
+    expect(JSON.parse(listResult.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        items: [
+          {
+            report_id: "baseline-1",
+          },
+        ],
+      },
+    });
+    expect(JSON.parse(getResult.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        report_id: "baseline-1",
       },
     });
   });

@@ -1,9 +1,12 @@
 import { createClient as createGeneratedClient } from "../generated/_client/client/index.js";
 import {
+  createManagerReport,
   createTask,
   deleteTaskById,
   getHealth,
+  getManagerReportById,
   getTaskById,
+  listManagerReports,
   listOpenCodeModels,
   listTasks,
   patchTaskById,
@@ -11,6 +14,9 @@ import {
   resolveTaskById,
 } from "../generated/client.js";
 import type {
+  CreateManagerReportError,
+  CreateManagerReportRequest,
+  CreateManagerReportResponse,
   CreateTaskError,
   CreateTaskRequest,
   CreateTaskResponse,
@@ -18,12 +24,18 @@ import type {
   ErrorResponse,
   GetHealthError,
   GetHealthResponse,
+  GetManagerReportByIdError,
+  GetManagerReportByIdResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
   HealthError,
   HealthResponse,
+  ListManagerReportsError,
+  ListManagerReportsResponse,
   ListTasksError,
   ListTasksResponse,
+  ManagerReport,
+  ManagerReportListResponse,
   OpenCodeModelsResponse,
   PatchTaskByIdError,
   PatchTaskByIdResponse,
@@ -68,6 +80,16 @@ export type ContractClient = {
     done?: boolean;
     session_id?: string;
   }): Promise<TaskListResponse>;
+  listManagerReports(query: {
+    project_path: string;
+  }): Promise<ManagerReportListResponse>;
+  createManagerReport(
+    input: CreateManagerReportRequest,
+  ): Promise<ManagerReport>;
+  getManagerReportById(
+    reportId: string,
+    query: { project_path: string },
+  ): Promise<ManagerReport>;
   createTask(input: CreateTaskRequest): Promise<Task>;
   getTaskById(taskId: string): Promise<Task>;
   patchTaskById(taskId: string, input: PatchTaskRequest): Promise<Task>;
@@ -82,6 +104,8 @@ const healthResponseSchema = schemas.HealthResponse;
 const healthErrorSchema = schemas.HealthError;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
+const managerReportSchema = schemas.ManagerReport;
+const managerReportListResponseSchema = schemas.ManagerReportListResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
@@ -216,6 +240,76 @@ export const createContractClient = ({
       return opencodeModelsResponseSchema.parse(
         result.data,
       ) satisfies OpenCodeModelsResponse;
+    },
+
+    async listManagerReports(query) {
+      const result = await listManagerReports({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        query,
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies ListManagerReportsError),
+        );
+      }
+
+      return managerReportListResponseSchema.parse(
+        result.data satisfies ListManagerReportsResponse,
+      ) satisfies ManagerReportListResponse;
+    },
+
+    async createManagerReport(input) {
+      const result = await createManagerReport({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies CreateManagerReportError,
+          ),
+        );
+      }
+
+      return managerReportSchema.parse(
+        result.data satisfies CreateManagerReportResponse,
+      ) satisfies ManagerReport;
+    },
+
+    async getManagerReportById(reportId, query) {
+      const result = await getManagerReportById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          reportId,
+        },
+        query,
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies GetManagerReportByIdError,
+          ),
+        );
+      }
+
+      return managerReportSchema.parse(
+        result.data satisfies GetManagerReportByIdResponse,
+      ) satisfies ManagerReport;
     },
 
     async createTask(input) {

@@ -3,6 +3,8 @@ import { openApiDocument as generatedOpenApiDocument } from "../generated/openap
 export type OpenApiDocument = typeof generatedOpenApiDocument;
 
 export const healthPath = "/health";
+export const managerReportByIdPath = "/manager_reports/{reportId}";
+export const managerReportsPath = "/manager_reports";
 export const opencodeModelsPath = "/opencode/models";
 export const tasksPath = "/tasks";
 export const taskByIdPath = "/tasks/{taskId}";

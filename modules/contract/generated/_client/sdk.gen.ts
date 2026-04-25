@@ -8,6 +8,9 @@ import type {
 
 import { client } from "./client.gen.js";
 import type {
+  CreateManagerReportData,
+  CreateManagerReportErrors,
+  CreateManagerReportResponses,
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskResponses,
@@ -17,12 +20,18 @@ import type {
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
+  GetManagerReportByIdData,
+  GetManagerReportByIdErrors,
+  GetManagerReportByIdResponses,
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
   GetTaskSpecByIdData,
   GetTaskSpecByIdErrors,
   GetTaskSpecByIdResponses,
+  ListManagerReportsData,
+  ListManagerReportsErrors,
+  ListManagerReportsResponses,
   ListOpenCodeModelsData,
   ListOpenCodeModelsErrors,
   ListOpenCodeModelsResponses,
@@ -271,3 +280,46 @@ export const getTaskSpecById = <ThrowOnError extends boolean = false>(
     GetTaskSpecByIdErrors,
     ThrowOnError
   >({ url: "/tasks/{taskId}/spec", ...options });
+
+/**
+ * List manager reports for a project
+ */
+export const listManagerReports = <ThrowOnError extends boolean = false>(
+  options: Options<ListManagerReportsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListManagerReportsResponses,
+    ListManagerReportsErrors,
+    ThrowOnError
+  >({ url: "/manager_reports", ...options });
+
+/**
+ * Create a manager report
+ */
+export const createManagerReport = <ThrowOnError extends boolean = false>(
+  options: Options<CreateManagerReportData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateManagerReportResponses,
+    CreateManagerReportErrors,
+    ThrowOnError
+  >({
+    url: "/manager_reports",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read a manager report
+ */
+export const getManagerReportById = <ThrowOnError extends boolean = false>(
+  options: Options<GetManagerReportByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetManagerReportByIdResponses,
+    GetManagerReportByIdErrors,
+    ThrowOnError
+  >({ url: "/manager_reports/{reportId}", ...options });

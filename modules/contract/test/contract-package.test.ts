@@ -304,12 +304,17 @@ describe("contract package baseline", () => {
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
       "createContractClient",
+      "createManagerReportRequestSchema",
       "createTaskRequestSchema",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
       "healthResponseSchema",
       "healthStatusSchema",
+      "managerReportByIdPath",
+      "managerReportListResponseSchema",
+      "managerReportSchema",
+      "managerReportsPath",
       "openApiDocument",
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
@@ -364,6 +369,14 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.taskSpecPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.managerReportsPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.managerReportByIdPath
+      ],
     ).toBeDefined();
   });
 
@@ -1109,13 +1122,12 @@ describe("contract package baseline", () => {
         project_path: "/repo",
       }).success,
     ).toBe(false);
-    expect(generatedZodSource).toContain("const PatchTaskRequest");
-    expect(generatedZodSource).toMatch(
-      /const PatchTaskRequest = z[\s\S]*\.strict\(\)/,
-    );
-    expect(generatedZodSource).not.toMatch(
-      /PatchTaskRequest[\s\S]*project_path/,
-    );
+    const patchTaskRequestSource = generatedZodSource.match(
+      /const PatchTaskRequest = z[\s\S]*?\.strict\(\);/,
+    )?.[0];
+
+    expect(patchTaskRequestSource).toBeDefined();
+    expect(patchTaskRequestSource).not.toContain("project_path");
     expect(
       contractModule.patchTaskRequestSchema.parse({ result: "run summary" }),
     ).toEqual({ result: "run summary" });
@@ -1139,6 +1151,9 @@ describe("contract package baseline", () => {
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
       "taskSpecPath",
+    );
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "managerReportsPath",
     );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(

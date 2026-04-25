@@ -316,6 +316,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /manager_reports:
+    post:
+      operationId: createManagerReport
+      summary: Create a manager report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateManagerReportRequest"
+      responses:
+        "201":
+          description: Created manager report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagerReport"
+        "400":
+          description: Invalid manager report payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Manager report already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listManagerReports
+      summary: List manager reports for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathQueryParameter"
+      responses:
+        "200":
+          description: Manager report collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagerReportListResponse"
+        "400":
+          description: Invalid manager report filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /manager_reports/{reportId}:
+    get:
+      operationId: getManagerReportById
+      summary: Read a manager report
+      parameters:
+        - $ref: "#/components/parameters/ReportIdPathParameter"
+        - $ref: "#/components/parameters/ProjectPathQueryParameter"
+      responses:
+        "200":
+          description: Manager report detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagerReport"
+        "400":
+          description: Invalid manager report lookup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Manager report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -349,6 +422,20 @@ components:
       name: session_id
       in: query
       required: false
+      schema:
+        type: string
+        minLength: 1
+    ProjectPathQueryParameter:
+      name: project_path
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ReportIdPathParameter:
+      name: reportId
+      in: path
+      required: true
       schema:
         type: string
         minLength: 1
@@ -587,6 +674,90 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Task"
+    SourceMetadataEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          minLength: 1
+        value:
+          type: string
+    ManagerReport:
+      type: object
+      additionalProperties: false
+      required:
+        - project_path
+        - report_id
+        - content_markdown
+        - baseline_ref
+        - source_metadata
+        - created_at
+        - updated_at
+      properties:
+        project_path:
+          type: string
+          minLength: 1
+        report_id:
+          type: string
+          minLength: 1
+        content_markdown:
+          type: string
+          minLength: 1
+        baseline_ref:
+          type:
+            - string
+            - "null"
+        source_metadata:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceMetadataEntry"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateManagerReportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - project_path
+        - report_id
+        - content_markdown
+      properties:
+        project_path:
+          type: string
+          minLength: 1
+        report_id:
+          type: string
+          minLength: 1
+        content_markdown:
+          type: string
+          minLength: 1
+        baseline_ref:
+          type:
+            - string
+            - "null"
+        source_metadata:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceMetadataEntry"
+    ManagerReportListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManagerReport"
     OpenCodeModelCombination:
       type: object
       additionalProperties: false
@@ -632,6 +803,9 @@ components:
             - TASK_CONFLICT
             - TASK_VALIDATION_ERROR
             - TASK_UNSUPPORTED_STATUS
+            - MANAGER_REPORT_NOT_FOUND
+            - MANAGER_REPORT_CONFLICT
+            - MANAGER_REPORT_VALIDATION_ERROR
             - OPENCODE_MODELS_UNAVAILABLE
         message:
           type: string

@@ -2,18 +2,19 @@
 
 ## 定位
 
-`Manager Report` 是 AIM Manager 在产品内交接给 Coordinator 的最小方向产物。它把 README 目标、最新 `origin/main` 基线事实、可观测性资料、当前 Task Pool 与 rejected Task 反馈，收敛成一份可发现、可阅读、可引用的 Markdown 报告。
+`Manager Report` 是 AIM Manager 在产品内交接给 Coordinator 的最小方向资源。它把 README 目标、最新 `origin/main` 基线事实、可观测性资料、当前 Task Pool 与 rejected Task 反馈，收敛成一份可发现、可阅读、可引用的服务端持久化记录。
 
-这个落点用于让 Manager 输出不再只存在于一次性对话或 skill 说明中。它定义的是产品语义与交接入口，不是服务端 API schema、不是 SQLite schema、不是后台自动执行协议，也不承诺最终存储形态。
+Manager Report 的 Markdown 结构仍用于表达关键评估内容，但 Markdown 是 SQLite `manager_reports` 表中的 `content_markdown` 字段，不是写入仓库的 Markdown 文件。`project_path` 标识被评估项目，`report_id` 标识同一项目下的一次评估结果。
 
 ## 可观察入口
 
-当前最小入口是 packaged OpenCode skill `aim-manager-guide`：
+当前最小入口是服务端 Manager Report 资源，并可由 CLI 通过服务端 API 创建、查询和读取：
 
-- 入口文档：`modules/opencode-plugin/skills/aim-manager-guide/SKILL.md`
-- 发现路径：安装 `@aim-ai/opencode-plugin` 后，OpenCode 可在 packaged `skills/` 目录中发现 `aim-manager-guide`。
-- 输出形态：按该 skill 中的稳定 Markdown 结构输出一份 `# Manager Report`。
-- 交接方式：Coordinator 读取这份报告，并在需要维护 Task Pool 时进入 `aim-coordinator-guide` 与 `docs/task-write-bulk.md`。
+- 创建入口：`POST /manager_reports`
+- 查询入口：`GET /manager_reports?project_path=...`
+- 读取入口：`GET /manager_reports/{reportId}?project_path=...`
+- CLI 入口：`aim manager-report create|list|get`，且 CLI 只能作为 API 消费者，不直接读写 SQLite。
+- 交接方式：Coordinator 读取服务端资源，并在需要维护 Task Pool 时进入 `aim-coordinator-guide` 与 `docs/task-write-bulk.md`。
 
 因此，一份输出只有同时满足“由 Manager 评估语境产生”“使用 `Manager Report` 结构”“面向 Coordinator handoff”“不直接写 Task Pool”时，才应被视为 AIM 的 Manager Report。普通分析回复、README claim 核对结果、Coordinator `Task Write Bulk` 或 Developer 任务执行报告都不是 Manager Report。
 
@@ -37,14 +38,15 @@ Manager Report 可以作为 Coordinator 的输入，但不能替代 Coordinator 
 
 Manager Report 不得：
 
+- 写成仓库 Markdown 文件，或要求 Coordinator 从仓库 Markdown 文件读取。
 - 直接创建、删除或修改 Task。
 - 调用或要求调用 `POST /tasks`。
 - 输出已批准的 Developer Task Spec。
 - 绕过 `Task Write Bulk` 的人工审批、`aim-verify-task-spec` 校验或 `aim-create-tasks` 创建边界。
-- 声明自身是最终 HTTP API contract、OpenAPI contract、SQLite 表结构或后台调度协议。
+- 绕过服务端 API 直接访问 SQLite。
 
 Coordinator 可以把 Manager Report 中的差距与方向信号转化为 `Task Write Bulk` 候选写入意图，但该转换必须继续遵守 `docs/task-write-bulk.md`：候选 `Create` / `Delete` 只有在批准后才进入后续验证与写入流程。
 
-## 未来演进
+## 后续演进边界
 
-后续可以把 Manager Report 进一步接入 GUI、CLI、API 或持久化层，但这些演进需要单独定义契约。本文件只固定当前最小产品概念与可观察入口，不提前固化最终 API schema、SQLite schema、后台调度器或自动 Task 写入协议。
+后续可以把 Manager Report 进一步接入 GUI 展示、Coordinator 自动消费或更完整的 Manager 生成流程，但这些演进需要单独定义契约。本文件只固定当前最小服务端资源、SQLite 持久化与 CLI API 消费边界，不引入后台调度器或自动 Task 写入协议。
