@@ -29,6 +29,9 @@ const ErrorResponse = z
       "MANAGER_REPORT_NOT_FOUND",
       "MANAGER_REPORT_CONFLICT",
       "MANAGER_REPORT_VALIDATION_ERROR",
+      "TASK_WRITE_BULK_NOT_FOUND",
+      "TASK_WRITE_BULK_CONFLICT",
+      "TASK_WRITE_BULK_VALIDATION_ERROR",
       "OPENCODE_MODELS_UNAVAILABLE",
     ]),
     message: z.string().min(1),
@@ -124,6 +127,57 @@ const ManagerReport = z
 const ManagerReportListResponse = z
   .object({ items: z.array(ManagerReport) })
   .strict();
+const TaskWriteBulkCreateFields = z
+  .object({
+    candidate_task_spec: z.string().min(1),
+    project_path: z.string().min(1),
+    dependencies: z.array(z.string().min(1)),
+    verification_route: z.string().min(1),
+  })
+  .strict();
+const TaskWriteBulkDeleteFields = z
+  .object({
+    target_task_id: z.string().min(1),
+    delete_reason: z.string().min(1),
+    replacement: z.union([z.string(), z.null()]),
+  })
+  .strict();
+const TaskWriteBulkEntry = z
+  .object({
+    id: z.string().min(1),
+    action: z.enum(["Create", "Delete"]),
+    depends_on: z.array(z.string().min(1)),
+    reason: z.string().min(1),
+    source: z.string().min(1),
+    create: z.union([TaskWriteBulkCreateFields, z.null()]),
+    delete: z.union([TaskWriteBulkDeleteFields, z.null()]),
+  })
+  .strict();
+const CreateTaskWriteBulkRequest = z
+  .object({
+    project_path: z.string().min(1),
+    bulk_id: z.string().min(1),
+    content_markdown: z.string().min(1),
+    entries: z.array(TaskWriteBulkEntry),
+    baseline_ref: z.union([z.string(), z.null()]).optional(),
+    source_metadata: z.array(SourceMetadataEntry).optional(),
+  })
+  .strict();
+const TaskWriteBulk = z
+  .object({
+    project_path: z.string().min(1),
+    bulk_id: z.string().min(1),
+    content_markdown: z.string().min(1),
+    entries: z.array(TaskWriteBulkEntry),
+    baseline_ref: z.union([z.string(), z.null()]),
+    source_metadata: z.array(SourceMetadataEntry),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const TaskWriteBulkListResponse = z
+  .object({ items: z.array(TaskWriteBulk) })
+  .strict();
 
 export const schemas = {
   HealthResponse,
@@ -143,4 +197,10 @@ export const schemas = {
   CreateManagerReportRequest,
   ManagerReport,
   ManagerReportListResponse,
+  TaskWriteBulkCreateFields,
+  TaskWriteBulkDeleteFields,
+  TaskWriteBulkEntry,
+  CreateTaskWriteBulkRequest,
+  TaskWriteBulk,
+  TaskWriteBulkListResponse,
 };

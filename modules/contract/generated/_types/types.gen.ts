@@ -115,6 +115,53 @@ export type ManagerReportListResponse = {
   items: Array<ManagerReport>;
 };
 
+export type TaskWriteBulkCreateFields = {
+  candidate_task_spec: string;
+  project_path: string;
+  dependencies: Array<string>;
+  verification_route: string;
+};
+
+export type TaskWriteBulkDeleteFields = {
+  target_task_id: string;
+  delete_reason: string;
+  replacement: string | null;
+};
+
+export type TaskWriteBulkEntry = {
+  id: string;
+  action: "Create" | "Delete";
+  depends_on: Array<string>;
+  reason: string;
+  source: string;
+  create: TaskWriteBulkCreateFields | null;
+  delete: TaskWriteBulkDeleteFields | null;
+};
+
+export type TaskWriteBulk = {
+  project_path: string;
+  bulk_id: string;
+  content_markdown: string;
+  entries: Array<TaskWriteBulkEntry>;
+  baseline_ref: string | null;
+  source_metadata: Array<SourceMetadataEntry>;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateTaskWriteBulkRequest = {
+  project_path: string;
+  bulk_id: string;
+  content_markdown: string;
+  entries: Array<TaskWriteBulkEntry>;
+  baseline_ref?: string | null;
+  source_metadata?: Array<SourceMetadataEntry>;
+};
+
+export type TaskWriteBulkListResponse = {
+  items: Array<TaskWriteBulk>;
+};
+
 export type OpenCodeModelCombination = {
   provider_id: string;
   provider_name: string;
@@ -135,6 +182,9 @@ export type ErrorResponse = {
     | "MANAGER_REPORT_NOT_FOUND"
     | "MANAGER_REPORT_CONFLICT"
     | "MANAGER_REPORT_VALIDATION_ERROR"
+    | "TASK_WRITE_BULK_NOT_FOUND"
+    | "TASK_WRITE_BULK_CONFLICT"
+    | "TASK_WRITE_BULK_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
@@ -169,6 +219,19 @@ export type ManagerReportListResponseWritable = {
   items: Array<ManagerReportWritable>;
 };
 
+export type TaskWriteBulkWritable = {
+  project_path: string;
+  bulk_id: string;
+  content_markdown: string;
+  entries: Array<TaskWriteBulkEntry>;
+  baseline_ref: string | null;
+  source_metadata: Array<SourceMetadataEntry>;
+};
+
+export type TaskWriteBulkListResponseWritable = {
+  items: Array<TaskWriteBulkWritable>;
+};
+
 export type TaskIdPathParameter = string;
 
 export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
@@ -180,6 +243,8 @@ export type TaskSessionIdQueryParameter = string;
 export type ProjectPathQueryParameter = string;
 
 export type ReportIdPathParameter = string;
+
+export type BulkIdPathParameter = string;
 
 export type GetHealthData = {
   body?: never;
@@ -664,3 +729,98 @@ export type GetManagerReportByIdResponses = {
 
 export type GetManagerReportByIdResponse =
   GetManagerReportByIdResponses[keyof GetManagerReportByIdResponses];
+
+export type ListTaskWriteBulksData = {
+  body?: never;
+  path?: never;
+  query: {
+    project_path: string;
+  };
+  url: "/task_write_bulks";
+};
+
+export type ListTaskWriteBulksErrors = {
+  /**
+   * Invalid task write bulk filter
+   */
+  400: ErrorResponse;
+};
+
+export type ListTaskWriteBulksError =
+  ListTaskWriteBulksErrors[keyof ListTaskWriteBulksErrors];
+
+export type ListTaskWriteBulksResponses = {
+  /**
+   * Task write bulk collection
+   */
+  200: TaskWriteBulkListResponse;
+};
+
+export type ListTaskWriteBulksResponse =
+  ListTaskWriteBulksResponses[keyof ListTaskWriteBulksResponses];
+
+export type CreateTaskWriteBulkData = {
+  body: CreateTaskWriteBulkRequest;
+  path?: never;
+  query?: never;
+  url: "/task_write_bulks";
+};
+
+export type CreateTaskWriteBulkErrors = {
+  /**
+   * Invalid task write bulk payload
+   */
+  400: ErrorResponse;
+  /**
+   * Task write bulk already exists
+   */
+  409: ErrorResponse;
+};
+
+export type CreateTaskWriteBulkError =
+  CreateTaskWriteBulkErrors[keyof CreateTaskWriteBulkErrors];
+
+export type CreateTaskWriteBulkResponses = {
+  /**
+   * Created task write bulk intent
+   */
+  201: TaskWriteBulk;
+};
+
+export type CreateTaskWriteBulkResponse =
+  CreateTaskWriteBulkResponses[keyof CreateTaskWriteBulkResponses];
+
+export type GetTaskWriteBulkByIdData = {
+  body?: never;
+  path: {
+    bulkId: string;
+  };
+  query: {
+    project_path: string;
+  };
+  url: "/task_write_bulks/{bulkId}";
+};
+
+export type GetTaskWriteBulkByIdErrors = {
+  /**
+   * Invalid task write bulk lookup
+   */
+  400: ErrorResponse;
+  /**
+   * Task write bulk not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetTaskWriteBulkByIdError =
+  GetTaskWriteBulkByIdErrors[keyof GetTaskWriteBulkByIdErrors];
+
+export type GetTaskWriteBulkByIdResponses = {
+  /**
+   * Task write bulk detail
+   */
+  200: TaskWriteBulk;
+};
+
+export type GetTaskWriteBulkByIdResponse =
+  GetTaskWriteBulkByIdResponses[keyof GetTaskWriteBulkByIdResponses];

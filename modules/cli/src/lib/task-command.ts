@@ -132,6 +132,17 @@ export const parseSourceMetadataJson = (value: string | undefined) => {
   }));
 };
 
+export const parseJsonFlag = <T = unknown>(value: string, flagName: string) => {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    throw cliError(
+      "CLI_INVALID_FLAG_VALUE",
+      `invalid --${flagName} value: expected JSON`,
+    );
+  }
+};
+
 export const assertNoConflict = (
   value: unknown,
   clearSelected: boolean,

@@ -389,6 +389,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /task_write_bulks:
+    post:
+      operationId: createTaskWriteBulk
+      summary: Create a coordinator task write bulk intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskWriteBulkRequest"
+      responses:
+        "201":
+          description: Created task write bulk intent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskWriteBulk"
+        "400":
+          description: Invalid task write bulk payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Task write bulk already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listTaskWriteBulks
+      summary: List coordinator task write bulk intents for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathQueryParameter"
+      responses:
+        "200":
+          description: Task write bulk collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskWriteBulkListResponse"
+        "400":
+          description: Invalid task write bulk filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /task_write_bulks/{bulkId}:
+    get:
+      operationId: getTaskWriteBulkById
+      summary: Read a coordinator task write bulk intent
+      parameters:
+        - $ref: "#/components/parameters/BulkIdPathParameter"
+        - $ref: "#/components/parameters/ProjectPathQueryParameter"
+      responses:
+        "200":
+          description: Task write bulk detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskWriteBulk"
+        "400":
+          description: Invalid task write bulk lookup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Task write bulk not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -434,6 +507,13 @@ components:
         minLength: 1
     ReportIdPathParameter:
       name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    BulkIdPathParameter:
+      name: bulkId
       in: path
       required: true
       schema:
@@ -758,6 +838,168 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ManagerReport"
+    TaskWriteBulkCreateFields:
+      type: object
+      additionalProperties: false
+      required:
+        - candidate_task_spec
+        - project_path
+        - dependencies
+        - verification_route
+      properties:
+        candidate_task_spec:
+          type: string
+          minLength: 1
+        project_path:
+          type: string
+          minLength: 1
+        dependencies:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        verification_route:
+          type: string
+          minLength: 1
+    TaskWriteBulkDeleteFields:
+      type: object
+      additionalProperties: false
+      required:
+        - target_task_id
+        - delete_reason
+        - replacement
+      properties:
+        target_task_id:
+          type: string
+          minLength: 1
+        delete_reason:
+          type: string
+          minLength: 1
+        replacement:
+          type:
+            - string
+            - "null"
+    TaskWriteBulkEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - action
+        - depends_on
+        - reason
+        - source
+        - create
+        - delete
+      properties:
+        id:
+          type: string
+          minLength: 1
+        action:
+          type: string
+          enum:
+            - Create
+            - Delete
+        depends_on:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        reason:
+          type: string
+          minLength: 1
+        source:
+          type: string
+          minLength: 1
+        create:
+          oneOf:
+            - $ref: "#/components/schemas/TaskWriteBulkCreateFields"
+            - type: "null"
+        delete:
+          oneOf:
+            - $ref: "#/components/schemas/TaskWriteBulkDeleteFields"
+            - type: "null"
+    TaskWriteBulk:
+      type: object
+      additionalProperties: false
+      required:
+        - project_path
+        - bulk_id
+        - content_markdown
+        - entries
+        - baseline_ref
+        - source_metadata
+        - created_at
+        - updated_at
+      properties:
+        project_path:
+          type: string
+          minLength: 1
+        bulk_id:
+          type: string
+          minLength: 1
+        content_markdown:
+          type: string
+          minLength: 1
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskWriteBulkEntry"
+        baseline_ref:
+          type:
+            - string
+            - "null"
+        source_metadata:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceMetadataEntry"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateTaskWriteBulkRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - project_path
+        - bulk_id
+        - content_markdown
+        - entries
+      properties:
+        project_path:
+          type: string
+          minLength: 1
+        bulk_id:
+          type: string
+          minLength: 1
+        content_markdown:
+          type: string
+          minLength: 1
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskWriteBulkEntry"
+        baseline_ref:
+          type:
+            - string
+            - "null"
+        source_metadata:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceMetadataEntry"
+    TaskWriteBulkListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskWriteBulk"
     OpenCodeModelCombination:
       type: object
       additionalProperties: false
@@ -806,6 +1048,9 @@ components:
             - MANAGER_REPORT_NOT_FOUND
             - MANAGER_REPORT_CONFLICT
             - MANAGER_REPORT_VALIDATION_ERROR
+            - TASK_WRITE_BULK_NOT_FOUND
+            - TASK_WRITE_BULK_CONFLICT
+            - TASK_WRITE_BULK_VALIDATION_ERROR
             - OPENCODE_MODELS_UNAVAILABLE
         message:
           type: string

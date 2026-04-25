@@ -77,6 +77,31 @@ const startTaskServer = async () => {
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
+  const taskWriteBulkEntry = {
+    id: "create-contract-doc",
+    action: "Create",
+    depends_on: [],
+    reason: "Manager Report shows missing approval handoff persistence.",
+    source: "Manager gap",
+    create: {
+      candidate_task_spec: "# Persist Task Write Bulk\n\n## Assumptions\n...",
+      project_path: "/repo/main",
+      dependencies: [],
+      verification_route:
+        "批准后先经 aim-verify-task-spec 独立校验，通过后再进入 aim-create-tasks。",
+    },
+    delete: null,
+  };
+  const taskWriteBulk = {
+    project_path: "/repo/main",
+    bulk_id: "bulk-1",
+    content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
+    entries: [taskWriteBulkEntry],
+    baseline_ref: "origin/main@abc123",
+    source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+    created_at: "2026-04-20T00:00:00.000Z",
+    updated_at: "2026-04-20T00:00:00.000Z",
+  };
 
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
@@ -134,6 +159,34 @@ const startTaskServer = async () => {
               : [],
         }),
       );
+      return;
+    }
+
+    if (request.method === "POST" && path === "/api/task_write_bulks") {
+      response.writeHead(201, { "content-type": "application/json" });
+      response.end(JSON.stringify(taskWriteBulk));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/task_write_bulks") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          items:
+            url.searchParams.get("project_path") === "/repo/main"
+              ? [taskWriteBulk]
+              : [],
+        }),
+      );
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      url.pathname === "/api/task_write_bulks/bulk-1"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(taskWriteBulk));
       return;
     }
 
@@ -459,6 +512,144 @@ describe("task cli command baseline", () => {
       ok: true,
       data: {
         report_id: "baseline-1",
+      },
+    });
+  });
+
+  it("registers task-write-bulk create with the expected API request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task-write-bulk",
+      "create",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+      "--bulk-id",
+      "bulk-1",
+      "--content-markdown",
+      "# Task Write Bulk\n\n- id: create-contract-doc",
+      "--entries-json",
+      JSON.stringify([
+        {
+          id: "create-contract-doc",
+          action: "Create",
+          depends_on: [],
+          reason: "Manager Report shows missing approval handoff persistence.",
+          source: "Manager gap",
+          create: {
+            candidate_task_spec:
+              "# Persist Task Write Bulk\n\n## Assumptions\n...",
+            project_path: "/repo/main",
+            dependencies: [],
+            verification_route:
+              "批准后先经 aim-verify-task-spec 独立校验，通过后再进入 aim-create-tasks。",
+          },
+          delete: null,
+        },
+      ]),
+      "--baseline-ref",
+      "origin/main@abc123",
+      "--source-metadata-json",
+      '{"manager_report":"baseline-1"}',
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "POST",
+      path: "/api/task_write_bulks",
+      json: {
+        project_path: "/repo/main",
+        bulk_id: "bulk-1",
+        content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
+        entries: [
+          {
+            id: "create-contract-doc",
+            action: "Create",
+            create: {
+              candidate_task_spec:
+                "# Persist Task Write Bulk\n\n## Assumptions\n...",
+            },
+          },
+        ],
+        baseline_ref: "origin/main@abc123",
+        source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+      },
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        project_path: "/repo/main",
+        bulk_id: "bulk-1",
+      },
+    });
+  });
+
+  it("registers task-write-bulk list and get with project path queries", async () => {
+    const server = await startTaskServer();
+
+    const listResult = await runCli([
+      "task-write-bulk",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+    ]);
+    const getResult = await runCli([
+      "task-write-bulk",
+      "get",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-path",
+      "/repo/main",
+      "--bulk-id",
+      "bulk-1",
+    ]);
+
+    expect({
+      exitCode: listResult.exitCode,
+      stderr: listResult.stderr,
+    }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect({ exitCode: getResult.exitCode, stderr: getResult.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests.at(-2)).toMatchObject({
+      method: "GET",
+      pathname: "/api/task_write_bulks",
+      searchParams: {
+        project_path: "/repo/main",
+      },
+    });
+    expect(server.requests.at(-1)).toMatchObject({
+      method: "GET",
+      pathname: "/api/task_write_bulks/bulk-1",
+      searchParams: {
+        project_path: "/repo/main",
+      },
+    });
+    expect(JSON.parse(listResult.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        items: [
+          {
+            bulk_id: "bulk-1",
+          },
+        ],
+      },
+    });
+    expect(JSON.parse(getResult.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        bulk_id: "bulk-1",
       },
     });
   });
