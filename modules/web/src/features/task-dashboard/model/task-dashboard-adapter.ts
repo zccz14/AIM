@@ -1,4 +1,4 @@
-import type { Task } from "@aim-ai/contract";
+import type { Task, TaskStatus } from "@aim-ai/contract";
 
 import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
@@ -30,26 +30,27 @@ export type DashboardGraphEdge = {
 };
 
 const statusColorMap: Record<DashboardStatus, string> = {
-  created: "#74c0fc",
-  waiting_assumptions: "#ff922b",
-  running: "#fab005",
-  outbound: "#22d3ee",
-  pr_following: "#a78bfa",
-  closing: "#69db7c",
-  succeeded: "#2f9e44",
-  failed: "#e03131",
+  processing: "#fab005",
+  resolved: "#2f9e44",
+  rejected: "#e03131",
 };
 
-export const toDashboardStatus = (status: string): DashboardStatus =>
-  status as DashboardStatus;
+export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
+  switch (status) {
+    case "processing":
+      return "processing";
+    case "resolved":
+      return "resolved";
+    case "rejected":
+      return "rejected";
+  }
+};
 
 const countTasksByStatus = (tasks: DashboardTask[], status: DashboardStatus) =>
   tasks.filter((task) => task.dashboardStatus === status).length;
 
 const isActiveTask = (task: DashboardTask) =>
-  !task.isDone &&
-  task.dashboardStatus !== "succeeded" &&
-  task.dashboardStatus !== "failed";
+  task.dashboardStatus === "processing";
 
 export const summarizeTaskSpec = (taskSpec: string) => {
   const [firstLine = ""] = taskSpec
@@ -120,7 +121,7 @@ const buildRejectedFeedbackSignals = (
   const signalsByKey = new Map<string, DashboardRejectedFeedbackSignal>();
 
   for (const task of historyTasks) {
-    if (task.dashboardStatus !== "failed") {
+    if (task.dashboardStatus !== "rejected") {
       continue;
     }
 
@@ -179,8 +180,7 @@ const buildClosureChecklist = (task: Task): DashboardClosureCue[] => {
   const hasPullRequest = task.pull_request_url !== null;
   const hasWorktree = task.worktree_path !== null;
   const hasResult = task.result.trim().length > 0;
-  const hasSucceededCompletion =
-    task.done && String(task.status) === "succeeded";
+  const hasSucceededCompletion = task.done && task.status === "resolved";
 
   return [
     {
@@ -313,23 +313,16 @@ export const adaptTaskDashboard = (
       target: task.id,
     })),
   );
-  const runningCount =
-    countTasksByStatus(tasks, "running") +
-    countTasksByStatus(tasks, "outbound") +
-    countTasksByStatus(tasks, "pr_following") +
-    countTasksByStatus(tasks, "closing");
-  const waitingCount =
-    countTasksByStatus(tasks, "created") +
-    countTasksByStatus(tasks, "waiting_assumptions");
-  const succeededCount = countTasksByStatus(historyTasks, "succeeded");
-  const failedCount = countTasksByStatus(historyTasks, "failed");
+  const processingCount = countTasksByStatus(tasks, "processing");
+  const resolvedCount = countTasksByStatus(historyTasks, "resolved");
+  const rejectedCount = countTasksByStatus(historyTasks, "rejected");
   const historyCount = historyTasks.length;
   const successRate =
-    historyCount === 0 ? 0 : Math.round((succeededCount / historyCount) * 100);
+    historyCount === 0 ? 0 : Math.round((resolvedCount / historyCount) * 100);
   const dependencyLinkedCount = tasks.filter(
     (task) => task.dependencies.length > 0,
   ).length;
-  const attentionSignalCount = waitingCount + failedCount;
+  const attentionSignalCount = dependencyLinkedCount + rejectedCount;
 
   return {
     graphEdges,
@@ -340,24 +333,19 @@ export const adaptTaskDashboard = (
     summaryCards: [
       { key: "pool", label: "Task Pool", value: tasks.length },
       {
-        key: "running",
-        label: "Running / Outbound",
-        value: runningCount,
+        key: "processing",
+        label: "Processing",
+        value: processingCount,
       },
       {
-        key: "waiting",
-        label: "Waiting / Created",
-        value: waitingCount,
+        key: "historyResolved",
+        label: "History Resolved",
+        value: resolvedCount,
       },
       {
-        key: "historySucceeded",
-        label: "History Succeeded",
-        value: succeededCount,
-      },
-      {
-        key: "historyFailed",
-        label: "History Failed",
-        value: failedCount,
+        key: "historyRejected",
+        label: "History Rejected",
+        value: rejectedCount,
       },
     ],
     decisionSignals: [
@@ -365,7 +353,7 @@ export const adaptTaskDashboard = (
         key: "coverage",
         label: "Coverage",
         value: `${tasks.length} active`,
-        detail: `${tasks.length} active tasks carry the task pool direction, including ${dependencyLinkedCount} with dependencies.`,
+        detail: `${processingCount} processing tasks currently carry the task pool direction, including ${dependencyLinkedCount} with dependencies.`,
       },
       {
         key: "flow",
@@ -380,45 +368,20 @@ export const adaptTaskDashboard = (
         detail:
           historyCount === 0
             ? "No completed task history is available yet."
-            : `${succeededCount} succeeded and ${failedCount} failed in completed history.`,
+            : `${resolvedCount} resolved and ${rejectedCount} rejected in completed history.`,
       },
       {
         key: "gap",
         label: "Gap / Blocker Signal",
         value: `${attentionSignalCount} signals`,
-        detail: `${waitingCount} waiting or newly created tasks and ${failedCount} failed history items may need Manager/Coordinator attention.`,
+        detail: `${dependencyLinkedCount} active dependency-linked tasks and ${rejectedCount} rejected history items may need Manager/Coordinator attention.`,
       },
     ],
     statusBoardItems: [
       {
-        key: "created",
-        label: "Created",
-        value: countTasksByStatus(tasks, "created"),
-      },
-      {
-        key: "waiting_assumptions",
-        label: "Waiting",
-        value: countTasksByStatus(tasks, "waiting_assumptions"),
-      },
-      {
-        key: "running",
-        label: "Running",
-        value: countTasksByStatus(tasks, "running"),
-      },
-      {
-        key: "outbound",
-        label: "Outbound",
-        value: countTasksByStatus(tasks, "outbound"),
-      },
-      {
-        key: "pr_following",
-        label: "PR Following",
-        value: countTasksByStatus(tasks, "pr_following"),
-      },
-      {
-        key: "closing",
-        label: "Closing",
-        value: countTasksByStatus(tasks, "closing"),
+        key: "processing",
+        label: "Processing",
+        value: processingCount,
       },
     ],
     activitySeries: [...historyTasks]
