@@ -713,7 +713,7 @@ describe("opencode plugin package baseline", () => {
       "coordinator_handoff",
       "open_questions",
       "confidence_and_limits",
-      "不是 API schema 或 SQLite schema",
+      "作为服务端资源的 `content_markdown` 保存",
       "默认不需要用户输入",
       "Rejected Task",
       "aim-evaluate-readme",
@@ -732,9 +732,10 @@ describe("opencode plugin package baseline", () => {
   it("publishes a standalone manager report product landing point", () => {
     for (const requiredFragment of [
       "# Manager Report 产品落点",
-      "可发现、可阅读、可引用的 Markdown 报告",
-      "不是服务端 API schema、不是 SQLite schema、不是后台自动执行协议",
-      "modules/opencode-plugin/skills/aim-manager-guide/SKILL.md",
+      "可发现、可阅读、可引用的服务端持久化记录",
+      "SQLite `manager_reports` 表中的 `content_markdown` 字段",
+      "POST /manager_reports",
+      "GET /manager_reports?project_path=...",
       "baseline_ref",
       "coordinate_system",
       "gap_analysis",

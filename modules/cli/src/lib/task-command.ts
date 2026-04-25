@@ -98,6 +98,40 @@ export const parseStatusFlag = (
   return parsed.data;
 };
 
+export const parseSourceMetadataJson = (value: string | undefined) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw cliError(
+      "CLI_INVALID_FLAG_VALUE",
+      "invalid --source-metadata-json value: expected JSON object with string values",
+    );
+  }
+
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    Array.isArray(parsed) ||
+    Object.values(parsed).some((entry) => typeof entry !== "string")
+  ) {
+    throw cliError(
+      "CLI_INVALID_FLAG_VALUE",
+      "invalid --source-metadata-json value: expected JSON object with string values",
+    );
+  }
+
+  return Object.entries(parsed).map(([key, entry]) => ({
+    key,
+    value: entry as string,
+  }));
+};
+
 export const assertNoConflict = (
   value: unknown,
   clearSelected: boolean,
@@ -180,6 +214,8 @@ export const createTaskContractClient = (
     fetch: (input, init) => fetch(toAbsoluteRequest(baseUrl, input, init)),
   });
 };
+
+export const createAimContractClient = createTaskContractClient;
 
 export const writeSuccess = <T>(command: Command, data: T) => {
   command.log(JSON.stringify({ ok: true, data } satisfies CliSuccess<T>));

@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import type { ApiLogger } from "./api-logger.js";
 import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
 import { registerHealthRoute } from "./routes/health.js";
+import { registerManagerReportRoutes } from "./routes/manager-reports.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
@@ -23,6 +24,7 @@ export const createApp = (_options: CreateAppOptions = {}) => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
+  registerManagerReportRoutes(app);
   registerTaskRoutes(app, {
     logger: _options.logger,
     onTaskResolved: _options.onTaskResolved,

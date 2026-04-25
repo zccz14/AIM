@@ -88,6 +88,33 @@ export type TaskListResponse = {
   items: Array<Task>;
 };
 
+export type SourceMetadataEntry = {
+  key: string;
+  value: string;
+};
+
+export type ManagerReport = {
+  project_path: string;
+  report_id: string;
+  content_markdown: string;
+  baseline_ref: string | null;
+  source_metadata: Array<SourceMetadataEntry>;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateManagerReportRequest = {
+  project_path: string;
+  report_id: string;
+  content_markdown: string;
+  baseline_ref?: string | null;
+  source_metadata?: Array<SourceMetadataEntry>;
+};
+
+export type ManagerReportListResponse = {
+  items: Array<ManagerReport>;
+};
+
 export type OpenCodeModelCombination = {
   provider_id: string;
   provider_name: string;
@@ -105,6 +132,9 @@ export type ErrorResponse = {
     | "TASK_CONFLICT"
     | "TASK_VALIDATION_ERROR"
     | "TASK_UNSUPPORTED_STATUS"
+    | "MANAGER_REPORT_NOT_FOUND"
+    | "MANAGER_REPORT_CONFLICT"
+    | "MANAGER_REPORT_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
@@ -127,6 +157,18 @@ export type TaskListResponseWritable = {
   items: Array<TaskWritable>;
 };
 
+export type ManagerReportWritable = {
+  project_path: string;
+  report_id: string;
+  content_markdown: string;
+  baseline_ref: string | null;
+  source_metadata: Array<SourceMetadataEntry>;
+};
+
+export type ManagerReportListResponseWritable = {
+  items: Array<ManagerReportWritable>;
+};
+
 export type TaskIdPathParameter = string;
 
 export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
@@ -134,6 +176,10 @@ export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
 export type TaskDoneQueryParameter = boolean;
 
 export type TaskSessionIdQueryParameter = string;
+
+export type ProjectPathQueryParameter = string;
+
+export type ReportIdPathParameter = string;
 
 export type GetHealthData = {
   body?: never;
@@ -523,3 +569,98 @@ export type GetTaskSpecByIdResponses = {
 
 export type GetTaskSpecByIdResponse =
   GetTaskSpecByIdResponses[keyof GetTaskSpecByIdResponses];
+
+export type ListManagerReportsData = {
+  body?: never;
+  path?: never;
+  query: {
+    project_path: string;
+  };
+  url: "/manager_reports";
+};
+
+export type ListManagerReportsErrors = {
+  /**
+   * Invalid manager report filter
+   */
+  400: ErrorResponse;
+};
+
+export type ListManagerReportsError =
+  ListManagerReportsErrors[keyof ListManagerReportsErrors];
+
+export type ListManagerReportsResponses = {
+  /**
+   * Manager report collection
+   */
+  200: ManagerReportListResponse;
+};
+
+export type ListManagerReportsResponse =
+  ListManagerReportsResponses[keyof ListManagerReportsResponses];
+
+export type CreateManagerReportData = {
+  body: CreateManagerReportRequest;
+  path?: never;
+  query?: never;
+  url: "/manager_reports";
+};
+
+export type CreateManagerReportErrors = {
+  /**
+   * Invalid manager report payload
+   */
+  400: ErrorResponse;
+  /**
+   * Manager report already exists
+   */
+  409: ErrorResponse;
+};
+
+export type CreateManagerReportError =
+  CreateManagerReportErrors[keyof CreateManagerReportErrors];
+
+export type CreateManagerReportResponses = {
+  /**
+   * Created manager report
+   */
+  201: ManagerReport;
+};
+
+export type CreateManagerReportResponse =
+  CreateManagerReportResponses[keyof CreateManagerReportResponses];
+
+export type GetManagerReportByIdData = {
+  body?: never;
+  path: {
+    reportId: string;
+  };
+  query: {
+    project_path: string;
+  };
+  url: "/manager_reports/{reportId}";
+};
+
+export type GetManagerReportByIdErrors = {
+  /**
+   * Invalid manager report lookup
+   */
+  400: ErrorResponse;
+  /**
+   * Manager report not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetManagerReportByIdError =
+  GetManagerReportByIdErrors[keyof GetManagerReportByIdErrors];
+
+export type GetManagerReportByIdResponses = {
+  /**
+   * Manager report detail
+   */
+  200: ManagerReport;
+};
+
+export type GetManagerReportByIdResponse =
+  GetManagerReportByIdResponses[keyof GetManagerReportByIdResponses];
