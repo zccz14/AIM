@@ -134,9 +134,9 @@ export const OverviewSection = ({
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="surface-card section-stack">
+      <Card className="section-stack">
         <div>
           <p className="eyebrow">Signal</p>
           <h2 className="section-title">Recent Active Tasks</h2>
