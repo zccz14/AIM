@@ -149,7 +149,7 @@ AIM Manager 的输出：
 - 迭代方向建议（本质上是基于差距分析结果，给 AIM Coordinator 的一些建议，例如优先推进哪个维度的迭代，或者是否需要先进行一些探索性的迭代来验证某些假设等）
 - 开放问题（本质上是 AIM Manager 在评估过程中发现的 README 不清晰的地方，需要 Director 澄清的地方）
 
-当前最小产品落点是 [`Manager Report`](docs/manager-report.md)：它是一份可发现、可阅读、可交接给 Coordinator 的 Markdown 方向产物，由 packaged `aim-manager-guide` 入口产出。它定义 Manager 输出的产品语义与交接边界，不是最终 API schema、SQLite schema 或自动执行协议；Coordinator 只能把它作为 `Task Write Bulk` 的方向输入，不能绕过审批直接写入 Task。
+AIM Manager 的评估结果应当写入 SQLite 中的 `manager_reports` 表，并且通过 AIM GUI 向 Director 展示。`manager_reports` 表需要区分 `project_path` 和 `report_id`，以支持同一项目的多轮评估结果的存储和展示。关键性的评估结果仍然使用 Markdown 来表达，以支持更丰富的格式和内容。
 
 ## 路线图
 
@@ -170,11 +170,14 @@ AIM Manager 的输出：
 
 当前仓库承载的是 AIM 方法论与调度语义所依赖的现有基线；上文提到的 server / GUI / CLI / OpenAPI 是 AIM 的目标产品形态，不应读成这些表面都已在本仓库内完整落地。今天开始阅读时，优先从当前模块与验证入口进入。
 
-- 当前基线模块入口：[`modules/contract`](modules/contract)（`@aim-ai/contract`）、[`modules/api`](modules/api)（`@aim-ai/api`）、[`modules/web`](modules/web)（`@aim-ai/web`）、[`modules/cli`](modules/cli)（`@aim-ai/cli`）
-- API 文档入口说明：[`docs/api/README.md`](docs/api/README.md)
-- 架构文档目录：[`docs/architecture/`](docs/architecture/)
+- 合约与接口定义入口：[`modules/contract`](modules/contract)（`@aim-ai/contract`）
+- API Server 入口：[`modules/api`](modules/api)（`@aim-ai/api`）
+- GUI 入口：[`modules/web`](modules/web)（`@aim-ai/web`）
+- CLI 入口：[`modules/cli`](modules/cli)（`@aim-ai/cli`）
+- OpenCode 插件入口：[`modules/opencode-plugin`](modules/opencode-plugin)（`@aim-ai/opencode-plugin`）
 
-本地启动 AIM Server：构建 CLI 与 API 后，可使用 `aim server start` 在前台启动本地 Server；默认沿用 API 的 `PORT` / `8192` 语义，也可使用 `aim server start --port 8192` 显式指定端口。
+每个包要考虑到引用边界，通过安装依赖来引用其他包的产物，不得直接跨包引用。
+特别是，OpenCode Plugin 不得引用 `docs/*` 文档，因为这些文档并不随包发布，在开发环境之外是不可用的。
 
 ## 安装、构建与测试
 
@@ -189,3 +192,5 @@ AIM Manager 的输出：
 - 在 repo 根执行时，固定等价于先运行所有 workspace 包的 `build`，再运行 repo-only 的 typecheck、lint、Vitest、OpenAPI 与 changeset 校验。
 - 在任一 workspace 包内执行时，`pnpm build` 都表示先产出该包构建产物，再运行该包要求的显式 `test:*` 校验。
 - 仓库不提供精确名为 `test` 的脚本；需要局部验证时使用显式命名入口，例如 `test:type`、`test:lint`、`test:vitest`、`test:smoke` 或 `test:web`。
+
+本地启动 AIM Server：构建 CLI 与 API 后，可使用 `aim server start` 在前台启动本地 Server；默认沿用 API 的 `PORT` / `8192` 语义，也可使用 `aim server start --port 8192` 显式指定端口。
