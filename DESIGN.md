@@ -2,11 +2,11 @@
 
 ## Overview
 
-AIM Web uses a product register with a restrained, warm-dark-first methodology hub. The physical scene is a Director reviewing autonomous baseline convergence in a quiet late-evening planning session on a laptop or external monitor, needing calm authority, dense evidence, and clear intervention points without terminal noise. Light mode remains accessible for daytime review.
+AIM Web uses a product register with a restrained, warm-dark-first Baseline Convergence Cockpit. The physical scene is a Director reviewing autonomous baseline convergence in a quiet late-evening planning session on a laptop or external monitor, needing calm authority, dense evidence, and clear intervention points without terminal noise. Light mode remains accessible for daytime review.
 
 ## Color
 
-Use OKLCH tokens for new color decisions. The palette is restrained: tinted warm neutrals carry most surfaces, with one amber/lime-cyan accent vocabulary reserved for state, focus, primary action, and selected navigation. Avoid pure black and pure white in new colors.
+Use OKLCH tokens for new color decisions. The palette is restrained: tinted warm graphite and parchment neutrals carry most surfaces, with one amber accent vocabulary reserved for state, focus, primary action, and selected navigation. Avoid pure black and pure white in new colors.
 
 Core roles:
 
@@ -22,7 +22,7 @@ Use the existing system sans stack. Product UI uses compact hierarchy, not displ
 
 ## Layout
 
-The default shell is a methodology hub: header for orientation, a compact navigation row, a main evidence column, and a Director review rail on wide screens. Cards are used only for bounded evidence groups. Avoid nested card grids and repeated identical metric tiles where a rail or list provides clearer rhythm.
+The default shell is a Director cockpit: banner for orientation, anchor navigation for Convergence Map, Evidence Ledger, and Intervention Rail, a main evidence column, and a sticky Director review rail on wide screens. Cards are used only for bounded evidence groups. Avoid nested card grids and repeated identical metric tiles where a rail or list provides clearer rhythm.
 
 ## Components
 

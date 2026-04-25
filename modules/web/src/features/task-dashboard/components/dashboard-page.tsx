@@ -165,17 +165,46 @@ export const DashboardPage = () => {
 
   const headerTitle =
     route.kind === "dashboard"
-      ? "Methodology Hub"
+      ? "Baseline Convergence Cockpit"
       : route.kind === "create"
         ? "Create Task"
         : "Task Details";
 
+  const renderDirectorRail = () => (
+    <aside
+      aria-label="Intervention rail"
+      className="director-rail"
+      id="intervention-rail"
+    >
+      <div>
+        <p className="eyebrow">Human review needed</p>
+        <h3 className="section-title">Director Review Rail</h3>
+      </div>
+      <p className="section-copy">
+        Human attention stays on goals, blockers, and clarification points.
+        Dependency pressure and rejected feedback stay visible beside the
+        ledger.
+      </p>
+      <ul aria-label="Director checkpoints" className="rail-checkpoints">
+        <li>Baseline review</li>
+        <li>Dependency pressure</li>
+        <li>Rejected feedback</li>
+        <li>Task intake</li>
+      </ul>
+      <Button onClick={goToCreateTask} variant="outline">
+        <Plus size={16} />
+        Task intake
+      </Button>
+    </aside>
+  );
+
   const renderContent = () => {
     if (route.kind === "create") {
       return (
-        <section className="section-stack">
+        <section className="section-stack route-panel">
           <p className="section-copy">
-            Create a new AIM task without leaving the main desktop workspace.
+            Create a new AIM task from the same Director workspace used for
+            convergence review.
           </p>
           <CreateTaskForm
             errorMessage={
@@ -241,21 +270,24 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isSuccess && hasDashboardData ? (
-          <>
-            <OverviewSection
-              dashboard={dashboardQuery.data}
-              onSelectTask={goToTask}
-            />
-            <DependencyGraphSection
-              graphEdges={dashboardQuery.data.graphEdges}
-              graphNodes={dashboardQuery.data.graphNodes}
-              onSelectTask={goToTask}
-            />
-            <TaskTableSection
-              onSelectTask={goToTask}
-              tasks={dashboardQuery.data.tasks}
-            />
-          </>
+          <div className="director-workspace">
+            <div className="director-workspace__main">
+              <OverviewSection
+                dashboard={dashboardQuery.data}
+                onSelectTask={goToTask}
+              />
+              <DependencyGraphSection
+                graphEdges={dashboardQuery.data.graphEdges}
+                graphNodes={dashboardQuery.data.graphNodes}
+                onSelectTask={goToTask}
+              />
+              <TaskTableSection
+                onSelectTask={goToTask}
+                tasks={dashboardQuery.data.tasks}
+              />
+            </div>
+            {renderDirectorRail()}
+          </div>
         ) : null}
       </div>
     );
@@ -274,6 +306,12 @@ export const DashboardPage = () => {
     >
       {label}
     </Button>
+  );
+
+  const renderWorkspaceLink = (href: string, label: string) => (
+    <a className="workspace-link" href={href}>
+      {label}
+    </a>
   );
 
   return (
@@ -314,10 +352,27 @@ export const DashboardPage = () => {
                   Baseline convergence for the AIM Director
                 </p>
                 <h2 className="hero-title">{headerTitle}</h2>
+                {route.kind === "dashboard" ? (
+                  <h3 className="route-kicker">Methodology Hub</h3>
+                ) : null}
                 <p className="section-copy">
-                  A quiet command surface for reading goal alignment, task pool
-                  pressure, rejected feedback, and the next human intervention.
+                  A disciplined review surface for reading goal alignment, task
+                  pool pressure, rejected feedback, dependency risk, and the
+                  next human intervention.
                 </p>
+                {route.kind === "dashboard" ? (
+                  <nav
+                    aria-label="Director workspace"
+                    className="workspace-nav"
+                  >
+                    {renderWorkspaceLink("#convergence-map", "Convergence Map")}
+                    {renderWorkspaceLink("#evidence-ledger", "Evidence Ledger")}
+                    {renderWorkspaceLink(
+                      "#intervention-rail",
+                      "Intervention Rail",
+                    )}
+                  </nav>
+                ) : null}
                 <nav aria-label="AIM sections" className="nav-group">
                   {renderNavAction(
                     route.kind === "dashboard",
@@ -359,33 +414,10 @@ export const DashboardPage = () => {
                 ) : null}
               </div>
             </div>
-            {route.kind === "dashboard" ? (
-              <aside
-                aria-label="Director review rail"
-                className="director-rail"
-              >
-                <div>
-                  <p className="eyebrow">Review stance</p>
-                  <h3 className="section-title">Director Review Rail</h3>
-                </div>
-                <p className="section-copy">
-                  Human attention stays on goals, blockers, and clarification
-                  points.
-                </p>
-                <ul
-                  aria-label="Director checkpoints"
-                  className="rail-checkpoints"
-                >
-                  <li>Baseline review</li>
-                  <li>Dependency pressure</li>
-                  <li>Rejected feedback</li>
-                </ul>
-              </aside>
-            ) : null}
           </div>
         </header>
 
-        <main>{renderContent()}</main>
+        <main className="app-main">{renderContent()}</main>
       </div>
     </div>
   );

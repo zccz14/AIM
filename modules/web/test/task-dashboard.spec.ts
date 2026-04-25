@@ -130,6 +130,45 @@ test("frames the dashboard as a Director methodology hub", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
 });
 
+test("presents a cohesive Director cockpit with convergence, evidence, and intervention regions", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("banner").getByRole("heading", {
+      name: "Baseline Convergence Cockpit",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Director workspace" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Convergence Map" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Evidence Ledger" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Intervention Rail" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Baseline convergence map" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Evidence ledger" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "Intervention rail" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Human review needed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Task intake" }),
+  ).toBeVisible();
+});
+
 test("separates unfinished Task Pool data from completed history results", async ({
   page,
 }) => {
@@ -214,7 +253,8 @@ test("separates unfinished Task Pool data from completed history results", async
     page.getByTestId("graph-node-task-history-succeeded"),
   ).toHaveCount(0);
 
-  const recentActiveSection = page.locator("section", {
+  const evidenceLedger = page.getByRole("region", { name: "Evidence ledger" });
+  const recentActiveSection = evidenceLedger.locator('[data-slot="card"]', {
     has: page.getByRole("heading", { name: "Recent Active Tasks" }),
   });
 
@@ -224,9 +264,12 @@ test("separates unfinished Task Pool data from completed history results", async
   await expect(
     recentActiveSection.getByRole("button", { name: "Rejected history task" }),
   ).toHaveCount(0);
-  const completedFeedbackSection = page.locator("section", {
-    has: page.getByRole("heading", { name: "Completed Task Feedback" }),
-  });
+  const completedFeedbackSection = evidenceLedger.locator(
+    '[data-slot="card"]',
+    {
+      has: page.getByRole("heading", { name: "Completed Task Feedback" }),
+    },
+  );
 
   await expect(completedFeedbackSection).toBeVisible();
   await expect(
@@ -300,9 +343,11 @@ test("aggregates rejected feedback signals for Coordinator planning", async ({
 
   await page.goto("/");
 
-  const rejectedFeedbackSection = page.locator("section", {
-    has: page.getByRole("heading", { name: "Rejected Feedback Signals" }),
-  });
+  const rejectedFeedbackSection = page
+    .getByRole("region", { name: "Evidence ledger" })
+    .locator('[data-slot="card"]', {
+      has: page.getByRole("heading", { name: "Rejected Feedback Signals" }),
+    });
 
   await expect(rejectedFeedbackSection).toBeVisible();
   const schedulerFeedbackCard = rejectedFeedbackSection
@@ -1484,9 +1529,11 @@ test("keeps only active tasks in Recent Active Tasks", async ({ page }) => {
 
   await page.goto("/");
 
-  const recentActiveSection = page.locator("section", {
-    has: page.getByRole("heading", { name: "Recent Active Tasks" }),
-  });
+  const recentActiveSection = page
+    .getByRole("region", { name: "Evidence ledger" })
+    .locator('[data-slot="card"]', {
+      has: page.getByRole("heading", { name: "Recent Active Tasks" }),
+    });
 
   await expect(
     recentActiveSection.getByRole("button", {

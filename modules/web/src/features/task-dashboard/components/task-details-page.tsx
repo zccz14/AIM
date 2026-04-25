@@ -46,8 +46,8 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
           <TaskStatusBadge status={task.dashboardStatus} />
         </div>
         <LyraMuted className="aim-task-summary">
-          Review the task brief, delivery metadata, and outbound context without
-          losing the dark-theme reading rhythm established on the dashboard.
+          Review the task brief, delivery metadata, dependencies, and closure
+          cues without dropping out of the Director cockpit.
         </LyraMuted>
       </header>
 

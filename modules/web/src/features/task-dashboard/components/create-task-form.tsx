@@ -115,10 +115,10 @@ export const CreateTaskForm = ({
     >
       <header className="aim-task-form-header">
         <LyraKicker>Create Task</LyraKicker>
-        <h2>Shape a focused brief before it leaves the dashboard.</h2>
+        <h2>Shape a focused brief before it enters the task pool.</h2>
         <LyraMuted className="aim-task-summary">
-          Draft the task in the same branded workspace used for review, so the
-          handoff into AIM stays readable in both light and dark themes.
+          Draft task intake beside the same evidence vocabulary used for
+          convergence review.
         </LyraMuted>
       </header>
 
@@ -233,7 +233,7 @@ export const CreateTaskForm = ({
 
       <div className="aim-task-form-footer">
         <LyraMuted>
-          The create flow keeps the existing API contract and trims accidental
+          Task intake keeps the existing API contract and trims accidental
           whitespace before submit.
         </LyraMuted>
         <div className="aim-task-actions">
