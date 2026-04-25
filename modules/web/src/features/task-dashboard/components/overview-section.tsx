@@ -90,7 +90,11 @@ export const OverviewSection = ({
                 <XAxis dataKey="label" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#22d3ee" radius={[8, 8, 0, 0]} />
+                <Bar
+                  dataKey="value"
+                  fill="var(--status-blocked)"
+                  radius={[8, 8, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -107,7 +111,11 @@ export const OverviewSection = ({
                 <XAxis dataKey="label" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Area dataKey="value" fill="#67e8f9" stroke="#6366f1" />
+                <Area
+                  dataKey="value"
+                  fill="var(--status-ready)"
+                  stroke="var(--primary)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>

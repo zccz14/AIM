@@ -30,9 +30,9 @@ export type DashboardGraphEdge = {
 };
 
 const statusColorMap: Record<DashboardStatus, string> = {
-  processing: "#fab005",
-  resolved: "#2f9e44",
-  rejected: "#e03131",
+  processing: "oklch(77% 0.12 85deg)",
+  resolved: "oklch(74% 0.11 145deg)",
+  rejected: "oklch(68% 0.15 25deg)",
 };
 
 export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
