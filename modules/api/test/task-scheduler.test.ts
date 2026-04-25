@@ -439,6 +439,71 @@ describe("task scheduler", () => {
     ]);
   });
 
+  it("orders dependency hints within session priority groups after a resolved task", async () => {
+    const firstTask = createTask({
+      dependencies: ["task-other", "task-extra"],
+      session_id: "session-1",
+      task_id: "task-1",
+    });
+    const secondTask = createTask({
+      dependencies: [],
+      session_id: "session-2",
+      task_id: "task-2",
+    });
+    const thirdTask = createTask({
+      dependencies: ["task-resolved", "task-other"],
+      task_id: "task-3",
+    });
+    const fourthTask = createTask({
+      dependencies: ["task-other"],
+      task_id: "task-4",
+    });
+    const fifthTask = createTask({
+      dependencies: [],
+      task_id: "task-5",
+    });
+    const sixthTask = createTask({
+      dependencies: ["task-a", "task-b", "task-c"],
+      task_id: "task-6",
+    });
+    const events: string[] = [];
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockImplementation(async (sessionId) => {
+      events.push(`state:${sessionId}`);
+      return "running";
+    });
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(async (taskId) => {
+          events.push(`assign:${taskId}`);
+          return null;
+        }),
+        listUnfinishedTasks: vi
+          .fn()
+          .mockResolvedValue([
+            firstTask,
+            secondTask,
+            thirdTask,
+            fourthTask,
+            fifthTask,
+            sixthTask,
+          ]),
+      },
+    });
+
+    await scheduler.scanOnce({ resolvedTaskId: "task-resolved" });
+
+    expect(events).toEqual([
+      "state:session-2",
+      "state:session-1",
+      "assign:task-3",
+      "assign:task-5",
+      "assign:task-4",
+      "assign:task-6",
+    ]);
+  });
+
   it("keeps an empty unfinished task pool as a no-op", async () => {
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({

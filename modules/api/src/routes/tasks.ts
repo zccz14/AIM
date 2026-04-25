@@ -28,6 +28,7 @@ import {
 } from "../opencode-sdk-adapter.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
+import type { SchedulerScanContext } from "../task-scheduler.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
 const taskWorktreePathRoutePath = taskWorktreePathPath.replace(
@@ -227,7 +228,7 @@ const parseTaskDependenciesRequest = async (request: Request) => {
 
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
-  onTaskResolved?: () => Promise<void> | void;
+  onTaskResolved?: (context: SchedulerScanContext) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
 };
 
@@ -444,7 +445,7 @@ export const registerTaskRoutes = (
 
     if (onTaskResolved) {
       Promise.resolve()
-        .then(onTaskResolved)
+        .then(() => onTaskResolved({ resolvedTaskId: payload.task_id }))
         .catch((error: unknown) => {
           logger?.error(
             { err: error, taskId },
