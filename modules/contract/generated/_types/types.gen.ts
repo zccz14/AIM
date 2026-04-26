@@ -26,6 +26,34 @@ export type HealthError = {
   message: string;
 };
 
+export type Project = {
+  readonly id: string;
+  name: string;
+  project_path: string;
+  global_provider_id: string;
+  global_model_id: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateProjectRequest = {
+  name: string;
+  project_path: string;
+  global_provider_id: string;
+  global_model_id: string;
+};
+
+export type PatchProjectRequest = {
+  name?: string;
+  project_path?: string;
+  global_provider_id?: string;
+  global_model_id?: string;
+};
+
+export type ProjectListResponse = {
+  items: Array<Project>;
+};
+
 export type Task = {
   readonly task_id: string;
   task_spec: string;
@@ -263,6 +291,9 @@ export type ErrorResponse = {
     | "TASK_CONFLICT"
     | "TASK_VALIDATION_ERROR"
     | "TASK_UNSUPPORTED_STATUS"
+    | "PROJECT_NOT_FOUND"
+    | "PROJECT_CONFLICT"
+    | "PROJECT_VALIDATION_ERROR"
     | "MANAGER_REPORT_NOT_FOUND"
     | "MANAGER_REPORT_CONFLICT"
     | "MANAGER_REPORT_VALIDATION_ERROR"
@@ -273,6 +304,17 @@ export type ErrorResponse = {
     | "DIMENSION_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
+};
+
+export type ProjectWritable = {
+  name: string;
+  project_path: string;
+  global_provider_id: string;
+  global_model_id: string;
+};
+
+export type ProjectListResponseWritable = {
+  items: Array<ProjectWritable>;
 };
 
 export type TaskWritable = {
@@ -356,6 +398,8 @@ export type TaskDoneQueryParameter = boolean;
 
 export type TaskSessionIdQueryParameter = string;
 
+export type ProjectIdPathParameter = string;
+
 export type ProjectPathQueryParameter = string;
 
 export type ReportIdPathParameter = string;
@@ -415,6 +459,111 @@ export type ListOpenCodeModelsResponses = {
 
 export type ListOpenCodeModelsResponse =
   ListOpenCodeModelsResponses[keyof ListOpenCodeModelsResponses];
+
+export type ListProjectsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/projects";
+};
+
+export type ListProjectsResponses = {
+  /**
+   * Project collection
+   */
+  200: ProjectListResponse;
+};
+
+export type ListProjectsResponse =
+  ListProjectsResponses[keyof ListProjectsResponses];
+
+export type CreateProjectData = {
+  body: CreateProjectRequest;
+  path?: never;
+  query?: never;
+  url: "/projects";
+};
+
+export type CreateProjectErrors = {
+  /**
+   * Invalid project payload
+   */
+  400: ErrorResponse;
+};
+
+export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors];
+
+export type CreateProjectResponses = {
+  /**
+   * Created project
+   */
+  201: Project;
+};
+
+export type CreateProjectResponse =
+  CreateProjectResponses[keyof CreateProjectResponses];
+
+export type DeleteProjectByIdData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}";
+};
+
+export type DeleteProjectByIdErrors = {
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type DeleteProjectByIdError =
+  DeleteProjectByIdErrors[keyof DeleteProjectByIdErrors];
+
+export type DeleteProjectByIdResponses = {
+  /**
+   * Project deleted
+   */
+  204: void;
+};
+
+export type DeleteProjectByIdResponse =
+  DeleteProjectByIdResponses[keyof DeleteProjectByIdResponses];
+
+export type PatchProjectByIdData = {
+  body: PatchProjectRequest;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}";
+};
+
+export type PatchProjectByIdErrors = {
+  /**
+   * Invalid project patch
+   */
+  400: ErrorResponse;
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type PatchProjectByIdError =
+  PatchProjectByIdErrors[keyof PatchProjectByIdErrors];
+
+export type PatchProjectByIdResponses = {
+  /**
+   * Updated project
+   */
+  200: Project;
+};
+
+export type PatchProjectByIdResponse =
+  PatchProjectByIdResponses[keyof PatchProjectByIdResponses];
 
 export type GetOptimizerStatusData = {
   body?: never;

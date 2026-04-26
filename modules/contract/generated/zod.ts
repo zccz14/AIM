@@ -26,6 +26,9 @@ const ErrorResponse = z
       "TASK_CONFLICT",
       "TASK_VALIDATION_ERROR",
       "TASK_UNSUPPORTED_STATUS",
+      "PROJECT_NOT_FOUND",
+      "PROJECT_CONFLICT",
+      "PROJECT_VALIDATION_ERROR",
       "MANAGER_REPORT_NOT_FOUND",
       "MANAGER_REPORT_CONFLICT",
       "MANAGER_REPORT_VALIDATION_ERROR",
@@ -38,6 +41,35 @@ const ErrorResponse = z
     ]),
     message: z.string().min(1),
   })
+  .strict();
+const CreateProjectRequest = z
+  .object({
+    name: z.string().min(1),
+    project_path: z.string().min(1),
+    global_provider_id: z.string().min(1),
+    global_model_id: z.string().min(1),
+  })
+  .strict();
+const Project = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    project_path: z.string().min(1),
+    global_provider_id: z.string().min(1),
+    global_model_id: z.string().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const ProjectListResponse = z.object({ items: z.array(Project) }).strict();
+const PatchProjectRequest = z
+  .object({
+    name: z.string().min(1),
+    project_path: z.string().min(1),
+    global_provider_id: z.string().min(1),
+    global_model_id: z.string().min(1),
+  })
+  .partial()
   .strict();
 const OptimizerTrigger = z.literal("task_resolved");
 const OptimizerEventStatus = z
@@ -268,6 +300,10 @@ export const schemas = {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   ErrorResponse,
+  CreateProjectRequest,
+  Project,
+  ProjectListResponse,
+  PatchProjectRequest,
   OptimizerTrigger,
   OptimizerEventStatus,
   OptimizerLaneStatus,

@@ -5,6 +5,7 @@ const mockRegisterDimensionRoutes = vi.fn();
 const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
 const mockRegisterOptimizerRoutes = vi.fn();
+const mockRegisterProjectRoutes = vi.fn();
 const mockRegisterTaskWriteBulkRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
@@ -30,6 +31,10 @@ vi.mock("../src/routes/opencode-models.js", () => ({
 
 vi.mock("../src/routes/optimizer.js", () => ({
   registerOptimizerRoutes: mockRegisterOptimizerRoutes,
+}));
+
+vi.mock("../src/routes/projects.js", () => ({
+  registerProjectRoutes: mockRegisterProjectRoutes,
 }));
 
 vi.mock("../src/routes/task-write-bulks.js", () => ({

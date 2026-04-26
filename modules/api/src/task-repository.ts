@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type CreateProjectRequest,
   type CreateTaskRequest,
+  type PatchProjectRequest,
   type PatchTaskRequest,
+  type Project,
+  projectSchema,
   type Task,
   type TaskStatus,
   taskSchema,
@@ -182,6 +186,17 @@ const mapTaskRow = (row: TaskRow) =>
     result: row.result,
     done: Boolean(row.done),
     status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  });
+
+const mapProjectRow = (row: ProjectRow) =>
+  projectSchema.parse({
+    id: row.id,
+    name: row.name,
+    project_path: row.project_path,
+    global_provider_id: row.global_provider_id,
+    global_model_id: row.global_model_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
@@ -371,6 +386,18 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     FROM ${projectsTableName}
     WHERE id = ?
   `);
+  const listProjectsStatement = database.prepare(`
+    SELECT
+      id,
+      name,
+      project_path,
+      global_provider_id,
+      global_model_id,
+      created_at,
+      updated_at
+    FROM ${projectsTableName}
+    ORDER BY created_at ASC, id ASC
+  `);
   const insertProjectStatement = database.prepare(`
     INSERT INTO ${projectsTableName} (
       id,
@@ -382,6 +409,19 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
+  const updateProjectStatement = database.prepare(`
+    UPDATE ${projectsTableName}
+    SET
+      name = ?,
+      project_path = ?,
+      global_provider_id = ?,
+      global_model_id = ?,
+      updated_at = ?
+    WHERE id = ?
+  `);
+  const deleteProjectStatement = database.prepare(
+    `DELETE FROM ${projectsTableName} WHERE id = ?`,
+  );
   const listTasksStatement = database.prepare(`
     SELECT
       task_id,
@@ -455,6 +495,70 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         | undefined;
 
       return Promise.resolve(project ?? null);
+    },
+    listProjects(): Promise<Project[]> {
+      const rows = listProjectsStatement.all() as ProjectRow[];
+
+      return Promise.resolve(rows.map(mapProjectRow));
+    },
+    async createProject(input: CreateProjectRequest): Promise<Project> {
+      const timestamp = new Date().toISOString();
+      const project = mapProjectRow({
+        id: randomUUID(),
+        name: input.name,
+        project_path: input.project_path,
+        global_provider_id: input.global_provider_id,
+        global_model_id: input.global_model_id,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+
+      insertProjectStatement.run(
+        project.id,
+        project.name,
+        project.project_path,
+        project.global_provider_id,
+        project.global_model_id,
+        project.created_at,
+        project.updated_at,
+      );
+
+      return project;
+    },
+    async updateProject(
+      projectId: string,
+      patch: PatchProjectRequest,
+    ): Promise<null | Project> {
+      const currentProject = getProjectByIdStatement.get(projectId) as
+        | ProjectRow
+        | undefined;
+
+      if (!currentProject) {
+        return null;
+      }
+
+      const updatedProject = mapProjectRow({
+        ...currentProject,
+        ...patch,
+        id: currentProject.id,
+        updated_at: new Date().toISOString(),
+      });
+
+      updateProjectStatement.run(
+        updatedProject.name,
+        updatedProject.project_path,
+        updatedProject.global_provider_id,
+        updatedProject.global_model_id,
+        updatedProject.updated_at,
+        projectId,
+      );
+
+      return updatedProject;
+    },
+    deleteProject(projectId: string): Promise<boolean> {
+      const result = deleteProjectStatement.run(projectId);
+
+      return Promise.resolve(result.changes > 0);
     },
     getFirstProject(): null | ProjectRow {
       const project = database

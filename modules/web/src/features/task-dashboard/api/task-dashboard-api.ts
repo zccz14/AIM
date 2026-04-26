@@ -4,6 +4,8 @@ import type {
   ManagerReport,
   OpenCodeModelsResponse,
   OptimizerStatusResponse,
+  Project,
+  ProjectListResponse,
   Task,
   TaskListResponse,
   TaskWriteBulkListResponse,
@@ -17,6 +19,13 @@ export type CreateDashboardTaskInput = {
   projectPath: string;
   developerProviderId: string;
   developerModelId: string;
+};
+
+export type ProjectFormInput = {
+  name: string;
+  projectPath: string;
+  globalProviderId: string;
+  globalModelId: string;
 };
 
 export type TaskDashboardResponse = {
@@ -97,6 +106,45 @@ export const createTaskFromDashboard = async (
     task_spec: input.taskSpec,
     project_id: input.projectPath,
   });
+};
+
+export const listProjects = async (): Promise<ProjectListResponse> => {
+  const client = createWebApiClient();
+
+  return client.listProjects();
+};
+
+export const createProject = async (
+  input: ProjectFormInput,
+): Promise<Project> => {
+  const client = createWebApiClient();
+
+  return client.createProject({
+    global_model_id: input.globalModelId,
+    global_provider_id: input.globalProviderId,
+    name: input.name,
+    project_path: input.projectPath,
+  });
+};
+
+export const updateProject = async (
+  projectId: string,
+  input: ProjectFormInput,
+): Promise<Project> => {
+  const client = createWebApiClient();
+
+  return client.patchProjectById(projectId, {
+    global_model_id: input.globalModelId,
+    global_provider_id: input.globalProviderId,
+    name: input.name,
+    project_path: input.projectPath,
+  });
+};
+
+export const deleteProject = async (projectId: string): Promise<void> => {
+  const client = createWebApiClient();
+
+  return client.deleteProjectById(projectId);
 };
 
 export const getOpenCodeModels = async (): Promise<OpenCodeModelsResponse> => {
