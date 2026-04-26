@@ -65,7 +65,7 @@ export const startServer = () => {
   const server = serve({
     fetch: createApp({
       logger,
-      onTaskResolved: scheduler.scanOnce,
+      onTaskResolved: optimizerRuntime.handleEvent,
       optimizerRuntime,
     }).fetch,
     port,

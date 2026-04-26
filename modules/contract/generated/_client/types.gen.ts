@@ -233,7 +233,18 @@ export type OpenCodeModelsResponse = {
 };
 
 export type OptimizerStatusResponse = {
+  enabled_triggers: Array<OptimizerTrigger>;
+  last_event: OptimizerEventStatus | null;
+  last_scan_at: string | null;
   running: boolean;
+};
+
+export type OptimizerTrigger = "task_resolved";
+
+export type OptimizerEventStatus = {
+  task_id: string;
+  triggered_scan: boolean;
+  type: OptimizerTrigger;
 };
 
 export type ErrorResponse = {

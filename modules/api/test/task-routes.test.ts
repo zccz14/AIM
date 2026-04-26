@@ -1126,7 +1126,8 @@ describe("task routes", () => {
     expect(resolveResponse.status).toBe(204);
     await vi.waitFor(() =>
       expect(onTaskResolved).toHaveBeenCalledWith({
-        resolvedTaskId: createdTask.task_id,
+        taskId: createdTask.task_id,
+        type: "task_resolved",
       }),
     );
     expect(onTaskResolved).toHaveBeenCalledTimes(1);

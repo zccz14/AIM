@@ -489,8 +489,26 @@ describe("contract package baseline", () => {
     expect(contractModule.optimizerStartPath).toBe("/optimizer/start");
     expect(contractModule.optimizerStopPath).toBe("/optimizer/stop");
     expect(
-      contractModule.optimizerStatusResponseSchema.parse({ running: true }),
-    ).toEqual({ running: true });
+      contractModule.optimizerStatusResponseSchema.parse({
+        enabled_triggers: ["task_resolved"],
+        last_event: {
+          task_id: "task-1",
+          triggered_scan: true,
+          type: "task_resolved",
+        },
+        last_scan_at: "2026-04-26T12:00:00.000Z",
+        running: true,
+      }),
+    ).toEqual({
+      enabled_triggers: ["task_resolved"],
+      last_event: {
+        task_id: "task-1",
+        triggered_scan: true,
+        type: "task_resolved",
+      },
+      last_scan_at: "2026-04-26T12:00:00.000Z",
+      running: true,
+    });
   });
 
   it("exports task paths and task schemas from the built package boundary", () => {

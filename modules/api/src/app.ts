@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 
 import type { ApiLogger } from "./api-logger.js";
 import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
-import type { OptimizerRuntime } from "./optimizer-runtime.js";
+import type { OptimizerEvent, OptimizerRuntime } from "./optimizer-runtime.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerManagerReportRoutes } from "./routes/manager-reports.js";
@@ -12,11 +12,10 @@ import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerOptimizerRoutes } from "./routes/optimizer.js";
 import { registerTaskWriteBulkRoutes } from "./routes/task-write-bulks.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
-import type { SchedulerScanContext } from "./task-scheduler.js";
 
 type CreateAppOptions = {
   logger?: ApiLogger;
-  onTaskResolved?: (context: SchedulerScanContext) => Promise<void> | void;
+  onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
   optimizerRuntime?: OptimizerRuntime;
 };
@@ -25,7 +24,13 @@ const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
   let running = false;
 
   return {
-    getStatus: () => ({ running }),
+    getStatus: () => ({
+      enabled_triggers: ["task_resolved"],
+      last_event: null,
+      last_scan_at: null,
+      running,
+    }),
+    handleEvent: () => Promise.resolve(),
     start: () => {
       running = true;
     },

@@ -8,9 +8,25 @@ describe("optimizer routes", () => {
     const optimizerRuntime = {
       getStatus: vi
         .fn()
-        .mockReturnValueOnce({ running: false })
-        .mockReturnValueOnce({ running: true })
-        .mockReturnValueOnce({ running: false }),
+        .mockReturnValueOnce({
+          enabled_triggers: ["task_resolved"],
+          last_event: null,
+          last_scan_at: null,
+          running: false,
+        })
+        .mockReturnValueOnce({
+          enabled_triggers: ["task_resolved"],
+          last_event: null,
+          last_scan_at: null,
+          running: true,
+        })
+        .mockReturnValueOnce({
+          enabled_triggers: ["task_resolved"],
+          last_event: null,
+          last_scan_at: null,
+          running: false,
+        }),
+      handleEvent: vi.fn(),
       start: vi.fn(),
       stop: vi.fn().mockResolvedValue(undefined),
     };
@@ -18,14 +34,24 @@ describe("optimizer routes", () => {
 
     await expect(
       (await app.request(optimizerStatusPath)).json(),
-    ).resolves.toEqual({ running: false });
+    ).resolves.toEqual({
+      enabled_triggers: ["task_resolved"],
+      last_event: null,
+      last_scan_at: null,
+      running: false,
+    });
 
     const startResponse = await app.request("/optimizer/start", {
       method: "POST",
     });
 
     expect(startResponse.status).toBe(200);
-    await expect(startResponse.json()).resolves.toEqual({ running: true });
+    await expect(startResponse.json()).resolves.toEqual({
+      enabled_triggers: ["task_resolved"],
+      last_event: null,
+      last_scan_at: null,
+      running: true,
+    });
     expect(optimizerRuntime.start).toHaveBeenCalledTimes(1);
 
     const stopResponse = await app.request("/optimizer/stop", {
@@ -33,7 +59,12 @@ describe("optimizer routes", () => {
     });
 
     expect(stopResponse.status).toBe(200);
-    await expect(stopResponse.json()).resolves.toEqual({ running: false });
+    await expect(stopResponse.json()).resolves.toEqual({
+      enabled_triggers: ["task_resolved"],
+      last_event: null,
+      last_scan_at: null,
+      running: false,
+    });
     expect(optimizerRuntime.stop).toHaveBeenCalledTimes(1);
   });
 });

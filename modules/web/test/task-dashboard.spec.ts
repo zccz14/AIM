@@ -34,6 +34,13 @@ const buildTask = ({
   updated_at: updatedAt,
 });
 
+const buildOptimizerStatus = (running: boolean) => ({
+  enabled_triggers: ["task_resolved"],
+  last_event: null,
+  last_scan_at: null,
+  running,
+});
+
 const buildTaskWriteBulk = () => ({
   project_path: "/repo/dashboard",
   bulk_id: "bulk-approval-1",
@@ -199,21 +206,21 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/optimizer/status", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: false }),
+      body: JSON.stringify(buildOptimizerStatus(false)),
     });
   });
 
   await page.route("**/optimizer/start", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: true }),
+      body: JSON.stringify(buildOptimizerStatus(true)),
     });
   });
 
   await page.route("**/optimizer/stop", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: false }),
+      body: JSON.stringify(buildOptimizerStatus(false)),
     });
   });
 
@@ -273,7 +280,7 @@ test("toggles the optimizer from the global dashboard controls", async ({
 
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: false }),
+      body: JSON.stringify(buildOptimizerStatus(false)),
     });
   });
   await page.route("**/optimizer/start", async (route) => {
@@ -281,7 +288,7 @@ test("toggles the optimizer from the global dashboard controls", async ({
 
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: true }),
+      body: JSON.stringify(buildOptimizerStatus(true)),
     });
   });
   await page.route("**/optimizer/stop", async (route) => {
@@ -289,7 +296,7 @@ test("toggles the optimizer from the global dashboard controls", async ({
 
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ running: false }),
+      body: JSON.stringify(buildOptimizerStatus(false)),
     });
   });
 
