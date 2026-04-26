@@ -303,7 +303,16 @@ describe("contract package baseline", () => {
     });
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
+      "coordinateByIdPath",
+      "coordinateEvaluationListResponseSchema",
+      "coordinateEvaluationSchema",
+      "coordinateEvaluationsPath",
+      "coordinateListResponseSchema",
+      "coordinateSchema",
+      "coordinatesPath",
       "createContractClient",
+      "createCoordinateEvaluationRequestSchema",
+      "createCoordinateRequestSchema",
       "createManagerReportRequestSchema",
       "createTaskRequestSchema",
       "createTaskWriteBulkRequestSchema",
@@ -320,6 +329,7 @@ describe("contract package baseline", () => {
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
+      "patchCoordinateRequestSchema",
       "patchTaskRequestSchema",
       "taskByIdPath",
       "taskDependenciesPath",
@@ -346,6 +356,17 @@ describe("contract package baseline", () => {
     ]);
     expect(
       contractModule.openApiDocument.paths[contractModule.healthPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.coordinatesPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.coordinateByIdPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.coordinateEvaluationsPath
+      ],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.opencodeModelsPath],
@@ -1171,6 +1192,9 @@ describe("contract package baseline", () => {
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
       "taskWriteBulksPath",
+    );
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "coordinatesPath",
     );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(

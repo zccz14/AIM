@@ -8,6 +8,12 @@ import type {
 
 import { client } from "./client.gen.js";
 import type {
+  CreateCoordinateData,
+  CreateCoordinateErrors,
+  CreateCoordinateEvaluationData,
+  CreateCoordinateEvaluationErrors,
+  CreateCoordinateEvaluationResponses,
+  CreateCoordinateResponses,
   CreateManagerReportData,
   CreateManagerReportErrors,
   CreateManagerReportResponses,
@@ -17,9 +23,15 @@ import type {
   CreateTaskWriteBulkData,
   CreateTaskWriteBulkErrors,
   CreateTaskWriteBulkResponses,
+  DeleteCoordinateByIdData,
+  DeleteCoordinateByIdErrors,
+  DeleteCoordinateByIdResponses,
   DeleteTaskByIdData,
   DeleteTaskByIdErrors,
   DeleteTaskByIdResponses,
+  GetCoordinateByIdData,
+  GetCoordinateByIdErrors,
+  GetCoordinateByIdResponses,
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
@@ -35,6 +47,12 @@ import type {
   GetTaskWriteBulkByIdData,
   GetTaskWriteBulkByIdErrors,
   GetTaskWriteBulkByIdResponses,
+  ListCoordinateEvaluationsData,
+  ListCoordinateEvaluationsErrors,
+  ListCoordinateEvaluationsResponses,
+  ListCoordinatesData,
+  ListCoordinatesErrors,
+  ListCoordinatesResponses,
   ListManagerReportsData,
   ListManagerReportsErrors,
   ListManagerReportsResponses,
@@ -47,6 +65,9 @@ import type {
   ListTaskWriteBulksData,
   ListTaskWriteBulksErrors,
   ListTaskWriteBulksResponses,
+  PatchCoordinateByIdData,
+  PatchCoordinateByIdErrors,
+  PatchCoordinateByIdResponses,
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
@@ -375,3 +396,110 @@ export const getTaskWriteBulkById = <ThrowOnError extends boolean = false>(
     GetTaskWriteBulkByIdErrors,
     ThrowOnError
   >({ url: "/task_write_bulks/{bulkId}", ...options });
+
+/**
+ * List coordinates for a project
+ */
+export const listCoordinates = <ThrowOnError extends boolean = false>(
+  options: Options<ListCoordinatesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListCoordinatesResponses,
+    ListCoordinatesErrors,
+    ThrowOnError
+  >({ url: "/coordinates", ...options });
+
+/**
+ * Create a project evaluation coordinate
+ */
+export const createCoordinate = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCoordinateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateCoordinateResponses,
+    CreateCoordinateErrors,
+    ThrowOnError
+  >({
+    url: "/coordinates",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a coordinate and its evaluations
+ */
+export const deleteCoordinateById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteCoordinateByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteCoordinateByIdResponses,
+    DeleteCoordinateByIdErrors,
+    ThrowOnError
+  >({ url: "/coordinates/{coordinateId}", ...options });
+
+/**
+ * Read a coordinate
+ */
+export const getCoordinateById = <ThrowOnError extends boolean = false>(
+  options: Options<GetCoordinateByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetCoordinateByIdResponses,
+    GetCoordinateByIdErrors,
+    ThrowOnError
+  >({ url: "/coordinates/{coordinateId}", ...options });
+
+/**
+ * Update a coordinate
+ */
+export const patchCoordinateById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchCoordinateByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    PatchCoordinateByIdResponses,
+    PatchCoordinateByIdErrors,
+    ThrowOnError
+  >({
+    url: "/coordinates/{coordinateId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List append-only evaluations for a coordinate
+ */
+export const listCoordinateEvaluations = <ThrowOnError extends boolean = false>(
+  options: Options<ListCoordinateEvaluationsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListCoordinateEvaluationsResponses,
+    ListCoordinateEvaluationsErrors,
+    ThrowOnError
+  >({ url: "/coordinates/{coordinateId}/evaluations", ...options });
+
+/**
+ * Append a coordinate evaluation
+ */
+export const createCoordinateEvaluation = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<CreateCoordinateEvaluationData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateCoordinateEvaluationResponses,
+    CreateCoordinateEvaluationErrors,
+    ThrowOnError
+  >({
+    url: "/coordinates/{coordinateId}/evaluations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });

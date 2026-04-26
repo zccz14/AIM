@@ -793,6 +793,267 @@ export const openApiDocument = {
         },
       },
     },
+    "/coordinates": {
+      post: {
+        operationId: "createCoordinate",
+        summary: "Create a project evaluation coordinate",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateCoordinateRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created coordinate",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Coordinate",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid coordinate payload",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+      get: {
+        operationId: "listCoordinates",
+        summary: "List coordinates for a project",
+        parameters: [
+          {
+            $ref: "#/components/parameters/ProjectPathQueryParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Coordinate collection",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CoordinateListResponse",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid coordinate filter",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/coordinates/{coordinateId}": {
+      get: {
+        operationId: "getCoordinateById",
+        summary: "Read a coordinate",
+        parameters: [
+          {
+            $ref: "#/components/parameters/CoordinateIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Coordinate detail",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Coordinate",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Coordinate not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+      patch: {
+        operationId: "patchCoordinateById",
+        summary: "Update a coordinate",
+        parameters: [
+          {
+            $ref: "#/components/parameters/CoordinateIdPathParameter",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/PatchCoordinateRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated coordinate",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Coordinate",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid coordinate patch",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Coordinate not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        operationId: "deleteCoordinateById",
+        summary: "Delete a coordinate and its evaluations",
+        parameters: [
+          {
+            $ref: "#/components/parameters/CoordinateIdPathParameter",
+          },
+        ],
+        responses: {
+          "204": {
+            description: "Coordinate deleted",
+          },
+          "404": {
+            description: "Coordinate not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/coordinates/{coordinateId}/evaluations": {
+      get: {
+        operationId: "listCoordinateEvaluations",
+        summary: "List append-only evaluations for a coordinate",
+        parameters: [
+          {
+            $ref: "#/components/parameters/CoordinateIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Coordinate evaluation collection",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CoordinateEvaluationListResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Coordinate not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        operationId: "createCoordinateEvaluation",
+        summary: "Append a coordinate evaluation",
+        parameters: [
+          {
+            $ref: "#/components/parameters/CoordinateIdPathParameter",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateCoordinateEvaluationRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created coordinate evaluation",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CoordinateEvaluation",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid coordinate evaluation payload",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Coordinate not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     securitySchemes: {
@@ -857,6 +1118,15 @@ export const openApiDocument = {
       },
       BulkIdPathParameter: {
         name: "bulkId",
+        in: "path",
+        required: true,
+        schema: {
+          type: "string",
+          minLength: 1,
+        },
+      },
+      CoordinateIdPathParameter: {
+        name: "coordinateId",
         in: "path",
         required: true,
         schema: {
@@ -1435,6 +1705,211 @@ export const openApiDocument = {
           },
         },
       },
+      Coordinate: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "id",
+          "project_path",
+          "name",
+          "goal",
+          "evaluation_method",
+          "created_at",
+          "updated_at",
+        ],
+        properties: {
+          id: {
+            type: "string",
+            minLength: 1,
+            readOnly: true,
+          },
+          project_path: {
+            type: "string",
+            minLength: 1,
+          },
+          name: {
+            type: "string",
+            minLength: 1,
+          },
+          goal: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluation_method: {
+            type: "string",
+            minLength: 1,
+          },
+          created_at: {
+            type: "string",
+            format: "date-time",
+            readOnly: true,
+          },
+          updated_at: {
+            type: "string",
+            format: "date-time",
+            readOnly: true,
+          },
+        },
+      },
+      CreateCoordinateRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["project_path", "name", "goal", "evaluation_method"],
+        properties: {
+          project_path: {
+            type: "string",
+            minLength: 1,
+          },
+          name: {
+            type: "string",
+            minLength: 1,
+          },
+          goal: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluation_method: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      PatchCoordinateRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: {
+            type: "string",
+            minLength: 1,
+          },
+          goal: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluation_method: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinateListResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["items"],
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/Coordinate",
+            },
+          },
+        },
+      },
+      CoordinateEvaluation: {
+        type: "object",
+        additionalProperties: false,
+        description:
+          "Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.",
+        required: [
+          "id",
+          "coordinate_id",
+          "project_path",
+          "commit_sha",
+          "evaluator_model",
+          "score",
+          "evaluation",
+          "created_at",
+        ],
+        properties: {
+          id: {
+            type: "string",
+            minLength: 1,
+            readOnly: true,
+          },
+          coordinate_id: {
+            type: "string",
+            minLength: 1,
+            readOnly: true,
+          },
+          project_path: {
+            type: "string",
+            minLength: 1,
+          },
+          commit_sha: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluator_model: {
+            type: "string",
+            minLength: 1,
+          },
+          score: {
+            type: "integer",
+            minimum: 0,
+            maximum: 100,
+            description:
+              "0-20 缺失; 21-40 初始; 41-60 可用; 61-80 稳定; 81-95 优秀; 96-100 近似完成.",
+          },
+          evaluation: {
+            type: "string",
+            minLength: 1,
+          },
+          created_at: {
+            type: "string",
+            format: "date-time",
+            readOnly: true,
+          },
+        },
+      },
+      CreateCoordinateEvaluationRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "project_path",
+          "commit_sha",
+          "evaluator_model",
+          "score",
+          "evaluation",
+        ],
+        properties: {
+          project_path: {
+            type: "string",
+            minLength: 1,
+          },
+          commit_sha: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluator_model: {
+            type: "string",
+            minLength: 1,
+          },
+          score: {
+            type: "integer",
+            minimum: 0,
+            maximum: 100,
+            description:
+              "0-20 缺失; 21-40 初始; 41-60 可用; 61-80 稳定; 81-95 优秀; 96-100 近似完成.",
+          },
+          evaluation: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinateEvaluationListResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["items"],
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinateEvaluation",
+            },
+          },
+        },
+      },
       OpenCodeModelCombination: {
         type: "object",
         additionalProperties: false,
@@ -1489,6 +1964,8 @@ export const openApiDocument = {
               "TASK_WRITE_BULK_NOT_FOUND",
               "TASK_WRITE_BULK_CONFLICT",
               "TASK_WRITE_BULK_VALIDATION_ERROR",
+              "COORDINATE_NOT_FOUND",
+              "COORDINATE_VALIDATION_ERROR",
               "OPENCODE_MODELS_UNAVAILABLE",
             ],
           },
