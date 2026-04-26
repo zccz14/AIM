@@ -70,13 +70,16 @@ export const startServer = () => {
     }).fetch,
     port,
   });
+  const shutdown = () => {
+    server.close();
+  };
 
   try {
-    process.once("SIGINT", stopOptimizer);
-    process.once("SIGTERM", stopOptimizer);
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
     server.once("close", () => {
-      process.off("SIGINT", stopOptimizer);
-      process.off("SIGTERM", stopOptimizer);
+      process.off("SIGINT", shutdown);
+      process.off("SIGTERM", shutdown);
       stopOptimizer();
     });
   } catch (error) {
