@@ -301,14 +301,17 @@ test("toggles the optimizer from the global dashboard controls", async ({
 
   await expect(optimizerSwitch).toBeVisible();
   await expect(optimizerSwitch).not.toBeChecked();
+  await expect(optimizerSwitch).toHaveAttribute("data-state", "unchecked");
 
   await optimizerSwitch.click();
 
   await expect(optimizerSwitch).toBeChecked();
+  await expect(optimizerSwitch).toHaveAttribute("data-state", "checked");
 
   await optimizerSwitch.click();
 
   await expect(optimizerSwitch).not.toBeChecked();
+  await expect(optimizerSwitch).toHaveAttribute("data-state", "unchecked");
   expect(
     optimizerRequests.some((url) => url.endsWith("/optimizer/status")),
   ).toBe(true);

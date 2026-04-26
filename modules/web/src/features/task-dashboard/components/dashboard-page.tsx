@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button.js";
 import { Card } from "../../../components/ui/card.js";
 import { LanguageToggle } from "../../../components/ui/language-toggle.js";
+import { Switch } from "../../../components/ui/switch.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
 import {
@@ -490,17 +491,15 @@ export const DashboardPage = () => {
               <fieldset aria-label="Global controls" className="actions-group">
                 <LanguageToggle />
                 <ThemeToggle />
-                <Button
-                  aria-checked={optimizerRunning}
-                  aria-label="AIM Optimizer"
-                  disabled={isOptimizerChanging}
-                  onClick={() => void handleOptimizerToggle()}
-                  role="switch"
-                  size="sm"
-                  variant={optimizerRunning ? "default" : "outline"}
-                >
-                  AIM Optimizer
-                </Button>
+                <div className="optimizer-switch-control">
+                  <Switch
+                    aria-label="AIM Optimizer"
+                    checked={optimizerRunning}
+                    disabled={isOptimizerChanging}
+                    onCheckedChange={() => void handleOptimizerToggle()}
+                  />
+                  <span>AIM Optimizer</span>
+                </div>
                 {route.kind !== "create" ? (
                   <Button
                     disabled={dashboardQuery.isFetching}
