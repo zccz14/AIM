@@ -80,7 +80,6 @@ jobs:
     needs:
       - release-check
       - version-or-prepare-release
-    if: needs.release-check.outputs.has_changesets == '0'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
