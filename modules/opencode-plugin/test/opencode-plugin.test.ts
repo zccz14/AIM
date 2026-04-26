@@ -706,7 +706,7 @@ describe("opencode plugin package baseline", () => {
       "Manager Report",
       "baseline_ref",
       "readme_target_summary",
-      "coordinate_system",
+      "dimensions",
       "baseline_facts",
       "gap_analysis",
       "iteration_direction",
