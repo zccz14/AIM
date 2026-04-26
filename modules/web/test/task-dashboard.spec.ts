@@ -279,6 +279,20 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Status Board")).toBeVisible();
   await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
+  await expect(
+    page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Status Board" })
+      .getByRole("application", { name: "Status Board chart" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Completed Result Activity" })
+      .getByRole("application", {
+        name: "Completed Result Activity chart",
+      }),
+  ).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
 
@@ -530,22 +544,23 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
   await expect(trend).toBeVisible();
   await expect(trend.getByText("Time", { exact: true })).toBeVisible();
   await expect(trend.getByText("Score", { exact: true })).toBeVisible();
-  await expect(trend.getByText("2026-04-20")).toBeVisible();
-  await expect(trend.getByText("2026-04-21")).toBeVisible();
-  await expect(trend.getByText("2026-04-22")).toBeVisible();
+  await expect(trend.getByText("2026-04-20", { exact: true })).toBeVisible();
+  await expect(trend.getByText("2026-04-21", { exact: true })).toBeVisible();
+  await expect(trend.getByText("2026-04-22", { exact: true })).toBeVisible();
   await expect(trend.getByText("0", { exact: true })).toBeVisible();
   await expect(trend.getByText("100", { exact: true })).toBeVisible();
-
-  const finalPoint = trend.getByRole("button", {
-    name: /2026-04-22 score 82/i,
-  });
-
-  await expect(finalPoint).toBeVisible();
-  await finalPoint.focus();
   await expect(
-    trend.getByRole("tooltip", {
-      name: "Strong convergence evidence, missing one explicit intervention path.",
-    }),
+    trend.getByRole("application", { name: "README Fit score trend chart" }),
+  ).toBeVisible();
+  await expect(trend.getByText("Score 82")).toBeVisible();
+
+  await trend
+    .getByRole("application", { name: "README Fit score trend chart" })
+    .focus();
+  await expect(
+    trend.getByText(
+      "Strong convergence evidence, missing one explicit intervention path.",
+    ),
   ).toBeVisible();
 });
 
