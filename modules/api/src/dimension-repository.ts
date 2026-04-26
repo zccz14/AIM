@@ -11,7 +11,10 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteSchema } from "./schema.js";
-import { openTaskDatabase } from "./task-database.js";
+import {
+  createTaskDatabaseAsyncDispose,
+  openTaskDatabase,
+} from "./task-database.js";
 
 type DimensionRow = {
   created_at: string;
@@ -177,6 +180,7 @@ export const createDimensionRepository = (
   options: DimensionRepositoryOptions = {},
 ) => {
   const database = bootstrapDimensionDatabase(options.projectRoot);
+  const asyncDisposeDatabase = createTaskDatabaseAsyncDispose(database);
   const insertDimensionStatement = database.prepare(`
     INSERT INTO ${dimensionsTableName} (
       id,
@@ -228,6 +232,7 @@ export const createDimensionRepository = (
   `);
 
   return {
+    [Symbol.asyncDispose]: asyncDisposeDatabase,
     createDimension(input: CreateDimensionRequest): Promise<Dimension> {
       const timestamp = new Date().toISOString();
       const dimension = dimensionSchema.parse({

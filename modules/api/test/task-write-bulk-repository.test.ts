@@ -103,6 +103,26 @@ describe("task write bulk repository", () => {
     });
   });
 
+  it("closes its database when an await using scope exits", async () => {
+    const projectRoot = await createProjectRoot("await-using-closes-db");
+    let repository:
+      | ReturnType<typeof createTaskWriteBulkRepository>
+      | undefined;
+
+    await (async () => {
+      await using scopedRepository = createTaskWriteBulkRepository({
+        projectRoot,
+      });
+
+      repository = scopedRepository;
+      await scopedRepository.listTaskWriteBulks("/repo/main");
+    })();
+
+    await expect(async () => {
+      await repository?.listTaskWriteBulks("/repo/main");
+    }).rejects.toThrow(/closed|finalized|open/i);
+  });
+
   it("creates, reads, and lists bulks by project path and bulk id", async () => {
     const projectRoot = await createProjectRoot("crud");
     const repository = createTaskWriteBulkRepository({ projectRoot });

@@ -19,3 +19,18 @@ export const openTaskDatabase = (projectRoot?: string) => {
 
   return new DatabaseSync(databasePath);
 };
+
+export const createTaskDatabaseAsyncDispose = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
+  let disposed = false;
+
+  return async () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    database.close();
+  };
+};

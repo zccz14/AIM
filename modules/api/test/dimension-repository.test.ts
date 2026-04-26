@@ -87,6 +87,22 @@ describe("dimension repository", () => {
     ]);
   });
 
+  it("closes its database when an await using scope exits", async () => {
+    const projectRoot = await createProjectRoot("await-using-closes-db");
+    let repository: ReturnType<typeof createDimensionRepository> | undefined;
+
+    await (async () => {
+      await using scopedRepository = createDimensionRepository({ projectRoot });
+
+      repository = scopedRepository;
+      await scopedRepository.listDimensions("/repo/main");
+    })();
+
+    await expect(async () => {
+      await repository?.listDimensions("/repo/main");
+    }).rejects.toThrow(/closed|finalized|open/i);
+  });
+
   it("creates, reads, lists, patches, and deletes dimensions", async () => {
     const projectRoot = await createProjectRoot("crud");
     const repository = createDimensionRepository({ projectRoot });

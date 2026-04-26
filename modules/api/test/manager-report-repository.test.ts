@@ -76,6 +76,26 @@ describe("manager report repository", () => {
     );
   });
 
+  it("closes its database when an await using scope exits", async () => {
+    const projectRoot = await createProjectRoot("await-using-closes-db");
+    let repository:
+      | ReturnType<typeof createManagerReportRepository>
+      | undefined;
+
+    await (async () => {
+      await using scopedRepository = createManagerReportRepository({
+        projectRoot,
+      });
+
+      repository = scopedRepository;
+      await scopedRepository.listManagerReports("/repo/main");
+    })();
+
+    await expect(async () => {
+      await repository?.listManagerReports("/repo/main");
+    }).rejects.toThrow(/closed|finalized|open/i);
+  });
+
   it("creates, reads, and lists reports by project path and report id", async () => {
     const projectRoot = await createProjectRoot("crud");
     const repository = createManagerReportRepository({ projectRoot });

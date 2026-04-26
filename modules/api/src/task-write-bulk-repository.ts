@@ -5,7 +5,10 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteSchema } from "./schema.js";
-import { openTaskDatabase } from "./task-database.js";
+import {
+  createTaskDatabaseAsyncDispose,
+  openTaskDatabase,
+} from "./task-database.js";
 
 type TaskWriteBulkRow = {
   baseline_ref: null | string;
@@ -116,6 +119,7 @@ export const createTaskWriteBulkRepository = (
   options: TaskWriteBulkRepositoryOptions = {},
 ) => {
   const database = bootstrapTaskWriteBulkDatabase(options.projectRoot);
+  const asyncDisposeDatabase = createTaskDatabaseAsyncDispose(database);
   const insertTaskWriteBulkStatement = database.prepare(`
     INSERT INTO ${taskWriteBulksTableName} (
       project_path,
@@ -157,6 +161,7 @@ export const createTaskWriteBulkRepository = (
   `);
 
   return {
+    [Symbol.asyncDispose]: asyncDisposeDatabase,
     createTaskWriteBulk(
       input: CreateTaskWriteBulkRequest,
     ): Promise<null | TaskWriteBulk> {
