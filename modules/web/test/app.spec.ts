@@ -27,7 +27,7 @@ test("fixes the Shadcn UI registry contract for the web workspace", async () => 
     },
     iconLibrary: "lucide",
     rsc: false,
-    style: "new-york",
+    style: "radix-lyra",
     tailwind: {
       css: "src/styles.css",
       cssVariables: true,
