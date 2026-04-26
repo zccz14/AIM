@@ -158,8 +158,6 @@ export const startServer = () => {
   });
   scope.use(optimizerRuntime);
 
-  optimizerRuntime.start();
-
   const app = scope.use(
     createApp({
       logger,
