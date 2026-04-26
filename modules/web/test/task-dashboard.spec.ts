@@ -98,6 +98,49 @@ const buildManagerReport = ({
   updated_at: updatedAt,
 });
 
+const buildDimension = ({
+  dimensionId = "dimension-readme-fit",
+  evaluationMethod = "Compare visible dashboard evidence against README goal convergence.",
+  goal = "Dashboard keeps AIM Director focused on baseline convergence.",
+  name = "README Fit",
+  projectPath = "/repo/dashboard",
+}: {
+  dimensionId?: string;
+  evaluationMethod?: string;
+  goal?: string;
+  name?: string;
+  projectPath?: string;
+} = {}) => ({
+  id: dimensionId,
+  project_path: projectPath,
+  name,
+  goal,
+  evaluation_method: evaluationMethod,
+  created_at: "2026-04-20T09:00:00.000Z",
+  updated_at: "2026-04-20T09:05:00.000Z",
+});
+
+const buildDimensionEvaluation = ({
+  dimensionId = "dimension-readme-fit",
+  evaluation = "Strong convergence evidence, missing one explicit intervention path.",
+  evaluationId = "evaluation-readme-fit-1",
+  score = 82,
+}: {
+  dimensionId?: string;
+  evaluation?: string;
+  evaluationId?: string;
+  score?: number;
+} = {}) => ({
+  id: evaluationId,
+  dimension_id: dimensionId,
+  project_path: "/repo/dashboard",
+  commit_sha: "abc1234",
+  evaluator_model: "gpt-5.5",
+  score,
+  evaluation,
+  created_at: "2026-04-20T09:10:00.000Z",
+});
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
@@ -166,6 +209,20 @@ test.beforeEach(async ({ page }) => {
       }),
     });
   });
+
+  await page.route("**/dimensions**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
 });
 
 test("renders the overview landing view", async ({ page }) => {
@@ -181,6 +238,86 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
+});
+
+test("prioritizes the AIM Dimension report before task execution evidence", async ({
+  page,
+}) => {
+  const requestedDimensionUrls: string[] = [];
+  const dimension = buildDimension();
+
+  await page.route("**/dimensions**", async (route) => {
+    requestedDimensionUrls.push(route.request().url());
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [dimension] }),
+    });
+  });
+
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({ dimensionId: dimension.id, score: 82 }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect.poll(() => requestedDimensionUrls.length).toBeGreaterThan(0);
+
+  const dimensionReport = page.getByRole("region", {
+    name: "AIM Dimension report",
+  });
+  const convergenceMap = page.getByRole("region", {
+    name: "Baseline convergence map",
+  });
+
+  await expect(dimensionReport).toBeVisible();
+  await expect(
+    dimensionReport.getByRole("heading", { name: "AIM Dimension Report" }),
+  ).toBeVisible();
+  await expect(
+    dimensionReport.getByText(
+      "Dimension scores surface before task mechanics so the Director sees goal fit first.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dimensionReport.getByRole("heading", { name: "README Fit" }),
+  ).toBeVisible();
+  await expect(dimensionReport.getByText("82/100")).toBeVisible();
+  await expect(
+    dimensionReport.getByText(
+      "Strong convergence evidence, missing one explicit intervention path.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "AIM Dimension Report" }),
+  ).toBeVisible();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const report = document.querySelector("#aim-dimension-report");
+        const map = document.querySelector("#convergence-map");
+
+        if (!report || !map) {
+          return false;
+        }
+
+        return (
+          (report.compareDocumentPosition(map) &
+            Node.DOCUMENT_POSITION_FOLLOWING) !==
+          0
+        );
+      }),
+    )
+    .toBe(true);
+  await expect(convergenceMap).toBeVisible();
 });
 
 test("lists Task Write Bulks as pre-approval write intents and opens read-only details", async ({

@@ -1,4 +1,8 @@
-import type { TaskWriteBulk } from "@aim-ai/contract";
+import type {
+  Dimension,
+  DimensionEvaluation,
+  TaskWriteBulk,
+} from "@aim-ai/contract";
 
 export type DashboardStatus = "processing" | "resolved" | "rejected";
 
@@ -74,7 +78,13 @@ export type DashboardDecisionSignal = {
   detail: string;
 };
 
+export type DashboardDimensionReportItem = {
+  dimension: Dimension;
+  latestEvaluation: DimensionEvaluation | null;
+};
+
 export type TaskDashboardViewModel = {
+  dimensionReports: DashboardDimensionReportItem[];
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
   managerReports: DashboardManagerReport[];

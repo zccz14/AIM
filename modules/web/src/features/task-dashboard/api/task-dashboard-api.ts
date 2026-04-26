@@ -1,4 +1,6 @@
 import type {
+  Dimension,
+  DimensionEvaluation,
   ManagerReport,
   OpenCodeModelsResponse,
   Task,
@@ -18,6 +20,8 @@ export type CreateDashboardTaskInput = {
 
 export type TaskDashboardResponse = {
   active: TaskListResponse;
+  dimensionEvaluations: DimensionEvaluation[];
+  dimensions: Dimension[];
   history: TaskListResponse;
   managerReports: ManagerReport[];
   taskWriteBulks: TaskWriteBulkListResponse;
@@ -57,8 +61,29 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const taskWriteBulks = {
     items: taskWriteBulkResponses.flatMap((response) => response.items),
   } satisfies TaskWriteBulkListResponse;
+  const dimensionResponses = await Promise.all(
+    projectPaths.map((projectPath) =>
+      client.listDimensions({ project_path: projectPath }),
+    ),
+  );
+  const dimensions = dimensionResponses.flatMap((response) => response.items);
+  const dimensionEvaluationResponses = await Promise.all(
+    dimensions.map((dimension) =>
+      client.listDimensionEvaluations(dimension.id),
+    ),
+  );
+  const dimensionEvaluations = dimensionEvaluationResponses.flatMap(
+    (response) => response.items,
+  );
 
-  return { active, history, managerReports, taskWriteBulks };
+  return {
+    active,
+    dimensionEvaluations,
+    dimensions,
+    history,
+    managerReports,
+    taskWriteBulks,
+  };
 };
 
 export const createTaskFromDashboard = async (

@@ -291,6 +291,28 @@ export const adaptTaskDashboard = (
   const managerReports = response.managerReports.map(
     adaptDashboardManagerReport,
   );
+  const evaluationsByDimensionId = new Map(
+    response.dimensions.map((dimension) => {
+      const evaluations = response.dimensionEvaluations
+        .filter((evaluation) => evaluation.dimension_id === dimension.id)
+        .sort((left, right) => right.created_at.localeCompare(left.created_at));
+
+      return [dimension.id, evaluations[0] ?? null] as const;
+    }),
+  );
+  const dimensionReports = response.dimensions
+    .map((dimension) => ({
+      dimension,
+      latestEvaluation: evaluationsByDimensionId.get(dimension.id) ?? null,
+    }))
+    .sort((left, right) => {
+      const leftDate =
+        left.latestEvaluation?.created_at ?? left.dimension.updated_at;
+      const rightDate =
+        right.latestEvaluation?.created_at ?? right.dimension.updated_at;
+
+      return rightDate.localeCompare(leftDate);
+    });
   const rejectedFeedbackSignals = buildRejectedFeedbackSignals(historyTasks);
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const depthByTaskId = new Map<string, number>();
@@ -341,6 +363,7 @@ export const adaptTaskDashboard = (
   return {
     graphEdges,
     graphNodes,
+    dimensionReports,
     historyTasks,
     managerReports,
     rejectedFeedbackSignals,
