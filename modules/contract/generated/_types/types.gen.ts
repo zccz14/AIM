@@ -162,6 +162,65 @@ export type TaskWriteBulkListResponse = {
   items: Array<TaskWriteBulk>;
 };
 
+export type Coordinate = {
+  readonly id: string;
+  project_path: string;
+  name: string;
+  goal: string;
+  evaluation_method: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateCoordinateRequest = {
+  project_path: string;
+  name: string;
+  goal: string;
+  evaluation_method: string;
+};
+
+export type PatchCoordinateRequest = {
+  name?: string;
+  goal?: string;
+  evaluation_method?: string;
+};
+
+export type CoordinateListResponse = {
+  items: Array<Coordinate>;
+};
+
+/**
+ * Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
+ */
+export type CoordinateEvaluation = {
+  readonly id: string;
+  readonly coordinate_id: string;
+  project_path: string;
+  commit_sha: string;
+  evaluator_model: string;
+  /**
+   * 0-20 缺失; 21-40 初始; 41-60 可用; 61-80 稳定; 81-95 优秀; 96-100 近似完成.
+   */
+  score: number;
+  evaluation: string;
+  readonly created_at: string;
+};
+
+export type CreateCoordinateEvaluationRequest = {
+  project_path: string;
+  commit_sha: string;
+  evaluator_model: string;
+  /**
+   * 0-20 缺失; 21-40 初始; 41-60 可用; 61-80 稳定; 81-95 优秀; 96-100 近似完成.
+   */
+  score: number;
+  evaluation: string;
+};
+
+export type CoordinateEvaluationListResponse = {
+  items: Array<CoordinateEvaluation>;
+};
+
 export type OpenCodeModelCombination = {
   provider_id: string;
   provider_name: string;
@@ -185,6 +244,8 @@ export type ErrorResponse = {
     | "TASK_WRITE_BULK_NOT_FOUND"
     | "TASK_WRITE_BULK_CONFLICT"
     | "TASK_WRITE_BULK_VALIDATION_ERROR"
+    | "COORDINATE_NOT_FOUND"
+    | "COORDINATE_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
@@ -232,6 +293,35 @@ export type TaskWriteBulkListResponseWritable = {
   items: Array<TaskWriteBulkWritable>;
 };
 
+export type CoordinateWritable = {
+  project_path: string;
+  name: string;
+  goal: string;
+  evaluation_method: string;
+};
+
+export type CoordinateListResponseWritable = {
+  items: Array<CoordinateWritable>;
+};
+
+/**
+ * Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
+ */
+export type CoordinateEvaluationWritable = {
+  project_path: string;
+  commit_sha: string;
+  evaluator_model: string;
+  /**
+   * 0-20 缺失; 21-40 初始; 41-60 可用; 61-80 稳定; 81-95 优秀; 96-100 近似完成.
+   */
+  score: number;
+  evaluation: string;
+};
+
+export type CoordinateEvaluationListResponseWritable = {
+  items: Array<CoordinateEvaluationWritable>;
+};
+
 export type TaskIdPathParameter = string;
 
 export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
@@ -245,6 +335,8 @@ export type ProjectPathQueryParameter = string;
 export type ReportIdPathParameter = string;
 
 export type BulkIdPathParameter = string;
+
+export type CoordinateIdPathParameter = string;
 
 export type GetHealthData = {
   body?: never;
@@ -824,3 +916,212 @@ export type GetTaskWriteBulkByIdResponses = {
 
 export type GetTaskWriteBulkByIdResponse =
   GetTaskWriteBulkByIdResponses[keyof GetTaskWriteBulkByIdResponses];
+
+export type ListCoordinatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    project_path: string;
+  };
+  url: "/coordinates";
+};
+
+export type ListCoordinatesErrors = {
+  /**
+   * Invalid coordinate filter
+   */
+  400: ErrorResponse;
+};
+
+export type ListCoordinatesError =
+  ListCoordinatesErrors[keyof ListCoordinatesErrors];
+
+export type ListCoordinatesResponses = {
+  /**
+   * Coordinate collection
+   */
+  200: CoordinateListResponse;
+};
+
+export type ListCoordinatesResponse =
+  ListCoordinatesResponses[keyof ListCoordinatesResponses];
+
+export type CreateCoordinateData = {
+  body: CreateCoordinateRequest;
+  path?: never;
+  query?: never;
+  url: "/coordinates";
+};
+
+export type CreateCoordinateErrors = {
+  /**
+   * Invalid coordinate payload
+   */
+  400: ErrorResponse;
+};
+
+export type CreateCoordinateError =
+  CreateCoordinateErrors[keyof CreateCoordinateErrors];
+
+export type CreateCoordinateResponses = {
+  /**
+   * Created coordinate
+   */
+  201: Coordinate;
+};
+
+export type CreateCoordinateResponse =
+  CreateCoordinateResponses[keyof CreateCoordinateResponses];
+
+export type DeleteCoordinateByIdData = {
+  body?: never;
+  path: {
+    coordinateId: string;
+  };
+  query?: never;
+  url: "/coordinates/{coordinateId}";
+};
+
+export type DeleteCoordinateByIdErrors = {
+  /**
+   * Coordinate not found
+   */
+  404: ErrorResponse;
+};
+
+export type DeleteCoordinateByIdError =
+  DeleteCoordinateByIdErrors[keyof DeleteCoordinateByIdErrors];
+
+export type DeleteCoordinateByIdResponses = {
+  /**
+   * Coordinate deleted
+   */
+  204: void;
+};
+
+export type DeleteCoordinateByIdResponse =
+  DeleteCoordinateByIdResponses[keyof DeleteCoordinateByIdResponses];
+
+export type GetCoordinateByIdData = {
+  body?: never;
+  path: {
+    coordinateId: string;
+  };
+  query?: never;
+  url: "/coordinates/{coordinateId}";
+};
+
+export type GetCoordinateByIdErrors = {
+  /**
+   * Coordinate not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetCoordinateByIdError =
+  GetCoordinateByIdErrors[keyof GetCoordinateByIdErrors];
+
+export type GetCoordinateByIdResponses = {
+  /**
+   * Coordinate detail
+   */
+  200: Coordinate;
+};
+
+export type GetCoordinateByIdResponse =
+  GetCoordinateByIdResponses[keyof GetCoordinateByIdResponses];
+
+export type PatchCoordinateByIdData = {
+  body: PatchCoordinateRequest;
+  path: {
+    coordinateId: string;
+  };
+  query?: never;
+  url: "/coordinates/{coordinateId}";
+};
+
+export type PatchCoordinateByIdErrors = {
+  /**
+   * Invalid coordinate patch
+   */
+  400: ErrorResponse;
+  /**
+   * Coordinate not found
+   */
+  404: ErrorResponse;
+};
+
+export type PatchCoordinateByIdError =
+  PatchCoordinateByIdErrors[keyof PatchCoordinateByIdErrors];
+
+export type PatchCoordinateByIdResponses = {
+  /**
+   * Updated coordinate
+   */
+  200: Coordinate;
+};
+
+export type PatchCoordinateByIdResponse =
+  PatchCoordinateByIdResponses[keyof PatchCoordinateByIdResponses];
+
+export type ListCoordinateEvaluationsData = {
+  body?: never;
+  path: {
+    coordinateId: string;
+  };
+  query?: never;
+  url: "/coordinates/{coordinateId}/evaluations";
+};
+
+export type ListCoordinateEvaluationsErrors = {
+  /**
+   * Coordinate not found
+   */
+  404: ErrorResponse;
+};
+
+export type ListCoordinateEvaluationsError =
+  ListCoordinateEvaluationsErrors[keyof ListCoordinateEvaluationsErrors];
+
+export type ListCoordinateEvaluationsResponses = {
+  /**
+   * Coordinate evaluation collection
+   */
+  200: CoordinateEvaluationListResponse;
+};
+
+export type ListCoordinateEvaluationsResponse =
+  ListCoordinateEvaluationsResponses[keyof ListCoordinateEvaluationsResponses];
+
+export type CreateCoordinateEvaluationData = {
+  body: CreateCoordinateEvaluationRequest;
+  path: {
+    coordinateId: string;
+  };
+  query?: never;
+  url: "/coordinates/{coordinateId}/evaluations";
+};
+
+export type CreateCoordinateEvaluationErrors = {
+  /**
+   * Invalid coordinate evaluation payload
+   */
+  400: ErrorResponse;
+  /**
+   * Coordinate not found
+   */
+  404: ErrorResponse;
+};
+
+export type CreateCoordinateEvaluationError =
+  CreateCoordinateEvaluationErrors[keyof CreateCoordinateEvaluationErrors];
+
+export type CreateCoordinateEvaluationResponses = {
+  /**
+   * Created coordinate evaluation
+   */
+  201: CoordinateEvaluation;
+};
+
+export type CreateCoordinateEvaluationResponse =
+  CreateCoordinateEvaluationResponses[keyof CreateCoordinateEvaluationResponses];

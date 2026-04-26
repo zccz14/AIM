@@ -32,6 +32,8 @@ const ErrorResponse = z
       "TASK_WRITE_BULK_NOT_FOUND",
       "TASK_WRITE_BULK_CONFLICT",
       "TASK_WRITE_BULK_VALIDATION_ERROR",
+      "COORDINATE_NOT_FOUND",
+      "COORDINATE_VALIDATION_ERROR",
       "OPENCODE_MODELS_UNAVAILABLE",
     ]),
     message: z.string().min(1),
@@ -178,6 +180,60 @@ const TaskWriteBulk = z
 const TaskWriteBulkListResponse = z
   .object({ items: z.array(TaskWriteBulk) })
   .strict();
+const CreateCoordinateRequest = z
+  .object({
+    project_path: z.string().min(1),
+    name: z.string().min(1),
+    goal: z.string().min(1),
+    evaluation_method: z.string().min(1),
+  })
+  .strict();
+const Coordinate = z
+  .object({
+    id: z.string().min(1),
+    project_path: z.string().min(1),
+    name: z.string().min(1),
+    goal: z.string().min(1),
+    evaluation_method: z.string().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const CoordinateListResponse = z
+  .object({ items: z.array(Coordinate) })
+  .strict();
+const PatchCoordinateRequest = z
+  .object({
+    name: z.string().min(1),
+    goal: z.string().min(1),
+    evaluation_method: z.string().min(1),
+  })
+  .partial()
+  .strict();
+const CoordinateEvaluation = z
+  .object({
+    id: z.string().min(1),
+    coordinate_id: z.string().min(1),
+    project_path: z.string().min(1),
+    commit_sha: z.string().min(1),
+    evaluator_model: z.string().min(1),
+    score: z.number().int().gte(0).lte(100),
+    evaluation: z.string().min(1),
+    created_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const CoordinateEvaluationListResponse = z
+  .object({ items: z.array(CoordinateEvaluation) })
+  .strict();
+const CreateCoordinateEvaluationRequest = z
+  .object({
+    project_path: z.string().min(1),
+    commit_sha: z.string().min(1),
+    evaluator_model: z.string().min(1),
+    score: z.number().int().gte(0).lte(100),
+    evaluation: z.string().min(1),
+  })
+  .strict();
 
 export const schemas = {
   HealthResponse,
@@ -203,4 +259,11 @@ export const schemas = {
   CreateTaskWriteBulkRequest,
   TaskWriteBulk,
   TaskWriteBulkListResponse,
+  CreateCoordinateRequest,
+  Coordinate,
+  CoordinateListResponse,
+  PatchCoordinateRequest,
+  CoordinateEvaluation,
+  CoordinateEvaluationListResponse,
+  CreateCoordinateEvaluationRequest,
 };
