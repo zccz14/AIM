@@ -90,6 +90,9 @@ const parseCreateDimensionEvaluationRequest = async (request: Request) => {
 
 type RegisterDimensionRoutesOptions = {
   projectRoot?: string;
+  resourceScope?: {
+    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
+  };
 };
 
 export const registerDimensionRoutes = (
@@ -99,7 +102,9 @@ export const registerDimensionRoutes = (
   const projectRoot = options.projectRoot ?? process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createDimensionRepository> = null;
   const getRepository = () => {
-    repository ??= createDimensionRepository({ projectRoot });
+    repository ??=
+      options.resourceScope?.use(createDimensionRepository({ projectRoot })) ??
+      createDimensionRepository({ projectRoot });
 
     return repository;
   };

@@ -58,6 +58,9 @@ const parseCreateTaskWriteBulkRequest = async (request: Request) => {
 
 type RegisterTaskWriteBulkRoutesOptions = {
   projectRoot?: string;
+  resourceScope?: {
+    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
+  };
 };
 
 export const registerTaskWriteBulkRoutes = (
@@ -68,7 +71,10 @@ export const registerTaskWriteBulkRoutes = (
   let repository: null | ReturnType<typeof createTaskWriteBulkRepository> =
     null;
   const getRepository = () => {
-    repository ??= createTaskWriteBulkRepository({ projectRoot });
+    repository ??=
+      options.resourceScope?.use(
+        createTaskWriteBulkRepository({ projectRoot }),
+      ) ?? createTaskWriteBulkRepository({ projectRoot });
 
     return repository;
   };
