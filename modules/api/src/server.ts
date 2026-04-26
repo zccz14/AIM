@@ -64,9 +64,45 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   : parsedSchedulerIntervalMs;
 
 type AsyncDisposableServer = ReturnType<typeof serve> & AsyncDisposable;
+type ScopedResource = Partial<AsyncDisposable & Disposable>;
+
+const createAsyncResourceScope = () => {
+  const resources: ScopedResource[] = [];
+  let disposePromise: Promise<void> | null = null;
+
+  return {
+    async [Symbol.asyncDispose]() {
+      if (disposePromise) {
+        await disposePromise;
+        return;
+      }
+
+      disposePromise = (async () => {
+        for (const resource of resources.splice(0).reverse()) {
+          const asyncDispose = resource[Symbol.asyncDispose];
+
+          if (asyncDispose) {
+            await asyncDispose.call(resource);
+            continue;
+          }
+
+          resource[Symbol.dispose]?.();
+        }
+      })();
+
+      await disposePromise;
+    },
+
+    use<T extends ScopedResource>(resource: T) {
+      resources.push(resource);
+      return resource;
+    },
+  };
+};
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
+  const scope = createAsyncResourceScope();
   const logger = createApiLogger();
   const coordinatorConfig: TaskSessionCoordinatorConfig = {
     baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
@@ -75,6 +111,7 @@ export const startServer = () => {
   const taskRepository = createTaskRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
+  scope.use(taskRepository);
   const project = taskRepository.getFirstProject();
   const scheduler = createTaskScheduler({
     coordinator: createTaskSessionCoordinator(coordinatorConfig),
@@ -119,9 +156,7 @@ export const startServer = () => {
     ],
     logger,
   });
-  const stopOptimizer = () => {
-    void optimizerRuntime[Symbol.asyncDispose]();
-  };
+  scope.use(optimizerRuntime);
 
   optimizerRuntime.start();
 
@@ -133,13 +168,14 @@ export const startServer = () => {
     }).fetch,
     port,
   }) as AsyncDisposableServer;
+  let serverClosed = false;
   const shutdown = () => {
     server.close();
   };
-
-  server[Symbol.asyncDispose] = async () => {
-    process.off("SIGINT", shutdown);
-    process.off("SIGTERM", shutdown);
+  const closeServer = async () => {
+    if (serverClosed) {
+      return;
+    }
 
     await new Promise<void>((resolve, reject) => {
       server.close((error?: Error) => {
@@ -148,23 +184,33 @@ export const startServer = () => {
           return;
         }
 
+        serverClosed = true;
         resolve();
       });
     });
-    await optimizerRuntime[Symbol.asyncDispose]();
+  };
+
+  scope.use({ [Symbol.asyncDispose]: closeServer });
+
+  server[Symbol.asyncDispose] = async () => {
+    await scope[Symbol.asyncDispose]();
   };
 
   try {
     process.once("SIGINT", shutdown);
     process.once("SIGTERM", shutdown);
+    scope.use({
+      [Symbol.dispose]: () => {
+        process.off("SIGINT", shutdown);
+        process.off("SIGTERM", shutdown);
+      },
+    });
     server.once("close", () => {
-      process.off("SIGINT", shutdown);
-      process.off("SIGTERM", shutdown);
-      stopOptimizer();
+      serverClosed = true;
+      void scope[Symbol.asyncDispose]();
     });
   } catch (error) {
-    stopOptimizer();
-    server.close();
+    void scope[Symbol.asyncDispose]();
     throw error;
   }
 

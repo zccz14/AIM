@@ -428,4 +428,173 @@ describe("server startup", () => {
     expect(coordinatorLane.stop).toHaveBeenCalledOnce();
     expect(scheduler.stop).toHaveBeenCalledOnce();
   });
+
+  it("releases server-owned resources after closing traffic and stopping optimizer lanes", async () => {
+    const cleanupOrder: string[] = [];
+    const close = vi.fn((callback?: () => void) => {
+      cleanupOrder.push("server:close");
+      callback?.();
+    });
+    const server = {
+      close,
+      once: vi.fn(),
+    };
+    const taskRepository = {
+      ...createRepositoryMock(),
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        cleanupOrder.push("repository:dispose");
+      }),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(async () => {
+        cleanupOrder.push("scheduler:stop");
+      }),
+    };
+    const managerLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(async () => {
+        cleanupOrder.push("manager:stop");
+      }),
+    };
+    const coordinatorLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(async () => {
+        cleanupOrder.push("coordinator:stop");
+      }),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(taskRepository);
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane
+      .mockReturnValueOnce(managerLane)
+      .mockReturnValueOnce(coordinatorLane);
+
+    const { startServer } = await import("../src/server.js");
+
+    await (async () => {
+      await using _runtime = startServer();
+    })();
+
+    expect(cleanupOrder).toEqual([
+      "server:close",
+      "scheduler:stop",
+      "coordinator:stop",
+      "manager:stop",
+      "repository:dispose",
+    ]);
+    expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("shares cleanup when the HTTP server closes before async disposal", async () => {
+    let closeHandler: (() => void) | undefined;
+    let closed = false;
+    const close = vi.fn((callback?: () => void) => {
+      if (!closed) {
+        closed = true;
+        closeHandler?.();
+      }
+
+      callback?.();
+    });
+    const server = {
+      close,
+      once: vi.fn((event: string, handler: () => void) => {
+        if (event === "close") {
+          closeHandler = handler;
+        }
+      }),
+    };
+    const taskRepository = {
+      ...createRepositoryMock(),
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const managerLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinatorLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(taskRepository);
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane
+      .mockReturnValueOnce(managerLane)
+      .mockReturnValueOnce(coordinatorLane);
+
+    const { startServer } = await import("../src/server.js");
+
+    const runtime = startServer();
+    server.close();
+    await runtime[Symbol.asyncDispose]();
+
+    expect(close).toHaveBeenCalledOnce();
+    expect(scheduler.stop).toHaveBeenCalledOnce();
+    expect(managerLane.stop).toHaveBeenCalledOnce();
+    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
+    expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("removes startServer signal handlers during async disposal", async () => {
+    const sigintListeners = process.listenerCount("SIGINT");
+    const sigtermListeners = process.listenerCount("SIGTERM");
+    const server = {
+      close: vi.fn((callback?: () => void) => {
+        callback?.();
+      }),
+      once: vi.fn(),
+    };
+    const taskRepository = {
+      ...createRepositoryMock(),
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(taskRepository);
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    const runtime = startServer();
+    expect(process.listenerCount("SIGINT")).toBe(sigintListeners + 1);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermListeners + 1);
+
+    await runtime[Symbol.asyncDispose]();
+
+    expect(process.listenerCount("SIGINT")).toBe(sigintListeners);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermListeners);
+  });
 });
