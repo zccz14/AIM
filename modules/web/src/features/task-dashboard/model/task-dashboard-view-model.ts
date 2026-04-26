@@ -80,6 +80,7 @@ export type DashboardDecisionSignal = {
 
 export type DashboardDimensionReportItem = {
   dimension: Dimension;
+  evaluations: DimensionEvaluation[];
   latestEvaluation: DimensionEvaluation | null;
 };
 

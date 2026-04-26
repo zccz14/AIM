@@ -297,14 +297,21 @@ export const adaptTaskDashboard = (
         .filter((evaluation) => evaluation.dimension_id === dimension.id)
         .sort((left, right) => right.created_at.localeCompare(left.created_at));
 
-      return [dimension.id, evaluations[0] ?? null] as const;
+      return [dimension.id, evaluations] as const;
     }),
   );
   const dimensionReports = response.dimensions
-    .map((dimension) => ({
-      dimension,
-      latestEvaluation: evaluationsByDimensionId.get(dimension.id) ?? null,
-    }))
+    .map((dimension) => {
+      const evaluations = evaluationsByDimensionId.get(dimension.id) ?? [];
+
+      return {
+        dimension,
+        evaluations: [...evaluations].sort((left, right) =>
+          left.created_at.localeCompare(right.created_at),
+        ),
+        latestEvaluation: evaluations[0] ?? null,
+      };
+    })
     .sort((left, right) => {
       const leftDate =
         left.latestEvaluation?.created_at ?? left.dimension.updated_at;

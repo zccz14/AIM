@@ -6,8 +6,10 @@ import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-
 
 export const AimDimensionReportSection = ({
   dimensionReports,
+  onSelectDimension,
 }: {
   dimensionReports: DashboardDimensionReportItem[];
+  onSelectDimension: (dimensionId: string) => void;
 }) => {
   const { t } = useI18n();
 
@@ -36,7 +38,15 @@ export const AimDimensionReportSection = ({
               <div className="aim-dimension-item__main">
                 <div className="manager-report-card__title-row">
                   <Gauge aria-hidden="true" size={18} />
-                  <h3>{dimension.name}</h3>
+                  <h3>
+                    <button
+                      className="link-button"
+                      onClick={() => onSelectDimension(dimension.id)}
+                      type="button"
+                    >
+                      {dimension.name}
+                    </button>
+                  </h3>
                 </div>
                 <p className="section-copy">{dimension.goal}</p>
                 <p className="table-meta">

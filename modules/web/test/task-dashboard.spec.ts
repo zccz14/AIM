@@ -121,11 +121,13 @@ const buildDimension = ({
 });
 
 const buildDimensionEvaluation = ({
+  createdAt = "2026-04-20T09:10:00.000Z",
   dimensionId = "dimension-readme-fit",
   evaluation = "Strong convergence evidence, missing one explicit intervention path.",
   evaluationId = "evaluation-readme-fit-1",
   score = 82,
 }: {
+  createdAt?: string;
   dimensionId?: string;
   evaluation?: string;
   evaluationId?: string;
@@ -138,7 +140,7 @@ const buildDimensionEvaluation = ({
   evaluator_model: "gpt-5.5",
   score,
   evaluation,
-  created_at: "2026-04-20T09:10:00.000Z",
+  created_at: createdAt,
 });
 
 test.beforeEach(async ({ page }) => {
@@ -318,6 +320,81 @@ test("prioritizes the AIM Dimension report before task execution evidence", asyn
     )
     .toBe(true);
   await expect(convergenceMap).toBeVisible();
+});
+
+test("opens a dimension detail trend with time, score, evaluation points, and tooltip descriptions", async ({
+  page,
+}) => {
+  const dimension = buildDimension();
+  const evaluations = [
+    buildDimensionEvaluation({
+      createdAt: "2026-04-20T09:10:00.000Z",
+      dimensionId: dimension.id,
+      evaluation:
+        "Initial fit is weak because the dashboard hides Director goals.",
+      evaluationId: "evaluation-readme-fit-1",
+      score: 48,
+    }),
+    buildDimensionEvaluation({
+      createdAt: "2026-04-21T10:15:00.000Z",
+      dimensionId: dimension.id,
+      evaluation: "Goal fit improves once dimensions appear before tasks.",
+      evaluationId: "evaluation-readme-fit-2",
+      score: 74,
+    }),
+    buildDimensionEvaluation({
+      createdAt: "2026-04-22T11:20:00.000Z",
+      dimensionId: dimension.id,
+      evaluation:
+        "Strong convergence evidence, missing one explicit intervention path.",
+      evaluationId: "evaluation-readme-fit-3",
+      score: 82,
+    }),
+  ];
+
+  await page.route("**/dimensions**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [dimension] }),
+    });
+  });
+
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: evaluations }),
+    });
+  });
+
+  await page.goto(`/#/dimensions/${dimension.id}`);
+
+  await expect(page.getByRole("heading", { name: "README Fit" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Dimension Detail" }),
+  ).toBeVisible();
+
+  const trend = page.getByRole("figure", { name: "README Fit score trend" });
+
+  await expect(trend).toBeVisible();
+  await expect(trend.getByText("Time", { exact: true })).toBeVisible();
+  await expect(trend.getByText("Score", { exact: true })).toBeVisible();
+  await expect(trend.getByText("2026-04-20")).toBeVisible();
+  await expect(trend.getByText("2026-04-21")).toBeVisible();
+  await expect(trend.getByText("2026-04-22")).toBeVisible();
+  await expect(trend.getByText("0", { exact: true })).toBeVisible();
+  await expect(trend.getByText("100", { exact: true })).toBeVisible();
+
+  const finalPoint = trend.getByRole("button", {
+    name: /2026-04-22 score 82/i,
+  });
+
+  await expect(finalPoint).toBeVisible();
+  await finalPoint.focus();
+  await expect(
+    trend.getByRole("tooltip", {
+      name: "Strong convergence evidence, missing one explicit intervention path.",
+    }),
+  ).toBeVisible();
 });
 
 test("lists Task Write Bulks as pre-approval write intents and opens read-only details", async ({
