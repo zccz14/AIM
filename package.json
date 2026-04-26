@@ -23,6 +23,7 @@
     "test:changeset": "[ -n \"$SKIP_TEST\" ] || node ./scripts/changeset-check.mjs",
     "test:smoke": "[ -n \"$SKIP_TEST\" ] || pnpm -r --if-present run test:smoke",
     "test:web": "[ -n \"$SKIP_TEST\" ] || pnpm -r --if-present run test:web",
+    "serve": "pnpm --filter ./modules/api run dev",
     "build": "pnpm -r --if-present build && pnpm run test:type:repo && pnpm run test:lint:repo && pnpm run test:repo && pnpm --filter ./modules/contract run openapi:check && pnpm run test:changeset",
     "gcm": "git fetch origin && git checkout origin/main",
     "version-packages": "pnpm exec changeset version"
