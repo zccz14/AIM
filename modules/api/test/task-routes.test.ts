@@ -13,7 +13,16 @@ vi.mock("node:child_process", () => ({
   execFile: execFileMock,
 }));
 
-const mockGhMergedOutput = (stdout: string) => {
+const ghMergedPullRequestOutput = JSON.stringify({
+  mergedAt: "2026-04-26T10:00:00Z",
+  state: "MERGED",
+});
+const ghOpenPullRequestOutput = JSON.stringify({
+  mergedAt: null,
+  state: "OPEN",
+});
+
+const mockGhPullRequestOutput = (stdout: string) => {
   execFileMock.mockImplementation(
     (
       _command: string,
@@ -814,7 +823,7 @@ describe("task routes", () => {
   it("resolves a task and preserves the result when PATCH omits it", async () => {
     await useProjectRoot("resolves-task-and-preserves-result");
 
-    mockGhMergedOutput("true\n");
+    mockGhPullRequestOutput(ghMergedPullRequestOutput);
 
     const app = createTaskRouteApp();
     const createResponse = await app.request(contractModule.tasksPath, {
@@ -887,6 +896,64 @@ describe("task routes", () => {
     expect(patchedTask.result).toBe("ship it");
   });
 
+  it("resolves a task when gh reports the pull request state as merged", async () => {
+    await useProjectRoot("resolves-task-from-gh-merged-state");
+
+    mockGhPullRequestOutput(
+      JSON.stringify({
+        mergedAt: "2026-04-26T10:00:00Z",
+        state: "MERGED",
+      }),
+    );
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        developer_model_id: "claude-sonnet-4-5",
+        developer_provider_id: "anthropic",
+        title: "Test task",
+        task_spec: "resolve me",
+        project_path: "/repo/resolve-target",
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const resolveResponse = await app.request(
+      resolveTaskResolvePath(createdTask.task_id),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          result: "ship it",
+        }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    expect(execFileMock).toHaveBeenCalledWith(
+      "gh",
+      [
+        "pr",
+        "view",
+        "https://github.com/example/repo/pull/42",
+        "--json",
+        "state,mergedAt",
+      ],
+      { encoding: "utf8" },
+      expect.any(Function),
+    );
+  });
+
   it("rejects resolve when no pull request URL is recorded", async () => {
     await useProjectRoot("resolve-requires-pull-request-url");
 
@@ -937,7 +1004,7 @@ describe("task routes", () => {
   it("rejects resolve when the recorded pull request is not merged", async () => {
     await useProjectRoot("resolve-requires-merged-pull-request");
 
-    mockGhMergedOutput("false\n");
+    mockGhPullRequestOutput(ghOpenPullRequestOutput);
 
     const app = createTaskRouteApp();
     const createResponse = await app.request(contractModule.tasksPath, {
@@ -1035,7 +1102,7 @@ describe("task routes", () => {
   it("logs task_resolved with a truncated result preview after repository success", async () => {
     await useProjectRoot("logs-task-resolved");
 
-    mockGhMergedOutput("true\n");
+    mockGhPullRequestOutput(ghMergedPullRequestOutput);
 
     const logger = createLogger();
     const app = createTaskRouteApp({ logger });
@@ -1087,7 +1154,7 @@ describe("task routes", () => {
   it("triggers a scheduler scan opportunity after resolve succeeds", async () => {
     await useProjectRoot("resolve-triggers-scheduler-scan");
 
-    mockGhMergedOutput("true\n");
+    mockGhPullRequestOutput(ghMergedPullRequestOutput);
 
     const onTaskResolved = vi.fn();
     const app = createTaskRouteApp({ onTaskResolved });
@@ -1136,7 +1203,7 @@ describe("task routes", () => {
   it("keeps resolve successful and logs when the scheduler scan trigger fails", async () => {
     await useProjectRoot("resolve-scheduler-scan-fails");
 
-    mockGhMergedOutput("true\n");
+    mockGhPullRequestOutput(ghMergedPullRequestOutput);
 
     const logger = createLogger();
     const error = new Error("scan failed");

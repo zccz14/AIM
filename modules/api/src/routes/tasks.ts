@@ -151,7 +151,7 @@ const getPullRequestMergedOutput = (pullRequestUrl: string) =>
   new Promise<string>((resolve, reject) => {
     execFile(
       "gh",
-      ["pr", "view", pullRequestUrl, "--json", "merged", "--jq", ".merged"],
+      ["pr", "view", pullRequestUrl, "--json", "state,mergedAt"],
       { encoding: "utf8" },
       (error, stdout) => {
         if (error) {
@@ -175,7 +175,19 @@ const verifyPullRequestMerged = async (pullRequestUrl: string) => {
     );
   }
 
-  if (stdout.trim() !== "true") {
+  let pullRequest: { mergedAt?: unknown; state?: unknown };
+  try {
+    pullRequest = JSON.parse(stdout) as { mergedAt?: unknown; state?: unknown };
+  } catch {
+    return buildValidationError(
+      "Could not confirm pull_request_url is merged with gh. Make sure GitHub CLI is installed, authenticated, and the PR exists.",
+    );
+  }
+
+  const mergedAt =
+    typeof pullRequest.mergedAt === "string" ? pullRequest.mergedAt.trim() : "";
+
+  if (pullRequest.state !== "MERGED" && mergedAt.length === 0) {
     return buildValidationError(
       "Task cannot be resolved until pull_request_url points to a merged pull request.",
     );
