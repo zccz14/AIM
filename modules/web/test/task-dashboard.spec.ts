@@ -1937,6 +1937,27 @@ test("shows a clear error state when the task request fails", async ({
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
+test("shows the underlying parse error when the task request returns HTML", async ({
+  page,
+}) => {
+  await page.route("**/tasks**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><html><body>Vite fallback</body></html>",
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(
+    page.getByText(
+      /Task dashboard unavailable: (Unexpected token|JSON\.parse: unexpected)/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+});
+
 test("falls back to the default localhost SERVER_BASE_URL when local storage is empty", async ({
   page,
 }) => {

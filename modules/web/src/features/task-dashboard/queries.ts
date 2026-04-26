@@ -9,7 +9,9 @@ export const taskDashboardQueryKey = ["task-dashboard"] as const;
 export const getTaskDashboardErrorMessage = (error: unknown) =>
   error instanceof ContractClientError
     ? `Task dashboard unavailable: ${error.error.message}`
-    : "Task dashboard unavailable: unexpected error";
+    : error instanceof Error
+      ? `Task dashboard unavailable: ${error.message}`
+      : "Task dashboard unavailable: unexpected error";
 
 export const getTaskCreateErrorMessage = (error: unknown) =>
   error instanceof ContractClientError
