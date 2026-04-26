@@ -6,6 +6,7 @@ import {
   deleteTaskById,
   getHealth,
   getManagerReportById,
+  getOptimizerStatus,
   getTaskById,
   getTaskWriteBulkById,
   listManagerReports,
@@ -15,6 +16,8 @@ import {
   patchTaskById,
   rejectTaskById,
   resolveTaskById,
+  startOptimizer,
+  stopOptimizer,
 } from "../generated/client.js";
 import type {
   CreateManagerReportError,
@@ -32,6 +35,7 @@ import type {
   GetHealthResponse,
   GetManagerReportByIdError,
   GetManagerReportByIdResponse,
+  GetOptimizerStatusResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
   GetTaskWriteBulkByIdError,
@@ -47,11 +51,14 @@ import type {
   ManagerReport,
   ManagerReportListResponse,
   OpenCodeModelsResponse,
+  OptimizerStatusResponse,
   PatchTaskByIdError,
   PatchTaskByIdResponse,
   PatchTaskRequest,
   RejectTaskByIdError,
   ResolveTaskByIdError,
+  StartOptimizerResponse,
+  StopOptimizerResponse,
   Task,
   TaskListResponse,
   TaskResultRequest,
@@ -87,6 +94,9 @@ export class ContractClientError extends Error {
 export type ContractClient = {
   getHealth(): Promise<HealthResponse>;
   listOpenCodeModels(): Promise<OpenCodeModelsResponse>;
+  getOptimizerStatus(): Promise<OptimizerStatusResponse>;
+  startOptimizer(): Promise<OptimizerStatusResponse>;
+  stopOptimizer(): Promise<OptimizerStatusResponse>;
   listTasks(query?: {
     status?: Task["status"];
     done?: boolean;
@@ -131,6 +141,7 @@ const managerReportListResponseSchema = schemas.ManagerReportListResponse;
 const taskWriteBulkSchema = schemas.TaskWriteBulk;
 const taskWriteBulkListResponseSchema = schemas.TaskWriteBulkListResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
+const optimizerStatusResponseSchema = schemas.OptimizerStatusResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
 const toForwardedRequestBody = async (request: Request) => {
@@ -264,6 +275,45 @@ export const createContractClient = ({
       return opencodeModelsResponseSchema.parse(
         result.data,
       ) satisfies OpenCodeModelsResponse;
+    },
+
+    async getOptimizerStatus() {
+      const result = await getOptimizerStatus({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      return optimizerStatusResponseSchema.parse(
+        result.data,
+      ) satisfies GetOptimizerStatusResponse;
+    },
+
+    async startOptimizer() {
+      const result = await startOptimizer({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      return optimizerStatusResponseSchema.parse(
+        result.data,
+      ) satisfies StartOptimizerResponse;
+    },
+
+    async stopOptimizer() {
+      const result = await stopOptimizer({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      return optimizerStatusResponseSchema.parse(
+        result.data,
+      ) satisfies StopOptimizerResponse;
     },
 
     async listManagerReports(query) {

@@ -4,6 +4,7 @@ const mockRegisterHealthRoute = vi.fn();
 const mockRegisterDimensionRoutes = vi.fn();
 const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
+const mockRegisterOptimizerRoutes = vi.fn();
 const mockRegisterTaskWriteBulkRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
@@ -25,6 +26,10 @@ vi.mock("../src/routes/manager-reports.js", () => ({
 
 vi.mock("../src/routes/opencode-models.js", () => ({
   registerOpenCodeModelRoutes: mockRegisterOpenCodeModelRoutes,
+}));
+
+vi.mock("../src/routes/optimizer.js", () => ({
+  registerOptimizerRoutes: mockRegisterOptimizerRoutes,
 }));
 
 vi.mock("../src/routes/task-write-bulks.js", () => ({
@@ -65,6 +70,23 @@ describe("app wiring", () => {
     expect(mockRegisterOpenCodeModelRoutes).toHaveBeenCalledWith(
       expect.anything(),
       { adapter: openCodeModelsAdapter },
+    );
+  });
+
+  it("passes the optimizer runtime through to optimizer routes", async () => {
+    const optimizerRuntime = {
+      getStatus: vi.fn().mockReturnValue({ running: false }),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const { createApp } = await import("../src/app.js");
+
+    createApp({ optimizerRuntime });
+
+    expect(mockRegisterOptimizerRoutes).toHaveBeenCalledWith(
+      expect.anything(),
+      optimizerRuntime,
     );
   });
 });

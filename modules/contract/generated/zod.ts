@@ -39,6 +39,7 @@ const ErrorResponse = z
     message: z.string().min(1),
   })
   .strict();
+const OptimizerStatusResponse = z.object({ running: z.boolean() }).strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -239,6 +240,7 @@ export const schemas = {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   ErrorResponse,
+  OptimizerStatusResponse,
   CreateTaskRequest,
   Task,
   TaskListResponse,

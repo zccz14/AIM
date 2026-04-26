@@ -232,6 +232,10 @@ export type OpenCodeModelsResponse = {
   items: Array<OpenCodeModelCombination>;
 };
 
+export type OptimizerStatusResponse = {
+  running: boolean;
+};
+
 export type ErrorResponse = {
   code:
     | "TASK_NOT_FOUND"
@@ -389,6 +393,57 @@ export type ListOpenCodeModelsResponses = {
 
 export type ListOpenCodeModelsResponse =
   ListOpenCodeModelsResponses[keyof ListOpenCodeModelsResponses];
+
+export type GetOptimizerStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/optimizer/status";
+};
+
+export type GetOptimizerStatusResponses = {
+  /**
+   * Optimizer runtime status
+   */
+  200: OptimizerStatusResponse;
+};
+
+export type GetOptimizerStatusResponse =
+  GetOptimizerStatusResponses[keyof GetOptimizerStatusResponses];
+
+export type StartOptimizerData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/optimizer/start";
+};
+
+export type StartOptimizerResponses = {
+  /**
+   * Optimizer runtime status after start
+   */
+  200: OptimizerStatusResponse;
+};
+
+export type StartOptimizerResponse =
+  StartOptimizerResponses[keyof StartOptimizerResponses];
+
+export type StopOptimizerData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/optimizer/stop";
+};
+
+export type StopOptimizerResponses = {
+  /**
+   * Optimizer runtime status after stop
+   */
+  200: OptimizerStatusResponse;
+};
+
+export type StopOptimizerResponse =
+  StopOptimizerResponses[keyof StopOptimizerResponses];
 
 export type ListTasksData = {
   body?: never;

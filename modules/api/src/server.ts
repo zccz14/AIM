@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.js";
 import { createApiLogger } from "./logger.js";
+import { createOptimizerRuntime } from "./optimizer-runtime.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createTaskScheduler } from "./task-scheduler.js";
 import {
@@ -37,49 +38,49 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
 export const startServer = () => {
   const logger = createApiLogger();
   const isTaskSchedulerEnabled = process.env.TASK_SCHEDULER_ENABLED !== "false";
-  let scheduler: ReturnType<typeof createTaskScheduler> | undefined;
-  let stopScheduler: (() => void) | undefined;
+  const coordinatorConfig: TaskSessionCoordinatorConfig = {
+    baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
+    sessionIdleFallbackTimeoutMs,
+  };
+  const taskRepository = createTaskRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
+  });
+  const scheduler = createTaskScheduler({
+    coordinator: createTaskSessionCoordinator(coordinatorConfig),
+    logger,
+    taskRepository,
+  });
+  const optimizerRuntime = createOptimizerRuntime({
+    intervalMs: schedulerIntervalMs,
+    scheduler,
+  });
+  const stopOptimizer = () => {
+    void optimizerRuntime.stop();
+  };
 
   if (isTaskSchedulerEnabled) {
-    const coordinatorConfig: TaskSessionCoordinatorConfig = {
-      baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
-      sessionIdleFallbackTimeoutMs,
-    };
-    const taskRepository = createTaskRepository({
-      projectRoot: process.env.AIM_PROJECT_ROOT,
-    });
-    const taskScheduler = createTaskScheduler({
-      coordinator: createTaskSessionCoordinator(coordinatorConfig),
-      logger,
-      taskRepository,
-    });
-
-    scheduler = taskScheduler;
-    stopScheduler = () => taskScheduler.stop();
+    optimizerRuntime.start();
   }
 
   const server = serve({
     fetch: createApp({
       logger,
-      onTaskResolved: scheduler?.scanOnce,
+      onTaskResolved: scheduler.scanOnce,
+      optimizerRuntime,
     }).fetch,
     port,
   });
 
   try {
-    if (scheduler && stopScheduler) {
-      scheduler.start({ intervalMs: schedulerIntervalMs });
-
-      process.once("SIGINT", stopScheduler);
-      process.once("SIGTERM", stopScheduler);
-      server.once("close", () => {
-        process.off("SIGINT", stopScheduler);
-        process.off("SIGTERM", stopScheduler);
-        stopScheduler();
-      });
-    }
+    process.once("SIGINT", stopOptimizer);
+    process.once("SIGTERM", stopOptimizer);
+    server.once("close", () => {
+      process.off("SIGINT", stopOptimizer);
+      process.off("SIGTERM", stopOptimizer);
+      stopOptimizer();
+    });
   } catch (error) {
-    stopScheduler?.();
+    stopOptimizer();
     server.close();
     throw error;
   }

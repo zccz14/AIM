@@ -149,16 +149,23 @@ describe("server startup", () => {
     startServer();
 
     expect(mockCreateApiLogger).toHaveBeenCalledTimes(1);
-    expect(mockCreateApp).toHaveBeenCalledWith({
-      logger,
-      onTaskResolved: scheduler.scanOnce,
-    });
+    expect(mockCreateApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logger,
+        onTaskResolved: scheduler.scanOnce,
+        optimizerRuntime: expect.objectContaining({
+          getStatus: expect.any(Function),
+          start: expect.any(Function),
+          stop: expect.any(Function),
+        }),
+      }),
+    );
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.objectContaining({ logger }),
     );
   });
 
-  it("passes no resolve scheduler hook to the app when scheduler is disabled", async () => {
+  it("passes an inactive optimizer runtime to the app when startup is disabled", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "false";
 
     const logger = {
@@ -170,38 +177,61 @@ describe("server startup", () => {
       close: vi.fn(),
       once: vi.fn(),
     };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
 
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
 
     const { startServer } = await import("../src/server.js");
 
     startServer();
 
-    expect(mockCreateApp).toHaveBeenCalledWith({
-      logger,
-      onTaskResolved: undefined,
-    });
+    expect(mockCreateApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logger,
+        onTaskResolved: scheduler.scanOnce,
+        optimizerRuntime: expect.objectContaining({
+          getStatus: expect.any(Function),
+          start: expect.any(Function),
+          stop: expect.any(Function),
+        }),
+      }),
+    );
+    expect(scheduler.start).not.toHaveBeenCalled();
   });
 
-  it("does not read config or construct scheduler dependencies when disabled", async () => {
+  it("keeps scheduler stopped on startup when disabled", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "false";
 
     const server = {
       close: vi.fn(),
       once: vi.fn(),
     };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
 
     const { startServer } = await import("../src/server.js");
 
     expect(() => startServer()).not.toThrow();
-    expect(mockCreateTaskRepository).not.toHaveBeenCalled();
-    expect(mockCreateTaskSessionCoordinator).not.toHaveBeenCalled();
-    expect(mockCreateTaskScheduler).not.toHaveBeenCalled();
+    expect(mockCreateTaskScheduler).toHaveBeenCalledTimes(1);
+    expect(scheduler.start).not.toHaveBeenCalled();
   });
   it("does not leave the server listening when scheduler startup fails", async () => {
     process.env.TASK_SCHEDULER_ENABLED = "true";

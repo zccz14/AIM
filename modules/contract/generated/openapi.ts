@@ -76,6 +76,60 @@ export const openApiDocument = {
         },
       },
     },
+    "/optimizer/status": {
+      get: {
+        operationId: "getOptimizerStatus",
+        summary: "Read AIM optimizer runtime status",
+        responses: {
+          "200": {
+            description: "Optimizer runtime status",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OptimizerStatusResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/optimizer/start": {
+      post: {
+        operationId: "startOptimizer",
+        summary: "Start AIM optimizer runtime",
+        responses: {
+          "200": {
+            description: "Optimizer runtime status after start",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OptimizerStatusResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/optimizer/stop": {
+      post: {
+        operationId: "stopOptimizer",
+        summary: "Stop AIM optimizer runtime",
+        responses: {
+          "200": {
+            description: "Optimizer runtime status after stop",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OptimizerStatusResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/tasks": {
       post: {
         operationId: "createTask",
@@ -1943,6 +1997,16 @@ export const openApiDocument = {
             items: {
               $ref: "#/components/schemas/OpenCodeModelCombination",
             },
+          },
+        },
+      },
+      OptimizerStatusResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["running"],
+        properties: {
+          running: {
+            type: "boolean",
           },
         },
       },

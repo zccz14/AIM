@@ -196,6 +196,27 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
+  await page.route("**/optimizer/status", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: false }),
+    });
+  });
+
+  await page.route("**/optimizer/start", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: true }),
+    });
+  });
+
+  await page.route("**/optimizer/stop", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: false }),
+    });
+  });
+
   await page.route("**/task_write_bulks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -240,6 +261,63 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Task Pool Decision Signals")).toBeVisible();
   await expect(page.getByText("Completed Result Activity")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
+});
+
+test("toggles the optimizer from the global dashboard controls", async ({
+  page,
+}) => {
+  const optimizerRequests: string[] = [];
+
+  await page.route("**/optimizer/status", async (route) => {
+    optimizerRequests.push(route.request().url());
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: false }),
+    });
+  });
+  await page.route("**/optimizer/start", async (route) => {
+    optimizerRequests.push(route.request().url());
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: true }),
+    });
+  });
+  await page.route("**/optimizer/stop", async (route) => {
+    optimizerRequests.push(route.request().url());
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ running: false }),
+    });
+  });
+
+  await page.goto("/");
+
+  const optimizerSwitch = page.getByRole("switch", {
+    name: "AIM Optimizer",
+  });
+
+  await expect(optimizerSwitch).toBeVisible();
+  await expect(optimizerSwitch).not.toBeChecked();
+
+  await optimizerSwitch.click();
+
+  await expect(optimizerSwitch).toBeChecked();
+
+  await optimizerSwitch.click();
+
+  await expect(optimizerSwitch).not.toBeChecked();
+  expect(
+    optimizerRequests.some((url) => url.endsWith("/optimizer/status")),
+  ).toBe(true);
+  expect(
+    optimizerRequests.some((url) => url.endsWith("/optimizer/start")),
+  ).toBe(true);
+  expect(optimizerRequests.some((url) => url.endsWith("/optimizer/stop"))).toBe(
+    true,
+  );
 });
 
 test("prioritizes the AIM Dimension report before task execution evidence", async ({
