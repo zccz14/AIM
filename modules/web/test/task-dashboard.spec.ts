@@ -616,6 +616,48 @@ test("places refresh with the global theme controls", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("infers, switches, and persists the dashboard interface language", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "language", {
+      configurable: true,
+      value: "zh-CN",
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", { name: "基线收敛驾驶舱" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "切换到英文界面" }),
+  ).toBeVisible();
+  await expect(page.getByText("方法论枢纽")).toBeVisible();
+
+  await page.getByRole("button", { name: "切换到英文界面" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Baseline Convergence Cockpit" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Switch to Chinese interface" }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.localStorage.getItem("aim.web.locale")),
+    )
+    .toBe("en");
+
+  await page.reload();
+
+  await expect(
+    page.getByRole("heading", { name: "Baseline Convergence Cockpit" }),
+  ).toBeVisible();
+  await expect(page.getByText("Methodology Hub")).toBeVisible();
+});
+
 test("toggles task details AIM panel colors with the app theme", async ({
   page,
 }) => {

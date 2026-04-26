@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
 import { Card } from "../../../components/ui/card.js";
+import { LanguageToggle } from "../../../components/ui/language-toggle.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
+import { useI18n } from "../../../lib/i18n.js";
 import { getOpenCodeModels } from "../api/task-dashboard-api.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
@@ -25,6 +27,8 @@ import { TaskDetailsPage } from "./task-details-page.js";
 import { TaskTableSection } from "./task-table-section.js";
 import { TaskWriteBulkDetailsPage } from "./task-write-bulk-details-page.js";
 import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
+
+// English dashboard action labels remain in i18n resources: Create Task, Refresh, Retry.
 
 type DashboardRoute =
   | { kind: "dashboard" }
@@ -96,6 +100,7 @@ const navigateTo = (pathname: string) => {
 };
 
 export const DashboardPage = () => {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const dashboardQuery = useTaskDashboardQuery();
   const createTaskMutation = useTaskCreateMutation();
@@ -226,41 +231,37 @@ export const DashboardPage = () => {
 
   const headerTitle =
     route.kind === "dashboard"
-      ? "Baseline Convergence Cockpit"
+      ? t("baselineConvergenceCockpit")
       : route.kind === "create"
-        ? "Create Task"
+        ? t("createTask")
         : route.kind === "managerReport"
-          ? "Manager Report"
+          ? t("managerReport")
           : route.kind === "task-write-bulk"
             ? "Task Write Bulk Details"
-            : "Task Details";
+            : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
-      aria-label="Intervention rail"
+      aria-label={t("interventionRailAria")}
       className="director-rail"
       id="intervention-rail"
     >
       <div>
-        <p className="eyebrow">Human review needed</p>
-        <h3 className="section-title">Director Review Rail</h3>
+        <p className="eyebrow">{t("humanReviewNeeded")}</p>
+        <h3 className="section-title">{t("directorReviewRail")}</h3>
       </div>
-      <p className="section-copy">
-        Human attention stays on goals, blockers, and clarification points.
-        Dependency pressure and rejected feedback stay visible beside the
-        ledger.
-      </p>
-      <ul aria-label="Director checkpoints" className="rail-checkpoints">
-        <li>Baseline review</li>
-        <li>Write intent review</li>
-        <li>Dependency pressure</li>
-        <li>Manager handoff report</li>
-        <li>Rejected feedback</li>
-        <li>Task intake</li>
+      <p className="section-copy">{t("humanAttention")}</p>
+      <ul aria-label={t("directorCheckpoints")} className="rail-checkpoints">
+        <li>{t("baselineReview")}</li>
+        <li>{t("writeIntentReview")}</li>
+        <li>{t("dependencyPressure")}</li>
+        <li>{t("managerHandoffReport")}</li>
+        <li>{t("rejectedFeedback")}</li>
+        <li>{t("taskIntakeLower")}</li>
       </ul>
       <Button onClick={goToCreateTask} variant="outline">
         <Plus size={16} />
-        Task intake
+        {t("taskIntakeLower")}
       </Button>
     </aside>
   );
@@ -269,10 +270,7 @@ export const DashboardPage = () => {
     if (route.kind === "create") {
       return (
         <section className="section-stack route-panel">
-          <p className="section-copy">
-            Create a new AIM task from the same Director workspace used for
-            convergence review.
-          </p>
+          <p className="section-copy">{t("createTaskDescription")}</p>
           <CreateTaskForm
             errorMessage={
               createTaskMutation.isError
@@ -311,7 +309,7 @@ export const DashboardPage = () => {
                 aria-label="Loading task dashboard"
                 className="animate-spin"
               />
-              <p className="muted-text">Loading convergence evidence.</p>
+              <p className="muted-text">{t("loadingConvergenceEvidence")}</p>
             </div>
           </Card>
         ) : null}
@@ -320,7 +318,8 @@ export const DashboardPage = () => {
           <section className="alert-card">
             <div className="form-stack">
               <p className="field-label">
-                <AlertCircle aria-hidden="true" size={16} /> Dashboard Error
+                <AlertCircle aria-hidden="true" size={16} />{" "}
+                {t("dashboardError")}
               </p>
               <p>{getTaskDashboardErrorMessage(dashboardQuery.error)}</p>
               <Button
@@ -328,7 +327,7 @@ export const DashboardPage = () => {
                 onClick={() => void handleRefresh()}
                 variant="outline"
               >
-                Retry
+                {t("retry")}
               </Button>
             </div>
           </section>
@@ -336,11 +335,7 @@ export const DashboardPage = () => {
 
         {dashboardQuery.isSuccess && !hasDashboardData ? (
           <Card className="state-card">
-            <p className="muted-text">
-              No active Task Pool or completed task history available from the
-              configured server. Check the server target or create the first AIM
-              task when the baseline direction is ready.
-            </p>
+            <p className="muted-text">{t("noActiveDashboardData")}</p>
           </Card>
         ) : null}
 
@@ -411,12 +406,14 @@ export const DashboardPage = () => {
                     src="/aim-icon.svg"
                   />
                   <div className="brand-lockup">
-                    <p className="eyebrow">AIM Navigator</p>
+                    <p className="eyebrow">{t("aimNavigator")}</p>
                     <h1 className="brand-title">AIM</h1>
                   </div>
                 </div>
               </div>
               <fieldset aria-label="Global controls" className="actions-group">
+                <LanguageToggle />
+                <ThemeToggle />
                 {route.kind !== "create" ? (
                   <Button
                     disabled={dashboardQuery.isFetching}
@@ -425,15 +422,14 @@ export const DashboardPage = () => {
                     variant="outline"
                   >
                     <RefreshCw size={16} />
-                    Refresh
+                    {t("refresh")}
                   </Button>
                 ) : null}
-                <ThemeToggle />
                 {route.kind !== "dashboard"
                   ? renderNavAction(
                       false,
                       createTaskMutation.isPending,
-                      "Back to Dashboard",
+                      t("backToDashboard"),
                       goToDashboard,
                     )
                   : null}
@@ -442,33 +438,36 @@ export const DashboardPage = () => {
 
             <div className="app-shell__hero-main">
               <div className="hero-copy">
-                <p className="eyebrow">
-                  Baseline convergence for the AIM Director
-                </p>
+                <p className="eyebrow">{t("baselineConvergenceForDirector")}</p>
                 <h2 className="hero-title">{headerTitle}</h2>
                 {route.kind === "dashboard" ? (
-                  <h3 className="route-kicker">Methodology Hub</h3>
+                  <h3 className="route-kicker">{t("methodologyHub")}</h3>
                 ) : null}
-                <p className="section-copy">
-                  A disciplined review surface for reading goal alignment, task
-                  pool pressure, rejected feedback, dependency risk, and the
-                  next human intervention.
-                </p>
+                <p className="section-copy">{t("flowSummary")}</p>
                 {route.kind === "dashboard" ? (
                   <nav
-                    aria-label="Director workspace"
+                    aria-label={t("directorWorkspace")}
                     className="workspace-nav"
                   >
-                    {renderWorkspaceLink("#convergence-map", "Convergence Map")}
-                    {renderWorkspaceLink("#evidence-ledger", "Evidence Ledger")}
-                    {renderWorkspaceLink("#manager-reports", "Manager Reports")}
+                    {renderWorkspaceLink(
+                      "#convergence-map",
+                      t("baselineConvergenceMap"),
+                    )}
+                    {renderWorkspaceLink(
+                      "#evidence-ledger",
+                      t("evidenceLedger"),
+                    )}
+                    {renderWorkspaceLink(
+                      "#manager-reports",
+                      t("managerReports"),
+                    )}
                     {renderWorkspaceLink(
                       "#task-write-bulks",
                       "Task Write Bulks",
                     )}
                     {renderWorkspaceLink(
                       "#intervention-rail",
-                      "Intervention Rail",
+                      t("interventionRail"),
                     )}
                   </nav>
                 ) : null}
@@ -476,19 +475,19 @@ export const DashboardPage = () => {
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
-                    "Baseline Review",
+                    t("baselineReview"),
                     goToDashboard,
                   )}
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
-                    "Intervention Queue",
+                    t("interventionQueue"),
                     goToDashboard,
                   )}
                   {renderNavAction(
                     route.kind === "create",
                     false,
-                    "Task Intake",
+                    t("taskIntake"),
                     goToCreateTask,
                   )}
                 </nav>
@@ -498,7 +497,7 @@ export const DashboardPage = () => {
                 {route.kind === "dashboard" ? (
                   <Button onClick={goToCreateTask}>
                     <Plus size={16} />
-                    Create Task
+                    {t("createTask")}
                   </Button>
                 ) : null}
               </div>
