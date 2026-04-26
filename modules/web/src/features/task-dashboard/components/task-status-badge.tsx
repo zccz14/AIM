@@ -1,4 +1,5 @@
 import { Badge } from "../../../components/ui/badge.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardStatus } from "../model/task-dashboard-view-model.js";
 
 const statusLabelMap: Record<DashboardStatus, string> = {
@@ -14,6 +15,7 @@ const statusAccentColorMap: Record<DashboardStatus, string> = {
 };
 
 export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
+  const { locale } = useI18n();
   const palette = {
     processing: {
       background: "rgba(151, 117, 250, 0.2)",
@@ -43,7 +45,11 @@ export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
         color: palette.text,
       }}
     >
-      {statusLabelMap[status]}
+      {locale === "zh"
+        ? { processing: "处理中", rejected: "已拒绝", resolved: "已解决" }[
+            status
+          ]
+        : statusLabelMap[status]}
     </Badge>
   );
 };

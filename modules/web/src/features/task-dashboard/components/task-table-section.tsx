@@ -5,32 +5,14 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Card } from "../../../components/ui/card.js";
 import { Input } from "../../../components/ui/input.js";
 import { Label } from "../../../components/ui/label.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
-
-const columns: ColumnDef<DashboardTask>[] = [
-  {
-    accessorKey: "title",
-    header: "Task",
-  },
-  {
-    accessorKey: "dashboardStatus",
-    header: "Status",
-    cell: ({ row }) => (
-      <TaskStatusBadge status={row.original.dashboardStatus} />
-    ),
-  },
-  {
-    accessorFn: (task) => task.dependencies.length,
-    id: "dependencies",
-    header: "Dependencies",
-  },
-];
 
 const filterTask = (task: DashboardTask, filterValue: string) => {
   const normalizedFilter = filterValue.trim().toLowerCase();
@@ -60,7 +42,29 @@ export const TaskTableSection = ({
   onSelectTask: (taskId: string) => void;
   tasks: DashboardTask[];
 }) => {
+  const { t } = useI18n();
   const [filterValue, setFilterValue] = useState("");
+  const columns = useMemo<ColumnDef<DashboardTask>[]>(
+    () => [
+      {
+        accessorKey: "title",
+        header: t("tableTask"),
+      },
+      {
+        accessorKey: "dashboardStatus",
+        header: t("tableStatus"),
+        cell: ({ row }) => (
+          <TaskStatusBadge status={row.original.dashboardStatus} />
+        ),
+      },
+      {
+        accessorFn: (task) => task.dependencies.length,
+        id: "dependencies",
+        header: t("tableDependencies"),
+      },
+    ],
+    [t],
+  );
 
   const table = useReactTable({
     columns,
@@ -77,11 +81,11 @@ export const TaskTableSection = ({
   return (
     <Card className="surface-table section-stack">
       <div>
-        <p className="eyebrow">Task Pool</p>
-        <h2 className="section-title">Active Unfinished Tasks</h2>
+        <p className="eyebrow">{t("taskPool")}</p>
+        <h2 className="section-title">{t("activeUnfinishedTasks")}</h2>
       </div>
       <Label className="field-stack">
-        <span className="field-label">Filter Tasks</span>
+        <span className="field-label">{t("filterTasks")}</span>
         <Input
           onChange={(event) => setFilterValue(event.currentTarget.value)}
           value={filterValue}
@@ -133,7 +137,7 @@ export const TaskTableSection = ({
       </div>
 
       {table.getRowModel().rows.length === 0 ? (
-        <p className="muted-text">No matching tasks.</p>
+        <p className="muted-text">{t("noMatchingTasks")}</p>
       ) : null}
     </Card>
   );

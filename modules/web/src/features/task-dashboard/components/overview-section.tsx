@@ -15,14 +15,17 @@ import { Card } from "../../../components/ui/card.js";
 import { Input } from "../../../components/ui/input.js";
 import { Label } from "../../../components/ui/label.js";
 import { Select } from "../../../components/ui/select.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
-const summarizeResult = (result: string) => {
+// English section labels remain in i18n resources: Recent Active Tasks.
+
+const summarizeResult = (result: string, emptyLabel: string) => {
   const trimmedResult = result.trim();
 
   if (trimmedResult.length === 0) {
-    return "No result feedback recorded";
+    return emptyLabel;
   }
 
   return trimmedResult.length <= 120
@@ -37,6 +40,7 @@ export const OverviewSection = ({
   dashboard: TaskDashboardViewModel;
   onSelectTask: (taskId: string) => void;
 }) => {
+  const { t } = useI18n();
   const [rejectedCategoryFilter, setRejectedCategoryFilter] = useState("all");
   const [rejectedCoordinateFilter, setRejectedCoordinateFilter] = useState("");
   const normalizedCoordinateFilter = rejectedCoordinateFilter
@@ -70,19 +74,16 @@ export const OverviewSection = ({
   return (
     <div className="section-stack">
       <section
-        aria-label="Baseline convergence map"
+        aria-label={t("baselineConvergenceMapRegion")}
         className="section-stack cockpit-region"
         id="convergence-map"
       >
         <div className="region-header">
           <div>
-            <p className="eyebrow">Baseline convergence map</p>
-            <h2 className="section-title">Goal State Review</h2>
+            <p className="eyebrow">{t("baselineConvergenceMapRegion")}</p>
+            <h2 className="section-title">{t("goalStateReview")}</h2>
           </div>
-          <p className="section-copy">
-            Current task pool, completed history, flow pressure, and rejected
-            feedback are presented as one planning surface.
-          </p>
+          <p className="section-copy">{t("goalStateReviewDescription")}</p>
         </div>
         <div className="summary-grid">
           {dashboard.summaryCards.map((card) => (
@@ -96,7 +97,7 @@ export const OverviewSection = ({
         <div className="split-grid">
           <Card className="section-stack evidence-panel">
             <div>
-              <p className="eyebrow">Task Pool</p>
+              <p className="eyebrow">{t("taskPool")}</p>
               <h2 className="section-title">Status Board</h2>
             </div>
             <div className="chart-frame">
@@ -117,8 +118,8 @@ export const OverviewSection = ({
 
           <Card className="section-stack evidence-panel">
             <div>
-              <p className="eyebrow">History</p>
-              <h2 className="section-title">Completed Result Activity</h2>
+              <p className="eyebrow">{t("history")}</p>
+              <h2 className="section-title">{t("completedResultActivity")}</h2>
             </div>
             <div className="chart-frame">
               <ResponsiveContainer height="100%" width="100%">
@@ -139,11 +140,10 @@ export const OverviewSection = ({
 
         <Card className="section-stack evidence-panel">
           <div>
-            <p className="eyebrow">Decision Observability</p>
-            <h2 className="section-title">Task Pool Decision Signals</h2>
+            <p className="eyebrow">{t("decisionObservability")}</p>
+            <h2 className="section-title">{t("taskPoolDecisionSignals")}</h2>
             <p className="section-copy">
-              Read-only signals derived from existing Task fields for coverage,
-              progress, success, and blocker review.
+              {t("taskPoolDecisionSignalsDescription")}
             </p>
           </div>
           <div className="task-list">
@@ -161,25 +161,22 @@ export const OverviewSection = ({
       </section>
 
       <section
-        aria-label="Evidence ledger"
+        aria-label={t("evidenceLedgerLower")}
         className="section-stack cockpit-region"
         id="evidence-ledger"
       >
         <div className="region-header">
           <div>
-            <p className="eyebrow">Evidence ledger</p>
+            <p className="eyebrow">{t("evidenceLedgerLower")}</p>
             <h2 className="section-title">Task Evidence and Feedback</h2>
           </div>
-          <p className="section-copy">
-            The ledger keeps active tasks, Coordinator feedback, and completed
-            outcomes in separate scan paths.
-          </p>
+          <p className="section-copy">{t("evidenceLedgerDescription")}</p>
         </div>
 
         <Card className="section-stack evidence-panel">
           <div>
             <p className="eyebrow">Signal</p>
-            <h2 className="section-title">Recent Active Tasks</h2>
+            <h2 className="section-title">{t("recentActiveTasks")}</h2>
           </div>
           <div className="task-list">
             {dashboard.recentTasks.map((task) => (
@@ -198,16 +195,15 @@ export const OverviewSection = ({
 
         <Card className="section-stack evidence-panel">
           <div>
-            <p className="eyebrow">Coordinator Input</p>
-            <h2 className="section-title">Rejected Feedback Signals</h2>
+            <p className="eyebrow">{t("coordinatorInput")}</p>
+            <h2 className="section-title">{t("rejectedFeedbackSignals")}</h2>
             <p className="section-copy">
-              Deduplicated failed task feedback for planning review only;
-              historical task records stay unchanged.
+              {t("rejectedFeedbackSignalsDescription")}
             </p>
           </div>
           <div className="rejected-feedback-filters">
             <Label className="field-stack">
-              <span className="field-label">Reason category</span>
+              <span className="field-label">{t("reasonCategory")}</span>
               <Select
                 onChange={(event) =>
                   setRejectedCategoryFilter(event.target.value)
@@ -270,21 +266,19 @@ export const OverviewSection = ({
               </article>
             ))}
             {dashboard.rejectedFeedbackSignals.length === 0 ? (
-              <p className="muted-text">No rejected feedback recorded yet.</p>
+              <p className="muted-text">{t("noRejectedFeedbackRecorded")}</p>
             ) : null}
             {dashboard.rejectedFeedbackSignals.length > 0 &&
             filteredRejectedFeedbackSignals.length === 0 ? (
-              <p className="muted-text">
-                No rejected feedback matches filters.
-              </p>
+              <p className="muted-text">{t("noRejectedFeedbackMatches")}</p>
             ) : null}
           </div>
         </Card>
 
         <Card className="section-stack evidence-panel">
           <div>
-            <p className="eyebrow">History Results</p>
-            <h2 className="section-title">Completed Task Feedback</h2>
+            <p className="eyebrow">{t("historyResults")}</p>
+            <h2 className="section-title">{t("completedTaskFeedback")}</h2>
           </div>
           <div className="task-list">
             {dashboard.historyTasks
@@ -302,7 +296,12 @@ export const OverviewSection = ({
                     >
                       {task.title}
                     </Button>
-                    <p className="table-meta">{summarizeResult(task.result)}</p>
+                    <p className="table-meta">
+                      {summarizeResult(
+                        task.result,
+                        t("noResultFeedbackRecorded"),
+                      )}
+                    </p>
                   </div>
                   <TaskStatusBadge status={task.dashboardStatus} />
                 </div>

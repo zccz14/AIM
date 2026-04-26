@@ -13,14 +13,11 @@ import {
 } from "../../../components/ui/lyra-surface.js";
 import { Select } from "../../../components/ui/select.js";
 import { Textarea } from "../../../components/ui/textarea.js";
+import { useI18n } from "../../../lib/i18n.js";
 
 const developerModelPreferenceKey = "aim.createTaskDeveloperModel";
 
-const checklistItems = [
-  "Keep the brief focused on one coherent outcome.",
-  "Use the task spec to explain user-visible value and boundaries.",
-  "Point the task at the exact workspace path that should change.",
-];
+// English form labels remain in i18n resources: <span>Task Spec</span>, <span>Project Path</span>.
 
 export const CreateTaskForm = ({
   errorMessage,
@@ -41,6 +38,7 @@ export const CreateTaskForm = ({
     developerModelId: string;
   }) => Promise<unknown> | unknown;
 }) => {
+  const { locale, t } = useI18n();
   const [title, setTitle] = useState("");
   const [projectPath, setProjectPath] = useState("");
   const [taskSpec, setTaskSpec] = useState("");
@@ -54,6 +52,18 @@ export const CreateTaskForm = ({
   const canSubmit = Boolean(
     trimmedTitle && trimmedProjectPath && trimmedTaskSpec && selectedModel,
   );
+  const checklistItems =
+    locale === "zh"
+      ? [
+          "让简报聚焦一个连贯结果。",
+          "用任务规格说明用户可见价值和边界。",
+          "指向应该变更的精确工作区路径。",
+        ]
+      : [
+          "Keep the brief focused on one coherent outcome.",
+          "Use the task spec to explain user-visible value and boundaries.",
+          "Point the task at the exact workspace path that should change.",
+        ];
 
   useEffect(() => {
     if (models.length === 0 || selectedModelKey) {
@@ -114,11 +124,10 @@ export const CreateTaskForm = ({
       }}
     >
       <header className="aim-task-form-header">
-        <LyraKicker>Create Task</LyraKicker>
-        <h2>Shape a focused brief before it enters the task pool.</h2>
+        <LyraKicker>{t("createTask")}</LyraKicker>
+        <h2>{t("createTaskFormTitle")}</h2>
         <LyraMuted className="aim-task-summary">
-          Draft task intake beside the same evidence vocabulary used for
-          convergence review.
+          {t("createTaskFormSummary")}
         </LyraMuted>
       </header>
 
@@ -137,10 +146,10 @@ export const CreateTaskForm = ({
           <LyraStack>
             <div>
               <LyraKicker>Task Brief</LyraKicker>
-              <h3>Task Spec</h3>
+              <h3>{t("taskSpec")}</h3>
             </div>
             <Label className="lyra-field-control" htmlFor="create-task-title">
-              <span>Title</span>
+              <span>{t("title")}</span>
               <Input
                 disabled={isSubmitting}
                 id="create-task-title"
@@ -151,7 +160,7 @@ export const CreateTaskForm = ({
               />
             </Label>
             <Label className="lyra-field-control" htmlFor="create-task-spec">
-              <span>Task Spec</span>
+              <span>{t("taskSpec")}</span>
               <Textarea
                 disabled={isSubmitting}
                 id="create-task-spec"
@@ -166,14 +175,14 @@ export const CreateTaskForm = ({
         <aside className="aim-task-form-sidebar">
           <LyraStack>
             <div>
-              <LyraKicker>Workspace Target</LyraKicker>
-              <h3>Project Path</h3>
+              <LyraKicker>{t("workspaceTarget")}</LyraKicker>
+              <h3>{t("projectPath")}</h3>
             </div>
             <Label
               className="lyra-field-control"
               htmlFor="create-task-project-path"
             >
-              <span>Project Path</span>
+              <span>{t("projectPath")}</span>
               <Input
                 disabled={isSubmitting}
                 id="create-task-project-path"
@@ -188,7 +197,7 @@ export const CreateTaskForm = ({
               className="lyra-field-control"
               htmlFor="create-task-developer-model"
             >
-              <span>Developer Model</span>
+              <span>{t("developerModel")}</span>
               <Select
                 disabled={isSubmitting || models.length === 0}
                 id="create-task-developer-model"
@@ -214,7 +223,7 @@ export const CreateTaskForm = ({
             <LyraStack>
               <div>
                 <LyraKicker>Submission Checklist</LyraKicker>
-                <h3>Before You Send</h3>
+                <h3>{t("beforeYouSend")}</h3>
               </div>
               <div className="aim-checklist">
                 {checklistItems.map((item) => (
@@ -238,10 +247,10 @@ export const CreateTaskForm = ({
         </LyraMuted>
         <div className="aim-task-actions">
           <Button disabled={isSubmitting} onClick={onCancel} variant="outline">
-            Cancel
+            {t("cancel")}
           </Button>
           <Button disabled={!canSubmit || isSubmitting} type="submit">
-            {isSubmitting ? "Creating Task..." : "Create Task"}
+            {isSubmitting ? t("creatingTask") : t("createTask")}
           </Button>
         </div>
       </div>
