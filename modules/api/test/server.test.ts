@@ -214,7 +214,7 @@ describe("server startup", () => {
     );
   });
 
-  it("starts all optimizer lanes by default", async () => {
+  it("does not start optimizer lanes by default when enablement is not persisted", async () => {
     const logger = {
       error: vi.fn(),
       info: vi.fn(),
@@ -267,9 +267,9 @@ describe("server startup", () => {
         }),
       }),
     );
-    expect(managerLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
-    expect(coordinatorLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
-    expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
+    expect(managerLane.start).not.toHaveBeenCalled();
+    expect(coordinatorLane.start).not.toHaveBeenCalled();
+    expect(scheduler.start).not.toHaveBeenCalled();
   });
 
   it("creates manager, coordinator, and developer lanes without a task producer", async () => {
@@ -308,7 +308,7 @@ describe("server startup", () => {
     expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
-    expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
+    expect(scheduler.start).not.toHaveBeenCalled();
   });
 
   it("instructs the coordinator lane to use concrete Task Write Bulk intent instead of optimizer-loop placeholders", async () => {
@@ -424,9 +424,9 @@ describe("server startup", () => {
     })();
 
     expect(close).toHaveBeenCalledOnce();
-    expect(managerLane.stop).toHaveBeenCalledOnce();
-    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
-    expect(scheduler.stop).toHaveBeenCalledOnce();
+    expect(managerLane.stop).not.toHaveBeenCalled();
+    expect(coordinatorLane.stop).not.toHaveBeenCalled();
+    expect(scheduler.stop).not.toHaveBeenCalled();
   });
 
   it("disposes the app resource during await using server cleanup", async () => {
@@ -522,13 +522,7 @@ describe("server startup", () => {
       await using _runtime = startServer();
     })();
 
-    expect(cleanupOrder).toEqual([
-      "server:close",
-      "scheduler:stop",
-      "coordinator:stop",
-      "manager:stop",
-      "repository:dispose",
-    ]);
+    expect(cleanupOrder).toEqual(["server:close", "repository:dispose"]);
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
@@ -588,9 +582,9 @@ describe("server startup", () => {
     await runtime[Symbol.asyncDispose]();
 
     expect(close).toHaveBeenCalledOnce();
-    expect(scheduler.stop).toHaveBeenCalledOnce();
-    expect(managerLane.stop).toHaveBeenCalledOnce();
-    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
+    expect(scheduler.stop).not.toHaveBeenCalled();
+    expect(managerLane.stop).not.toHaveBeenCalled();
+    expect(coordinatorLane.stop).not.toHaveBeenCalled();
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
