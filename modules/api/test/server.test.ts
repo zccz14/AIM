@@ -409,7 +409,7 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
