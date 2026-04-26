@@ -382,4 +382,50 @@ describe("server startup", () => {
     expect(() => startServer()).toThrow(/tasks schema is incompatible/);
     expect(listening).toBe(false);
   });
+
+  it("supports await using cleanup for the listening server and optimizer runtime", async () => {
+    const close = vi.fn((callback?: () => void) => {
+      callback?.();
+    });
+    const server = {
+      close,
+      once: vi.fn(),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const managerLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinatorLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane
+      .mockReturnValueOnce(managerLane)
+      .mockReturnValueOnce(coordinatorLane);
+
+    const { startServer } = await import("../src/server.js");
+
+    await (async () => {
+      await using _runtime = startServer();
+    })();
+
+    expect(close).toHaveBeenCalledOnce();
+    expect(managerLane.stop).toHaveBeenCalledOnce();
+    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
+    expect(scheduler.stop).toHaveBeenCalledOnce();
+  });
 });

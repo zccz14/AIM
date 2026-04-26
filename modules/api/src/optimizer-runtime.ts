@@ -28,6 +28,7 @@ export type OptimizerEvent = {
 };
 
 export type OptimizerRuntime = {
+  [Symbol.asyncDispose](): Promise<void>;
   getStatus(): OptimizerStatusResponse;
   handleEvent(event: OptimizerEvent): Promise<void>;
   start(): void;
@@ -81,7 +82,11 @@ export const createOptimizerRuntime = ({
     logger?.error({ err: error, lane: name }, "Optimizer lane failed to start");
   };
 
-  return {
+  const runtime: OptimizerRuntime = {
+    async [Symbol.asyncDispose]() {
+      await runtime.stop();
+    },
+
     getStatus() {
       return {
         enabled_triggers: ["task_resolved"],
@@ -154,21 +159,26 @@ export const createOptimizerRuntime = ({
     },
 
     async stop() {
+      if (stopPromise) {
+        await stopPromise;
+        return;
+      }
+
       if (!running) {
         return;
       }
 
       running = false;
-      stopPromise ??= Promise.all(
-        lanes.map(async ({ lane, name }) => {
+      stopPromise = (async () => {
+        for (const { lane, name } of [...lanes].reverse()) {
           await lane.stop();
           const laneState = laneStates.get(name);
 
           if (laneState) {
             laneState.running = false;
           }
-        }),
-      )
+        }
+      })()
         .then(() => undefined)
         .finally(() => {
           stopPromise = null;
@@ -177,4 +187,6 @@ export const createOptimizerRuntime = ({
       await stopPromise;
     },
   };
+
+  return runtime;
 };
