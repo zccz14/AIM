@@ -153,7 +153,6 @@ export const DashboardPage = () => {
   const [models, setModels] = useState<
     Awaited<ReturnType<typeof getOpenCodeModels>>["items"]
   >([]);
-  const [optimizerRunning, setOptimizerRunning] = useState(false);
   const [optimizerStatus, setOptimizerStatus] =
     useState<OptimizerStatusResponse | null>(null);
   const [isOptimizerChanging, setIsOptimizerChanging] = useState(false);
@@ -193,6 +192,7 @@ export const DashboardPage = () => {
       dashboardQuery.data.historyTasks.length > 0 ||
       dashboardQuery.data.dimensionReports.length > 0 ||
       dashboardQuery.data.taskWriteBulks.length > 0);
+  const optimizerRunning = optimizerStatus?.running ?? false;
 
   useEffect(() => {
     const handleHashChange = () => setPathname(getCurrentPath());
@@ -209,7 +209,6 @@ export const DashboardPage = () => {
       .then((status) => {
         if (isActive) {
           setOptimizerStatus(status);
-          setOptimizerRunning(status.running);
         }
       })
       .catch(() => undefined);
@@ -244,7 +243,14 @@ export const DashboardPage = () => {
   }, [route.kind]);
 
   const handleRefresh = async () => {
-    await dashboardQuery.refetch();
+    const [, status] = await Promise.all([
+      dashboardQuery.refetch(),
+      getOptimizerStatus().catch(() => null),
+    ]);
+
+    if (status) {
+      setOptimizerStatus(status);
+    }
   };
 
   const handleOptimizerToggle = async () => {
@@ -255,7 +261,6 @@ export const DashboardPage = () => {
         ? await stopOptimizer()
         : await startOptimizer();
 
-      setOptimizerRunning(status.running);
       setOptimizerStatus(status);
     } catch {
       return;
