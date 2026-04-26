@@ -4,6 +4,7 @@ import {
   taskWriteBulkSchema,
 } from "@aim-ai/contract";
 
+import { applySqliteSchema } from "./schema.js";
 import { openTaskDatabase } from "./task-database.js";
 
 type TaskWriteBulkRow = {
@@ -74,24 +75,6 @@ const mapTaskWriteBulkRow = (row: TaskWriteBulkRow) =>
     updated_at: row.updated_at,
   });
 
-const createTaskWriteBulksTable = (
-  database: ReturnType<typeof openTaskDatabase>,
-) => {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${taskWriteBulksTableName} (
-      project_path TEXT NOT NULL,
-      bulk_id TEXT NOT NULL,
-      content_markdown TEXT NOT NULL,
-      entries TEXT NOT NULL,
-      baseline_ref TEXT,
-      source_metadata TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (project_path, bulk_id)
-    )
-  `);
-};
-
 const validateTaskWriteBulksTableSchema = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
@@ -123,7 +106,7 @@ const validateTaskWriteBulksTableSchema = (
 const bootstrapTaskWriteBulkDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
-  createTaskWriteBulksTable(database);
+  applySqliteSchema(database);
   validateTaskWriteBulksTableSchema(database);
 
   return database;
