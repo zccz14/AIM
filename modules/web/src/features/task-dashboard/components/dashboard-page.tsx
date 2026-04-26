@@ -20,6 +20,7 @@ import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
 import { CreateTaskForm } from "./create-task-form.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
+import { DimensionDetailsPage } from "./dimension-details-page.js";
 import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
 import { ManagerReportSection } from "./manager-report-section.js";
 import { OverviewSection } from "./overview-section.js";
@@ -34,6 +35,7 @@ import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
 type DashboardRoute =
   | { kind: "dashboard" }
   | { kind: "create" }
+  | { dimensionId: string; kind: "dimension" }
   | { kind: "managerReport"; projectPath: string; reportId: string }
   | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
@@ -59,6 +61,19 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
 
     if (taskId) {
       return { kind: "task", taskId: decodeURIComponent(taskId) };
+    }
+  }
+
+  const dimensionMatch = pathname.match(/^\/dimensions\/([^/]+)$/);
+
+  if (dimensionMatch) {
+    const dimensionId = dimensionMatch[1];
+
+    if (dimensionId) {
+      return {
+        dimensionId: decodeURIComponent(dimensionId),
+        kind: "dimension",
+      };
     }
   }
 
@@ -133,6 +148,12 @@ export const DashboardPage = () => {
     dashboardQuery.data?.taskWriteBulks.find(
       (bulk) => bulk.bulk_id === selectedTaskWriteBulkId,
     ) ?? null;
+  const selectedDimension =
+    route.kind === "dimension"
+      ? (dashboardQuery.data?.dimensionReports.find(
+          (report) => report.dimension.id === route.dimensionId,
+        ) ?? null)
+      : null;
   const hasDashboardData =
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
@@ -200,6 +221,10 @@ export const DashboardPage = () => {
     );
   };
 
+  const goToDimension = (dimensionId: string) => {
+    navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
+  };
+
   const handleCreateTask = async (input: {
     title: string;
     projectPath: string;
@@ -238,9 +263,11 @@ export const DashboardPage = () => {
         ? t("createTask")
         : route.kind === "managerReport"
           ? t("managerReport")
-          : route.kind === "task-write-bulk"
-            ? "Task Write Bulk Details"
-            : t("taskDetails");
+          : route.kind === "dimension"
+            ? "Dimension Detail"
+            : route.kind === "task-write-bulk"
+              ? "Task Write Bulk Details"
+              : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
@@ -296,6 +323,10 @@ export const DashboardPage = () => {
       return <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />;
     }
 
+    if (route.kind === "dimension") {
+      return <DimensionDetailsPage report={selectedDimension} />;
+    }
+
     if (route.kind === "managerReport") {
       return <ManagerReportDetailsPage report={selectedReport} />;
     }
@@ -346,6 +377,7 @@ export const DashboardPage = () => {
             <div className="director-workspace__main">
               <AimDimensionReportSection
                 dimensionReports={dashboardQuery.data.dimensionReports}
+                onSelectDimension={goToDimension}
               />
               <OverviewSection
                 dashboard={dashboardQuery.data}

@@ -455,6 +455,176 @@ a {
   white-space: nowrap;
 }
 
+.link-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.link-button:hover,
+.link-button:focus-visible {
+  color: var(--primary);
+  outline: none;
+  text-decoration: underline;
+}
+
+.dimension-details-page {
+  gap: 1rem;
+}
+
+.dimension-trend {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--card-strong) 90%, var(--card));
+  padding: 1rem;
+}
+
+.dimension-trend__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dimension-trend__plot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 260px;
+}
+
+.dimension-trend__y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--foreground-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding-block: 0.45rem;
+}
+
+.dimension-trend__canvas {
+  position: relative;
+  min-height: 260px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 100% 50%,
+    linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 25% 100%,
+    color-mix(in srgb, var(--background-elevated) 72%, transparent);
+  overflow: hidden;
+}
+
+.dimension-trend__line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.dimension-trend__line polyline {
+  fill: none;
+  stroke: var(--primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.dimension-trend__axis-label {
+  position: absolute;
+  z-index: 1;
+  color: var(--foreground-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dimension-trend__axis-label--y {
+  left: 0.75rem;
+  top: 0.75rem;
+}
+
+.dimension-trend-point {
+  position: absolute;
+  z-index: 2;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transform: translate(-50%, -50%);
+}
+
+.dimension-trend-point__dot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--background);
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 42%, var(--border));
+}
+
+.dimension-trend-point__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  width: min(18rem, 70vw);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: 14px;
+  background: var(--card-strong);
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0;
+  padding: 0.65rem 0.75rem;
+  pointer-events: none;
+  transform: translate(-50%, 0.2rem);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  visibility: hidden;
+}
+
+.dimension-trend-point:hover .dimension-trend-point__tooltip,
+.dimension-trend-point:focus-visible .dimension-trend-point__tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+
+.dimension-trend__x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 2.2rem;
+  color: var(--foreground-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dimension-trend__x-label {
+  margin: 0;
+  color: var(--foreground-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .aim-dimension-report__empty {
   margin-top: 0;
 }
