@@ -1314,6 +1314,85 @@ test("lists Manager Reports from the visible task project paths", async ({
   expect(requestedProjectPaths).toEqual(["/repo/dashboard"]);
 });
 
+test("keeps dashboard panels usable when a report panel fails to render and retries it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const [reactModule, reactDomClientModule, { DashboardPanelBoundary }] =
+      await Promise.all([
+        import("/node_modules/.vite/deps/react.js"),
+        import("/node_modules/.vite/deps/react-dom_client.js"),
+        import(
+          "/src/features/task-dashboard/components/dashboard-error-boundary.tsx"
+        ),
+      ]);
+    const { createElement } = reactModule.default ?? reactModule;
+    const { createRoot } = reactDomClientModule.default ?? reactDomClientModule;
+    const rootElement = document.createElement("div");
+    let shouldThrow = true;
+    const StablePanel = () =>
+      createElement(
+        "section",
+        { "aria-label": "Baseline convergence map" },
+        "Baseline convergence map remains available",
+      );
+    const ReportPanel = () => {
+      if (shouldThrow) {
+        throw new Error("Injected manager report render failure");
+      }
+
+      return createElement(
+        "section",
+        { "aria-label": "Manager Reports" },
+        "Restored Direction",
+      );
+    };
+
+    document.body.replaceChildren(rootElement);
+    createRoot(rootElement).render(
+      createElement(
+        "main",
+        null,
+        createElement(StablePanel),
+        createElement(
+          DashboardPanelBoundary,
+          {
+            onRetry: () => {
+              shouldThrow = false;
+            },
+            scope: "Manager Reports",
+          },
+          createElement(ReportPanel),
+        ),
+      ),
+    );
+  });
+
+  await expect(
+    page.getByRole("region", { name: "Baseline convergence map" }),
+  ).toBeVisible();
+  const failedPanel = page.getByRole("alert").filter({
+    hasText: "Manager Reports failed to render.",
+  });
+
+  await expect(failedPanel).toBeVisible();
+  await expect(failedPanel.getByText("Panel unavailable")).toBeVisible();
+  await expect(
+    failedPanel.getByText(
+      "Direct cause: Injected manager report render failure",
+    ),
+  ).toBeVisible();
+
+  await failedPanel.getByRole("button", { name: "Retry panel" }).click();
+
+  await expect(
+    page.getByRole("region", { name: "Manager Reports" }),
+  ).toBeVisible();
+  await expect(page.getByText("Restored Direction")).toBeVisible();
+  await expect(page.getByText("Panel unavailable")).toHaveCount(0);
+});
+
 test("opens a read-only Manager Report detail reader", async ({ page }) => {
   await page.route("**/manager_reports**", async (route) => {
     await route.fulfill({
