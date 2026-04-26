@@ -39,6 +39,7 @@ import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
 import { CreateTaskForm } from "./create-task-form.js";
+import { DashboardPanelBoundary } from "./dashboard-error-boundary.js";
 import {
   actionGroup,
   cockpitRegion,
@@ -373,37 +374,75 @@ export const DashboardPage = () => {
   const renderContent = () => {
     if (route.kind === "create") {
       return (
-        <section className={pageStack}>
-          <p className={sectionCopy}>{t("createTaskDescription")}</p>
-          <CreateTaskForm
-            errorMessage={
-              createTaskMutation.isError
-                ? getTaskCreateErrorMessage(createTaskMutation.error)
-                : null
-            }
-            isSubmitting={createTaskMutation.isPending}
-            models={models}
-            onCancel={goToDashboard}
-            onSubmit={handleCreateTask}
-          />
-        </section>
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, models]}
+          scope="Task Intake"
+        >
+          <section className={pageStack}>
+            <p className={sectionCopy}>{t("createTaskDescription")}</p>
+            <CreateTaskForm
+              errorMessage={
+                createTaskMutation.isError
+                  ? getTaskCreateErrorMessage(createTaskMutation.error)
+                  : null
+              }
+              isSubmitting={createTaskMutation.isPending}
+              models={models}
+              onCancel={goToDashboard}
+              onSubmit={handleCreateTask}
+            />
+          </section>
+        </DashboardPanelBoundary>
       );
     }
 
     if (route.kind === "task") {
-      return <TaskDetailsPage task={selectedTask} />;
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, selectedTask?.id]}
+          scope="Task Details"
+        >
+          <TaskDetailsPage task={selectedTask} />
+        </DashboardPanelBoundary>
+      );
     }
 
     if (route.kind === "task-write-bulk") {
-      return <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />;
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, selectedTaskWriteBulk?.bulk_id]}
+          scope="Task Write Bulk Details"
+        >
+          <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />
+        </DashboardPanelBoundary>
+      );
     }
 
     if (route.kind === "dimension") {
-      return <DimensionDetailsPage report={selectedDimension} />;
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, selectedDimension?.dimension.id]}
+          scope="Dimension Detail"
+        >
+          <DimensionDetailsPage report={selectedDimension} />
+        </DashboardPanelBoundary>
+      );
     }
 
     if (route.kind === "managerReport") {
-      return <ManagerReportDetailsPage report={selectedReport} />;
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, selectedReport?.id]}
+          scope="Manager Report Details"
+        >
+          <ManagerReportDetailsPage report={selectedReport} />
+        </DashboardPanelBoundary>
+      );
     }
 
     return (
@@ -459,28 +498,64 @@ export const DashboardPage = () => {
         {dashboardQuery.isSuccess && hasDashboardData ? (
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.28fr)]">
             <div className="min-w-0">
-              <AimDimensionReportSection
-                dimensionReports={dashboardQuery.data.dimensionReports}
-                onSelectDimension={goToDimension}
-              />
-              <OverviewSection
-                dashboard={dashboardQuery.data}
-                onSelectTask={goToTask}
-              />
-              <TaskWriteBulkSection
-                bulks={dashboardQuery.data.taskWriteBulks}
-                onSelectBulk={goToTaskWriteBulk}
-              />
-              <ManagerReportSection
-                managerReports={dashboardQuery.data.managerReports}
-                onSelectReport={goToManagerReport}
-              />
-              <TaskTableSection
-                onSelectTask={goToTask}
-                tasks={dashboardQuery.data.tasks}
-              />
+              <DashboardPanelBoundary
+                onRetry={handleRefresh}
+                resetKeys={[dashboardQuery.data.dimensionReports]}
+                scope="AIM Dimension Report"
+              >
+                <AimDimensionReportSection
+                  dimensionReports={dashboardQuery.data.dimensionReports}
+                  onSelectDimension={goToDimension}
+                />
+              </DashboardPanelBoundary>
+              <DashboardPanelBoundary
+                onRetry={handleRefresh}
+                resetKeys={[dashboardQuery.data]}
+                scope="Dashboard Overview"
+              >
+                <OverviewSection
+                  dashboard={dashboardQuery.data}
+                  onSelectTask={goToTask}
+                />
+              </DashboardPanelBoundary>
+              <DashboardPanelBoundary
+                onRetry={handleRefresh}
+                resetKeys={[dashboardQuery.data.taskWriteBulks]}
+                scope="Task Write Bulks"
+              >
+                <TaskWriteBulkSection
+                  bulks={dashboardQuery.data.taskWriteBulks}
+                  onSelectBulk={goToTaskWriteBulk}
+                />
+              </DashboardPanelBoundary>
+              <DashboardPanelBoundary
+                onRetry={handleRefresh}
+                resetKeys={[dashboardQuery.data.managerReports]}
+                scope="Manager Reports"
+              >
+                <ManagerReportSection
+                  managerReports={dashboardQuery.data.managerReports}
+                  onSelectReport={goToManagerReport}
+                />
+              </DashboardPanelBoundary>
+              <DashboardPanelBoundary
+                onRetry={handleRefresh}
+                resetKeys={[dashboardQuery.data.tasks]}
+                scope="Task Table"
+              >
+                <TaskTableSection
+                  onSelectTask={goToTask}
+                  tasks={dashboardQuery.data.tasks}
+                />
+              </DashboardPanelBoundary>
             </div>
-            {renderDirectorRail()}
+            <DashboardPanelBoundary
+              onRetry={handleRefresh}
+              resetKeys={[route.kind]}
+              scope="Intervention Rail"
+            >
+              {renderDirectorRail()}
+            </DashboardPanelBoundary>
           </div>
         ) : null}
       </div>
