@@ -160,12 +160,16 @@ export const startServer = () => {
 
   optimizerRuntime.start();
 
-  const server = serve({
-    fetch: createApp({
+  const app = scope.use(
+    createApp({
       logger,
       onTaskResolved: optimizerRuntime.handleEvent,
       optimizerRuntime,
-    }).fetch,
+    }),
+  );
+
+  const server = serve({
+    fetch: app.fetch,
     port,
   }) as AsyncDisposableServer;
   let serverClosed = false;

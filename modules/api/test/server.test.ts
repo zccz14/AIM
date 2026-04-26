@@ -429,6 +429,45 @@ describe("server startup", () => {
     expect(scheduler.stop).toHaveBeenCalledOnce();
   });
 
+  it("disposes the app resource during await using server cleanup", async () => {
+    const app = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      fetch: vi.fn(),
+    };
+    const close = vi.fn((callback?: () => void) => {
+      callback?.();
+    });
+    const server = {
+      close,
+      once: vi.fn(),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockCreateApp.mockReturnValue(app);
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    await (async () => {
+      await using _server = startServer();
+    })();
+
+    expect(app[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
   it("releases server-owned resources after closing traffic and stopping optimizer lanes", async () => {
     const cleanupOrder: string[] = [];
     const close = vi.fn((callback?: () => void) => {

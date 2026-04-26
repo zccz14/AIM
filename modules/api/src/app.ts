@@ -21,6 +21,43 @@ type CreateAppOptions = {
   optimizerRuntime?: OptimizerRuntime;
 };
 
+type AppResource = Hono & AsyncDisposable;
+type ScopedResource = Partial<AsyncDisposable & Disposable>;
+
+const createAsyncResourceScope = () => {
+  const resources: ScopedResource[] = [];
+  let disposePromise: Promise<void> | null = null;
+
+  return {
+    async [Symbol.asyncDispose]() {
+      if (disposePromise) {
+        await disposePromise;
+        return;
+      }
+
+      disposePromise = (async () => {
+        for (const resource of resources.splice(0).reverse()) {
+          const asyncDispose = resource[Symbol.asyncDispose];
+
+          if (asyncDispose) {
+            await asyncDispose.call(resource);
+            continue;
+          }
+
+          resource[Symbol.dispose]?.();
+        }
+      })();
+
+      await disposePromise;
+    },
+
+    use<T extends ScopedResource>(resource: T) {
+      resources.push(resource);
+      return resource;
+    },
+  };
+};
+
 const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
   let running = false;
 
@@ -65,8 +102,16 @@ const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
   };
 };
 
-export const createApp = (_options: CreateAppOptions = {}) => {
-  const app = new Hono();
+export const createApp = (_options: CreateAppOptions = {}): AppResource => {
+  const app = new Hono() as AppResource;
+  const resourceScope = createAsyncResourceScope();
+  const optimizerRuntime =
+    _options.optimizerRuntime ??
+    resourceScope.use(createInactiveOptimizerRuntime());
+
+  app[Symbol.asyncDispose] = async () => {
+    await resourceScope[Symbol.asyncDispose]();
+  };
 
   app.use("*", cors({ origin: "*" }));
 
@@ -74,18 +119,16 @@ export const createApp = (_options: CreateAppOptions = {}) => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerOptimizerRoutes(
-    app,
-    _options.optimizerRuntime ?? createInactiveOptimizerRuntime(),
-  );
-  registerProjectRoutes(app);
-  registerDimensionRoutes(app);
-  registerManagerReportRoutes(app);
-  registerTaskWriteBulkRoutes(app);
+  registerOptimizerRoutes(app, optimizerRuntime);
+  registerProjectRoutes(app, { resourceScope });
+  registerDimensionRoutes(app, { resourceScope });
+  registerManagerReportRoutes(app, { resourceScope });
+  registerTaskWriteBulkRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,
     onTaskResolved: _options.onTaskResolved,
     openCodeModelsAdapter: _options.openCodeModelsAdapter,
+    resourceScope,
   });
 
   app.get("/openapi.json", (context) => context.json(openApiDocument, 200));

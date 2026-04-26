@@ -58,6 +58,9 @@ const parseCreateManagerReportRequest = async (request: Request) => {
 
 type RegisterManagerReportRoutesOptions = {
   projectRoot?: string;
+  resourceScope?: {
+    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
+  };
 };
 
 export const registerManagerReportRoutes = (
@@ -68,7 +71,10 @@ export const registerManagerReportRoutes = (
   let repository: null | ReturnType<typeof createManagerReportRepository> =
     null;
   const getRepository = () => {
-    repository ??= createManagerReportRepository({ projectRoot });
+    repository ??=
+      options.resourceScope?.use(
+        createManagerReportRepository({ projectRoot }),
+      ) ?? createManagerReportRepository({ projectRoot });
 
     return repository;
   };

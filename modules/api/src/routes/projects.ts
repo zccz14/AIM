@@ -57,11 +57,22 @@ const parsePatchProjectRequest = async (request: Request) => {
 const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
 
-export const registerProjectRoutes = (app: Hono) => {
+type RegisterProjectRoutesOptions = {
+  resourceScope?: {
+    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
+  };
+};
+
+export const registerProjectRoutes = (
+  app: Hono,
+  options: RegisterProjectRoutesOptions = {},
+) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {
-    repository ??= createTaskRepository({ projectRoot });
+    repository ??=
+      options.resourceScope?.use(createTaskRepository({ projectRoot })) ??
+      createTaskRepository({ projectRoot });
 
     return repository;
   };

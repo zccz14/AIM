@@ -257,6 +257,9 @@ type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
   onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
+  resourceScope?: {
+    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
+  };
 };
 
 export const registerTaskRoutes = (
@@ -269,7 +272,9 @@ export const registerTaskRoutes = (
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   const getRepository = () => {
-    repository ??= createTaskRepository({ projectRoot });
+    repository ??=
+      options.resourceScope?.use(createTaskRepository({ projectRoot })) ??
+      createTaskRepository({ projectRoot });
 
     return repository;
   };
