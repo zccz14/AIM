@@ -63,6 +63,8 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   ? defaultSchedulerIntervalMs
   : parsedSchedulerIntervalMs;
 
+type AsyncDisposableServer = ReturnType<typeof serve> & AsyncDisposable;
+
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = () => {
   const logger = createApiLogger();
@@ -118,7 +120,7 @@ export const startServer = () => {
     logger,
   });
   const stopOptimizer = () => {
-    void optimizerRuntime.stop();
+    void optimizerRuntime[Symbol.asyncDispose]();
   };
 
   optimizerRuntime.start();
@@ -130,9 +132,26 @@ export const startServer = () => {
       optimizerRuntime,
     }).fetch,
     port,
-  });
+  }) as AsyncDisposableServer;
   const shutdown = () => {
     server.close();
+  };
+
+  server[Symbol.asyncDispose] = async () => {
+    process.off("SIGINT", shutdown);
+    process.off("SIGTERM", shutdown);
+
+    await new Promise<void>((resolve, reject) => {
+      server.close((error?: Error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+    await optimizerRuntime[Symbol.asyncDispose]();
   };
 
   try {

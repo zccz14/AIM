@@ -24,6 +24,11 @@ const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
   let running = false;
 
   return {
+    [Symbol.asyncDispose]: () => {
+      running = false;
+
+      return Promise.resolve();
+    },
     getStatus: () => ({
       enabled_triggers: ["task_resolved"],
       last_event: null,

@@ -152,6 +152,76 @@ describe("optimizer runtime", () => {
     expect(scheduler.stop).toHaveBeenCalledOnce();
   });
 
+  it("supports await using cleanup for optimizer lanes in reverse registration order", async () => {
+    const stopOrder: string[] = [];
+    const managerLane = {
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+      stop: vi.fn().mockImplementation(async () => {
+        stopOrder.push("manager_evaluation");
+      }),
+    };
+    const coordinatorLane = {
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+      stop: vi.fn().mockImplementation(async () => {
+        stopOrder.push("coordinator_task_pool");
+      }),
+    };
+    const developerLane = {
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+      stop: vi.fn().mockImplementation(async () => {
+        stopOrder.push("developer_follow_up");
+      }),
+    };
+
+    await (async () => {
+      await using runtime = createOptimizerRuntime({
+        intervalMs: 5_000,
+        lanes: [
+          { lane: managerLane, name: "manager_evaluation" },
+          { lane: coordinatorLane, name: "coordinator_task_pool" },
+          { lane: developerLane, name: "developer_follow_up" },
+        ],
+      });
+
+      runtime.start();
+      expect(runtime.getStatus()).toMatchObject({ running: true });
+    })();
+
+    expect(stopOrder).toEqual([
+      "developer_follow_up",
+      "coordinator_task_pool",
+      "manager_evaluation",
+    ]);
+    expect(managerLane.stop).toHaveBeenCalledOnce();
+    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
+    expect(developerLane.stop).toHaveBeenCalledOnce();
+  });
+
+  it("keeps optimizer async disposal idempotent", async () => {
+    const scheduler = {
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const runtime = createOptimizerRuntime({
+      intervalMs: 5_000,
+      lanes: [{ lane: scheduler, name: "developer_follow_up" }],
+    });
+
+    await (async () => {
+      await using _firstRegistration = runtime;
+      await using _secondRegistration = runtime;
+
+      runtime.start();
+    })();
+
+    expect(runtime.getStatus()).toMatchObject({ running: false });
+    expect(scheduler.stop).toHaveBeenCalledOnce();
+  });
+
   it("records task-resolved events but only advances scheduler scans while running", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
