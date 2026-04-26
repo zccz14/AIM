@@ -2003,10 +2003,51 @@ export const openApiDocument = {
       OptimizerStatusResponse: {
         type: "object",
         additionalProperties: false,
-        required: ["running"],
+        required: ["enabled_triggers", "last_event", "last_scan_at", "running"],
         properties: {
+          enabled_triggers: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/OptimizerTrigger",
+            },
+          },
+          last_event: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/OptimizerEventStatus",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          last_scan_at: {
+            type: ["string", "null"],
+            format: "date-time",
+          },
           running: {
             type: "boolean",
+          },
+        },
+      },
+      OptimizerTrigger: {
+        type: "string",
+        enum: ["task_resolved"],
+      },
+      OptimizerEventStatus: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_id", "triggered_scan", "type"],
+        properties: {
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+          triggered_scan: {
+            type: "boolean",
+          },
+          type: {
+            $ref: "#/components/schemas/OptimizerTrigger",
           },
         },
       },

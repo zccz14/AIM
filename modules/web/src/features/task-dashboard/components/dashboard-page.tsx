@@ -1,3 +1,4 @@
+import type { OptimizerStatusResponse } from "@aim-ai/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -130,6 +131,8 @@ export const DashboardPage = () => {
     Awaited<ReturnType<typeof getOpenCodeModels>>["items"]
   >([]);
   const [optimizerRunning, setOptimizerRunning] = useState(false);
+  const [optimizerStatus, setOptimizerStatus] =
+    useState<OptimizerStatusResponse | null>(null);
   const [isOptimizerChanging, setIsOptimizerChanging] = useState(false);
   const [selectedTaskFallback, setSelectedTaskFallback] =
     useState<DashboardTask | null>(null);
@@ -182,6 +185,7 @@ export const DashboardPage = () => {
     void getOptimizerStatus()
       .then((status) => {
         if (isActive) {
+          setOptimizerStatus(status);
           setOptimizerRunning(status.running);
         }
       })
@@ -229,6 +233,7 @@ export const DashboardPage = () => {
         : await startOptimizer();
 
       setOptimizerRunning(status.running);
+      setOptimizerStatus(status);
     } catch {
       return;
     } finally {
@@ -462,6 +467,9 @@ export const DashboardPage = () => {
       {label}
     </a>
   );
+  const optimizerStatusTitle = optimizerStatus
+    ? `Triggers: ${optimizerStatus.enabled_triggers.join(", ") || "none"}; last event: ${optimizerStatus.last_event?.type ?? "none"}`
+    : "Optimizer status not loaded";
 
   return (
     <div className="app-shell">
@@ -485,7 +493,10 @@ export const DashboardPage = () => {
               <fieldset aria-label="Global controls" className="actions-group">
                 <LanguageToggle />
                 <ThemeToggle />
-                <div className="optimizer-switch-control">
+                <div
+                  className="optimizer-switch-control"
+                  title={optimizerStatusTitle}
+                >
                   <Switch
                     aria-label="AIM Optimizer"
                     checked={optimizerRunning}

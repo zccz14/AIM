@@ -77,6 +77,7 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      scanOnce: vi.fn(),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -152,9 +153,10 @@ describe("server startup", () => {
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
         logger,
-        onTaskResolved: scheduler.scanOnce,
+        onTaskResolved: expect.any(Function),
         optimizerRuntime: expect.objectContaining({
           getStatus: expect.any(Function),
+          handleEvent: expect.any(Function),
           start: expect.any(Function),
           stop: expect.any(Function),
         }),
@@ -197,9 +199,10 @@ describe("server startup", () => {
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
         logger,
-        onTaskResolved: scheduler.scanOnce,
+        onTaskResolved: expect.any(Function),
         optimizerRuntime: expect.objectContaining({
           getStatus: expect.any(Function),
+          handleEvent: expect.any(Function),
           start: expect.any(Function),
           stop: expect.any(Function),
         }),

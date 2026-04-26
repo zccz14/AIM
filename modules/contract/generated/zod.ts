@@ -39,7 +39,22 @@ const ErrorResponse = z
     message: z.string().min(1),
   })
   .strict();
-const OptimizerStatusResponse = z.object({ running: z.boolean() }).strict();
+const OptimizerTrigger = z.literal("task_resolved");
+const OptimizerEventStatus = z
+  .object({
+    task_id: z.string().min(1),
+    triggered_scan: z.boolean(),
+    type: OptimizerTrigger,
+  })
+  .strict();
+const OptimizerStatusResponse = z
+  .object({
+    enabled_triggers: z.array(OptimizerTrigger),
+    last_event: z.union([OptimizerEventStatus, z.null()]),
+    last_scan_at: z.union([z.string(), z.null()]),
+    running: z.boolean(),
+  })
+  .strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -240,6 +255,8 @@ export const schemas = {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   ErrorResponse,
+  OptimizerTrigger,
+  OptimizerEventStatus,
   OptimizerStatusResponse,
   CreateTaskRequest,
   Task,
