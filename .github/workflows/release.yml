@@ -30,6 +30,12 @@ jobs:
       - name: Run root build contract
         run: pnpm build
 
+      - name: Upload Pages dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages-dist
+          path: modules/web/dist
+
       - name: Detect pending changesets
         id: detect
         shell: bash
@@ -79,22 +85,16 @@ jobs:
     name: Deploy GitHub Pages
     needs:
       - release-check
-      - version-or-prepare-release
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup workspace
-        uses: ./.github/actions/setup-node-pnpm
-
-      - name: Build Pages artifact
-        run: pnpm --filter @aim-ai/contract run build:dist && pnpm --filter @aim-ai/web run build:dist
-        env:
-          VITE_BASE_PATH: /
+      - name: Download Pages dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-dist
+          path: ./pages-dist
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -102,7 +102,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: modules/web/dist
+          path: ./pages-dist
 
       - name: Deploy GitHub Pages
         id: deployment
