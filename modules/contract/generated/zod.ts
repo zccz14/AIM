@@ -164,32 +164,6 @@ const TaskResultRequest = z
       .regex(/^(?!\s*$).+/),
   })
   .strict();
-const SourceMetadataEntry = z
-  .object({ key: z.string().min(1), value: z.string() })
-  .strict();
-const CreateManagerReportRequest = z
-  .object({
-    project_path: z.string().min(1),
-    report_id: z.string().min(1),
-    content_markdown: z.string().min(1),
-    baseline_ref: z.union([z.string(), z.null()]).optional(),
-    source_metadata: z.array(SourceMetadataEntry).optional(),
-  })
-  .strict();
-const ManagerReport = z
-  .object({
-    project_path: z.string().min(1),
-    report_id: z.string().min(1),
-    content_markdown: z.string().min(1),
-    baseline_ref: z.union([z.string(), z.null()]),
-    source_metadata: z.array(SourceMetadataEntry),
-    created_at: z.string().datetime({ offset: true }),
-    updated_at: z.string().datetime({ offset: true }),
-  })
-  .strict();
-const ManagerReportListResponse = z
-  .object({ items: z.array(ManagerReport) })
-  .strict();
 const TaskWriteBulkCreateFields = z
   .object({
     candidate_task_spec: z.string().min(1),
@@ -215,6 +189,9 @@ const TaskWriteBulkEntry = z
     create: z.union([TaskWriteBulkCreateFields, z.null()]),
     delete: z.union([TaskWriteBulkDeleteFields, z.null()]),
   })
+  .strict();
+const SourceMetadataEntry = z
+  .object({ key: z.string().min(1), value: z.string() })
   .strict();
 const CreateTaskWriteBulkRequest = z
   .object({
@@ -316,13 +293,10 @@ export const schemas = {
   TaskPullRequestUrlRequest,
   TaskDependenciesRequest,
   TaskResultRequest,
-  SourceMetadataEntry,
-  CreateManagerReportRequest,
-  ManagerReport,
-  ManagerReportListResponse,
   TaskWriteBulkCreateFields,
   TaskWriteBulkDeleteFields,
   TaskWriteBulkEntry,
+  SourceMetadataEntry,
   CreateTaskWriteBulkRequest,
   TaskWriteBulk,
   TaskWriteBulkListResponse,

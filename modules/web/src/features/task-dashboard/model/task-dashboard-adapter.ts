@@ -1,9 +1,8 @@
-import type { ManagerReport, Task, TaskStatus } from "@aim-ai/contract";
+import type { Task, TaskStatus } from "@aim-ai/contract";
 
 import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
   DashboardClosureCue,
-  DashboardManagerReport,
   DashboardRejectedFeedbackSignal,
   DashboardStatus,
   DashboardTask,
@@ -207,24 +206,11 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   isDone: task.done,
 });
 
-export const adaptDashboardManagerReport = (
-  report: ManagerReport,
-): DashboardManagerReport => ({
-  id: report.report_id,
-  projectPath: report.project_path,
-  contentMarkdown: report.content_markdown,
-  baselineRef: report.baseline_ref,
-  createdAt: report.created_at,
-});
-
 export const adaptTaskDashboard = (
   response: TaskDashboardResponse,
 ): TaskDashboardViewModel => {
   const tasks = response.active.items.map(adaptDashboardTask);
   const historyTasks = response.history.items.map(adaptDashboardTask);
-  const managerReports = response.managerReports.map(
-    adaptDashboardManagerReport,
-  );
   const evaluationsByDimensionId = new Map(
     response.dimensions.map((dimension) => {
       const evaluations = response.dimensionEvaluations
@@ -269,7 +255,6 @@ export const adaptTaskDashboard = (
   return {
     dimensionReports,
     historyTasks,
-    managerReports,
     rejectedFeedbackSignals,
     taskWriteBulks: response.taskWriteBulks.items,
     tasks,

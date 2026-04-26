@@ -6,7 +6,6 @@ const apiRoot = new URL("../", import.meta.url);
 const schemaUrl = new URL("src/schema.sql", apiRoot);
 const repositorySourceUrls = [
   new URL("src/dimension-repository.ts", apiRoot),
-  new URL("src/manager-report-repository.ts", apiRoot),
   new URL("src/task-repository.ts", apiRoot),
   new URL("src/task-write-bulk-repository.ts", apiRoot),
 ];
@@ -24,8 +23,8 @@ describe("api sqlite schema source", () => {
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS dimension_evaluations/i,
     );
-    expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS manager_reports/i);
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS task_write_bulks/i);
+    expect(schemaSql).not.toMatch(/manager_reports/i);
   });
 
   it("does not scatter schema DDL across api repository modules", async () => {

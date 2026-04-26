@@ -19,16 +19,16 @@ const defaultSchedulerIntervalMs = 5_000;
 const defaultOpencodeBaseUrl = "http://localhost:4096";
 const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
-Maintain AIM evaluation dimensions, evaluations, and Manager reports by reading the latest origin/main baseline, README goals, current dimensions, evaluations, Manager reports, Task Pool, and rejected Tasks through AIM API Server.
+Maintain AIM evaluation dimensions and evaluations by reading the latest origin/main baseline, README goals, current dimensions, evaluations, Task Pool, and rejected Tasks through AIM API Server.
 
-Write results back through AIM API Server only: create or update dimensions/evaluations/manager reports using the available AIM API contracts. Do not create Developer Tasks from this Manager lane.`;
+Write results back through AIM API Server only: create or update dimensions/evaluations using the available AIM API contracts. Do not create Developer Tasks from this Manager lane.`;
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
 Maintain the AIM Task Pool from Manager output, latest baseline facts, current unfinished Tasks, and rejected Task feedback. First read those inputs, then form a concrete Task Write Bulk intent with specific Create/Delete decisions before any Task Pool write.
 
 Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
 
-Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager Report gaps directly into Tasks.`;
+Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks.`;
 const createMissingProjectLane = () => ({
   scanOnce() {
     throw new Error(

@@ -1,9 +1,6 @@
 import { type Command, execute, settings } from "@oclif/core";
 
 import HealthCommand from "./commands/health.js";
-import ManagerReportCreateCommand from "./commands/manager-report/create.js";
-import ManagerReportGetCommand from "./commands/manager-report/get.js";
-import ManagerReportListCommand from "./commands/manager-report/list.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
 import TaskDeleteCommand from "./commands/task/delete.js";
@@ -15,7 +12,6 @@ import TaskWriteBulkGetCommand from "./commands/task-write-bulk/get.js";
 import TaskWriteBulkListCommand from "./commands/task-write-bulk/list.js";
 
 const taskCommandNames = new Set(["create", "list", "get", "update", "delete"]);
-const managerReportCommandNames = new Set(["create", "list", "get"]);
 const taskWriteBulkCommandNames = new Set(["create", "list", "get"]);
 const serverCommandNames = new Set(["start"]);
 
@@ -26,13 +22,6 @@ const normalizeCommandArgs = (args: string[]) => {
 
   if (args[0] === "task" && taskCommandNames.has(args[1] ?? "")) {
     return [`task:${args[1]}`, ...args.slice(2)];
-  }
-
-  if (
-    args[0] === "manager-report" &&
-    managerReportCommandNames.has(args[1] ?? "")
-  ) {
-    return [`manager-report:${args[1]}`, ...args.slice(2)];
   }
 
   if (
@@ -47,9 +36,6 @@ const normalizeCommandArgs = (args: string[]) => {
 
 export const commands = {
   health: HealthCommand,
-  "manager-report:create": ManagerReportCreateCommand,
-  "manager-report:get": ManagerReportGetCommand,
-  "manager-report:list": ManagerReportListCommand,
   "server:start": ServerStartCommand,
   "task-write-bulk:create": TaskWriteBulkCreateCommand,
   "task-write-bulk:get": TaskWriteBulkGetCommand,

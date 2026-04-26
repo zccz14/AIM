@@ -69,21 +69,12 @@ const startTaskServer = async () => {
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
-  const managerReport = {
-    project_path: "/repo/main",
-    report_id: "baseline-1",
-    content_markdown: "# Manager Report\n\nPersisted report.",
-    baseline_ref: "origin/main@abc123",
-    source_metadata: [{ key: "readme", value: "README.md" }],
-    created_at: "2026-04-20T00:00:00.000Z",
-    updated_at: "2026-04-20T00:00:00.000Z",
-  };
   const taskWriteBulkEntry = {
     id: "create-contract-doc",
     action: "Create",
     depends_on: [],
-    reason: "Manager Report shows missing approval handoff persistence.",
-    source: "Manager gap",
+    reason: "Dimension evaluation shows missing approval handoff persistence.",
+    source: "Dimension evaluation gap",
     create: {
       candidate_task_spec: "# Persist Task Write Bulk\n\n## Assumptions\n...",
       project_path: "/repo/main",
@@ -99,7 +90,7 @@ const startTaskServer = async () => {
     content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
     entries: [taskWriteBulkEntry],
     baseline_ref: "origin/main@abc123",
-    source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+    source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
@@ -144,25 +135,6 @@ const startTaskServer = async () => {
       return;
     }
 
-    if (request.method === "POST" && path === "/api/manager_reports") {
-      response.writeHead(201, { "content-type": "application/json" });
-      response.end(JSON.stringify(managerReport));
-      return;
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/manager_reports") {
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(
-        JSON.stringify({
-          items:
-            url.searchParams.get("project_path") === "/repo/main"
-              ? [managerReport]
-              : [],
-        }),
-      );
-      return;
-    }
-
     if (request.method === "POST" && path === "/api/task_write_bulks") {
       response.writeHead(201, { "content-type": "application/json" });
       response.end(JSON.stringify(taskWriteBulk));
@@ -188,15 +160,6 @@ const startTaskServer = async () => {
     ) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(taskWriteBulk));
-      return;
-    }
-
-    if (
-      request.method === "GET" &&
-      url.pathname === "/api/manager_reports/baseline-1"
-    ) {
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify(managerReport));
       return;
     }
 
@@ -402,115 +365,6 @@ describe("task cli command baseline", () => {
     });
   });
 
-  it("registers manager-report create with the expected API request", async () => {
-    const server = await startTaskServer();
-
-    const result = await runCli([
-      "manager-report",
-      "create",
-      "--base-url",
-      `${server.baseUrl}/api`,
-      "--project-path",
-      "/repo/main",
-      "--report-id",
-      "baseline-1",
-      "--content-markdown",
-      "# Manager Report\n\nPersisted report.",
-      "--baseline-ref",
-      "origin/main@abc123",
-      "--source-metadata-json",
-      '{"readme":"README.md"}',
-    ]);
-
-    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
-      exitCode: 0,
-      stderr: "",
-    });
-    expect(server.requests[0]).toMatchObject({
-      method: "POST",
-      path: "/api/manager_reports",
-      json: {
-        project_path: "/repo/main",
-        report_id: "baseline-1",
-        content_markdown: "# Manager Report\n\nPersisted report.",
-        baseline_ref: "origin/main@abc123",
-        source_metadata: [{ key: "readme", value: "README.md" }],
-      },
-    });
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: true,
-      data: {
-        project_path: "/repo/main",
-        report_id: "baseline-1",
-      },
-    });
-  });
-
-  it("registers manager-report list and get with project path queries", async () => {
-    const server = await startTaskServer();
-
-    const listResult = await runCli([
-      "manager-report",
-      "list",
-      "--base-url",
-      `${server.baseUrl}/api`,
-      "--project-path",
-      "/repo/main",
-    ]);
-    const getResult = await runCli([
-      "manager-report",
-      "get",
-      "--base-url",
-      `${server.baseUrl}/api`,
-      "--project-path",
-      "/repo/main",
-      "--report-id",
-      "baseline-1",
-    ]);
-
-    expect({
-      exitCode: listResult.exitCode,
-      stderr: listResult.stderr,
-    }).toEqual({
-      exitCode: 0,
-      stderr: "",
-    });
-    expect({ exitCode: getResult.exitCode, stderr: getResult.stderr }).toEqual({
-      exitCode: 0,
-      stderr: "",
-    });
-    expect(server.requests.at(-2)).toMatchObject({
-      method: "GET",
-      pathname: "/api/manager_reports",
-      searchParams: {
-        project_path: "/repo/main",
-      },
-    });
-    expect(server.requests.at(-1)).toMatchObject({
-      method: "GET",
-      pathname: "/api/manager_reports/baseline-1",
-      searchParams: {
-        project_path: "/repo/main",
-      },
-    });
-    expect(JSON.parse(listResult.stdout)).toMatchObject({
-      ok: true,
-      data: {
-        items: [
-          {
-            report_id: "baseline-1",
-          },
-        ],
-      },
-    });
-    expect(JSON.parse(getResult.stdout)).toMatchObject({
-      ok: true,
-      data: {
-        report_id: "baseline-1",
-      },
-    });
-  });
-
   it("registers task-write-bulk create with the expected API request", async () => {
     const server = await startTaskServer();
 
@@ -531,8 +385,9 @@ describe("task cli command baseline", () => {
           id: "create-contract-doc",
           action: "Create",
           depends_on: [],
-          reason: "Manager Report shows missing approval handoff persistence.",
-          source: "Manager gap",
+          reason:
+            "Dimension evaluation shows missing approval handoff persistence.",
+          source: "Dimension evaluation gap",
           create: {
             candidate_task_spec:
               "# Persist Task Write Bulk\n\n## Assumptions\n...",
@@ -547,7 +402,7 @@ describe("task cli command baseline", () => {
       "--baseline-ref",
       "origin/main@abc123",
       "--source-metadata-json",
-      '{"manager_report":"baseline-1"}',
+      '{"dimension_evaluation":"eval-1"}',
     ]);
 
     expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
@@ -572,7 +427,7 @@ describe("task cli command baseline", () => {
           },
         ],
         baseline_ref: "origin/main@abc123",
-        source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+        source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
       },
     });
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -954,6 +809,7 @@ describe("task cli command baseline", () => {
     expect(indexSource).toContain('"task:get"');
     expect(indexSource).toContain('"task:update"');
     expect(indexSource).toContain('"task:delete"');
+    expect(indexSource).not.toContain("manager-report");
     expect(indexSource).not.toContain("contract/generated");
     expect(helperSource).toContain("@aim-ai/contract");
     expect(helperSource).not.toContain("contract/generated");

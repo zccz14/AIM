@@ -1,17 +1,14 @@
 import { createClient as createGeneratedClient } from "../generated/_client/client/index.js";
 import {
-  createManagerReport,
   createProject,
   createTask,
   createTaskWriteBulk,
   deleteProjectById,
   deleteTaskById,
   getHealth,
-  getManagerReportById,
   getOptimizerStatus,
   getTaskById,
   getTaskWriteBulkById,
-  listManagerReports,
   listOpenCodeModels,
   listProjects,
   listTasks,
@@ -24,9 +21,6 @@ import {
   stopOptimizer,
 } from "../generated/client.js";
 import type {
-  CreateManagerReportError,
-  CreateManagerReportRequest,
-  CreateManagerReportResponse,
   CreateProjectError,
   CreateProjectRequest,
   CreateProjectResponse,
@@ -41,8 +35,6 @@ import type {
   ErrorResponse,
   GetHealthError,
   GetHealthResponse,
-  GetManagerReportByIdError,
-  GetManagerReportByIdResponse,
   GetOptimizerStatusResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
@@ -50,14 +42,10 @@ import type {
   GetTaskWriteBulkByIdResponse,
   HealthError,
   HealthResponse,
-  ListManagerReportsError,
-  ListManagerReportsResponse,
   ListTasksError,
   ListTasksResponse,
   ListTaskWriteBulksError,
   ListTaskWriteBulksResponse,
-  ManagerReport,
-  ManagerReportListResponse,
   OpenCodeModelsResponse,
   OptimizerStatusResponse,
   PatchProjectByIdError,
@@ -122,16 +110,6 @@ export type ContractClient = {
     input: PatchProjectRequest,
   ): Promise<Project>;
   deleteProjectById(projectId: string): Promise<void>;
-  listManagerReports(query: {
-    project_path: string;
-  }): Promise<ManagerReportListResponse>;
-  createManagerReport(
-    input: CreateManagerReportRequest,
-  ): Promise<ManagerReport>;
-  getManagerReportById(
-    reportId: string,
-    query: { project_path: string },
-  ): Promise<ManagerReport>;
   listTaskWriteBulks(query: {
     project_path: string;
   }): Promise<TaskWriteBulkListResponse>;
@@ -158,8 +136,6 @@ const projectSchema = schemas.Project;
 const projectListResponseSchema = schemas.ProjectListResponse;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
-const managerReportSchema = schemas.ManagerReport;
-const managerReportListResponseSchema = schemas.ManagerReportListResponse;
 const taskWriteBulkSchema = schemas.TaskWriteBulk;
 const taskWriteBulkListResponseSchema = schemas.TaskWriteBulkListResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
@@ -413,76 +389,6 @@ export const createContractClient = ({
       return optimizerStatusResponseSchema.parse(
         result.data,
       ) satisfies StopOptimizerResponse;
-    },
-
-    async listManagerReports(query) {
-      const result = await listManagerReports({
-        client,
-        headers: {
-          accept: "application/json",
-        },
-        query,
-      });
-
-      if (result.error) {
-        throw new ContractClientError(
-          result.response.status,
-          taskErrorSchema.parse(result.error satisfies ListManagerReportsError),
-        );
-      }
-
-      return managerReportListResponseSchema.parse(
-        result.data satisfies ListManagerReportsResponse,
-      ) satisfies ManagerReportListResponse;
-    },
-
-    async createManagerReport(input) {
-      const result = await createManagerReport({
-        body: input,
-        client,
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      if (result.error) {
-        throw new ContractClientError(
-          result.response.status,
-          taskErrorSchema.parse(
-            result.error satisfies CreateManagerReportError,
-          ),
-        );
-      }
-
-      return managerReportSchema.parse(
-        result.data satisfies CreateManagerReportResponse,
-      ) satisfies ManagerReport;
-    },
-
-    async getManagerReportById(reportId, query) {
-      const result = await getManagerReportById({
-        client,
-        headers: {
-          accept: "application/json",
-        },
-        path: {
-          reportId,
-        },
-        query,
-      });
-
-      if (result.error) {
-        throw new ContractClientError(
-          result.response.status,
-          taskErrorSchema.parse(
-            result.error satisfies GetManagerReportByIdError,
-          ),
-        );
-      }
-
-      return managerReportSchema.parse(
-        result.data satisfies GetManagerReportByIdResponse,
-      ) satisfies ManagerReport;
     },
 
     async listTaskWriteBulks(query) {

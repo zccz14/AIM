@@ -5,4 +5,4 @@
 "@aim-ai/opencode-plugin": patch
 ---
 
-新增 SQLite-backed Manager Report 服务端资源、OpenAPI contract 与 CLI API 消费入口。
+移除 SQLite-backed manager_reports 服务端资源方向；Manager 评估信号改由 dimensions 与 dimension_evaluations 表达。

@@ -104,30 +104,6 @@ const buildTaskWriteBulk = () => ({
   updated_at: "2026-04-20T10:05:00.000Z",
 });
 
-const buildManagerReport = ({
-  baselineRef = "origin/main",
-  contentMarkdown = "# Direction\n\nKeep convergence calm and evidence-led.",
-  createdAt = "2026-04-19T00:00:06.000Z",
-  projectPath = "/repo/dashboard",
-  reportId = "manager-report-1",
-  updatedAt = createdAt,
-}: {
-  baselineRef?: string | null;
-  contentMarkdown?: string;
-  createdAt?: string;
-  projectPath?: string;
-  reportId?: string;
-  updatedAt?: string;
-} = {}) => ({
-  project_path: projectPath,
-  report_id: reportId,
-  content_markdown: contentMarkdown,
-  baseline_ref: baselineRef,
-  source_metadata: [],
-  created_at: createdAt,
-  updated_at: updatedAt,
-});
-
 const buildDimension = ({
   dimensionId = "dimension-readme-fit",
   evaluationMethod = "Compare visible dashboard evidence against README goal convergence.",
@@ -273,15 +249,6 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [] }),
-    });
-  });
-
-  await page.route("**/manager_reports**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [buildManagerReport()],
-      }),
     });
   });
 
@@ -1462,43 +1429,6 @@ test("refreshes a hash task details route without a server rewrite", async ({
   ).toBeVisible();
 });
 
-test("lists Manager Reports from the visible task project paths", async ({
-  page,
-}) => {
-  const requestedProjectPaths: string[] = [];
-
-  await page.route("**/manager_reports**", async (route) => {
-    const requestUrl = new URL(route.request().url());
-
-    requestedProjectPaths.push(
-      requestUrl.searchParams.get("project_path") ?? "",
-    );
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [
-          buildManagerReport({
-            baselineRef: "origin/main@manager",
-            contentMarkdown:
-              "# Manager Direction\n\nCoordinate the next slice.",
-            reportId: "manager-report-visible",
-          }),
-        ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-
-  await expect(
-    page.getByRole("heading", { name: "Manager Reports" }),
-  ).toBeVisible();
-  await expect(page.getByText("manager-report-visible")).toBeVisible();
-  await expect(page.getByText("origin/main@manager")).toBeVisible();
-  expect(requestedProjectPaths).toEqual(["/repo/dashboard"]);
-});
-
 test("keeps dashboard panels usable when a report panel fails to render and retries it", async ({
   page,
 }) => {
@@ -1522,14 +1452,14 @@ test("keeps dashboard panels usable when a report panel fails to render and retr
         { "aria-label": "Baseline convergence map" },
         "Baseline convergence map remains available",
       );
-    const ReportPanel = () => {
+    const EvaluationPanel = () => {
       if (shouldThrow) {
-        throw new Error("Injected manager report render failure");
+        throw new Error("Injected evaluation signal render failure");
       }
 
       return createElement(
         "section",
-        { "aria-label": "Manager Reports" },
+        { "aria-label": "Evaluation Signals" },
         "Restored Direction",
       );
     };
@@ -1546,9 +1476,9 @@ test("keeps dashboard panels usable when a report panel fails to render and retr
             onRetry: () => {
               shouldThrow = false;
             },
-            scope: "Manager Reports",
+            scope: "Evaluation Signals",
           },
-          createElement(ReportPanel),
+          createElement(EvaluationPanel),
         ),
       ),
     );
@@ -1558,66 +1488,24 @@ test("keeps dashboard panels usable when a report panel fails to render and retr
     page.getByRole("region", { name: "Baseline convergence map" }),
   ).toBeVisible();
   const failedPanel = page.getByRole("alert").filter({
-    hasText: "Manager Reports failed to render.",
+    hasText: "Evaluation Signals failed to render.",
   });
 
   await expect(failedPanel).toBeVisible();
   await expect(failedPanel.getByText("Panel unavailable")).toBeVisible();
   await expect(
     failedPanel.getByText(
-      "Direct cause: Injected manager report render failure",
+      "Direct cause: Injected evaluation signal render failure",
     ),
   ).toBeVisible();
 
   await failedPanel.getByRole("button", { name: "Retry panel" }).click();
 
   await expect(
-    page.getByRole("region", { name: "Manager Reports" }),
+    page.getByRole("region", { name: "Evaluation Signals" }),
   ).toBeVisible();
   await expect(page.getByText("Restored Direction")).toBeVisible();
   await expect(page.getByText("Panel unavailable")).toHaveCount(0);
-});
-
-test("opens a read-only Manager Report detail reader", async ({ page }) => {
-  await page.route("**/manager_reports**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [
-          buildManagerReport({
-            baselineRef: "origin/main@handoff",
-            contentMarkdown:
-              "# Handoff Direction\n\n- Preserve quiet evidence density.\n- Avoid task writes.",
-            createdAt: "2026-04-19T00:00:07.000Z",
-            reportId: "manager-report-detail",
-          }),
-        ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Read Report" }).click();
-
-  await expect(page).toHaveURL(
-    /\/#\/manager-reports\/%2Frepo%2Fdashboard\/manager-report-detail$/,
-  );
-  await expect(
-    page.getByRole("heading", { level: 2, name: "manager-report-detail" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Baseline Ref: origin/main@handoff"),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Created At: 2026-04-19T00:00:07.000Z"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Handoff Direction" }),
-  ).toBeVisible();
-  await expect(page.getByText("Avoid task writes.")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /create manager report/i }),
-  ).toHaveCount(0);
 });
 
 test("opens and closes the create task page from the dashboard header", async ({

@@ -29,8 +29,8 @@ const createEntry = {
   id: "create-contract-doc",
   action: "Create" as const,
   depends_on: [],
-  reason: "Manager Report shows missing approval handoff persistence.",
-  source: "Manager gap",
+  reason: "Dimension evaluation shows missing approval handoff persistence.",
+  source: "Dimension evaluation gap",
   create: {
     candidate_task_spec: "# Persist Task Write Bulk\n\n## Assumptions\n...",
     project_path: "/repo/main",
@@ -50,7 +50,7 @@ const deleteEntry = {
   create: null,
   delete: {
     target_task_id: "00000000-0000-0000-0000-000000000000",
-    delete_reason: "旧 Task 目标与当前 Manager 方向冲突。",
+    delete_reason: "旧 Task 目标与当前维度评估方向冲突。",
     replacement: "create-contract-doc",
   },
 };
@@ -133,7 +133,7 @@ describe("task write bulk repository", () => {
       content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
       entries: [createEntry, deleteEntry],
       baseline_ref: "origin/main@abc123",
-      source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+      source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
     });
     const secondBulk = await repository.createTaskWriteBulk({
       project_path: "/repo/main",
@@ -154,7 +154,7 @@ describe("task write bulk repository", () => {
       bulk_id: "bulk-1",
       content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
       project_path: "/repo/main",
-      source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+      source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
       entries: [createEntry, deleteEntry],
     });
     await expect(

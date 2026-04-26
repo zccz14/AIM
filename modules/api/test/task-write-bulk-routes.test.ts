@@ -34,8 +34,8 @@ const createEntry = {
   id: "create-contract-doc",
   action: "Create" as const,
   depends_on: [],
-  reason: "Manager Report shows missing approval handoff persistence.",
-  source: "Manager gap",
+  reason: "Dimension evaluation shows missing approval handoff persistence.",
+  source: "Dimension evaluation gap",
   create: {
     candidate_task_spec: "# Persist Task Write Bulk\n\n## Assumptions\n...",
     project_path: "/repo/main",
@@ -76,7 +76,7 @@ describe("task write bulk routes", () => {
           content_markdown: "# Task Write Bulk\n\n- id: create-contract-doc",
           entries: [createEntry],
           baseline_ref: "origin/main@abc123",
-          source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+          source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
         }),
       },
     );
@@ -93,7 +93,7 @@ describe("task write bulk routes", () => {
       bulk_id: "bulk-1",
       entries: [createEntry],
       project_path: "/repo/main",
-      source_metadata: [{ key: "manager_report", value: "baseline-1" }],
+      source_metadata: [{ key: "dimension_evaluation", value: "eval-1" }],
     });
 
     const listResponse = await app.request(
