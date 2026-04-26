@@ -3,6 +3,7 @@ import type {
   DimensionEvaluation,
   ManagerReport,
   OpenCodeModelsResponse,
+  OptimizerStatusResponse,
   Task,
   TaskListResponse,
   TaskWriteBulkListResponse,
@@ -104,4 +105,23 @@ export const getOpenCodeModels = async (): Promise<OpenCodeModelsResponse> => {
   const client = createWebApiClient();
 
   return client.listOpenCodeModels();
+};
+
+export const getOptimizerStatus =
+  async (): Promise<OptimizerStatusResponse> => {
+    const client = createWebApiClient();
+
+    return client.getOptimizerStatus();
+  };
+
+export const startOptimizer = async (): Promise<OptimizerStatusResponse> => {
+  const client = createWebApiClient();
+
+  return client.startOptimizer();
+};
+
+export const stopOptimizer = async (): Promise<OptimizerStatusResponse> => {
+  const client = createWebApiClient();
+
+  return client.stopOptimizer();
 };

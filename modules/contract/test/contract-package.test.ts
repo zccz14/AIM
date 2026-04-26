@@ -129,12 +129,20 @@ type _generatedClientExportsTaskCrud = Assert<
     HasExport<GeneratedClientModule, "resolveTaskById"> &
     HasExport<GeneratedClientModule, "rejectTaskById">
 >;
+type _generatedClientExportsOptimizerControl = Assert<
+  HasExport<GeneratedClientModule, "getOptimizerStatus"> &
+    HasExport<GeneratedClientModule, "startOptimizer"> &
+    HasExport<GeneratedClientModule, "stopOptimizer">
+>;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
     HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
     HasExport<GeneratedTypesModule, "TaskResultRequest"> &
     HasExport<GeneratedTypesModule, "TaskListResponse">
+>;
+type _generatedTypesExportOptimizerControl = Assert<
+  HasExport<GeneratedTypesModule, "OptimizerStatusResponse">
 >;
 
 const assertBuiltEntry = async () => {
@@ -329,6 +337,10 @@ describe("contract package baseline", () => {
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
+      "optimizerStartPath",
+      "optimizerStatusPath",
+      "optimizerStatusResponseSchema",
+      "optimizerStopPath",
       "patchDimensionRequestSchema",
       "patchTaskRequestSchema",
       "taskByIdPath",
@@ -370,6 +382,15 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.opencodeModelsPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.optimizerStatusPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.optimizerStartPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.optimizerStopPath],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.tasksPath],
@@ -461,6 +482,15 @@ describe("contract package baseline", () => {
     expect(
       contractModule.taskErrorCodeSchema.parse("OPENCODE_MODELS_UNAVAILABLE"),
     ).toBe("OPENCODE_MODELS_UNAVAILABLE");
+  });
+
+  it("exports optimizer control schemas from the built package boundary", () => {
+    expect(contractModule.optimizerStatusPath).toBe("/optimizer/status");
+    expect(contractModule.optimizerStartPath).toBe("/optimizer/start");
+    expect(contractModule.optimizerStopPath).toBe("/optimizer/stop");
+    expect(
+      contractModule.optimizerStatusResponseSchema.parse({ running: true }),
+    ).toEqual({ running: true });
   });
 
   it("exports task paths and task schemas from the built package boundary", () => {

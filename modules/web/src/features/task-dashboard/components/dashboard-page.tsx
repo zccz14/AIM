@@ -7,7 +7,12 @@ import { Card } from "../../../components/ui/card.js";
 import { LanguageToggle } from "../../../components/ui/language-toggle.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
-import { getOpenCodeModels } from "../api/task-dashboard-api.js";
+import {
+  getOpenCodeModels,
+  getOptimizerStatus,
+  startOptimizer,
+  stopOptimizer,
+} from "../api/task-dashboard-api.js";
 import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import {
@@ -124,6 +129,8 @@ export const DashboardPage = () => {
   const [models, setModels] = useState<
     Awaited<ReturnType<typeof getOpenCodeModels>>["items"]
   >([]);
+  const [optimizerRunning, setOptimizerRunning] = useState(false);
+  const [isOptimizerChanging, setIsOptimizerChanging] = useState(false);
   const [selectedTaskFallback, setSelectedTaskFallback] =
     useState<DashboardTask | null>(null);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
@@ -170,6 +177,22 @@ export const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
+    let isActive = true;
+
+    void getOptimizerStatus()
+      .then((status) => {
+        if (isActive) {
+          setOptimizerRunning(status.running);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (route.kind !== "create") {
       return;
     }
@@ -195,6 +218,22 @@ export const DashboardPage = () => {
 
   const handleRefresh = async () => {
     await dashboardQuery.refetch();
+  };
+
+  const handleOptimizerToggle = async () => {
+    setIsOptimizerChanging(true);
+
+    try {
+      const status = optimizerRunning
+        ? await stopOptimizer()
+        : await startOptimizer();
+
+      setOptimizerRunning(status.running);
+    } catch {
+      return;
+    } finally {
+      setIsOptimizerChanging(false);
+    }
   };
 
   const goToDashboard = () => {
@@ -451,6 +490,17 @@ export const DashboardPage = () => {
               <fieldset aria-label="Global controls" className="actions-group">
                 <LanguageToggle />
                 <ThemeToggle />
+                <Button
+                  aria-checked={optimizerRunning}
+                  aria-label="AIM Optimizer"
+                  disabled={isOptimizerChanging}
+                  onClick={() => void handleOptimizerToggle()}
+                  role="switch"
+                  size="sm"
+                  variant={optimizerRunning ? "default" : "outline"}
+                >
+                  AIM Optimizer
+                </Button>
                 {route.kind !== "create" ? (
                   <Button
                     disabled={dashboardQuery.isFetching}
