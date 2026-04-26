@@ -521,6 +521,32 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
+  it("asks the optimizer task producer to refill an empty task pool on every polling round", async () => {
+    vi.useFakeTimers();
+    const produceTasks = vi.fn().mockResolvedValue(undefined);
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      taskProducer: { produceTasks },
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    scheduler.start({ intervalMs: 1_000 });
+
+    await vi.waitFor(() => {
+      expect(produceTasks).toHaveBeenCalledTimes(1);
+    });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(produceTasks).toHaveBeenCalledTimes(2);
+
+    await scheduler.stop();
+    vi.useRealTimers();
+  });
+
   it("does not log task_session_bound when another process assigned a different session", async () => {
     const initialTask = createTask({ task_id: "task-2" });
     const latestSnapshot = createTask({
