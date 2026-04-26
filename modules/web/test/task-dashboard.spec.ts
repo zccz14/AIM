@@ -293,6 +293,31 @@ test("renders the overview landing view", async ({ page }) => {
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
 });
 
+test("keeps the dashboard available when task responses include project_id", async ({
+  page,
+}) => {
+  await page.route("**/tasks**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Server task with project identifier",
+            taskId: "task-project-id",
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByText("Task dashboard unavailable")).not.toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "Server task with project identifier" }),
+  ).toBeVisible();
+});
+
 test("toggles the optimizer from the global dashboard controls", async ({
   page,
 }) => {
