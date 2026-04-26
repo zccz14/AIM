@@ -416,7 +416,18 @@ export const DashboardPage = () => {
                   </div>
                 </div>
               </div>
-              <div className="actions-group">
+              <fieldset aria-label="Global controls" className="actions-group">
+                {route.kind !== "create" ? (
+                  <Button
+                    disabled={dashboardQuery.isFetching}
+                    onClick={() => void handleRefresh()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <RefreshCw size={16} />
+                    Refresh
+                  </Button>
+                ) : null}
                 <ThemeToggle />
                 {route.kind !== "dashboard"
                   ? renderNavAction(
@@ -426,7 +437,7 @@ export const DashboardPage = () => {
                       goToDashboard,
                     )
                   : null}
-              </div>
+              </fieldset>
             </div>
 
             <div className="app-shell__hero-main">
@@ -484,16 +495,6 @@ export const DashboardPage = () => {
               </div>
 
               <div className="hero-actions">
-                {route.kind !== "create" ? (
-                  <Button
-                    disabled={dashboardQuery.isFetching}
-                    onClick={() => void handleRefresh()}
-                    variant="outline"
-                  >
-                    <RefreshCw size={16} />
-                    Refresh
-                  </Button>
-                ) : null}
                 {route.kind === "dashboard" ? (
                   <Button onClick={goToCreateTask}>
                     <Plus size={16} />
