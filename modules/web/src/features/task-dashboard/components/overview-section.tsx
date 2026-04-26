@@ -4,8 +4,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
-  ResponsiveContainer,
-  Tooltip,
+  CartesianGrid,
   XAxis,
   YAxis,
 } from "recharts";
@@ -18,6 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../components/ui/card.js";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "../../../components/ui/chart.js";
 import { Field, FieldLabel } from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
 import {
@@ -60,6 +65,20 @@ const summarizeResult = (result: string, emptyLabel: string) => {
     ? trimmedResult
     : `${trimmedResult.slice(0, 117)}...`;
 };
+
+const statusBoardChartConfig = {
+  value: {
+    label: "Tasks",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig;
+
+const activityChartConfig = {
+  value: {
+    label: "Completed results",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig;
 
 export const OverviewSection = ({
   dashboard,
@@ -131,20 +150,26 @@ export const OverviewSection = ({
               <CardTitle className={sectionTitle}>Status Board</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={chartFrame}>
-                <ResponsiveContainer height="100%" width="100%">
-                  <BarChart data={dashboard.statusBoardItems}>
-                    <XAxis dataKey="label" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar
-                      dataKey="value"
-                      fill="var(--primary)"
-                      radius={[8, 8, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer
+                className={chartFrame}
+                config={statusBoardChartConfig}
+              >
+                <BarChart
+                  accessibilityLayer
+                  aria-label="Status Board chart"
+                  data={dashboard.statusBoardItems}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} tickMargin={8} />
+                  <YAxis allowDecimals={false} tickLine={false} width={32} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="value"
+                    fill="var(--color-value)"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             </CardContent>
           </Card>
 
@@ -156,20 +181,27 @@ export const OverviewSection = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={chartFrame}>
-                <ResponsiveContainer height="100%" width="100%">
-                  <AreaChart data={dashboard.activitySeries}>
-                    <XAxis dataKey="label" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Area
-                      dataKey="value"
-                      fill="var(--primary)"
-                      stroke="var(--primary)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartContainer
+                className={chartFrame}
+                config={activityChartConfig}
+              >
+                <AreaChart
+                  accessibilityLayer
+                  aria-label="Completed Result Activity chart"
+                  data={dashboard.activitySeries}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} tickMargin={8} />
+                  <YAxis allowDecimals={false} tickLine={false} width={32} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    dataKey="value"
+                    fill="var(--color-value)"
+                    fillOpacity={0.35}
+                    stroke="var(--color-value)"
+                  />
+                </AreaChart>
+              </ChartContainer>
             </CardContent>
           </Card>
         </div>
