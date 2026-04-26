@@ -699,11 +699,6 @@ test("separates unfinished Task Pool data from completed history results", async
   await expect(
     page.getByRole("row", { name: /Rejected history task/i }),
   ).toHaveCount(0);
-  await expect(page.getByTestId("graph-node-task-active-ready")).toBeVisible();
-  await expect(
-    page.getByTestId("graph-node-task-history-succeeded"),
-  ).toHaveCount(0);
-
   const evidenceLedger = page.getByRole("region", { name: "Evidence ledger" });
   const recentActiveSection = evidenceLedger.locator('[data-slot="card"]', {
     has: page.getByRole("heading", { name: "Recent Active Tasks" }),
@@ -1810,7 +1805,7 @@ test("shows missing developer closure cues in task details", async ({
   await expect(page.getByText("done=false; status=processing")).toBeVisible();
 });
 
-test("renders the dependency graph with status-colored nodes", async ({
+test("does not render a dependency graph for Director review", async ({
   page,
 }) => {
   await page.route("**/tasks**", async (route) => {
@@ -1835,151 +1830,11 @@ test("renders the dependency graph with status-colored nodes", async ({
 
   await page.goto("/");
 
-  await expect(page.getByText("Dependency Graph")).toBeVisible();
-  await expect(page.getByTestId("graph-node-task-123")).toContainText(
-    "Processing",
-  );
-  await expect(page.getByTestId("graph-node-task-123")).toHaveCSS(
-    "border-color",
-    "oklch(0.77 0.12 85)",
-  );
-  await expect(page.getByTestId("graph-node-task-456")).toContainText(
-    "Processing",
-  );
-  await expect(page.getByTestId("graph-node-task-456")).toHaveCSS(
-    "border-color",
-    "oklch(0.77 0.12 85)",
-  );
-  await expect(page.getByTestId("rf__edge-task-123-task-456")).toHaveCount(1);
-  await expect(page.getByLabel("Edge from task-123 to task-456")).toHaveCount(
-    1,
-  );
-  await expect(page.getByLabel("Edge from task-456 to task-123")).toHaveCount(
-    0,
-  );
-});
-
-test("lays out prerequisites to the left of dependents", async ({ page }) => {
-  await page.route("**/tasks**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [
-          buildTask({
-            dependencies: ["task-123"],
-            spec: "Dependent task",
-            taskId: "task-456",
-          }),
-          buildTask({
-            spec: "Prerequisite task",
-            taskId: "task-123",
-          }),
-        ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-
-  const prerequisiteNode = page.getByTestId("graph-node-task-123");
-  const dependentNode = page.getByTestId("graph-node-task-456");
-
-  const prerequisiteBox = await prerequisiteNode.boundingBox();
-  const dependentBox = await dependentNode.boundingBox();
-
-  if (prerequisiteBox === null || dependentBox === null) {
-    throw new Error("Expected graph nodes to have visible bounding boxes");
-  }
-
-  expect(prerequisiteBox.x).toBeLessThan(dependentBox.x);
-});
-
-test("lays out branching dependencies by depth across multiple columns", async ({
-  page,
-}) => {
-  await page.route("**/tasks**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [
-          buildTask({
-            dependencies: ["task-456", "task-789"],
-            spec: "Release task",
-            taskId: "task-999",
-          }),
-          buildTask({
-            dependencies: ["task-123"],
-            spec: "Backend task",
-            taskId: "task-456",
-          }),
-          buildTask({
-            spec: "Root task",
-            taskId: "task-123",
-          }),
-          buildTask({
-            dependencies: ["task-123"],
-            spec: "Frontend task",
-            taskId: "task-789",
-          }),
-        ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-
-  const rootBox = await page.getByTestId("graph-node-task-123").boundingBox();
-  const backendBox = await page
-    .getByTestId("graph-node-task-456")
-    .boundingBox();
-  const frontendBox = await page
-    .getByTestId("graph-node-task-789")
-    .boundingBox();
-  const releaseBox = await page
-    .getByTestId("graph-node-task-999")
-    .boundingBox();
-
-  if (
-    rootBox === null ||
-    backendBox === null ||
-    frontendBox === null ||
-    releaseBox === null
-  ) {
-    throw new Error("Expected graph nodes to have visible bounding boxes");
-  }
-
-  expect(rootBox.x).toBeLessThan(backendBox.x);
-  expect(rootBox.x).toBeLessThan(frontendBox.x);
-  expect(backendBox.x).toBeLessThan(releaseBox.x);
-  expect(frontendBox.x).toBeLessThan(releaseBox.x);
-});
-
-test("opens the task details page from a graph node", async ({ page }) => {
-  await page.route("**/tasks**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items: [
-          buildTask({
-            spec: "Ready task",
-            taskId: "task-123",
-          }),
-          buildTask({
-            dependencies: ["task-123"],
-            spec: "Blocked task",
-            status: "processing",
-            taskId: "task-456",
-          }),
-        ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByTestId("graph-node-task-123").click();
-
-  await expect(page).toHaveURL(/\/#\/tasks\/task-123$/);
-  await expect(page.getByText("Task ID: task-123")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Dependency Graph" }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("graph-node-task-123")).toHaveCount(0);
+  await expect(page.getByTestId("graph-node-task-456")).toHaveCount(0);
 });
 
 test("shows a clear error state when the task request fails", async ({
@@ -2163,21 +2018,18 @@ test("renders a branded decision workspace with readable dark-mode data views", 
   ).toBeVisible();
   await expect(page.getByText("Status Board")).toBeVisible();
   await expect(page.getByText("Recent Active Tasks")).toBeVisible();
-  await expect(page.getByText("Dependency Graph")).toBeVisible();
+  await expect(page.getByText("Active Unfinished Tasks")).toBeVisible();
   const shellStyles = await page.evaluate(() => {
     const shell = document.querySelector('[data-testid="dashboard-shell"]');
     const tableHeader = document.querySelector(
       '[data-testid="dashboard-table-header"]',
     );
-    const graphNode = document.querySelector(
-      '[data-testid="graph-node-task-123"]',
-    );
 
-    if (!shell || !tableHeader || !graphNode) {
+    if (!shell || !tableHeader) {
       throw new Error("Expected readable dark-mode data view elements");
     }
 
-    return [shell, tableHeader, graphNode].map(
+    return [shell, tableHeader].map(
       (element) => getComputedStyle(element).backgroundColor,
     );
   });
