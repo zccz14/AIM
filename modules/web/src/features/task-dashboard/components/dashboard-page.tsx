@@ -17,6 +17,7 @@ import {
 } from "../queries.js";
 import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
+import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
 import { CreateTaskForm } from "./create-task-form.js";
 import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
@@ -136,6 +137,7 @@ export const DashboardPage = () => {
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
       dashboardQuery.data.historyTasks.length > 0 ||
+      dashboardQuery.data.dimensionReports.length > 0 ||
       dashboardQuery.data.taskWriteBulks.length > 0);
 
   useEffect(() => {
@@ -342,6 +344,9 @@ export const DashboardPage = () => {
         {dashboardQuery.isSuccess && hasDashboardData ? (
           <div className="director-workspace">
             <div className="director-workspace__main">
+              <AimDimensionReportSection
+                dimensionReports={dashboardQuery.data.dimensionReports}
+              />
               <OverviewSection
                 dashboard={dashboardQuery.data}
                 onSelectTask={goToTask}
@@ -449,6 +454,10 @@ export const DashboardPage = () => {
                     aria-label={t("directorWorkspace")}
                     className="workspace-nav"
                   >
+                    {renderWorkspaceLink(
+                      "#aim-dimension-report",
+                      t("aimDimensionReport"),
+                    )}
                     {renderWorkspaceLink(
                       "#convergence-map",
                       t("baselineConvergenceMap"),

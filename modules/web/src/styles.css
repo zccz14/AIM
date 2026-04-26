@@ -410,6 +410,55 @@ a {
   background: color-mix(in srgb, var(--card) 92%, transparent);
 }
 
+.aim-dimension-report {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.aim-dimension-report__header {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+}
+
+.aim-dimension-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.aim-dimension-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card-strong) 86%, var(--card));
+  padding: 1rem;
+}
+
+.aim-dimension-item__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.aim-dimension-score {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: color-mix(in srgb, var(--primary) 16%, var(--card-strong));
+  color: var(--primary);
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aim-dimension-report__empty {
+  margin-top: 0;
+}
+
 .rail-checkpoints {
   display: grid;
   gap: 10px;
@@ -958,6 +1007,7 @@ a {
   .app-shell__topbar,
   .app-shell__hero-main,
   .director-rail,
+  .aim-dimension-item,
   .hero-actions,
   .manager-report-card,
   .task-write-bulk-row,

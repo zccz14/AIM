@@ -1,6 +1,12 @@
 import {
   ContractClientError,
   createContractClient,
+  type DimensionEvaluationListResponse,
+  type DimensionListResponse,
+  dimensionEvaluationListResponseSchema,
+  dimensionEvaluationsPath,
+  dimensionListResponseSchema,
+  dimensionsPath,
   type Task,
   type TaskError,
   type TaskListResponse,
@@ -104,6 +110,12 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     done?: boolean;
     session_id?: string;
   }): Promise<TaskListResponse>;
+  listDimensions(query: {
+    project_path: string;
+  }): Promise<DimensionListResponse>;
+  listDimensionEvaluations(
+    dimensionId: string,
+  ): Promise<DimensionEvaluationListResponse>;
 };
 
 const buildTaskListPath = (query?: {
@@ -129,6 +141,20 @@ const buildTaskListPath = (query?: {
 
   return queryString.length === 0 ? tasksPath : `${tasksPath}?${queryString}`;
 };
+
+const buildDimensionListPath = (query: { project_path: string }) => {
+  const searchParams = new URLSearchParams({
+    project_path: query.project_path,
+  });
+
+  return `${dimensionsPath}?${searchParams.toString()}`;
+};
+
+const buildDimensionEvaluationListPath = (dimensionId: string) =>
+  dimensionEvaluationsPath.replace(
+    "{dimensionId}",
+    encodeURIComponent(dimensionId),
+  );
 
 export const createWebApiClient = (
   baseUrl = readServerBaseUrl(),
@@ -169,6 +195,54 @@ export const createWebApiClient = (
 
       return taskListResponseSchema.parse(
         (await response.json()) as TaskListResponse,
+      );
+    },
+
+    async listDimensions(query) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildDimensionListPath(query),
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return dimensionListResponseSchema.parse(
+        (await response.json()) as DimensionListResponse,
+      );
+    },
+
+    async listDimensionEvaluations(dimensionId) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildDimensionEvaluationListPath(dimensionId),
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return dimensionEvaluationListResponseSchema.parse(
+        (await response.json()) as DimensionEvaluationListResponse,
       );
     },
   };

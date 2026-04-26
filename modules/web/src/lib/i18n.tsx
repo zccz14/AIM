@@ -14,6 +14,10 @@ const LOCALE_STORAGE_KEY = "aim.web.locale";
 const messages = {
   en: {
     activeUnfinishedTasks: "Active Unfinished Tasks",
+    aimDimensionReport: "AIM Dimension Report",
+    aimDimensionReportAria: "AIM Dimension report",
+    aimDimensionReportDescription:
+      "Dimension scores surface before task mechanics so the Director sees goal fit first.",
     aimNavigator: "AIM Navigator",
     backToDashboard: "Back to Dashboard",
     baselineConvergenceCockpit: "Baseline Convergence Cockpit",
@@ -53,6 +57,7 @@ const messages = {
     goalStateReview: "Goal State Review",
     goalStateReviewDescription:
       "Current task pool, completed history, flow pressure, and rejected feedback are presented as one planning surface.",
+    goalFit: "Goal fit",
     history: "History",
     historyResults: "History Results",
     humanAttention:
@@ -68,6 +73,9 @@ const messages = {
     methodologyHub: "Methodology Hub",
     noActiveDashboardData:
       "No active Task Pool or completed task history available from the configured server. Check the server target or create the first AIM task when the baseline direction is ready.",
+    noAimDimensionReport:
+      "No AIM Dimensions are available for the current Task Pool project paths.",
+    noDimensionEvaluation: "No dimension evaluation recorded yet.",
     noMatchingTasks: "No matching tasks.",
     noRejectedFeedbackMatches: "No rejected feedback matches filters.",
     noRejectedFeedbackRecorded: "No rejected feedback recorded yet.",
@@ -101,6 +109,10 @@ const messages = {
   },
   zh: {
     activeUnfinishedTasks: "活跃未完成任务",
+    aimDimensionReport: "AIM Dimension 报告",
+    aimDimensionReportAria: "AIM Dimension 报告",
+    aimDimensionReportDescription:
+      "维度评分先于任务机制呈现，让 Director 先看到目标匹配度。",
     aimNavigator: "AIM 导航",
     backToDashboard: "返回仪表盘",
     baselineConvergenceCockpit: "基线收敛驾驶舱",
@@ -137,6 +149,7 @@ const messages = {
     goalStateReview: "目标态复核",
     goalStateReviewDescription:
       "当前任务池、完成历史、流动压力和拒绝反馈作为一个规划界面呈现。",
+    goalFit: "目标匹配度",
     history: "历史",
     historyResults: "历史结果",
     humanAttention:
@@ -152,6 +165,8 @@ const messages = {
     methodologyHub: "方法论枢纽",
     noActiveDashboardData:
       "当前服务器没有活跃任务池或已完成任务历史。请检查服务器目标，或在基线方向就绪后创建第一个 AIM 任务。",
+    noAimDimensionReport: "当前任务池项目路径没有 AIM Dimension。",
+    noDimensionEvaluation: "尚无维度评估记录。",
     noMatchingTasks: "没有匹配的任务。",
     noRejectedFeedbackMatches: "没有符合筛选条件的拒绝反馈。",
     noRejectedFeedbackRecorded: "尚无拒绝反馈记录。",
