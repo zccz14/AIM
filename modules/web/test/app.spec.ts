@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("fixes the Shadcn UI registry contract for the web workspace", async () => {
   const { readFile } = await import("node:fs/promises");
   const componentsConfig = JSON.parse(
-    await readFile(`${process.cwd()}/components.json`, "utf8"),
+    await readFile(`${process.cwd()}/modules/web/components.json`, "utf8"),
   ) as {
     aliases?: Record<string, string>;
     iconLibrary?: string;
@@ -19,15 +19,17 @@ test("fixes the Shadcn UI registry contract for the web workspace", async () => 
 
   expect(componentsConfig).toMatchObject({
     aliases: {
-      components: "modules/web/src/components",
-      lib: "modules/web/src/lib",
-      ui: "modules/web/src/components/ui",
+      components: "src/components",
+      hooks: "src/hooks",
+      lib: "src/lib",
+      ui: "src/components/ui",
+      utils: "src/lib/utils",
     },
     iconLibrary: "lucide",
     rsc: false,
     style: "new-york",
     tailwind: {
-      css: "modules/web/src/styles.css",
+      css: "src/styles.css",
       cssVariables: true,
     },
     tsx: true,
