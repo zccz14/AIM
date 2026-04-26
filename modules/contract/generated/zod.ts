@@ -32,8 +32,8 @@ const ErrorResponse = z
       "TASK_WRITE_BULK_NOT_FOUND",
       "TASK_WRITE_BULK_CONFLICT",
       "TASK_WRITE_BULK_VALIDATION_ERROR",
-      "COORDINATE_NOT_FOUND",
-      "COORDINATE_VALIDATION_ERROR",
+      "DIMENSION_NOT_FOUND",
+      "DIMENSION_VALIDATION_ERROR",
       "OPENCODE_MODELS_UNAVAILABLE",
     ]),
     message: z.string().min(1),
@@ -180,7 +180,7 @@ const TaskWriteBulk = z
 const TaskWriteBulkListResponse = z
   .object({ items: z.array(TaskWriteBulk) })
   .strict();
-const CreateCoordinateRequest = z
+const CreateDimensionRequest = z
   .object({
     project_path: z.string().min(1),
     name: z.string().min(1),
@@ -188,7 +188,7 @@ const CreateCoordinateRequest = z
     evaluation_method: z.string().min(1),
   })
   .strict();
-const Coordinate = z
+const Dimension = z
   .object({
     id: z.string().min(1),
     project_path: z.string().min(1),
@@ -199,10 +199,8 @@ const Coordinate = z
     updated_at: z.string().datetime({ offset: true }),
   })
   .strict();
-const CoordinateListResponse = z
-  .object({ items: z.array(Coordinate) })
-  .strict();
-const PatchCoordinateRequest = z
+const DimensionListResponse = z.object({ items: z.array(Dimension) }).strict();
+const PatchDimensionRequest = z
   .object({
     name: z.string().min(1),
     goal: z.string().min(1),
@@ -210,10 +208,10 @@ const PatchCoordinateRequest = z
   })
   .partial()
   .strict();
-const CoordinateEvaluation = z
+const DimensionEvaluation = z
   .object({
     id: z.string().min(1),
-    coordinate_id: z.string().min(1),
+    dimension_id: z.string().min(1),
     project_path: z.string().min(1),
     commit_sha: z.string().min(1),
     evaluator_model: z.string().min(1),
@@ -222,10 +220,10 @@ const CoordinateEvaluation = z
     created_at: z.string().datetime({ offset: true }),
   })
   .strict();
-const CoordinateEvaluationListResponse = z
-  .object({ items: z.array(CoordinateEvaluation) })
+const DimensionEvaluationListResponse = z
+  .object({ items: z.array(DimensionEvaluation) })
   .strict();
-const CreateCoordinateEvaluationRequest = z
+const CreateDimensionEvaluationRequest = z
   .object({
     project_path: z.string().min(1),
     commit_sha: z.string().min(1),
@@ -259,11 +257,11 @@ export const schemas = {
   CreateTaskWriteBulkRequest,
   TaskWriteBulk,
   TaskWriteBulkListResponse,
-  CreateCoordinateRequest,
-  Coordinate,
-  CoordinateListResponse,
-  PatchCoordinateRequest,
-  CoordinateEvaluation,
-  CoordinateEvaluationListResponse,
-  CreateCoordinateEvaluationRequest,
+  CreateDimensionRequest,
+  Dimension,
+  DimensionListResponse,
+  PatchDimensionRequest,
+  DimensionEvaluation,
+  DimensionEvaluationListResponse,
+  CreateDimensionEvaluationRequest,
 };

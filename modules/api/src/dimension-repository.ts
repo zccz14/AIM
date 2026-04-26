@@ -1,18 +1,18 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  type Coordinate,
-  type CoordinateEvaluation,
-  type CreateCoordinateEvaluationRequest,
-  type CreateCoordinateRequest,
-  coordinateEvaluationSchema,
-  coordinateSchema,
-  type PatchCoordinateRequest,
+  type CreateDimensionEvaluationRequest,
+  type CreateDimensionRequest,
+  type Dimension,
+  type DimensionEvaluation,
+  dimensionEvaluationSchema,
+  dimensionSchema,
+  type PatchDimensionRequest,
 } from "@aim-ai/contract";
 
 import { openTaskDatabase } from "./task-database.js";
 
-type CoordinateRow = {
+type DimensionRow = {
   created_at: string;
   evaluation_method: string;
   goal: string;
@@ -22,9 +22,9 @@ type CoordinateRow = {
   updated_at: string;
 };
 
-type CoordinateEvaluationRow = {
+type DimensionEvaluationRow = {
   commit_sha: string;
-  coordinate_id: string;
+  dimension_id: string;
   created_at: string;
   evaluation: string;
   evaluator_model: string;
@@ -40,14 +40,14 @@ type TableInfoRow = {
   type: string;
 };
 
-type CoordinateRepositoryOptions = {
+type DimensionRepositoryOptions = {
   projectRoot?: string;
 };
 
-const coordinatesTableName = "coordinates";
-const coordinateEvaluationsTableName = "coordinate_evaluations";
+const dimensionsTableName = "dimensions";
+const dimensionEvaluationsTableName = "dimension_evaluations";
 
-const coordinateColumns = [
+const dimensionColumns = [
   { name: "id", notnull: 1, pk: 1, type: "TEXT" },
   { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
   { name: "name", notnull: 1, pk: 0, type: "TEXT" },
@@ -57,9 +57,9 @@ const coordinateColumns = [
   { name: "updated_at", notnull: 1, pk: 0, type: "TEXT" },
 ] as const;
 
-const coordinateEvaluationColumns = [
+const dimensionEvaluationColumns = [
   { name: "id", notnull: 1, pk: 1, type: "TEXT" },
-  { name: "coordinate_id", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "dimension_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
   { name: "commit_sha", notnull: 1, pk: 0, type: "TEXT" },
   { name: "evaluator_model", notnull: 1, pk: 0, type: "TEXT" },
@@ -86,10 +86,10 @@ const normalizeColumnType = (type: string) => {
   return normalizedType;
 };
 
-const buildSchemaError = () => new Error("coordinates schema is incompatible");
+const buildSchemaError = () => new Error("dimensions schema is incompatible");
 
-const mapCoordinateRow = (row: CoordinateRow) =>
-  coordinateSchema.parse({
+const mapDimensionRow = (row: DimensionRow) =>
+  dimensionSchema.parse({
     id: row.id,
     project_path: row.project_path,
     name: row.name,
@@ -99,10 +99,10 @@ const mapCoordinateRow = (row: CoordinateRow) =>
     updated_at: row.updated_at,
   });
 
-const mapCoordinateEvaluationRow = (row: CoordinateEvaluationRow) =>
-  coordinateEvaluationSchema.parse({
+const mapDimensionEvaluationRow = (row: DimensionEvaluationRow) =>
+  dimensionEvaluationSchema.parse({
     id: row.id,
-    coordinate_id: row.coordinate_id,
+    dimension_id: row.dimension_id,
     project_path: row.project_path,
     commit_sha: row.commit_sha,
     evaluator_model: row.evaluator_model,
@@ -111,12 +111,12 @@ const mapCoordinateEvaluationRow = (row: CoordinateEvaluationRow) =>
     created_at: row.created_at,
   });
 
-const createCoordinateTables = (
+const createDimensionTables = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
   database.exec("PRAGMA foreign_keys = ON");
   database.exec(`
-    CREATE TABLE IF NOT EXISTS ${coordinatesTableName} (
+    CREATE TABLE IF NOT EXISTS ${dimensionsTableName} (
       id TEXT NOT NULL PRIMARY KEY,
       project_path TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -127,16 +127,16 @@ const createCoordinateTables = (
     )
   `);
   database.exec(`
-    CREATE TABLE IF NOT EXISTS ${coordinateEvaluationsTableName} (
+    CREATE TABLE IF NOT EXISTS ${dimensionEvaluationsTableName} (
       id TEXT NOT NULL PRIMARY KEY,
-      coordinate_id TEXT NOT NULL,
+      dimension_id TEXT NOT NULL,
       project_path TEXT NOT NULL,
       commit_sha TEXT NOT NULL,
       evaluator_model TEXT NOT NULL,
       score INTEGER NOT NULL,
       evaluation TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      FOREIGN KEY (coordinate_id) REFERENCES ${coordinatesTableName}(id) ON DELETE CASCADE
+      FOREIGN KEY (dimension_id) REFERENCES ${dimensionsTableName}(id) ON DELETE CASCADE
     )
   `);
 };
@@ -176,15 +176,15 @@ const validateTableSchema = (
   }
 };
 
-const bootstrapCoordinateDatabase = (projectRoot?: string) => {
+const bootstrapDimensionDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
-  createCoordinateTables(database);
-  validateTableSchema(database, coordinatesTableName, coordinateColumns);
+  createDimensionTables(database);
+  validateTableSchema(database, dimensionsTableName, dimensionColumns);
   validateTableSchema(
     database,
-    coordinateEvaluationsTableName,
-    coordinateEvaluationColumns,
+    dimensionEvaluationsTableName,
+    dimensionEvaluationColumns,
   );
 
   return database;
@@ -201,12 +201,12 @@ const nextUpdateTimestamp = (previousTimestamp: string) => {
   return now.toISOString();
 };
 
-export const createCoordinateRepository = (
-  options: CoordinateRepositoryOptions = {},
+export const createDimensionRepository = (
+  options: DimensionRepositoryOptions = {},
 ) => {
-  const database = bootstrapCoordinateDatabase(options.projectRoot);
-  const insertCoordinateStatement = database.prepare(`
-    INSERT INTO ${coordinatesTableName} (
+  const database = bootstrapDimensionDatabase(options.projectRoot);
+  const insertDimensionStatement = database.prepare(`
+    INSERT INTO ${dimensionsTableName} (
       id,
       project_path,
       name,
@@ -216,30 +216,30 @@ export const createCoordinateRepository = (
       updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
-  const getCoordinateStatement = database.prepare(`
+  const getDimensionStatement = database.prepare(`
     SELECT id, project_path, name, goal, evaluation_method, created_at, updated_at
-    FROM ${coordinatesTableName}
+    FROM ${dimensionsTableName}
     WHERE id = ?
   `);
-  const listCoordinatesStatement = database.prepare(`
+  const listDimensionsStatement = database.prepare(`
     SELECT id, project_path, name, goal, evaluation_method, created_at, updated_at
-    FROM ${coordinatesTableName}
+    FROM ${dimensionsTableName}
     WHERE project_path = ?
     ORDER BY created_at ASC, rowid ASC
   `);
-  const patchCoordinateStatement = database.prepare(`
-    UPDATE ${coordinatesTableName}
+  const patchDimensionStatement = database.prepare(`
+    UPDATE ${dimensionsTableName}
     SET name = ?, goal = ?, evaluation_method = ?, updated_at = ?
     WHERE id = ?
   `);
-  const deleteCoordinateStatement = database.prepare(`
-    DELETE FROM ${coordinatesTableName}
+  const deleteDimensionStatement = database.prepare(`
+    DELETE FROM ${dimensionsTableName}
     WHERE id = ?
   `);
-  const insertCoordinateEvaluationStatement = database.prepare(`
-    INSERT INTO ${coordinateEvaluationsTableName} (
+  const insertDimensionEvaluationStatement = database.prepare(`
+    INSERT INTO ${dimensionEvaluationsTableName} (
       id,
-      coordinate_id,
+      dimension_id,
       project_path,
       commit_sha,
       evaluator_model,
@@ -248,17 +248,17 @@ export const createCoordinateRepository = (
       created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const listCoordinateEvaluationsStatement = database.prepare(`
-    SELECT id, coordinate_id, project_path, commit_sha, evaluator_model, score, evaluation, created_at
-    FROM ${coordinateEvaluationsTableName}
-    WHERE coordinate_id = ?
+  const listDimensionEvaluationsStatement = database.prepare(`
+    SELECT id, dimension_id, project_path, commit_sha, evaluator_model, score, evaluation, created_at
+    FROM ${dimensionEvaluationsTableName}
+    WHERE dimension_id = ?
     ORDER BY created_at ASC, rowid ASC
   `);
 
   return {
-    createCoordinate(input: CreateCoordinateRequest): Promise<Coordinate> {
+    createDimension(input: CreateDimensionRequest): Promise<Dimension> {
       const timestamp = new Date().toISOString();
-      const coordinate = coordinateSchema.parse({
+      const dimension = dimensionSchema.parse({
         id: randomUUID(),
         project_path: input.project_path,
         name: input.name,
@@ -268,36 +268,36 @@ export const createCoordinateRepository = (
         updated_at: timestamp,
       });
 
-      insertCoordinateStatement.run(
-        coordinate.id,
-        coordinate.project_path,
-        coordinate.name,
-        coordinate.goal,
-        coordinate.evaluation_method,
-        coordinate.created_at,
-        coordinate.updated_at,
+      insertDimensionStatement.run(
+        dimension.id,
+        dimension.project_path,
+        dimension.name,
+        dimension.goal,
+        dimension.evaluation_method,
+        dimension.created_at,
+        dimension.updated_at,
       );
 
-      return Promise.resolve(coordinate);
+      return Promise.resolve(dimension);
     },
-    getCoordinate(coordinateId: string): Promise<null | Coordinate> {
-      const row = getCoordinateStatement.get(coordinateId) as
-        | CoordinateRow
+    getDimension(dimensionId: string): Promise<null | Dimension> {
+      const row = getDimensionStatement.get(dimensionId) as
+        | DimensionRow
         | undefined;
 
-      return Promise.resolve(row ? mapCoordinateRow(row) : null);
+      return Promise.resolve(row ? mapDimensionRow(row) : null);
     },
-    listCoordinates(projectPath: string): Promise<Coordinate[]> {
-      const rows = listCoordinatesStatement.all(projectPath) as CoordinateRow[];
+    listDimensions(projectPath: string): Promise<Dimension[]> {
+      const rows = listDimensionsStatement.all(projectPath) as DimensionRow[];
 
-      return Promise.resolve(rows.map(mapCoordinateRow));
+      return Promise.resolve(rows.map(mapDimensionRow));
     },
-    patchCoordinate(
-      coordinateId: string,
-      input: PatchCoordinateRequest,
-    ): Promise<null | Coordinate> {
-      const existing = getCoordinateStatement.get(coordinateId) as
-        | CoordinateRow
+    patchDimension(
+      dimensionId: string,
+      input: PatchDimensionRequest,
+    ): Promise<null | Dimension> {
+      const existing = getDimensionStatement.get(dimensionId) as
+        | DimensionRow
         | undefined;
 
       if (!existing) {
@@ -306,39 +306,39 @@ export const createCoordinateRepository = (
 
       const timestamp = nextUpdateTimestamp(existing.updated_at);
 
-      patchCoordinateStatement.run(
+      patchDimensionStatement.run(
         input.name ?? existing.name,
         input.goal ?? existing.goal,
         input.evaluation_method ?? existing.evaluation_method,
         timestamp,
-        coordinateId,
+        dimensionId,
       );
 
-      const updated = getCoordinateStatement.get(coordinateId) as CoordinateRow;
+      const updated = getDimensionStatement.get(dimensionId) as DimensionRow;
 
-      return Promise.resolve(mapCoordinateRow(updated));
+      return Promise.resolve(mapDimensionRow(updated));
     },
-    deleteCoordinate(coordinateId: string): Promise<boolean> {
-      const result = deleteCoordinateStatement.run(coordinateId);
+    deleteDimension(dimensionId: string): Promise<boolean> {
+      const result = deleteDimensionStatement.run(dimensionId);
 
       return Promise.resolve(result.changes > 0);
     },
-    createCoordinateEvaluation(
-      coordinateId: string,
-      input: CreateCoordinateEvaluationRequest,
-    ): Promise<null | CoordinateEvaluation> {
-      const coordinate = getCoordinateStatement.get(coordinateId) as
-        | CoordinateRow
+    createDimensionEvaluation(
+      dimensionId: string,
+      input: CreateDimensionEvaluationRequest,
+    ): Promise<null | DimensionEvaluation> {
+      const dimension = getDimensionStatement.get(dimensionId) as
+        | DimensionRow
         | undefined;
 
-      if (!coordinate || coordinate.project_path !== input.project_path) {
+      if (!dimension || dimension.project_path !== input.project_path) {
         return Promise.resolve(null);
       }
 
       const timestamp = new Date().toISOString();
-      const coordinateEvaluation = coordinateEvaluationSchema.parse({
+      const dimensionEvaluation = dimensionEvaluationSchema.parse({
         id: randomUUID(),
-        coordinate_id: coordinateId,
+        dimension_id: dimensionId,
         project_path: input.project_path,
         commit_sha: input.commit_sha,
         evaluator_model: input.evaluator_model,
@@ -347,27 +347,27 @@ export const createCoordinateRepository = (
         created_at: timestamp,
       });
 
-      insertCoordinateEvaluationStatement.run(
-        coordinateEvaluation.id,
-        coordinateEvaluation.coordinate_id,
-        coordinateEvaluation.project_path,
-        coordinateEvaluation.commit_sha,
-        coordinateEvaluation.evaluator_model,
-        coordinateEvaluation.score,
-        coordinateEvaluation.evaluation,
-        coordinateEvaluation.created_at,
+      insertDimensionEvaluationStatement.run(
+        dimensionEvaluation.id,
+        dimensionEvaluation.dimension_id,
+        dimensionEvaluation.project_path,
+        dimensionEvaluation.commit_sha,
+        dimensionEvaluation.evaluator_model,
+        dimensionEvaluation.score,
+        dimensionEvaluation.evaluation,
+        dimensionEvaluation.created_at,
       );
 
-      return Promise.resolve(coordinateEvaluation);
+      return Promise.resolve(dimensionEvaluation);
     },
-    listCoordinateEvaluations(
-      coordinateId: string,
-    ): Promise<CoordinateEvaluation[]> {
-      const rows = listCoordinateEvaluationsStatement.all(
-        coordinateId,
-      ) as CoordinateEvaluationRow[];
+    listDimensionEvaluations(
+      dimensionId: string,
+    ): Promise<DimensionEvaluation[]> {
+      const rows = listDimensionEvaluationsStatement.all(
+        dimensionId,
+      ) as DimensionEvaluationRow[];
 
-      return Promise.resolve(rows.map(mapCoordinateEvaluationRow));
+      return Promise.resolve(rows.map(mapDimensionEvaluationRow));
     },
   };
 };

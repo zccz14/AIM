@@ -793,33 +793,33 @@ export const openApiDocument = {
         },
       },
     },
-    "/coordinates": {
+    "/dimensions": {
       post: {
-        operationId: "createCoordinate",
-        summary: "Create a project evaluation coordinate",
+        operationId: "createDimension",
+        summary: "Create a project evaluation dimension",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
-                $ref: "#/components/schemas/CreateCoordinateRequest",
+                $ref: "#/components/schemas/CreateDimensionRequest",
               },
             },
           },
         },
         responses: {
           "201": {
-            description: "Created coordinate",
+            description: "Created dimension",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/Coordinate",
+                  $ref: "#/components/schemas/Dimension",
                 },
               },
             },
           },
           "400": {
-            description: "Invalid coordinate payload",
+            description: "Invalid dimension payload",
             content: {
               "application/json": {
                 schema: {
@@ -831,8 +831,8 @@ export const openApiDocument = {
         },
       },
       get: {
-        operationId: "listCoordinates",
-        summary: "List coordinates for a project",
+        operationId: "listDimensions",
+        summary: "List dimensions for a project",
         parameters: [
           {
             $ref: "#/components/parameters/ProjectPathQueryParameter",
@@ -840,17 +840,17 @@ export const openApiDocument = {
         ],
         responses: {
           "200": {
-            description: "Coordinate collection",
+            description: "Dimension collection",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/CoordinateListResponse",
+                  $ref: "#/components/schemas/DimensionListResponse",
                 },
               },
             },
           },
           "400": {
-            description: "Invalid coordinate filter",
+            description: "Invalid dimension filter",
             content: {
               "application/json": {
                 schema: {
@@ -862,28 +862,28 @@ export const openApiDocument = {
         },
       },
     },
-    "/coordinates/{coordinateId}": {
+    "/dimensions/{dimensionId}": {
       get: {
-        operationId: "getCoordinateById",
-        summary: "Read a coordinate",
+        operationId: "getDimensionById",
+        summary: "Read a dimension",
         parameters: [
           {
-            $ref: "#/components/parameters/CoordinateIdPathParameter",
+            $ref: "#/components/parameters/DimensionIdPathParameter",
           },
         ],
         responses: {
           "200": {
-            description: "Coordinate detail",
+            description: "Dimension detail",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/Coordinate",
+                  $ref: "#/components/schemas/Dimension",
                 },
               },
             },
           },
           "404": {
-            description: "Coordinate not found",
+            description: "Dimension not found",
             content: {
               "application/json": {
                 schema: {
@@ -895,11 +895,11 @@ export const openApiDocument = {
         },
       },
       patch: {
-        operationId: "patchCoordinateById",
-        summary: "Update a coordinate",
+        operationId: "patchDimensionById",
+        summary: "Update a dimension",
         parameters: [
           {
-            $ref: "#/components/parameters/CoordinateIdPathParameter",
+            $ref: "#/components/parameters/DimensionIdPathParameter",
           },
         ],
         requestBody: {
@@ -907,24 +907,24 @@ export const openApiDocument = {
           content: {
             "application/json": {
               schema: {
-                $ref: "#/components/schemas/PatchCoordinateRequest",
+                $ref: "#/components/schemas/PatchDimensionRequest",
               },
             },
           },
         },
         responses: {
           "200": {
-            description: "Updated coordinate",
+            description: "Updated dimension",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/Coordinate",
+                  $ref: "#/components/schemas/Dimension",
                 },
               },
             },
           },
           "400": {
-            description: "Invalid coordinate patch",
+            description: "Invalid dimension patch",
             content: {
               "application/json": {
                 schema: {
@@ -934,7 +934,7 @@ export const openApiDocument = {
             },
           },
           "404": {
-            description: "Coordinate not found",
+            description: "Dimension not found",
             content: {
               "application/json": {
                 schema: {
@@ -946,19 +946,19 @@ export const openApiDocument = {
         },
       },
       delete: {
-        operationId: "deleteCoordinateById",
-        summary: "Delete a coordinate and its evaluations",
+        operationId: "deleteDimensionById",
+        summary: "Delete a dimension and its evaluations",
         parameters: [
           {
-            $ref: "#/components/parameters/CoordinateIdPathParameter",
+            $ref: "#/components/parameters/DimensionIdPathParameter",
           },
         ],
         responses: {
           "204": {
-            description: "Coordinate deleted",
+            description: "Dimension deleted",
           },
           "404": {
-            description: "Coordinate not found",
+            description: "Dimension not found",
             content: {
               "application/json": {
                 schema: {
@@ -970,28 +970,28 @@ export const openApiDocument = {
         },
       },
     },
-    "/coordinates/{coordinateId}/evaluations": {
+    "/dimensions/{dimensionId}/evaluations": {
       get: {
-        operationId: "listCoordinateEvaluations",
-        summary: "List append-only evaluations for a coordinate",
+        operationId: "listDimensionEvaluations",
+        summary: "List append-only evaluations for a dimension",
         parameters: [
           {
-            $ref: "#/components/parameters/CoordinateIdPathParameter",
+            $ref: "#/components/parameters/DimensionIdPathParameter",
           },
         ],
         responses: {
           "200": {
-            description: "Coordinate evaluation collection",
+            description: "Dimension evaluation collection",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/CoordinateEvaluationListResponse",
+                  $ref: "#/components/schemas/DimensionEvaluationListResponse",
                 },
               },
             },
           },
           "404": {
-            description: "Coordinate not found",
+            description: "Dimension not found",
             content: {
               "application/json": {
                 schema: {
@@ -1003,11 +1003,11 @@ export const openApiDocument = {
         },
       },
       post: {
-        operationId: "createCoordinateEvaluation",
-        summary: "Append a coordinate evaluation",
+        operationId: "createDimensionEvaluation",
+        summary: "Append a dimension evaluation",
         parameters: [
           {
-            $ref: "#/components/parameters/CoordinateIdPathParameter",
+            $ref: "#/components/parameters/DimensionIdPathParameter",
           },
         ],
         requestBody: {
@@ -1015,24 +1015,24 @@ export const openApiDocument = {
           content: {
             "application/json": {
               schema: {
-                $ref: "#/components/schemas/CreateCoordinateEvaluationRequest",
+                $ref: "#/components/schemas/CreateDimensionEvaluationRequest",
               },
             },
           },
         },
         responses: {
           "201": {
-            description: "Created coordinate evaluation",
+            description: "Created dimension evaluation",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/CoordinateEvaluation",
+                  $ref: "#/components/schemas/DimensionEvaluation",
                 },
               },
             },
           },
           "400": {
-            description: "Invalid coordinate evaluation payload",
+            description: "Invalid dimension evaluation payload",
             content: {
               "application/json": {
                 schema: {
@@ -1042,7 +1042,7 @@ export const openApiDocument = {
             },
           },
           "404": {
-            description: "Coordinate not found",
+            description: "Dimension not found",
             content: {
               "application/json": {
                 schema: {
@@ -1125,8 +1125,8 @@ export const openApiDocument = {
           minLength: 1,
         },
       },
-      CoordinateIdPathParameter: {
-        name: "coordinateId",
+      DimensionIdPathParameter: {
+        name: "dimensionId",
         in: "path",
         required: true,
         schema: {
@@ -1705,7 +1705,7 @@ export const openApiDocument = {
           },
         },
       },
-      Coordinate: {
+      Dimension: {
         type: "object",
         additionalProperties: false,
         required: [
@@ -1751,7 +1751,7 @@ export const openApiDocument = {
           },
         },
       },
-      CreateCoordinateRequest: {
+      CreateDimensionRequest: {
         type: "object",
         additionalProperties: false,
         required: ["project_path", "name", "goal", "evaluation_method"],
@@ -1774,7 +1774,7 @@ export const openApiDocument = {
           },
         },
       },
-      PatchCoordinateRequest: {
+      PatchDimensionRequest: {
         type: "object",
         additionalProperties: false,
         properties: {
@@ -1792,7 +1792,7 @@ export const openApiDocument = {
           },
         },
       },
-      CoordinateListResponse: {
+      DimensionListResponse: {
         type: "object",
         additionalProperties: false,
         required: ["items"],
@@ -1800,19 +1800,19 @@ export const openApiDocument = {
           items: {
             type: "array",
             items: {
-              $ref: "#/components/schemas/Coordinate",
+              $ref: "#/components/schemas/Dimension",
             },
           },
         },
       },
-      CoordinateEvaluation: {
+      DimensionEvaluation: {
         type: "object",
         additionalProperties: false,
         description:
-          "Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.",
+          "Immutable append-only evaluation result for one dimension at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.",
         required: [
           "id",
-          "coordinate_id",
+          "dimension_id",
           "project_path",
           "commit_sha",
           "evaluator_model",
@@ -1826,7 +1826,7 @@ export const openApiDocument = {
             minLength: 1,
             readOnly: true,
           },
-          coordinate_id: {
+          dimension_id: {
             type: "string",
             minLength: 1,
             readOnly: true,
@@ -1861,7 +1861,7 @@ export const openApiDocument = {
           },
         },
       },
-      CreateCoordinateEvaluationRequest: {
+      CreateDimensionEvaluationRequest: {
         type: "object",
         additionalProperties: false,
         required: [
@@ -1897,7 +1897,7 @@ export const openApiDocument = {
           },
         },
       },
-      CoordinateEvaluationListResponse: {
+      DimensionEvaluationListResponse: {
         type: "object",
         additionalProperties: false,
         required: ["items"],
@@ -1905,7 +1905,7 @@ export const openApiDocument = {
           items: {
             type: "array",
             items: {
-              $ref: "#/components/schemas/CoordinateEvaluation",
+              $ref: "#/components/schemas/DimensionEvaluation",
             },
           },
         },
@@ -1964,8 +1964,8 @@ export const openApiDocument = {
               "TASK_WRITE_BULK_NOT_FOUND",
               "TASK_WRITE_BULK_CONFLICT",
               "TASK_WRITE_BULK_VALIDATION_ERROR",
-              "COORDINATE_NOT_FOUND",
-              "COORDINATE_VALIDATION_ERROR",
+              "DIMENSION_NOT_FOUND",
+              "DIMENSION_VALIDATION_ERROR",
               "OPENCODE_MODELS_UNAVAILABLE",
             ],
           },

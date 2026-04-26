@@ -7,7 +7,7 @@ import { createApp } from "../src/app.js";
 const routesTempRoot = join(
   process.cwd(),
   ".tmp",
-  "modules-api-coordinates-routes",
+  "modules-api-dimensions-routes",
 );
 
 let previousProjectRoot: string | undefined;
@@ -25,11 +25,8 @@ const useProjectRoot = async (name: string) => {
 
 const jsonHeaders = { "content-type": "application/json" };
 
-const createCoordinate = (
-  app: ReturnType<typeof createApp>,
-  name = "API Fit",
-) =>
-  app.request("/coordinates", {
+const createDimension = (app: ReturnType<typeof createApp>, name = "API Fit") =>
+  app.request("/dimensions", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({
@@ -53,44 +50,42 @@ afterEach(async () => {
   await rm(routesTempRoot, { force: true, recursive: true });
 });
 
-describe("coordinate routes", () => {
-  it("creates, lists, reads, patches, and physically deletes coordinates", async () => {
+describe("dimension routes", () => {
+  it("creates, lists, reads, patches, and physically deletes dimensions", async () => {
     await useProjectRoot("crud");
 
     const app = createApp();
-    const createResponse = await createCoordinate(app);
+    const createResponse = await createDimension(app);
 
     expect(createResponse.status).toBe(201);
 
-    const createdCoordinate = await createResponse.json();
+    const createdDimension = await createResponse.json();
 
-    expect(createdCoordinate).toMatchObject({
+    expect(createdDimension).toMatchObject({
       project_path: "/repo/main",
       name: "API Fit",
       goal: "Keep the public API aligned with manager workflow needs.",
       evaluation_method:
         "Review OpenAPI and route behavior against Manager usage.",
     });
-    expect(createdCoordinate.id).toEqual(expect.any(String));
+    expect(createdDimension.id).toEqual(expect.any(String));
 
     const listResponse = await app.request(
-      `/coordinates?project_path=${encodeURIComponent("/repo/main")}`,
+      `/dimensions?project_path=${encodeURIComponent("/repo/main")}`,
     );
 
     expect(listResponse.status).toBe(200);
     await expect(listResponse.json()).resolves.toEqual({
-      items: [createdCoordinate],
+      items: [createdDimension],
     });
 
-    const getResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}`,
-    );
+    const getResponse = await app.request(`/dimensions/${createdDimension.id}`);
 
     expect(getResponse.status).toBe(200);
-    await expect(getResponse.json()).resolves.toEqual(createdCoordinate);
+    await expect(getResponse.json()).resolves.toEqual(createdDimension);
 
     const patchResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}`,
+      `/dimensions/${createdDimension.id}`,
       {
         method: "PATCH",
         headers: jsonHeaders,
@@ -102,16 +97,16 @@ describe("coordinate routes", () => {
 
     expect(patchResponse.status).toBe(200);
 
-    const patchedCoordinate = await patchResponse.json();
+    const patchedDimension = await patchResponse.json();
 
-    expect(patchedCoordinate).toMatchObject({
-      id: createdCoordinate.id,
+    expect(patchedDimension).toMatchObject({
+      id: createdDimension.id,
       goal: "Keep API, storage, and contract behavior aligned.",
     });
-    expect(patchedCoordinate.updated_at).not.toBe(createdCoordinate.updated_at);
+    expect(patchedDimension.updated_at).not.toBe(createdDimension.updated_at);
 
     const deleteResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}`,
+      `/dimensions/${createdDimension.id}`,
       {
         method: "DELETE",
       },
@@ -119,7 +114,7 @@ describe("coordinate routes", () => {
 
     expect(deleteResponse.status).toBe(204);
     expect(
-      await app.request(`/coordinates/${createdCoordinate.id}`),
+      await app.request(`/dimensions/${createdDimension.id}`),
     ).toHaveProperty("status", 404);
   });
 
@@ -127,10 +122,10 @@ describe("coordinate routes", () => {
     await useProjectRoot("evaluations");
 
     const app = createApp();
-    const createdCoordinate = await (await createCoordinate(app)).json();
+    const createdDimension = await (await createDimension(app)).json();
 
     const firstEvaluationResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}/evaluations`,
+      `/dimensions/${createdDimension.id}/evaluations`,
       {
         method: "POST",
         headers: jsonHeaders,
@@ -149,7 +144,7 @@ describe("coordinate routes", () => {
     const firstEvaluation = await firstEvaluationResponse.json();
 
     expect(firstEvaluation).toMatchObject({
-      coordinate_id: createdCoordinate.id,
+      dimension_id: createdDimension.id,
       project_path: "/repo/main",
       commit_sha: "abc1234",
       evaluator_model: "anthropic/claude-sonnet-4-5",
@@ -159,7 +154,7 @@ describe("coordinate routes", () => {
     expect(firstEvaluation.id).toEqual(expect.any(String));
 
     const invalidScoreResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}/evaluations`,
+      `/dimensions/${createdDimension.id}/evaluations`,
       {
         method: "POST",
         headers: jsonHeaders,
@@ -176,7 +171,7 @@ describe("coordinate routes", () => {
     expect(invalidScoreResponse.status).toBe(400);
 
     const listResponse = await app.request(
-      `/coordinates/${createdCoordinate.id}/evaluations`,
+      `/dimensions/${createdDimension.id}/evaluations`,
     );
 
     expect(listResponse.status).toBe(200);
@@ -185,13 +180,13 @@ describe("coordinate routes", () => {
     });
   });
 
-  it("cascades evaluation deletion when a coordinate is deleted", async () => {
+  it("cascades evaluation deletion when a dimension is deleted", async () => {
     await useProjectRoot("cascade");
 
     const app = createApp();
-    const createdCoordinate = await (await createCoordinate(app)).json();
+    const createdDimension = await (await createDimension(app)).json();
 
-    await app.request(`/coordinates/${createdCoordinate.id}/evaluations`, {
+    await app.request(`/dimensions/${createdDimension.id}/evaluations`, {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify({
@@ -204,13 +199,13 @@ describe("coordinate routes", () => {
     });
 
     expect(
-      await app.request(`/coordinates/${createdCoordinate.id}`, {
+      await app.request(`/dimensions/${createdDimension.id}`, {
         method: "DELETE",
       }),
     ).toHaveProperty("status", 204);
 
     expect(
-      await app.request(`/coordinates/${createdCoordinate.id}/evaluations`),
+      await app.request(`/dimensions/${createdDimension.id}/evaluations`),
     ).toHaveProperty("status", 404);
   });
 });

@@ -8,12 +8,12 @@ import type {
 
 import { client } from "./client.gen.js";
 import type {
-  CreateCoordinateData,
-  CreateCoordinateErrors,
-  CreateCoordinateEvaluationData,
-  CreateCoordinateEvaluationErrors,
-  CreateCoordinateEvaluationResponses,
-  CreateCoordinateResponses,
+  CreateDimensionData,
+  CreateDimensionErrors,
+  CreateDimensionEvaluationData,
+  CreateDimensionEvaluationErrors,
+  CreateDimensionEvaluationResponses,
+  CreateDimensionResponses,
   CreateManagerReportData,
   CreateManagerReportErrors,
   CreateManagerReportResponses,
@@ -23,15 +23,15 @@ import type {
   CreateTaskWriteBulkData,
   CreateTaskWriteBulkErrors,
   CreateTaskWriteBulkResponses,
-  DeleteCoordinateByIdData,
-  DeleteCoordinateByIdErrors,
-  DeleteCoordinateByIdResponses,
+  DeleteDimensionByIdData,
+  DeleteDimensionByIdErrors,
+  DeleteDimensionByIdResponses,
   DeleteTaskByIdData,
   DeleteTaskByIdErrors,
   DeleteTaskByIdResponses,
-  GetCoordinateByIdData,
-  GetCoordinateByIdErrors,
-  GetCoordinateByIdResponses,
+  GetDimensionByIdData,
+  GetDimensionByIdErrors,
+  GetDimensionByIdResponses,
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
@@ -47,12 +47,12 @@ import type {
   GetTaskWriteBulkByIdData,
   GetTaskWriteBulkByIdErrors,
   GetTaskWriteBulkByIdResponses,
-  ListCoordinateEvaluationsData,
-  ListCoordinateEvaluationsErrors,
-  ListCoordinateEvaluationsResponses,
-  ListCoordinatesData,
-  ListCoordinatesErrors,
-  ListCoordinatesResponses,
+  ListDimensionEvaluationsData,
+  ListDimensionEvaluationsErrors,
+  ListDimensionEvaluationsResponses,
+  ListDimensionsData,
+  ListDimensionsErrors,
+  ListDimensionsResponses,
   ListManagerReportsData,
   ListManagerReportsErrors,
   ListManagerReportsResponses,
@@ -65,9 +65,9 @@ import type {
   ListTaskWriteBulksData,
   ListTaskWriteBulksErrors,
   ListTaskWriteBulksResponses,
-  PatchCoordinateByIdData,
-  PatchCoordinateByIdErrors,
-  PatchCoordinateByIdResponses,
+  PatchDimensionByIdData,
+  PatchDimensionByIdErrors,
+  PatchDimensionByIdResponses,
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
@@ -398,29 +398,29 @@ export const getTaskWriteBulkById = <ThrowOnError extends boolean = false>(
   >({ url: "/task_write_bulks/{bulkId}", ...options });
 
 /**
- * List coordinates for a project
+ * List dimensions for a project
  */
-export const listCoordinates = <ThrowOnError extends boolean = false>(
-  options: Options<ListCoordinatesData, ThrowOnError>,
+export const listDimensions = <ThrowOnError extends boolean = false>(
+  options: Options<ListDimensionsData, ThrowOnError>,
 ) =>
   (options.client ?? client).get<
-    ListCoordinatesResponses,
-    ListCoordinatesErrors,
+    ListDimensionsResponses,
+    ListDimensionsErrors,
     ThrowOnError
-  >({ url: "/coordinates", ...options });
+  >({ url: "/dimensions", ...options });
 
 /**
- * Create a project evaluation coordinate
+ * Create a project evaluation dimension
  */
-export const createCoordinate = <ThrowOnError extends boolean = false>(
-  options: Options<CreateCoordinateData, ThrowOnError>,
+export const createDimension = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDimensionData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    CreateCoordinateResponses,
-    CreateCoordinateErrors,
+    CreateDimensionResponses,
+    CreateDimensionErrors,
     ThrowOnError
   >({
-    url: "/coordinates",
+    url: "/dimensions",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -429,41 +429,41 @@ export const createCoordinate = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Delete a coordinate and its evaluations
+ * Delete a dimension and its evaluations
  */
-export const deleteCoordinateById = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteCoordinateByIdData, ThrowOnError>,
+export const deleteDimensionById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDimensionByIdData, ThrowOnError>,
 ) =>
   (options.client ?? client).delete<
-    DeleteCoordinateByIdResponses,
-    DeleteCoordinateByIdErrors,
+    DeleteDimensionByIdResponses,
+    DeleteDimensionByIdErrors,
     ThrowOnError
-  >({ url: "/coordinates/{coordinateId}", ...options });
+  >({ url: "/dimensions/{dimensionId}", ...options });
 
 /**
- * Read a coordinate
+ * Read a dimension
  */
-export const getCoordinateById = <ThrowOnError extends boolean = false>(
-  options: Options<GetCoordinateByIdData, ThrowOnError>,
+export const getDimensionById = <ThrowOnError extends boolean = false>(
+  options: Options<GetDimensionByIdData, ThrowOnError>,
 ) =>
   (options.client ?? client).get<
-    GetCoordinateByIdResponses,
-    GetCoordinateByIdErrors,
+    GetDimensionByIdResponses,
+    GetDimensionByIdErrors,
     ThrowOnError
-  >({ url: "/coordinates/{coordinateId}", ...options });
+  >({ url: "/dimensions/{dimensionId}", ...options });
 
 /**
- * Update a coordinate
+ * Update a dimension
  */
-export const patchCoordinateById = <ThrowOnError extends boolean = false>(
-  options: Options<PatchCoordinateByIdData, ThrowOnError>,
+export const patchDimensionById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchDimensionByIdData, ThrowOnError>,
 ) =>
   (options.client ?? client).patch<
-    PatchCoordinateByIdResponses,
-    PatchCoordinateByIdErrors,
+    PatchDimensionByIdResponses,
+    PatchDimensionByIdErrors,
     ThrowOnError
   >({
-    url: "/coordinates/{coordinateId}",
+    url: "/dimensions/{dimensionId}",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -472,31 +472,29 @@ export const patchCoordinateById = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * List append-only evaluations for a coordinate
+ * List append-only evaluations for a dimension
  */
-export const listCoordinateEvaluations = <ThrowOnError extends boolean = false>(
-  options: Options<ListCoordinateEvaluationsData, ThrowOnError>,
+export const listDimensionEvaluations = <ThrowOnError extends boolean = false>(
+  options: Options<ListDimensionEvaluationsData, ThrowOnError>,
 ) =>
   (options.client ?? client).get<
-    ListCoordinateEvaluationsResponses,
-    ListCoordinateEvaluationsErrors,
+    ListDimensionEvaluationsResponses,
+    ListDimensionEvaluationsErrors,
     ThrowOnError
-  >({ url: "/coordinates/{coordinateId}/evaluations", ...options });
+  >({ url: "/dimensions/{dimensionId}/evaluations", ...options });
 
 /**
- * Append a coordinate evaluation
+ * Append a dimension evaluation
  */
-export const createCoordinateEvaluation = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<CreateCoordinateEvaluationData, ThrowOnError>,
+export const createDimensionEvaluation = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDimensionEvaluationData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    CreateCoordinateEvaluationResponses,
-    CreateCoordinateEvaluationErrors,
+    CreateDimensionEvaluationResponses,
+    CreateDimensionEvaluationErrors,
     ThrowOnError
   >({
-    url: "/coordinates/{coordinateId}/evaluations",
+    url: "/dimensions/{dimensionId}/evaluations",
     ...options,
     headers: {
       "Content-Type": "application/json",
