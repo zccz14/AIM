@@ -352,6 +352,33 @@ test("toggles the optimizer from the global dashboard controls", async ({
   );
 });
 
+test("refreshes the optimizer switch from optimizer status running", async ({
+  page,
+}) => {
+  let optimizerStatusRunning = false;
+
+  await page.route("**/optimizer/status", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(buildOptimizerStatus(optimizerStatusRunning)),
+    });
+  });
+
+  await page.goto("/");
+
+  const optimizerSwitch = page.getByRole("switch", {
+    name: "AIM Optimizer",
+  });
+
+  await expect(optimizerSwitch).toBeVisible();
+  await expect(optimizerSwitch).not.toBeChecked();
+
+  optimizerStatusRunning = true;
+  await page.getByRole("button", { name: "Refresh" }).click();
+
+  await expect(optimizerSwitch).toBeChecked();
+});
+
 test("prioritizes the AIM Dimension report before task execution evidence", async ({
   page,
 }) => {
