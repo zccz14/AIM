@@ -1,14 +1,24 @@
 import type { TaskWriteBulk, TaskWriteBulkEntry } from "@aim-ai/contract";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
+import { Card } from "../../../components/ui/card.js";
 import {
-  LyraKicker,
-  LyraMuted,
-  LyraPanel,
-  LyraStack,
-  LyraSurface,
-} from "../../../components/ui/lyra-surface.js";
+  Chip,
+  DetailCard,
+  detailHeader,
+  detailPanelHeader,
+  detailSummary,
+  detailSurface,
+  detailTitle,
+  Kicker,
+  MarkdownContent,
+  Muted,
+  metadataLabel,
+  metadataList,
+  metadataRow,
+  mutedText,
+  pageStack,
+  responsiveDetailGrid,
+} from "./dashboard-styles.js";
 
 const metadataRows = (bulk: TaskWriteBulk) => [
   { label: "Bulk ID", value: bulk.bulk_id },
@@ -49,112 +59,111 @@ export const TaskWriteBulkDetailsPage = ({
 }) => {
   if (!bulk) {
     return (
-      <LyraSurface className="aim-empty-state aim-task-details">
-        <LyraKicker>Task Write Bulk</LyraKicker>
+      <Card className={detailSurface}>
+        <Kicker>Task Write Bulk</Kicker>
         <h2>Task Write Bulk not found</h2>
-        <LyraMuted>
+        <Muted>
           The requested write intent is not available from the current dashboard
           data.
-        </LyraMuted>
-      </LyraSurface>
+        </Muted>
+      </Card>
     );
   }
 
   return (
-    <LyraSurface className="aim-task-details aim-stack">
-      <header className="aim-task-details-header">
-        <LyraStack>
-          <LyraKicker>Pre-approval write intent</LyraKicker>
-          <h2 className="aim-task-title">{bulk.bulk_id}</h2>
-        </LyraStack>
-        <LyraMuted className="aim-task-summary">
+    <Card className={detailSurface}>
+      <header className={detailHeader}>
+        <div className={pageStack}>
+          <Kicker>Pre-approval write intent</Kicker>
+          <h2 className={detailTitle}>{bulk.bulk_id}</h2>
+        </div>
+        <Muted className={detailSummary}>
           Read-only Coordinator proposal. This is not an executed task result
           and provides no approve, create, or delete action.
-        </LyraMuted>
+        </Muted>
       </header>
 
-      <div className="aim-task-grid">
-        <LyraPanel>
-          <div className="aim-task-panel-header">
-            <LyraKicker>Content Markdown</LyraKicker>
+      <div className={responsiveDetailGrid}>
+        <DetailCard>
+          <div className={detailPanelHeader}>
+            <Kicker>Content Markdown</Kicker>
             <h3>{bulk.bulk_id}</h3>
           </div>
-          <div className="aim-task-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {bulk.content_markdown}
-            </ReactMarkdown>
-          </div>
-        </LyraPanel>
+          <MarkdownContent>{bulk.content_markdown}</MarkdownContent>
+        </DetailCard>
 
-        <LyraStack>
-          <LyraPanel>
-            <div className="aim-task-panel-header">
-              <LyraKicker>Intent Metadata</LyraKicker>
+        <div className={pageStack}>
+          <DetailCard>
+            <div className={detailPanelHeader}>
+              <Kicker>Intent Metadata</Kicker>
               <h3>Review Facts</h3>
             </div>
-            <dl className="aim-task-metadata">
+            <dl className={metadataList}>
               {metadataRows(bulk).map((row) => (
-                <div className="aim-task-meta-row" key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{`${row.label}: ${row.value}`}</dd>
+                <div className={metadataRow} key={row.label}>
+                  <dt className={metadataLabel}>{row.label}</dt>
+                  <dd className="m-0 break-words">{`${row.label}: ${row.value}`}</dd>
                 </div>
               ))}
             </dl>
-          </LyraPanel>
+          </DetailCard>
 
-          <LyraPanel>
-            <div className="aim-task-panel-header">
-              <LyraKicker>Source Metadata</LyraKicker>
+          <DetailCard>
+            <div className={detailPanelHeader}>
+              <Kicker>Source Metadata</Kicker>
               <h3>Coordinator Trace</h3>
             </div>
             {bulk.source_metadata.length === 0 ? (
-              <span className="aim-muted">No source metadata recorded</span>
+              <span className={mutedText}>No source metadata recorded</span>
             ) : (
-              <dl className="aim-task-metadata">
+              <dl className={metadataList}>
                 {bulk.source_metadata.map((entry) => (
-                  <div className="aim-task-meta-row" key={entry.key}>
-                    <dt>{entry.key}</dt>
-                    <dd>{`${entry.key}: ${entry.value}`}</dd>
+                  <div className={metadataRow} key={entry.key}>
+                    <dt className={metadataLabel}>{entry.key}</dt>
+                    <dd className="m-0 break-words">{`${entry.key}: ${entry.value}`}</dd>
                   </div>
                 ))}
               </dl>
             )}
-          </LyraPanel>
-        </LyraStack>
+          </DetailCard>
+        </div>
       </div>
 
-      <LyraPanel>
-        <div className="aim-task-panel-header">
-          <LyraKicker>Entries</LyraKicker>
+      <DetailCard>
+        <div className={detailPanelHeader}>
+          <Kicker>Entries</Kicker>
           <h3>Proposed write operations</h3>
         </div>
-        <div className="task-write-bulk-entry-list">
+        <div className="grid gap-3">
           {bulk.entries.map((entry) => (
-            <article className="task-write-bulk-entry" key={entry.id}>
-              <div className="task-write-bulk-entry__header">
+            <article
+              className="flex flex-col gap-3 border-t pt-4 first:border-t-0 first:pt-0"
+              key={entry.id}
+            >
+              <div className="flex items-start justify-between gap-4 max-md:flex-col">
                 <div>
-                  <p className="eyebrow">{entry.action}</p>
+                  <Kicker>{entry.action}</Kicker>
                   <h4>{entry.id}</h4>
                 </div>
-                <span className="aim-task-chip">{entry.source}</span>
+                <Chip>{entry.source}</Chip>
               </div>
-              <p className="aim-muted">{entry.reason}</p>
-              <dl className="aim-task-metadata">
-                <div className="aim-task-meta-row">
-                  <dt>Depends On</dt>
-                  <dd>{`Depends On: ${entry.depends_on.join(", ") || "None"}`}</dd>
+              <Muted>{entry.reason}</Muted>
+              <dl className={metadataList}>
+                <div className={metadataRow}>
+                  <dt className={metadataLabel}>Depends On</dt>
+                  <dd className="m-0 break-words">{`Depends On: ${entry.depends_on.join(", ") || "None"}`}</dd>
                 </div>
                 {describeEntryPayload(entry).map((row) => (
-                  <div className="aim-task-meta-row" key={row.label}>
-                    <dt>{row.label}</dt>
-                    <dd>{`${row.label}: ${row.value}`}</dd>
+                  <div className={metadataRow} key={row.label}>
+                    <dt className={metadataLabel}>{row.label}</dt>
+                    <dd className="m-0 break-words">{`${row.label}: ${row.value}`}</dd>
                   </div>
                 ))}
               </dl>
             </article>
           ))}
         </div>
-      </LyraPanel>
-    </LyraSurface>
+      </DetailCard>
+    </Card>
   );
 };

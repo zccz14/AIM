@@ -1,14 +1,27 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-
-import {
-  LyraKicker,
-  LyraMuted,
-  LyraPanel,
-  LyraStack,
-  LyraSurface,
-} from "../../../components/ui/lyra-surface.js";
+import { Card } from "../../../components/ui/card.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
+import {
+  Checkmark,
+  Chip,
+  chipList,
+  DetailCard,
+  detailHeader,
+  detailPanelHeader,
+  detailSummary,
+  detailSurface,
+  detailTitle,
+  detailTitleRow,
+  Kicker,
+  MarkdownContent,
+  Muted,
+  metadataLabel,
+  metadataList,
+  metadataRow,
+  mutedText,
+  pageStack,
+  responsiveDetailGrid,
+  sectionStack,
+} from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
 const metadataRows = (task: DashboardTask) => [
@@ -25,100 +38,92 @@ const metadataRows = (task: DashboardTask) => [
 export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
   if (!task) {
     return (
-      <LyraSurface className="aim-empty-state aim-task-details">
-        <LyraKicker>Task Details</LyraKicker>
+      <Card className={detailSurface}>
+        <Kicker>Task Details</Kicker>
         <h2>Task not found</h2>
-        <LyraMuted>
+        <Muted>
           The requested task is not available from the current dashboard data.
-        </LyraMuted>
-      </LyraSurface>
+        </Muted>
+      </Card>
     );
   }
 
   return (
-    <LyraSurface className="aim-task-details aim-stack">
-      <header className="aim-task-details-header">
-        <div className="aim-task-title-row">
-          <LyraStack>
-            <LyraKicker>Task Overview</LyraKicker>
-            <h2 className="aim-task-title">{task.title}</h2>
-          </LyraStack>
+    <Card className={detailSurface}>
+      <header className={detailHeader}>
+        <div className={detailTitleRow}>
+          <div className={sectionStack}>
+            <Kicker>Task Overview</Kicker>
+            <h2 className={detailTitle}>{task.title}</h2>
+          </div>
           <TaskStatusBadge status={task.dashboardStatus} />
         </div>
-        <LyraMuted className="aim-task-summary">
+        <Muted className={detailSummary}>
           Review the task brief, delivery metadata, dependencies, and closure
           cues without dropping out of the Director cockpit.
-        </LyraMuted>
+        </Muted>
       </header>
 
-      <div className="aim-task-grid">
-        <LyraPanel>
-          <div className="aim-task-panel-header">
-            <LyraKicker>Task Spec</LyraKicker>
+      <div className={responsiveDetailGrid}>
+        <DetailCard>
+          <div className={detailPanelHeader}>
+            <Kicker>Task Spec</Kicker>
             <h3>{task.title}</h3>
           </div>
-          <div className="aim-task-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {task.taskSpec}
-            </ReactMarkdown>
-          </div>
-        </LyraPanel>
+          <MarkdownContent>{task.taskSpec}</MarkdownContent>
+        </DetailCard>
 
-        <LyraStack>
-          <LyraPanel>
-            <div className="aim-task-panel-header">
-              <LyraKicker>Execution Metadata</LyraKicker>
+        <div className={pageStack}>
+          <DetailCard>
+            <div className={detailPanelHeader}>
+              <Kicker>Execution Metadata</Kicker>
               <h3>Delivery Context</h3>
             </div>
-            <dl className="aim-task-metadata">
+            <dl className={metadataList}>
               {metadataRows(task).map((row) => (
-                <div className="aim-task-meta-row" key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{`${row.label}: ${row.value}`}</dd>
+                <div className={metadataRow} key={row.label}>
+                  <dt className={metadataLabel}>{row.label}</dt>
+                  <dd className="m-0">{`${row.label}: ${row.value}`}</dd>
                 </div>
               ))}
             </dl>
-          </LyraPanel>
+          </DetailCard>
 
-          <LyraPanel>
-            <div className="aim-task-panel-header">
-              <LyraKicker>Developer Closure Cues</LyraKicker>
+          <DetailCard>
+            <div className={detailPanelHeader}>
+              <Kicker>Developer Closure Cues</Kicker>
               <h3>Checklist Facts</h3>
             </div>
-            <div className="aim-checklist">
+            <div className="flex flex-col gap-3">
               {task.closureChecklist.map((cue) => (
-                <div className="aim-checklist-item" key={cue.key}>
-                  <span className="aim-checkmark" aria-hidden="true">
-                    {cue.isComplete ? "OK" : "!"}
-                  </span>
+                <div className="flex items-start gap-3" key={cue.key}>
+                  <Checkmark>{cue.isComplete ? "OK" : "!"}</Checkmark>
                   <div>
                     <strong>{`${cue.label}: ${cue.statusLabel}`}</strong>
-                    <LyraMuted>{cue.detail}</LyraMuted>
+                    <Muted>{cue.detail}</Muted>
                   </div>
                 </div>
               ))}
             </div>
-          </LyraPanel>
+          </DetailCard>
 
-          <LyraPanel>
-            <div className="aim-task-panel-header">
-              <LyraKicker>Task Relationships</LyraKicker>
+          <DetailCard>
+            <div className={detailPanelHeader}>
+              <Kicker>Task Relationships</Kicker>
               <h3>Dependencies and PR</h3>
             </div>
-            <div className="aim-task-chip-list">
+            <div className={chipList}>
               {task.dependencies.length > 0 ? (
                 task.dependencies.map((dependencyId) => (
-                  <span className="aim-task-chip" key={dependencyId}>
-                    {dependencyId}
-                  </span>
+                  <Chip key={dependencyId}>{dependencyId}</Chip>
                 ))
               ) : (
-                <span className="aim-muted">Dependencies: None</span>
+                <span className={mutedText}>Dependencies: None</span>
               )}
             </div>
             {task.pullRequestUrl ? (
               <a
-                className="aim-task-link"
+                className="text-primary underline underline-offset-4"
                 href={task.pullRequestUrl}
                 rel="noreferrer"
                 target="_blank"
@@ -126,11 +131,11 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                 Open Pull Request
               </a>
             ) : (
-              <span className="aim-muted">Pull Request: None</span>
+              <span className={mutedText}>Pull Request: None</span>
             )}
-          </LyraPanel>
-        </LyraStack>
+          </DetailCard>
+        </div>
       </div>
-    </LyraSurface>
+    </Card>
   );
 };

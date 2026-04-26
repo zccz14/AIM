@@ -23,6 +23,12 @@ import { Field, FieldLabel } from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
 import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
+import {
+  cardHeader,
+  eyebrow,
+  pageStack,
+  sectionTitle,
+} from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
 const filterTask = (task: DashboardTask, filterValue: string) => {
@@ -90,14 +96,14 @@ export const TaskTableSection = ({
   });
 
   return (
-    <Card className="surface-table section-stack">
-      <CardHeader className="surface-panel__header">
-        <p className="eyebrow">{t("taskPool")}</p>
-        <CardTitle className="section-title">
+    <Card>
+      <CardHeader className={cardHeader}>
+        <p className={eyebrow}>{t("taskPool")}</p>
+        <CardTitle className={sectionTitle}>
           {t("activeUnfinishedTasks")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="section-stack">
+      <CardContent className={pageStack}>
         <Field>
           <FieldLabel htmlFor="task-filter">{t("filterTasks")}</FieldLabel>
           <Input
@@ -107,13 +113,16 @@ export const TaskTableSection = ({
           />
         </Field>
 
-        <div className="table-scroll">
-          <table className="task-table">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
             <thead data-testid="dashboard-table-header">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id}>
+                    <th
+                      className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0"
+                      key={header.id}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -129,7 +138,7 @@ export const TaskTableSection = ({
             <tbody>
               {table.getRowModel().rows.map((row) => (
                 <tr
-                  className="table-row"
+                  className="cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   key={row.id}
                   onClick={() => onSelectTask(row.original.id)}
                   tabIndex={0}
@@ -141,7 +150,7 @@ export const TaskTableSection = ({
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
+                    <td className="border-t p-4" key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

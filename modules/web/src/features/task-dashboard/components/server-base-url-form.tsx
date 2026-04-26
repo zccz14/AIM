@@ -22,6 +22,7 @@ import {
   readServerBaseUrl,
   saveServerBaseUrl,
 } from "../../../lib/server-base-url.js";
+import { cardHeader, eyebrow, sectionTitle } from "./dashboard-styles.js";
 
 export const ServerBaseUrlForm = ({
   onSave,
@@ -32,11 +33,11 @@ export const ServerBaseUrlForm = ({
   const [savedValue, setSavedValue] = useState<string | null>(null);
 
   return (
-    <Card className="surface-panel section-stack">
-      <CardHeader className="surface-panel__header">
-        <p className="eyebrow">Connection</p>
-        <CardTitle className="section-title">Server Base URL</CardTitle>
-        <CardDescription className="section-copy">
+    <Card>
+      <CardHeader className={cardHeader}>
+        <p className={eyebrow}>Connection</p>
+        <CardTitle className={sectionTitle}>Server Base URL</CardTitle>
+        <CardDescription>
           Point AIM Navigator at the API instance you want to inspect.
         </CardDescription>
       </CardHeader>

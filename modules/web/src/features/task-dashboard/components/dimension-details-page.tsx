@@ -5,6 +5,14 @@ import {
   EmptyTitle,
 } from "../../../components/ui/empty.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
+import {
+  eyebrow,
+  pageStack,
+  pageTitle,
+  sectionCopy,
+  sectionTitle,
+  tableMeta,
+} from "./dashboard-styles.js";
 
 const scoreAxisLabels = [100, 50, 0];
 
@@ -42,13 +50,13 @@ export const DimensionDetailsPage = ({
     .join(" ");
 
   return (
-    <section className="section-stack route-panel dimension-details-page">
+    <section className={pageStack}>
       <div>
-        <p className="eyebrow">Dimension Detail</p>
-        <h2 className="page-title">{report.dimension.name}</h2>
+        <p className={eyebrow}>Dimension Detail</p>
+        <h2 className={pageTitle}>{report.dimension.name}</h2>
       </div>
-      <p className="section-copy">{report.dimension.goal}</p>
-      <p className="table-meta">Method: {report.dimension.evaluation_method}</p>
+      <p className={sectionCopy}>{report.dimension.goal}</p>
+      <p className={tableMeta}>Method: {report.dimension.evaluation_method}</p>
 
       {report.evaluations.length === 0 ? (
         <Empty className="state-card border">
@@ -62,30 +70,34 @@ export const DimensionDetailsPage = ({
       ) : (
         <figure
           aria-label={`${report.dimension.name} score trend`}
-          className="dimension-trend"
+          className="m-0 grid gap-3 border bg-card p-4"
         >
-          <figcaption className="dimension-trend__header">
-            <span className="section-title">Score Trend</span>
-            <span className="table-meta">Time on X axis, score on Y axis</span>
+          <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className={sectionTitle}>Score Trend</span>
+            <span className={tableMeta}>Time on X axis, score on Y axis</span>
           </figcaption>
-          <div className="dimension-trend__plot">
-            <div className="dimension-trend__y-axis" aria-hidden="true">
+          <div className="grid min-h-[260px] grid-cols-[auto_minmax(0,1fr)] gap-3">
+            <div
+              className="flex flex-col justify-between py-2 text-xs font-medium text-muted-foreground"
+              aria-hidden="true"
+            >
               {scoreAxisLabels.map((label) => (
                 <span key={label}>{label}</span>
               ))}
             </div>
-            <div className="dimension-trend__canvas">
-              <span className="dimension-trend__axis-label dimension-trend__axis-label--y">
+            <div className="relative min-h-[260px] overflow-hidden border bg-muted/30">
+              <span className="absolute left-3 top-3 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
                 Score
               </span>
               <svg
                 aria-hidden="true"
-                className="dimension-trend__line"
+                className="absolute inset-0 size-full overflow-visible"
                 focusable="false"
                 preserveAspectRatio="none"
                 viewBox="0 0 100 100"
               >
                 <polyline
+                  className="fill-none stroke-primary [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:3]"
                   points={polylinePoints}
                   vectorEffect="non-scaling-stroke"
                 />
@@ -96,7 +108,7 @@ export const DimensionDetailsPage = ({
                 return (
                   <button
                     aria-label={`${dateLabel} score ${point.evaluation.score}: ${point.evaluation.evaluation}`}
-                    className="dimension-trend-point"
+                    className="group absolute size-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer border-0 bg-transparent p-0"
                     key={point.evaluation.id}
                     style={{
                       left: `${point.x}%`,
@@ -104,9 +116,9 @@ export const DimensionDetailsPage = ({
                     }}
                     type="button"
                   >
-                    <span className="dimension-trend-point__dot" />
+                    <span className="block size-full rounded-full border-[3px] border-background bg-primary ring-2 ring-primary/40" />
                     <span
-                      className="dimension-trend-point__tooltip"
+                      className="invisible absolute bottom-[calc(100%+0.5rem)] left-1/2 w-[min(18rem,70vw)] -translate-x-1/2 translate-y-1 rounded-sm border bg-card p-3 text-xs font-medium text-card-foreground opacity-0 shadow-sm transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:visible group-focus-visible:translate-y-0 group-focus-visible:opacity-100"
                       role="tooltip"
                     >
                       {point.evaluation.evaluation}
@@ -116,14 +128,19 @@ export const DimensionDetailsPage = ({
               })}
             </div>
           </div>
-          <div className="dimension-trend__x-axis" aria-hidden="true">
+          <div
+            className="flex justify-between pl-9 text-xs font-medium text-muted-foreground"
+            aria-hidden="true"
+          >
             {report.evaluations.map((evaluation) => (
               <span key={evaluation.id}>
                 {formatDateLabel(evaluation.created_at)}
               </span>
             ))}
           </div>
-          <p className="dimension-trend__x-label">Time</p>
+          <p className="m-0 text-center text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            Time
+          </p>
         </figure>
       )}
     </section>
