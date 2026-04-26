@@ -745,6 +745,7 @@ components:
         - task_id
         - title
         - task_spec
+        - project_id
         - project_path
         - developer_provider_id
         - developer_model_id
@@ -766,6 +767,9 @@ components:
           type: string
           minLength: 1
         title:
+          type: string
+          minLength: 1
+        project_id:
           type: string
           minLength: 1
         project_path:
@@ -819,9 +823,7 @@ components:
       required:
         - title
         - task_spec
-        - project_path
-        - developer_provider_id
-        - developer_model_id
+        - project_id
       properties:
         title:
           type: string
@@ -829,13 +831,7 @@ components:
         task_spec:
           type: string
           minLength: 1
-        project_path:
-          type: string
-          minLength: 1
-        developer_provider_id:
-          type: string
-          minLength: 1
-        developer_model_id:
+        project_id:
           type: string
           minLength: 1
         dependencies:

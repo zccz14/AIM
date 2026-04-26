@@ -127,6 +127,95 @@ describe("task repository", () => {
     expect(tasks).toEqual([createdTask]);
   });
 
+  it("stores tasks with project_id and resolves context from an explicit project row", async () => {
+    const projectRoot = await createProjectRoot("stores-task-project-id");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare(
+        `INSERT INTO projects (
+          id,
+          name,
+          project_path,
+          global_provider_id,
+          global_model_id,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-main",
+        "Main project",
+        "/repo/project-main",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+
+    await expect(
+      repository.createTask({
+        project_id: "project-main",
+        status: "processing",
+        task_spec: "store task under project identity",
+        title: "Project scoped task",
+      }),
+    ).resolves.toMatchObject({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
+      project_id: "project-main",
+      project_path: "/repo/project-main",
+    });
+
+    const projectColumns = database
+      .prepare("PRAGMA table_info(projects)")
+      .all();
+    const taskColumns = database.prepare("PRAGMA table_info(tasks)").all();
+    const persistedProject = database
+      .prepare(
+        "SELECT id, name, project_path, global_provider_id, global_model_id FROM projects WHERE id = ?",
+      )
+      .get("project-main");
+    const persistedTask = database
+      .prepare(
+        "SELECT project_id, project_path, developer_provider_id, developer_model_id FROM tasks WHERE project_id = ?",
+      )
+      .get("project-main");
+    database.close();
+
+    expect(
+      projectColumns.map((column) => (column as TableInfoRow).name),
+    ).toEqual(
+      expect.arrayContaining([
+        "id",
+        "name",
+        "project_path",
+        "global_provider_id",
+        "global_model_id",
+      ]),
+    );
+    expect(
+      taskColumns.map((column) => (column as TableInfoRow).name),
+    ).toContain("project_id");
+    expect(persistedProject).toEqual({
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      id: "project-main",
+      name: "Main project",
+      project_path: "/repo/project-main",
+    });
+    expect(persistedTask).toEqual({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
+      project_id: "project-main",
+      project_path: "/repo/project-main",
+    });
+  });
+
   it("creates and persists required task title and developer model columns", async () => {
     const projectRoot = await createProjectRoot(
       "creates-required-model-columns",

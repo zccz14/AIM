@@ -227,6 +227,70 @@ describe("task routes", () => {
     });
   });
 
+  it("creates tasks from project_id using the project's global provider and model", async () => {
+    const projectRoot = await useProjectRoot("creates-task-from-project-id");
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        project_path TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    database
+      .prepare(
+        `INSERT INTO projects (
+          id,
+          name,
+          project_path,
+          global_provider_id,
+          global_model_id,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-main",
+        "Main project",
+        "/repo/main",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database.close();
+
+    const app = createTaskRouteApp();
+    const response = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: "project-main",
+        task_spec: "write sqlite-backed route tests",
+        title: "SQLite route tests",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+
+    const createdTask = await response.json();
+
+    expect(createdTask).toMatchObject({
+      developer_model_id: "claude-sonnet-4-5",
+      developer_provider_id: "anthropic",
+      project_id: "project-main",
+      project_path: "/repo/main",
+      title: "SQLite route tests",
+    });
+  });
+
   it("rejects POST /tasks when the developer provider and model combination is unavailable", async () => {
     await useProjectRoot("rejects-unavailable-developer-model-combo");
 

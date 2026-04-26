@@ -30,6 +30,7 @@ export type Task = {
   readonly task_id: string;
   task_spec: string;
   title: string;
+  project_id: string;
   project_path: string;
   developer_provider_id: string;
   developer_model_id: string;
@@ -47,9 +48,7 @@ export type Task = {
 export type CreateTaskRequest = {
   title: string;
   task_spec: string;
-  project_path: string;
-  developer_provider_id: string;
-  developer_model_id: string;
+  project_id: string;
   dependencies?: Array<string>;
   result?: string;
   session_id?: string | null;
@@ -279,6 +278,7 @@ export type ErrorResponse = {
 export type TaskWritable = {
   task_spec: string;
   title: string;
+  project_id: string;
   project_path: string;
   developer_provider_id: string;
   developer_model_id: string;

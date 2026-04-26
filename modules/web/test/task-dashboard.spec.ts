@@ -20,6 +20,7 @@ const buildTask = ({
   task_id: taskId,
   title: spec.split("\n", 1)[0] ?? spec,
   task_spec: spec,
+  project_id: "project-dashboard",
   project_path: "/repo/dashboard",
   developer_provider_id: "anthropic",
   developer_model_id: "claude-sonnet-4-5",
@@ -1430,9 +1431,7 @@ test("submits title, task_spec, project_path, and selected developer model to th
       JSON.stringify({
         title: "Ship create flow",
         task_spec: "Ship create flow",
-        project_path: "/repo/dashboard",
-        developer_provider_id: "openai",
-        developer_model_id: "gpt-5.5",
+        project_id: "/repo/dashboard",
       }),
     );
 });

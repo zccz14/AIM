@@ -55,6 +55,7 @@ const startTaskServer = async () => {
     task_id: "task-1",
     title: "Write spec",
     task_spec: "write spec",
+    project_id: "project-main",
     project_path: "/repo/main",
     developer_provider_id: "anthropic",
     developer_model_id: "claude-sonnet-4-5",
@@ -280,12 +281,8 @@ describe("task cli command baseline", () => {
       "Write spec",
       "--task-spec",
       "write spec",
-      "--project-path",
-      "/repo/main",
-      "--developer-provider-id",
-      "anthropic",
-      "--developer-model-id",
-      "claude-sonnet-4-5",
+      "--project-id",
+      "project-main",
       "--dependency",
       "task-a",
       "--dependency",
@@ -306,9 +303,7 @@ describe("task cli command baseline", () => {
       json: {
         title: "Write spec",
         task_spec: "write spec",
-        project_path: "/repo/main",
-        developer_provider_id: "anthropic",
-        developer_model_id: "claude-sonnet-4-5",
+        project_id: "project-main",
         dependencies: ["task-a", "task-b"],
         pull_request_url: "https://example.test/pr/2",
       },
@@ -842,12 +837,8 @@ describe("task cli command baseline", () => {
       `${server.baseUrl}/api`,
       "--title",
       "Write spec",
-      "--project-path",
-      "/repo/main",
-      "--developer-provider-id",
-      "anthropic",
-      "--developer-model-id",
-      "claude-sonnet-4-5",
+      "--project-id",
+      "project-main",
     ]);
 
     expect(result.exitCode).toBe(1);
@@ -858,7 +849,7 @@ describe("task cli command baseline", () => {
     expect(server.requests).toEqual([]);
   });
 
-  it("returns a JSON usage error when task create is missing --project-path", async () => {
+  it("returns a JSON usage error when task create is missing --project-id", async () => {
     const server = await startTaskServer();
 
     const result = await runCli([
@@ -870,16 +861,12 @@ describe("task cli command baseline", () => {
       "Write spec",
       "--task-spec",
       "write spec",
-      "--developer-provider-id",
-      "anthropic",
-      "--developer-model-id",
-      "claude-sonnet-4-5",
     ]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
     expect(result.stderr).toBe(
-      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --project-path"}}\n',
+      '{"ok":false,"error":{"code":"CLI_USAGE_ERROR","message":"missing required flag: --project-id"}}\n',
     );
     expect(server.requests).toEqual([]);
   });

@@ -95,9 +95,7 @@ export const createTaskFromDashboard = async (
   return client.createTask({
     title: input.title,
     task_spec: input.taskSpec,
-    project_path: input.projectPath,
-    developer_provider_id: input.developerProviderId,
-    developer_model_id: input.developerModelId,
+    project_id: input.projectPath,
   });
 };
 
