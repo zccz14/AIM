@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
+import { Badge } from "../../../components/ui/badge.js";
 import { Button } from "../../../components/ui/button.js";
 import {
   Card,
@@ -30,6 +30,21 @@ import {
 } from "../../../components/ui/select.js";
 import { useI18n } from "../../../lib/i18n.js";
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
+import {
+  cardHeader,
+  chartFrame,
+  cockpitRegion,
+  eyebrow,
+  pageStack,
+  panelStack,
+  regionHeader,
+  responsiveTwoGrid,
+  sectionCopy,
+  sectionTitle,
+  tableMeta,
+  taskList,
+  taskListItem,
+} from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
 // English section labels remain in i18n resources: Recent Active Tasks.
@@ -85,36 +100,38 @@ export const OverviewSection = ({
   ];
 
   return (
-    <div className="section-stack">
+    <div className={pageStack}>
       <section
         aria-label={t("baselineConvergenceMapRegion")}
-        className="section-stack cockpit-region"
+        className={`${pageStack} ${cockpitRegion}`}
         id="convergence-map"
       >
-        <div className="region-header">
+        <div className={regionHeader}>
           <div>
-            <p className="eyebrow">{t("baselineConvergenceMapRegion")}</p>
-            <h2 className="section-title">{t("goalStateReview")}</h2>
+            <p className={eyebrow}>{t("baselineConvergenceMapRegion")}</p>
+            <h2 className={sectionTitle}>{t("goalStateReview")}</h2>
           </div>
-          <p className="section-copy">{t("goalStateReviewDescription")}</p>
+          <p className={sectionCopy}>{t("goalStateReviewDescription")}</p>
         </div>
-        <div className="summary-grid">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {dashboard.summaryCards.map((card) => (
-            <section className="surface-stat" key={card.key}>
-              <p className="eyebrow">{card.label}</p>
-              <h2 className="page-title">{card.value}</h2>
-            </section>
+            <Card className="p-5" key={card.key}>
+              <p className={eyebrow}>{card.label}</p>
+              <h2 className="m-0 text-3xl font-medium tracking-tight">
+                {card.value}
+              </h2>
+            </Card>
           ))}
         </div>
 
-        <div className="split-grid">
-          <Card className="section-stack evidence-panel">
-            <CardHeader className="surface-panel__header">
-              <p className="eyebrow">{t("taskPool")}</p>
-              <CardTitle className="section-title">Status Board</CardTitle>
+        <div className={responsiveTwoGrid}>
+          <Card>
+            <CardHeader className={cardHeader}>
+              <p className={eyebrow}>{t("taskPool")}</p>
+              <CardTitle className={sectionTitle}>Status Board</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="chart-frame">
+              <div className={chartFrame}>
                 <ResponsiveContainer height="100%" width="100%">
                   <BarChart data={dashboard.statusBoardItems}>
                     <XAxis dataKey="label" />
@@ -122,7 +139,7 @@ export const OverviewSection = ({
                     <Tooltip />
                     <Bar
                       dataKey="value"
-                      fill="var(--status-blocked)"
+                      fill="var(--primary)"
                       radius={[8, 8, 0, 0]}
                     />
                   </BarChart>
@@ -131,15 +148,15 @@ export const OverviewSection = ({
             </CardContent>
           </Card>
 
-          <Card className="section-stack evidence-panel">
-            <CardHeader className="surface-panel__header">
-              <p className="eyebrow">{t("history")}</p>
-              <CardTitle className="section-title">
+          <Card>
+            <CardHeader className={cardHeader}>
+              <p className={eyebrow}>{t("history")}</p>
+              <CardTitle className={sectionTitle}>
                 {t("completedResultActivity")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="chart-frame">
+              <div className={chartFrame}>
                 <ResponsiveContainer height="100%" width="100%">
                   <AreaChart data={dashboard.activitySeries}>
                     <XAxis dataKey="label" />
@@ -147,7 +164,7 @@ export const OverviewSection = ({
                     <Tooltip />
                     <Area
                       dataKey="value"
-                      fill="var(--status-ready)"
+                      fill="var(--primary)"
                       stroke="var(--primary)"
                     />
                   </AreaChart>
@@ -157,22 +174,22 @@ export const OverviewSection = ({
           </Card>
         </div>
 
-        <Card className="section-stack evidence-panel">
-          <CardHeader className="surface-panel__header">
-            <p className="eyebrow">{t("decisionObservability")}</p>
-            <CardTitle className="section-title">
+        <Card>
+          <CardHeader className={cardHeader}>
+            <p className={eyebrow}>{t("decisionObservability")}</p>
+            <CardTitle className={sectionTitle}>
               {t("taskPoolDecisionSignals")}
             </CardTitle>
-            <CardDescription className="section-copy">
+            <CardDescription>
               {t("taskPoolDecisionSignalsDescription")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="task-list">
+          <CardContent className={taskList}>
             {dashboard.decisionSignals.map((signal) => (
-              <div className="task-list__item" key={signal.key}>
-                <div className="panel-stack">
-                  <p className="field-label">{signal.label}</p>
-                  <p className="table-meta">{signal.detail}</p>
+              <div className={taskListItem} key={signal.key}>
+                <div className={panelStack}>
+                  <p className="m-0 text-sm font-medium">{signal.label}</p>
+                  <p className={tableMeta}>{signal.detail}</p>
                 </div>
                 <strong>{signal.value}</strong>
               </div>
@@ -183,32 +200,32 @@ export const OverviewSection = ({
 
       <section
         aria-label={t("evidenceLedgerLower")}
-        className="section-stack cockpit-region"
+        className={`${pageStack} ${cockpitRegion}`}
         id="evidence-ledger"
       >
-        <div className="region-header">
+        <div className={regionHeader}>
           <div>
-            <p className="eyebrow">{t("evidenceLedgerLower")}</p>
-            <h2 className="section-title">Task Evidence and Feedback</h2>
+            <p className={eyebrow}>{t("evidenceLedgerLower")}</p>
+            <h2 className={sectionTitle}>Task Evidence and Feedback</h2>
           </div>
-          <p className="section-copy">{t("evidenceLedgerDescription")}</p>
+          <p className={sectionCopy}>{t("evidenceLedgerDescription")}</p>
         </div>
 
-        <Card className="section-stack evidence-panel">
-          <CardHeader className="surface-panel__header">
-            <p className="eyebrow">Signal</p>
-            <CardTitle className="section-title">
+        <Card>
+          <CardHeader className={cardHeader}>
+            <p className={eyebrow}>Signal</p>
+            <CardTitle className={sectionTitle}>
               {t("recentActiveTasks")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="task-list">
+          <CardContent className={taskList}>
             {dashboard.recentTasks.map((task) => (
-              <div className="task-list__item" key={task.id}>
-                <div className="panel-stack">
+              <div className={taskListItem} key={task.id}>
+                <div className={panelStack}>
                   <Button onClick={() => onSelectTask(task.id)} variant="link">
                     {task.title}
                   </Button>
-                  <p className="table-meta">{task.id}</p>
+                  <p className={tableMeta}>{task.id}</p>
                 </div>
                 <TaskStatusBadge status={task.dashboardStatus} />
               </div>
@@ -216,18 +233,18 @@ export const OverviewSection = ({
           </CardContent>
         </Card>
 
-        <Card className="section-stack evidence-panel">
-          <CardHeader className="surface-panel__header">
-            <p className="eyebrow">{t("coordinatorInput")}</p>
-            <CardTitle className="section-title">
+        <Card>
+          <CardHeader className={cardHeader}>
+            <p className={eyebrow}>{t("coordinatorInput")}</p>
+            <CardTitle className={sectionTitle}>
               {t("rejectedFeedbackSignals")}
             </CardTitle>
-            <CardDescription className="section-copy">
+            <CardDescription>
               {t("rejectedFeedbackSignalsDescription")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="section-stack">
-            <div className="rejected-feedback-filters">
+          <CardContent className={pageStack}>
+            <div className="grid gap-3 md:grid-cols-[minmax(12rem,0.35fr)_minmax(16rem,1fr)]">
               <Field>
                 <FieldLabel>{t("reasonCategory")}</FieldLabel>
                 <Select
@@ -263,35 +280,38 @@ export const OverviewSection = ({
                 />
               </Field>
             </div>
-            <div className="task-list">
+            <div className={taskList}>
               {filteredRejectedFeedbackSignals.map((signal) => (
-                <article className="rejected-feedback-card" key={signal.key}>
-                  <div className="rejected-feedback-card__header">
-                    <div className="panel-stack">
-                      <p className="eyebrow">{signal.reasonCategoryLabel}</p>
-                      <h3 className="section-title">{signal.reasonSummary}</h3>
+                <article
+                  className="flex flex-col gap-3 border-t py-4 first:border-t-0 first:pt-0 last:pb-0"
+                  key={signal.key}
+                >
+                  <div className="flex items-start justify-between gap-4 max-md:flex-col">
+                    <div className={panelStack}>
+                      <p className={eyebrow}>{signal.reasonCategoryLabel}</p>
+                      <h3 className={sectionTitle}>{signal.reasonSummary}</h3>
                     </div>
-                    <strong className="rejected-feedback-count">
+                    <Badge variant="destructive">
                       {signal.count} {signal.count === 1 ? "task" : "tasks"}
-                    </strong>
+                    </Badge>
                   </div>
-                  <p className="table-meta">Latest: {signal.latestAt}</p>
-                  <p className="table-meta">
+                  <p className={tableMeta}>Latest: {signal.latestAt}</p>
+                  <p className={tableMeta}>
                     Coordinates: {signal.coordinates.join(", ")}
                   </p>
-                  <div className="task-list">
+                  <div className={taskList}>
                     {signal.sampleTasks.map((task) => (
-                      <div className="task-list__item" key={task.id}>
-                        <div className="panel-stack">
+                      <div className={taskListItem} key={task.id}>
+                        <div className={panelStack}>
                           <Button
                             onClick={() => onSelectTask(task.id)}
                             variant="link"
                           >
                             {task.title}
                           </Button>
-                          <p className="table-meta">{task.id}</p>
+                          <p className={tableMeta}>{task.id}</p>
                         </div>
-                        <p className="table-meta">
+                        <p className={tableMeta}>
                           {task.updatedAt.slice(0, 10)}
                         </p>
                       </div>
@@ -300,24 +320,24 @@ export const OverviewSection = ({
                 </article>
               ))}
               {dashboard.rejectedFeedbackSignals.length === 0 ? (
-                <p className="muted-text">{t("noRejectedFeedbackRecorded")}</p>
+                <p className={sectionCopy}>{t("noRejectedFeedbackRecorded")}</p>
               ) : null}
               {dashboard.rejectedFeedbackSignals.length > 0 &&
               filteredRejectedFeedbackSignals.length === 0 ? (
-                <p className="muted-text">{t("noRejectedFeedbackMatches")}</p>
+                <p className={sectionCopy}>{t("noRejectedFeedbackMatches")}</p>
               ) : null}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="section-stack evidence-panel">
-          <CardHeader className="surface-panel__header">
-            <p className="eyebrow">{t("historyResults")}</p>
-            <CardTitle className="section-title">
+        <Card>
+          <CardHeader className={cardHeader}>
+            <p className={eyebrow}>{t("historyResults")}</p>
+            <CardTitle className={sectionTitle}>
               {t("completedTaskFeedback")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="task-list">
+          <CardContent className={taskList}>
             {dashboard.historyTasks
               .slice()
               .sort((left, right) =>
@@ -325,15 +345,15 @@ export const OverviewSection = ({
               )
               .slice(0, 5)
               .map((task) => (
-                <div className="task-list__item" key={task.id}>
-                  <div className="panel-stack">
+                <div className={taskListItem} key={task.id}>
+                  <div className={panelStack}>
                     <Button
                       onClick={() => onSelectTask(task.id)}
                       variant="link"
                     >
                       {task.title}
                     </Button>
-                    <p className="table-meta">
+                    <p className={tableMeta}>
                       {summarizeResult(
                         task.result,
                         t("noResultFeedbackRecorded"),
@@ -344,7 +364,7 @@ export const OverviewSection = ({
                 </div>
               ))}
             {dashboard.historyTasks.length === 0 ? (
-              <p className="muted-text">No completed task history yet.</p>
+              <p className={sectionCopy}>No completed task history yet.</p>
             ) : null}
           </CardContent>
         </Card>

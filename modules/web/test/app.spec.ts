@@ -40,26 +40,20 @@ test("fixes the Shadcn UI registry contract for the web workspace", async () => 
   expect(packageSource).not.toContain('"@lyra');
 });
 
-test("publishes Lyra preset tokens through CSS variables instead of an imagined package", async () => {
+test("keeps styles on shadcn default tokens without Lyra remapping", async () => {
   const { readFile } = await import("node:fs/promises");
-  const lyraPresetSource = await readFile(
-    `${process.cwd()}/modules/web/src/components/ui/lyra-preset.css`,
-    "utf8",
-  );
   const stylesSource = await readFile(
     `${process.cwd()}/modules/web/src/styles.css`,
     "utf8",
   );
 
-  expect(lyraPresetSource).toContain("--lyra-background");
-  expect(lyraPresetSource).toContain("--lyra-primary");
-  expect(lyraPresetSource).toContain("--lyra-ring");
-  expect(lyraPresetSource).toContain("--radius");
-  expect(lyraPresetSource).toContain('html[data-theme="dark"]');
-  expect(lyraPresetSource).toContain('html[data-theme="light"]');
-  expect(stylesSource).toContain('@import "./components/ui/lyra-preset.css"');
-  expect(stylesSource).toContain("--background: var(--lyra-background)");
-  expect(stylesSource).toContain("--primary: var(--lyra-primary)");
+  expect(stylesSource).toContain('@import "shadcn/tailwind.css"');
+  expect(stylesSource).toContain("--background: oklch");
+  expect(stylesSource).toContain("--primary: oklch");
+  expect(stylesSource).toContain("@layer base");
+  expect(stylesSource).not.toContain("--lyra-");
+  expect(stylesSource).not.toContain("--aim-");
+  expect(stylesSource).not.toContain("lyra-preset.css");
 });
 
 test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
@@ -68,9 +62,9 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
     "badge.tsx",
     "button.tsx",
     "card.tsx",
+    "field.tsx",
     "input.tsx",
     "label.tsx",
-    "lyra-surface.tsx",
     "select.tsx",
     "textarea.tsx",
     "theme-provider.tsx",
@@ -105,13 +99,14 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
   const combinedPageSource = pageSources.join("\n");
 
   expect(combinedPageSource).toContain("components/ui/card.js");
+  expect(combinedPageSource).toContain("components/ui/field.js");
   expect(combinedPageSource).toContain("components/ui/input.js");
-  expect(combinedPageSource).toContain("components/ui/lyra-surface.js");
   expect(combinedPageSource).toContain("components/ui/select.js");
   expect(combinedPageSource).toContain("components/ui/textarea.js");
   expect(combinedPageSource).not.toContain('className="field-input"');
   expect(combinedPageSource).not.toContain('className="surface-card');
   expect(combinedPageSource).not.toContain('className="aim-field"');
+  expect(combinedPageSource).not.toContain("components/ui/lyra-surface.js");
 });
 
 test("boots the dashboard app with branded theme providers instead of Mantine", async () => {
@@ -352,13 +347,15 @@ test("shares branded dashboard shell tokens across overview and table", async ()
   );
 
   expect(mainSource).toContain("<ThemeProvider>");
-  expect(stylesSource).toContain('html[data-theme="dark"]');
-  expect(stylesSource).toContain('html[data-theme="light"]');
-  expect(stylesSource).toContain("--status-ready");
+  expect(stylesSource).toContain(".dark");
+  expect(stylesSource).toContain("--chart-1");
+  expect(stylesSource).not.toContain("--status-ready");
   expect(stylesSource).not.toContain(".graph-node");
-  expect(stylesSource).toContain(".task-table thead th");
+  expect(stylesSource).not.toContain(".task-table thead th");
   expect(dashboardPageSource).toContain("ThemeToggle");
   expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
+  expect(overviewSource).toContain("grid gap-3 sm:grid-cols-2 xl:grid-cols-4");
   expect(overviewSource).toContain("Recent Active Tasks");
+  expect(tableSource).toContain("w-full border-collapse text-left");
   expect(tableSource).toContain('data-testid="dashboard-table-header"');
 });

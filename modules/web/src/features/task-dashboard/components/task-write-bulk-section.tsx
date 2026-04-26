@@ -14,6 +14,15 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "../../../components/ui/empty.js";
+import {
+  cardHeader,
+  cockpitRegion,
+  eyebrow,
+  pageStack,
+  regionHeader,
+  sectionCopy,
+  sectionTitle,
+} from "./dashboard-styles.js";
 
 export const TaskWriteBulkSection = ({
   bulks,
@@ -24,24 +33,24 @@ export const TaskWriteBulkSection = ({
 }) => (
   <section
     aria-label="Task Write Bulk intents"
-    className="cockpit-region section-stack"
+    className={`${pageStack} ${cockpitRegion}`}
     id="task-write-bulks"
   >
-    <div className="region-header">
+    <div className={regionHeader}>
       <div>
-        <p className="eyebrow">Task Write Bulk</p>
-        <h2 className="section-title">Approval Queue Observability</h2>
+        <p className={eyebrow}>Task Write Bulk</p>
+        <h2 className={sectionTitle}>Approval Queue Observability</h2>
       </div>
-      <p className="section-copy">
+      <p className={sectionCopy}>
         Pre-approval Coordinator write intent. No tasks have been created or
         executed from these records.
       </p>
     </div>
-    <Card className="evidence-panel section-stack">
-      <CardHeader className="surface-panel__header">
-        <p className="eyebrow">Coordinator Candidates</p>
-        <CardTitle className="section-title">Task Write Bulks</CardTitle>
-        <CardDescription className="section-copy">
+    <Card>
+      <CardHeader className={cardHeader}>
+        <p className={eyebrow}>Coordinator Candidates</p>
+        <CardTitle className={sectionTitle}>Task Write Bulks</CardTitle>
+        <CardDescription>
           Pre-approval Coordinator write intent. No tasks have been created or
           executed from these records.
         </CardDescription>
@@ -58,20 +67,22 @@ export const TaskWriteBulkSection = ({
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="task-write-bulk-list">
+          <div className="grid gap-3">
             {bulks.map((bulk) => (
               <Button
-                className="task-write-bulk-row"
+                className="h-auto justify-between p-4 text-left max-md:flex-col max-md:items-stretch"
                 key={bulk.bulk_id}
                 onClick={() => onSelectBulk(bulk.bulk_id)}
                 type="button"
                 variant="outline"
               >
-                <span className="task-write-bulk-row__main">
+                <span className="flex flex-col gap-1">
                   <strong>{bulk.bulk_id}</strong>
-                  <span>{bulk.project_path}</span>
+                  <span className="text-muted-foreground">
+                    {bulk.project_path}
+                  </span>
                 </span>
-                <span className="task-write-bulk-row__meta">
+                <span className="flex flex-col items-end gap-1 text-xs text-muted-foreground max-md:items-start">
                   <span>{`${bulk.entries.length} proposed entries`}</span>
                   <span>{bulk.baseline_ref ?? "No baseline_ref"}</span>
                   <span>{bulk.created_at}</span>

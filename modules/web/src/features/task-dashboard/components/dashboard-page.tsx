@@ -21,6 +21,7 @@ import { Skeleton } from "../../../components/ui/skeleton.js";
 import { Switch } from "../../../components/ui/switch.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
+import { cn } from "../../../lib/utils.js";
 import {
   getOpenCodeModels,
   getOptimizerStatus,
@@ -38,6 +39,16 @@ import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
 import { CreateTaskForm } from "./create-task-form.js";
+import {
+  actionGroup,
+  cockpitRegion,
+  eyebrow,
+  pageStack,
+  panelStack,
+  sectionCopy,
+  sectionStack,
+  sectionTitle,
+} from "./dashboard-styles.js";
 import { DimensionDetailsPage } from "./dimension-details-page.js";
 import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
 import { ManagerReportSection } from "./manager-report-section.js";
@@ -328,15 +339,18 @@ export const DashboardPage = () => {
   const renderDirectorRail = () => (
     <aside
       aria-label={t("interventionRailAria")}
-      className="director-rail"
+      className="sticky top-4 flex flex-col gap-4 self-stretch border bg-card p-5 max-lg:static"
       id="intervention-rail"
     >
       <div>
-        <p className="eyebrow">{t("humanReviewNeeded")}</p>
-        <h3 className="section-title">{t("directorReviewRail")}</h3>
+        <p className={eyebrow}>{t("humanReviewNeeded")}</p>
+        <h3 className={sectionTitle}>{t("directorReviewRail")}</h3>
       </div>
-      <p className="section-copy">{t("humanAttention")}</p>
-      <ul aria-label={t("directorCheckpoints")} className="rail-checkpoints">
+      <p className={sectionCopy}>{t("humanAttention")}</p>
+      <ul
+        aria-label={t("directorCheckpoints")}
+        className="m-0 grid list-none gap-2 p-0"
+      >
         <li>{t("baselineReview")}</li>
         <li>{t("writeIntentReview")}</li>
         <li>{t("dependencyPressure")}</li>
@@ -354,8 +368,8 @@ export const DashboardPage = () => {
   const renderContent = () => {
     if (route.kind === "create") {
       return (
-        <section className="section-stack route-panel">
-          <p className="section-copy">{t("createTaskDescription")}</p>
+        <section className={pageStack}>
+          <p className={sectionCopy}>{t("createTaskDescription")}</p>
           <CreateTaskForm
             errorMessage={
               createTaskMutation.isError
@@ -388,19 +402,19 @@ export const DashboardPage = () => {
     }
 
     return (
-      <div className="section-stack">
+      <div className={pageStack}>
         <ServerBaseUrlForm onSave={handleRefresh} />
 
         {dashboardQuery.isPending ? (
           <Card className="state-card">
-            <CardContent className="state-card__content">
+            <CardContent className="flex items-center gap-3">
               <LoaderCircle
                 aria-label="Loading task dashboard"
                 className="animate-spin"
                 data-icon="inline-start"
               />
-              <div className="section-stack">
-                <p className="muted-text">{t("loadingConvergenceEvidence")}</p>
+              <div className={sectionStack}>
+                <p className={sectionCopy}>{t("loadingConvergenceEvidence")}</p>
                 <Skeleton className="h-3 w-full max-w-sm" />
                 <Skeleton className="h-3 w-2/3" />
               </div>
@@ -409,7 +423,7 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isError ? (
-          <Alert className="alert-card" variant="destructive">
+          <Alert variant="destructive">
             <AlertCircle aria-hidden="true" />
             <AlertTitle>{t("dashboardError")}</AlertTitle>
             <AlertDescription>
@@ -438,8 +452,8 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isSuccess && hasDashboardData ? (
-          <div className="director-workspace">
-            <div className="director-workspace__main">
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.28fr)]">
+            <div className="min-w-0">
               <AimDimensionReportSection
                 dimensionReports={dashboardQuery.data.dimensionReports}
                 onSelectDimension={goToDimension}
@@ -484,38 +498,41 @@ export const DashboardPage = () => {
   );
 
   const renderWorkspaceLink = (href: string, label: string) => (
-    <a className="workspace-link" href={href}>
-      {label}
-    </a>
+    <Button asChild size="sm" variant="outline">
+      <a href={href}>{label}</a>
+    </Button>
   );
   const optimizerStatusTitle = optimizerStatus
     ? `Triggers: ${optimizerStatus.enabled_triggers.join(", ") || "none"}; last event: ${optimizerStatus.last_event?.type ?? "none"}`
     : "Optimizer status not loaded";
 
   return (
-    <div className="app-shell">
-      <div className="app-shell__frame" data-testid="dashboard-shell">
-        <header className="app-shell__hero">
-          <div className="app-shell__hero-content">
-            <div className="app-shell__topbar">
-              <div className="brand-lockup">
-                <div className="field-row">
+    <div className="min-h-screen p-4 md:p-5">
+      <div
+        className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 bg-background"
+        data-testid="dashboard-shell"
+      >
+        <header className="border bg-card p-5">
+          <div className="flex flex-col gap-5">
+            <div className="flex w-full items-center justify-between gap-4 max-md:flex-col max-md:items-stretch">
+              <div className={panelStack}>
+                <div className="flex items-center justify-between gap-4">
                   <img
                     alt="AIM icon"
-                    className="brand-mark"
+                    className="size-10 border bg-card p-2"
                     src="/aim-icon.svg"
                   />
-                  <div className="brand-lockup">
-                    <p className="eyebrow">{t("aimNavigator")}</p>
-                    <h1 className="brand-title">AIM</h1>
+                  <div className={panelStack}>
+                    <p className={eyebrow}>{t("aimNavigator")}</p>
+                    <h1 className="m-0 text-base font-medium">AIM</h1>
                   </div>
                 </div>
               </div>
-              <fieldset aria-label="Global controls" className="actions-group">
+              <fieldset aria-label="Global controls" className={actionGroup}>
                 <LanguageToggle />
                 <ThemeToggle />
                 <div
-                  className="optimizer-switch-control"
+                  className="inline-flex min-h-9 cursor-pointer items-center gap-2 border bg-background px-3 text-xs font-medium has-[[data-slot=switch]:disabled]:cursor-not-allowed has-[[data-slot=switch]:disabled]:opacity-50"
                   title={optimizerStatusTitle}
                 >
                   <Switch
@@ -548,18 +565,22 @@ export const DashboardPage = () => {
               </fieldset>
             </div>
 
-            <div className="app-shell__hero-main">
-              <div className="hero-copy">
-                <p className="eyebrow">{t("baselineConvergenceForDirector")}</p>
-                <h2 className="hero-title">{headerTitle}</h2>
+            <div className="flex w-full items-stretch justify-between gap-4 max-md:flex-col">
+              <div className="flex max-w-3xl flex-col gap-2">
+                <p className={eyebrow}>{t("baselineConvergenceForDirector")}</p>
+                <h2 className="m-0 max-w-[13ch] text-4xl font-medium leading-none tracking-tight">
+                  {headerTitle}
+                </h2>
                 {route.kind === "dashboard" ? (
-                  <h3 className="route-kicker">{t("methodologyHub")}</h3>
+                  <h3 className="m-0 w-fit border px-2 py-0.5 text-xs font-medium">
+                    {t("methodologyHub")}
+                  </h3>
                 ) : null}
-                <p className="section-copy">{t("flowSummary")}</p>
+                <p className={sectionCopy}>{t("flowSummary")}</p>
                 {route.kind === "dashboard" ? (
                   <nav
                     aria-label={t("directorWorkspace")}
-                    className="workspace-nav"
+                    className="mt-1 flex flex-wrap gap-2"
                   >
                     {renderWorkspaceLink(
                       "#aim-dimension-report",
@@ -587,7 +608,7 @@ export const DashboardPage = () => {
                     )}
                   </nav>
                 ) : null}
-                <nav aria-label="AIM sections" className="nav-group">
+                <nav aria-label="AIM sections" className={actionGroup}>
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
@@ -609,7 +630,7 @@ export const DashboardPage = () => {
                 </nav>
               </div>
 
-              <div className="hero-actions">
+              <div className="flex flex-wrap justify-end gap-3">
                 {route.kind === "dashboard" ? (
                   <Button onClick={goToCreateTask}>
                     <Plus data-icon="inline-start" />
@@ -621,7 +642,7 @@ export const DashboardPage = () => {
           </div>
         </header>
 
-        <main className="app-main">{renderContent()}</main>
+        <main className={cn(pageStack, cockpitRegion)}>{renderContent()}</main>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import { Gauge } from "lucide-react";
 
+import { Badge } from "../../../components/ui/badge.js";
+import { Button } from "../../../components/ui/button.js";
 import {
   Empty,
   EmptyDescription,
@@ -8,6 +10,15 @@ import {
 } from "../../../components/ui/empty.js";
 import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
+import {
+  cockpitRegion,
+  eyebrow,
+  pageStack,
+  regionHeader,
+  sectionCopy,
+  sectionTitle,
+  tableMeta,
+} from "./dashboard-styles.js";
 
 export const AimDimensionReportSection = ({
   dimensionReports,
@@ -21,19 +32,19 @@ export const AimDimensionReportSection = ({
   return (
     <section
       aria-label={t("aimDimensionReportAria")}
-      className="cockpit-region aim-dimension-report"
+      className={`${pageStack} ${cockpitRegion}`}
       id="aim-dimension-report"
     >
-      <div className="region-header aim-dimension-report__header">
+      <div className={regionHeader}>
         <div>
-          <p className="eyebrow">{t("goalFit")}</p>
-          <h2 className="section-title">{t("aimDimensionReport")}</h2>
+          <p className={eyebrow}>{t("goalFit")}</p>
+          <h2 className={sectionTitle}>{t("aimDimensionReport")}</h2>
         </div>
-        <p className="section-copy">{t("aimDimensionReportDescription")}</p>
+        <p className={sectionCopy}>{t("aimDimensionReportDescription")}</p>
       </div>
 
       {dimensionReports.length === 0 ? (
-        <Empty className="state-card aim-dimension-report__empty border">
+        <Empty className="border">
           <EmptyHeader>
             <EmptyTitle>{t("noAimDimensionReport")}</EmptyTitle>
             <EmptyDescription>
@@ -42,35 +53,42 @@ export const AimDimensionReportSection = ({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="aim-dimension-list">
+        <div className="grid gap-3">
           {dimensionReports.map(({ dimension, latestEvaluation }) => (
-            <article className="aim-dimension-item" key={dimension.id}>
-              <div className="aim-dimension-item__main">
-                <div className="manager-report-card__title-row">
+            <article
+              className="grid items-center gap-4 border bg-card p-4 md:grid-cols-[minmax(0,1fr)_auto]"
+              key={dimension.id}
+            >
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex items-center gap-3 text-foreground">
                   <Gauge aria-hidden="true" />
-                  <h3>
-                    <button
-                      className="link-button"
+                  <h3 className="m-0">
+                    <Button
                       onClick={() => onSelectDimension(dimension.id)}
                       type="button"
+                      variant="link"
                     >
                       {dimension.name}
-                    </button>
+                    </Button>
                   </h3>
                 </div>
-                <p className="section-copy">{dimension.goal}</p>
-                <p className="table-meta">
+                <p className={sectionCopy}>{dimension.goal}</p>
+                <p className={tableMeta}>
                   Method: {dimension.evaluation_method}
                 </p>
-                <p className="muted-text">
+                <p className={sectionCopy}>
                   {latestEvaluation?.evaluation ?? t("noDimensionEvaluation")}
                 </p>
               </div>
-              <div className="aim-dimension-score" title="Latest score">
+              <Badge
+                className="h-auto py-2"
+                title="Latest score"
+                variant="secondary"
+              >
                 {latestEvaluation
                   ? `${latestEvaluation.score}/100`
                   : "No score"}
-              </div>
+              </Badge>
             </article>
           ))}
         </div>

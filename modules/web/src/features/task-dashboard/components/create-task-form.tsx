@@ -2,6 +2,7 @@ import type { OpenCodeModelCombination } from "@aim-ai/contract";
 import { useEffect, useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
+import { Card } from "../../../components/ui/card.js";
 import {
   Field,
   FieldDescription,
@@ -12,13 +13,6 @@ import {
 } from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
 import {
-  LyraKicker,
-  LyraMuted,
-  LyraPanel,
-  LyraStack,
-  LyraSurface,
-} from "../../../components/ui/lyra-surface.js";
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -28,6 +22,18 @@ import {
 } from "../../../components/ui/select.js";
 import { Textarea } from "../../../components/ui/textarea.js";
 import { useI18n } from "../../../lib/i18n.js";
+import {
+  actions,
+  Checkmark,
+  DetailCard,
+  detailSummary,
+  detailSurface,
+  Kicker,
+  Muted,
+  pageStack,
+  responsiveDetailGrid,
+  sectionStack,
+} from "./dashboard-styles.js";
 
 const developerModelPreferenceKey = "aim.createTaskDeveloperModel";
 
@@ -110,187 +116,182 @@ export const CreateTaskForm = ({
   }, [models, selectedModelKey]);
 
   return (
-    <LyraSurface
-      as="form"
-      className="aim-surface aim-task-form aim-stack"
-      onSubmit={(event) => {
-        event.preventDefault();
+    <Card className={detailSurface}>
+      <form
+        className="contents"
+        onSubmit={(event) => {
+          event.preventDefault();
 
-        if (!canSubmit || isSubmitting || !selectedModel) {
-          return;
-        }
+          if (!canSubmit || isSubmitting || !selectedModel) {
+            return;
+          }
 
-        void onSubmit({
-          title: trimmedTitle,
-          projectPath: trimmedProjectPath,
-          taskSpec: trimmedTaskSpec,
-          developerProviderId: selectedModel.provider_id,
-          developerModelId: selectedModel.model_id,
-        });
+          void onSubmit({
+            title: trimmedTitle,
+            projectPath: trimmedProjectPath,
+            taskSpec: trimmedTaskSpec,
+            developerProviderId: selectedModel.provider_id,
+            developerModelId: selectedModel.model_id,
+          });
 
-        localStorage.setItem(
-          developerModelPreferenceKey,
-          JSON.stringify({
-            providerId: selectedModel.provider_id,
-            modelId: selectedModel.model_id,
-          }),
-        );
-      }}
-    >
-      <header className="aim-task-form-header">
-        <LyraKicker>{t("createTask")}</LyraKicker>
-        <h2>{t("createTaskFormTitle")}</h2>
-        <LyraMuted className="aim-task-summary">
-          {t("createTaskFormSummary")}
-        </LyraMuted>
-      </header>
+          localStorage.setItem(
+            developerModelPreferenceKey,
+            JSON.stringify({
+              providerId: selectedModel.provider_id,
+              modelId: selectedModel.model_id,
+            }),
+          );
+        }}
+      >
+        <header className={sectionStack}>
+          <Kicker>{t("createTask")}</Kicker>
+          <h2>{t("createTaskFormTitle")}</h2>
+          <Muted className={detailSummary}>{t("createTaskFormSummary")}</Muted>
+        </header>
 
-      {errorMessage ? (
-        <section className="aim-task-error" role="alert">
-          <LyraKicker>Request Blocked</LyraKicker>
-          <h3>{errorMessage}</h3>
-          <LyraMuted>
-            Adjust the task brief or project path, then retry from this panel.
-          </LyraMuted>
-        </section>
-      ) : null}
+        {errorMessage ? (
+          <section
+            className="flex flex-col gap-3 border border-destructive/40 bg-destructive/10 p-4 text-destructive"
+            role="alert"
+          >
+            <Kicker>Request Blocked</Kicker>
+            <h3>{errorMessage}</h3>
+            <Muted>
+              Adjust the task brief or project path, then retry from this panel.
+            </Muted>
+          </section>
+        ) : null}
 
-      <div className="aim-task-form-grid">
-        <LyraPanel className="aim-task-form-main">
-          <LyraStack>
-            <div>
-              <LyraKicker>Task Brief</LyraKicker>
-              <h3>{t("taskSpec")}</h3>
-            </div>
-            <FieldGroup>
-              <Field
-                className="lyra-field-control"
-                data-disabled={isSubmitting}
-              >
-                <FieldLabel htmlFor="create-task-title">
-                  {t("title")}
-                </FieldLabel>
-                <Input
-                  disabled={isSubmitting}
-                  id="create-task-title"
-                  onChange={(event) => setTitle(event.currentTarget.value)}
-                  placeholder="Summarize the task"
-                  type="text"
-                  value={title}
-                />
-              </Field>
-              <Field
-                className="lyra-field-control"
-                data-disabled={isSubmitting}
-              >
-                <FieldLabel htmlFor="create-task-spec">
-                  {t("taskSpec")}
-                </FieldLabel>
-                <Textarea
-                  disabled={isSubmitting}
-                  id="create-task-spec"
-                  onChange={(event) => setTaskSpec(event.currentTarget.value)}
-                  placeholder="Describe the task to create"
-                  value={taskSpec}
-                />
-              </Field>
-            </FieldGroup>
-          </LyraStack>
-        </LyraPanel>
-
-        <aside className="aim-task-form-sidebar">
-          <LyraStack>
-            <div>
-              <LyraKicker>{t("workspaceTarget")}</LyraKicker>
-              <h3>{t("projectPath")}</h3>
-            </div>
-            <FieldGroup>
-              <Field
-                className="lyra-field-control"
-                data-disabled={isSubmitting}
-              >
-                <FieldLabel htmlFor="create-task-project-path">
-                  {t("projectPath")}
-                </FieldLabel>
-                <Input
-                  disabled={isSubmitting}
-                  id="create-task-project-path"
-                  onChange={(event) =>
-                    setProjectPath(event.currentTarget.value)
-                  }
-                  placeholder="/absolute/path/to/repo"
-                  type="text"
-                  value={projectPath}
-                />
-              </Field>
-
-              <Field
-                className="lyra-field-control"
-                data-disabled={isSubmitting || models.length === 0}
-              >
-                <FieldLabel>{t("developerModel")}</FieldLabel>
-                <Select
-                  disabled={isSubmitting || models.length === 0}
-                  onValueChange={setSelectedModelKey}
-                  value={selectedModelKey}
-                >
-                  <SelectTrigger
-                    aria-label={t("developerModel")}
-                    id="create-task-developer-model"
-                  >
-                    <SelectValue placeholder="No models available" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {models.map((model) => (
-                        <SelectItem
-                          key={`${model.provider_id}::${model.model_id}`}
-                          value={`${model.provider_id}::${model.model_id}`}
-                        >
-                          {model.provider_name} / {model.model_name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Select the Developer model for this task.
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-
-            <FieldSet>
-              <FieldLegend>{t("beforeYouSend")}</FieldLegend>
-              <FieldDescription>Submission Checklist</FieldDescription>
-              <div className="aim-checklist">
-                {checklistItems.map((item) => (
-                  <div className="aim-checklist-item" key={item}>
-                    <span aria-hidden="true" className="aim-checkmark">
-                      ✓
-                    </span>
-                    <span>{item}</span>
-                  </div>
-                ))}
+        <div className={responsiveDetailGrid}>
+          <DetailCard>
+            <div className={pageStack}>
+              <div>
+                <Kicker>Task Brief</Kicker>
+                <h3>{t("taskSpec")}</h3>
               </div>
-            </FieldSet>
-          </LyraStack>
-        </aside>
-      </div>
+              <FieldGroup>
+                <Field data-disabled={isSubmitting}>
+                  <FieldLabel htmlFor="create-task-title">
+                    {t("title")}
+                  </FieldLabel>
+                  <Input
+                    disabled={isSubmitting}
+                    id="create-task-title"
+                    onChange={(event) => setTitle(event.currentTarget.value)}
+                    placeholder="Summarize the task"
+                    type="text"
+                    value={title}
+                  />
+                </Field>
+                <Field data-disabled={isSubmitting}>
+                  <FieldLabel htmlFor="create-task-spec">
+                    {t("taskSpec")}
+                  </FieldLabel>
+                  <Textarea
+                    className="min-h-64"
+                    disabled={isSubmitting}
+                    id="create-task-spec"
+                    onChange={(event) => setTaskSpec(event.currentTarget.value)}
+                    placeholder="Describe the task to create"
+                    value={taskSpec}
+                  />
+                </Field>
+              </FieldGroup>
+            </div>
+          </DetailCard>
 
-      <div className="aim-task-form-footer">
-        <LyraMuted>
-          Task intake keeps the existing API contract and trims accidental
-          whitespace before submit.
-        </LyraMuted>
-        <div className="aim-task-actions">
-          <Button disabled={isSubmitting} onClick={onCancel} variant="outline">
-            {t("cancel")}
-          </Button>
-          <Button disabled={!canSubmit || isSubmitting} type="submit">
-            {isSubmitting ? t("creatingTask") : t("createTask")}
-          </Button>
+          <aside>
+            <DetailCard>
+              <div className={pageStack}>
+                <div>
+                  <Kicker>{t("workspaceTarget")}</Kicker>
+                  <h3>{t("projectPath")}</h3>
+                </div>
+                <FieldGroup>
+                  <Field data-disabled={isSubmitting}>
+                    <FieldLabel htmlFor="create-task-project-path">
+                      {t("projectPath")}
+                    </FieldLabel>
+                    <Input
+                      disabled={isSubmitting}
+                      id="create-task-project-path"
+                      onChange={(event) =>
+                        setProjectPath(event.currentTarget.value)
+                      }
+                      placeholder="/absolute/path/to/repo"
+                      type="text"
+                      value={projectPath}
+                    />
+                  </Field>
+
+                  <Field data-disabled={isSubmitting || models.length === 0}>
+                    <FieldLabel>{t("developerModel")}</FieldLabel>
+                    <Select
+                      disabled={isSubmitting || models.length === 0}
+                      onValueChange={setSelectedModelKey}
+                      value={selectedModelKey}
+                    >
+                      <SelectTrigger
+                        aria-label={t("developerModel")}
+                        id="create-task-developer-model"
+                      >
+                        <SelectValue placeholder="No models available" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {models.map((model) => (
+                            <SelectItem
+                              key={`${model.provider_id}::${model.model_id}`}
+                              value={`${model.provider_id}::${model.model_id}`}
+                            >
+                              {model.provider_name} / {model.model_name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Select the Developer model for this task.
+                    </FieldDescription>
+                  </Field>
+                </FieldGroup>
+
+                <FieldSet>
+                  <FieldLegend>{t("beforeYouSend")}</FieldLegend>
+                  <FieldDescription>Submission Checklist</FieldDescription>
+                  <div className="flex flex-col gap-3">
+                    {checklistItems.map((item) => (
+                      <div className="flex items-start gap-3" key={item}>
+                        <Checkmark>✓</Checkmark>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </FieldSet>
+              </div>
+            </DetailCard>
+          </aside>
         </div>
-      </div>
-    </LyraSurface>
+
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <Muted>
+            Task intake keeps the existing API contract and trims accidental
+            whitespace before submit.
+          </Muted>
+          <div className={actions}>
+            <Button
+              disabled={isSubmitting}
+              onClick={onCancel}
+              variant="outline"
+            >
+              {t("cancel")}
+            </Button>
+            <Button disabled={!canSubmit || isSubmitting} type="submit">
+              {isSubmitting ? t("creatingTask") : t("createTask")}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Card>
   );
 };

@@ -8,6 +8,16 @@ import {
   EmptyTitle,
 } from "../../../components/ui/empty.js";
 import type { DashboardManagerReport } from "../model/task-dashboard-view-model.js";
+import {
+  cockpitRegion,
+  eyebrow,
+  metadataLabel,
+  pageStack,
+  panelStack,
+  regionHeader,
+  sectionCopy,
+  sectionTitle,
+} from "./dashboard-styles.js";
 
 const getReportPreview = (contentMarkdown: string) => {
   const [firstLine = ""] = contentMarkdown
@@ -31,17 +41,17 @@ export const ManagerReportSection = ({
 }) => (
   <section
     aria-labelledby="manager-reports-title"
-    className="cockpit-region surface-table evidence-panel"
+    className={`${pageStack} ${cockpitRegion}`}
     id="manager-reports"
   >
-    <div className="region-header">
+    <div className={regionHeader}>
       <div>
-        <p className="eyebrow">Coordinator Handoff</p>
-        <h2 className="section-title" id="manager-reports-title">
+        <p className={eyebrow}>Coordinator Handoff</p>
+        <h2 className={sectionTitle} id="manager-reports-title">
           Manager Reports
         </h2>
       </div>
-      <p className="section-copy">
+      <p className={sectionCopy}>
         Direction evidence read from the configured AIM Server for the visible
         project coordinates. Reports stay read-only here: no creation, editing,
         or deletion actions are exposed.
@@ -49,7 +59,7 @@ export const ManagerReportSection = ({
     </div>
 
     {managerReports.length === 0 ? (
-      <Empty className="state-card manager-report-empty border">
+      <Empty className="border">
         <EmptyHeader>
           <EmptyTitle>No Manager Reports available</EmptyTitle>
           <EmptyDescription>
@@ -60,32 +70,36 @@ export const ManagerReportSection = ({
         </EmptyHeader>
       </Empty>
     ) : (
-      <div className="manager-report-list">
+      <div className="grid gap-3">
         {managerReports.map((report) => (
           <article
-            className="manager-report-card"
+            className="grid items-center gap-4 border-t py-4 first:border-t-0 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto]"
             key={`${report.projectPath}:${report.id}`}
           >
-            <div className="manager-report-card__main">
-              <div className="manager-report-card__title-row">
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-center gap-3 text-foreground">
                 <FileText aria-hidden="true" />
-                <h3>{report.id}</h3>
+                <h3 className="m-0 break-words text-sm font-medium">
+                  {report.id}
+                </h3>
               </div>
-              <p className="muted-text">
+              <p className={sectionCopy}>
                 {getReportPreview(report.contentMarkdown)}
               </p>
-              <dl className="manager-report-facts">
-                <div>
-                  <dt>Baseline</dt>
-                  <dd>{report.baselineRef ?? "Unspecified"}</dd>
+              <dl className="m-0 grid gap-3 md:grid-cols-3">
+                <div className={panelStack}>
+                  <dt className={metadataLabel}>Baseline</dt>
+                  <dd className="m-0 break-words">
+                    {report.baselineRef ?? "Unspecified"}
+                  </dd>
                 </div>
-                <div>
-                  <dt>Created</dt>
-                  <dd>{report.createdAt}</dd>
+                <div className={panelStack}>
+                  <dt className={metadataLabel}>Created</dt>
+                  <dd className="m-0 break-words">{report.createdAt}</dd>
                 </div>
-                <div>
-                  <dt>Project</dt>
-                  <dd>{report.projectPath}</dd>
+                <div className={panelStack}>
+                  <dt className={metadataLabel}>Project</dt>
+                  <dd className="m-0 break-words">{report.projectPath}</dd>
                 </div>
               </dl>
             </div>

@@ -31,6 +31,7 @@ const resolveStoredTheme = (): Theme => {
 
 const applyTheme = (theme: Theme) => {
   document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
   document.documentElement.style.colorScheme = theme;
 };
 
