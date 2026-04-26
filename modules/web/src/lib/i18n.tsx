@@ -67,9 +67,7 @@ const messages = {
     interventionRail: "Intervention Rail",
     interventionRailAria: "Intervention rail",
     loadingConvergenceEvidence: "Loading convergence evidence.",
-    managerReport: "Manager Report",
-    managerHandoffReport: "Manager handoff report",
-    managerReports: "Manager Reports",
+    evaluationSignals: "Evaluation signals",
     methodologyHub: "Methodology Hub",
     noActiveDashboardData:
       "No active Task Pool or completed task history available from the configured server. Check the server target or create the first AIM task when the baseline direction is ready.",
@@ -159,9 +157,7 @@ const messages = {
     interventionRail: "介入栏",
     interventionRailAria: "介入栏",
     loadingConvergenceEvidence: "正在加载收敛证据。",
-    managerReport: "Manager 报告",
-    managerHandoffReport: "Manager 交接报告",
-    managerReports: "Manager 报告",
+    evaluationSignals: "评估信号",
     methodologyHub: "方法论枢纽",
     noActiveDashboardData:
       "当前服务器没有活跃任务池或已完成任务历史。请检查服务器目标，或在基线方向就绪后创建第一个 AIM 任务。",

@@ -8,7 +8,7 @@ The package ships static skill documentation only:
 - `aim-coordinator-guide`: Coordinator decision entry for Task Pool maintenance that forms an approvable Task Write Bulk list of Create and Delete intents before routing approved writes through existing validation and creation skills.
 - `aim-create-tasks`: AIM task creation guidance that turns approved user intent into candidate five-part Task Specs and only creates Tasks via HTTP POST after explicit approval.
 - `aim-evaluate-readme`: README-to-baseline gap evaluation guidance for comparing README claims with the latest `origin/main` facts and emitting direction signals without deciding execution.
-- `aim-manager-guide`: AIM Manager guidance for evaluating README goals against the latest baseline, defining iteration direction and coordinate systems, and producing a stable Markdown Manager Report for Coordinator handoff.
+- `aim-manager-guide`: AIM Manager guidance for evaluating README goals against the latest baseline, defining iteration direction and coordinate systems, and producing Coordinator-consumable evaluation signals from dimensions and dimension evaluations.
 - `aim-setup-github-repo`: GitHub repository settings and PR auto-merge guidance for verifying or standardizing merge settings, rulesets, and auto-merge behavior with `gh`.
 - `aim-developer-guide`: Required AIM Developer entry guidance for working an existing Task through AIM Server reading, baseline verification, required worktree/PR flow, AIM reporting, and final resolve or reject handling.
 - `aim-verify-task-spec`: AIM Task Spec validation guidance that separates structural sufficiency from latest-baseline assumption checks.

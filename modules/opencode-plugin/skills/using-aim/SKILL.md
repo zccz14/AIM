@@ -1,6 +1,6 @@
 ---
 name: using-aim
-description: Use when starting AIM-related work to decide whether ask-strategy, Manager reporting, Coordinator Task Pool maintenance, task creation, README evaluation, spec verification, developer execution, or repo setup guidance applies before any response or action.
+description: Use when starting AIM-related work to decide whether ask-strategy, Manager evaluation signals, Coordinator Task Pool maintenance, task creation, README evaluation, spec verification, developer execution, or repo setup guidance applies before any response or action.
 ---
 
 # using-aim
@@ -45,7 +45,7 @@ Typical triggers:
 - The user is converging on direction or priority and a clarification would change which path to take next.
 - The user wants creative or design exploration before execution is chosen.
 - The user wants AIM Coordinator guidance for maintaining Task Pool writes from Manager output, latest baseline facts, current Tasks, or rejected Task feedback.
-- The user wants AIM Manager guidance for evaluating README goals against the latest baseline and producing a Manager Report for Coordinator handoff.
+- The user wants AIM Manager guidance for evaluating README goals against the latest baseline and producing evaluation signals for Coordinator handoff.
 - The user wants to create a new AIM Task from stabilized intent.
 - The user wants to judge the gap between README claims and the latest `origin/main` baseline, then emit direction signals without creating tasks or deciding execution.
 - The user wants to validate whether a Task Spec is still actionable on the latest baseline.
@@ -72,7 +72,7 @@ The skill check comes first. Do not postpone it until after gathering a little m
 Load the matching skill before acting when the request falls into one of these buckets:
 
 - `aim-ask-strategy`: use as the broader front-door router when the next action is still unclear, when direction or priority must converge, when creative/design exploration is needed before execution, or when a clarification would change the route. Do not route every missing detail here. If the missing detail would not change direction, priority, or next action, continue with the more direct workflow instead.
-- `aim-manager-guide`: direct entry when the user wants AIM Manager guidance to evaluate README goals against the latest baseline, define evaluation coordinates and iteration direction, and prepare stable Markdown Manager Report content for the server-side Manager Report resource without creating Tasks or executing work.
+- `aim-manager-guide`: direct entry when the user wants AIM Manager guidance to evaluate README goals against the latest baseline, define evaluation coordinates and iteration direction, and prepare Coordinator-consumable evaluation signals from `dimensions` and `dimension_evaluations` without creating Tasks or executing work.
 - `aim-coordinator-guide`: direct entry when the user wants AIM Coordinator guidance to maintain the Task Pool by producing an approvable `Task Write Bulk` list from Manager output, latest baseline facts, current Tasks, and rejected Task feedback.
 - `aim-create-tasks`: direct entry when the user wants to turn stabilized, approved intent into candidate five-part AIM Task Specs and create Tasks only after explicit approval.
 - `aim-evaluate-readme`: direct entry when the user wants to evaluate README 与最新 `origin/main` 的差距，输出 `claim_checks`、`conclusion_category` 和方向信号 `iteration_signal`，但不跨进任务创建或执行决定。

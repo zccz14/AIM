@@ -51,8 +51,6 @@ import {
   sectionTitle,
 } from "./dashboard-styles.js";
 import { DimensionDetailsPage } from "./dimension-details-page.js";
-import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
-import { ManagerReportSection } from "./manager-report-section.js";
 import { OverviewSection } from "./overview-section.js";
 import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
@@ -67,7 +65,6 @@ type DashboardRoute =
   | { kind: "dashboard" }
   | { kind: "create" }
   | { dimensionId: string; kind: "dimension" }
-  | { kind: "managerReport"; projectPath: string; reportId: string }
   | { kind: "projects" }
   | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
@@ -127,23 +124,6 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
     }
   }
 
-  const managerReportMatch = pathname.match(
-    /^\/manager-reports\/([^/]+)\/([^/]+)$/,
-  );
-
-  if (managerReportMatch) {
-    const projectPath = managerReportMatch[1];
-    const reportId = managerReportMatch[2];
-
-    if (projectPath && reportId) {
-      return {
-        kind: "managerReport",
-        projectPath: decodeURIComponent(projectPath),
-        reportId: decodeURIComponent(reportId),
-      };
-    }
-  }
-
   return { kind: "dashboard" };
 };
 
@@ -168,14 +148,6 @@ export const DashboardPage = () => {
     useState<DashboardTask | null>(null);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
   const selectedTaskId = route.kind === "task" ? route.taskId : null;
-  const selectedReport =
-    route.kind === "managerReport"
-      ? (dashboardQuery.data?.managerReports.find(
-          (report) =>
-            report.id === route.reportId &&
-            report.projectPath === route.projectPath,
-        ) ?? null)
-      : null;
   const selectedTask =
     dashboardQuery.data?.tasks.find((task) => task.id === selectedTaskId) ??
     dashboardQuery.data?.historyTasks.find(
@@ -300,12 +272,6 @@ export const DashboardPage = () => {
     navigateTo(`/task-write-bulks/${encodeURIComponent(bulkId)}`);
   };
 
-  const goToManagerReport = (report: { id: string; projectPath: string }) => {
-    navigateTo(
-      `/manager-reports/${encodeURIComponent(report.projectPath)}/${encodeURIComponent(report.id)}`,
-    );
-  };
-
   const goToDimension = (dimensionId: string) => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
   };
@@ -348,13 +314,11 @@ export const DashboardPage = () => {
         ? t("createTask")
         : route.kind === "projects"
           ? "Project Register"
-          : route.kind === "managerReport"
-            ? t("managerReport")
-            : route.kind === "dimension"
-              ? "Dimension Detail"
-              : route.kind === "task-write-bulk"
-                ? "Task Write Bulk Details"
-                : t("taskDetails");
+          : route.kind === "dimension"
+            ? "Dimension Detail"
+            : route.kind === "task-write-bulk"
+              ? "Task Write Bulk Details"
+              : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
@@ -374,7 +338,7 @@ export const DashboardPage = () => {
         <li>{t("baselineReview")}</li>
         <li>{t("writeIntentReview")}</li>
         <li>{t("dependencyPressure")}</li>
-        <li>{t("managerHandoffReport")}</li>
+        <li>{t("evaluationSignals")}</li>
         <li>{t("rejectedFeedback")}</li>
         <li>{t("taskIntakeLower")}</li>
       </ul>
@@ -455,18 +419,6 @@ export const DashboardPage = () => {
           scope="Dimension Detail"
         >
           <DimensionDetailsPage report={selectedDimension} />
-        </DashboardPanelBoundary>
-      );
-    }
-
-    if (route.kind === "managerReport") {
-      return (
-        <DashboardPanelBoundary
-          onRetry={handleRefresh}
-          resetKeys={[route.kind, selectedReport?.id]}
-          scope="Manager Report Details"
-        >
-          <ManagerReportDetailsPage report={selectedReport} />
         </DashboardPanelBoundary>
       );
     }
@@ -552,16 +504,6 @@ export const DashboardPage = () => {
                 <TaskWriteBulkSection
                   bulks={dashboardQuery.data.taskWriteBulks}
                   onSelectBulk={goToTaskWriteBulk}
-                />
-              </DashboardPanelBoundary>
-              <DashboardPanelBoundary
-                onRetry={handleRefresh}
-                resetKeys={[dashboardQuery.data.managerReports]}
-                scope="Manager Reports"
-              >
-                <ManagerReportSection
-                  managerReports={dashboardQuery.data.managerReports}
-                  onSelectReport={goToManagerReport}
                 />
               </DashboardPanelBoundary>
               <DashboardPanelBoundary
@@ -699,10 +641,6 @@ export const DashboardPage = () => {
                     {renderWorkspaceLink(
                       "#evidence-ledger",
                       t("evidenceLedger"),
-                    )}
-                    {renderWorkspaceLink(
-                      "#manager-reports",
-                      t("managerReports"),
                     )}
                     {renderWorkspaceLink(
                       "#task-write-bulks",

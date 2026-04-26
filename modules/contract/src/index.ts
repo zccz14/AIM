@@ -8,8 +8,6 @@ export {
   dimensionEvaluationsPath,
   dimensionsPath,
   healthPath,
-  managerReportByIdPath,
-  managerReportsPath,
   openApiDocument,
   opencodeModelsPath,
   optimizerStartPath,
@@ -54,11 +52,6 @@ export const taskPullRequestUrlRequestSchema =
 export const taskDependenciesRequestSchema = schemas.TaskDependenciesRequest;
 export const taskResultRequestSchema = schemas.TaskResultRequest;
 export const taskListResponseSchema = schemas.TaskListResponse;
-export const managerReportSchema = schemas.ManagerReport;
-export const createManagerReportRequestSchema =
-  schemas.CreateManagerReportRequest;
-export const managerReportListResponseSchema =
-  schemas.ManagerReportListResponse;
 export const taskWriteBulkSchema = schemas.TaskWriteBulk;
 export const taskWriteBulkEntrySchema = schemas.TaskWriteBulkEntry;
 export const createTaskWriteBulkRequestSchema =
@@ -105,13 +98,6 @@ export type TaskDependenciesRequest = Infer<
 >;
 export type TaskResultRequest = Infer<typeof taskResultRequestSchema>;
 export type TaskListResponse = Infer<typeof taskListResponseSchema>;
-export type ManagerReport = Infer<typeof managerReportSchema>;
-export type CreateManagerReportRequest = Input<
-  typeof createManagerReportRequestSchema
->;
-export type ManagerReportListResponse = Infer<
-  typeof managerReportListResponseSchema
->;
 export type TaskWriteBulk = Infer<typeof taskWriteBulkSchema>;
 export type TaskWriteBulkEntry = Infer<typeof taskWriteBulkEntrySchema>;
 export type CreateTaskWriteBulkRequest = Input<
@@ -158,11 +144,6 @@ export type TaskDependenciesRequestSchema =
   typeof taskDependenciesRequestSchema;
 export type TaskResultRequestSchema = typeof taskResultRequestSchema;
 export type TaskListResponseSchema = typeof taskListResponseSchema;
-export type ManagerReportSchema = typeof managerReportSchema;
-export type CreateManagerReportRequestSchema =
-  typeof createManagerReportRequestSchema;
-export type ManagerReportListResponseSchema =
-  typeof managerReportListResponseSchema;
 export type TaskWriteBulkSchema = typeof taskWriteBulkSchema;
 export type TaskWriteBulkEntrySchema = typeof taskWriteBulkEntrySchema;
 export type CreateTaskWriteBulkRequestSchema =
@@ -205,11 +186,6 @@ export type ParsedTaskPullRequestUrlRequest = TaskPullRequestUrlRequest;
 export type ParsedTaskDependenciesRequest = TaskDependenciesRequest;
 export type ParsedTaskResultRequest = TaskResultRequest;
 export type ParsedTaskListResponse = TaskListResponse;
-export type ParsedManagerReport = ManagerReport;
-export type ParsedCreateManagerReportRequest = Output<
-  typeof createManagerReportRequestSchema
->;
-export type ParsedManagerReportListResponse = ManagerReportListResponse;
 export type ParsedTaskWriteBulk = TaskWriteBulk;
 export type ParsedTaskWriteBulkEntry = TaskWriteBulkEntry;
 export type ParsedCreateTaskWriteBulkRequest = Output<

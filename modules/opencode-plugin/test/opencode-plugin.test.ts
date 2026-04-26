@@ -29,8 +29,8 @@ const taskWriteBulkDocUrl = new URL(
   "../../../docs/task-write-bulk.md",
   import.meta.url,
 );
-const managerReportDocUrl = new URL(
-  "../../../docs/manager-report.md",
+const managerEvaluationSignalDocUrl = new URL(
+  "../../../docs/manager-evaluation-signal.md",
   import.meta.url,
 );
 const pluginSetupGithubRepoSkillUrl = new URL(
@@ -84,7 +84,7 @@ let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginCoordinatorGuideSkillText: string;
 let taskWriteBulkDocText: string;
-let managerReportDocText: string;
+let managerEvaluationSignalDocText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
 let pluginManagerGuideSkillText: string;
@@ -173,7 +173,10 @@ beforeAll(async () => {
     "utf8",
   );
   taskWriteBulkDocText = await readFile(taskWriteBulkDocUrl, "utf8");
-  managerReportDocText = await readFile(managerReportDocUrl, "utf8");
+  managerEvaluationSignalDocText = await readFile(
+    managerEvaluationSignalDocUrl,
+    "utf8",
+  );
   pluginSetupGithubRepoSkillText = await readFile(
     pluginSetupGithubRepoSkillUrl,
     "utf8",
@@ -430,11 +433,11 @@ describe("opencode plugin package baseline", () => {
 
   it("documents aim-manager-guide as packaged documentation only", () => {
     expect(pluginSkillsReadme).toContain("aim-manager-guide");
-    expect(pluginSkillsReadme).toContain("Manager Report");
-    expect(pluginSkillsReadme).toContain("Coordinator handoff");
+    expect(pluginSkillsReadme).toContain("evaluation signals");
+    expect(pluginSkillsReadme).toContain("dimension evaluations");
 
     expect(pluginReadme).toContain("aim-manager-guide");
-    expect(pluginReadme).toContain("Manager Report direction setting");
+    expect(pluginReadme).toContain("Manager evaluation signals");
     expect(pluginReadme).toContain("static `skills/` and `agents/` resources");
     expect(pluginReadme).toContain("Does not inject bootstrap prompts");
     expect(pluginReadme).toContain("workflow automation");
@@ -530,7 +533,7 @@ describe("opencode plugin package baseline", () => {
     );
 
     expect(usingAimSkillText).toContain("aim-manager-guide");
-    expect(usingAimSkillText).toContain("Manager Report");
+    expect(usingAimSkillText).toContain("evaluation signals");
     expect(usingAimSkillText).toContain("Coordinator handoff");
     expect(usingAimSkillText).toContain(
       "without creating Tasks or executing work",
@@ -703,24 +706,25 @@ describe("opencode plugin package baseline", () => {
   it("documents manager guide report structure and boundaries", () => {
     for (const requiredFragment of [
       "name: aim-manager-guide",
-      "Manager Report",
+      "Manager 评估信号",
       "baseline_ref",
       "readme_target_summary",
       "dimensions",
+      "dimension_evaluations",
       "baseline_facts",
-      "gap_analysis",
+      "差距分析",
       "iteration_direction",
       "coordinator_handoff",
       "open_questions",
       "confidence_and_limits",
-      "作为服务端资源的 `content_markdown` 保存",
+      "持久化事实源仍是 `dimensions` 与 `dimension_evaluations`",
       "默认不需要用户输入",
       "Rejected Task",
       "aim-evaluate-readme",
       "aim-coordinator-guide",
       "aim-ask-strategy",
       "using-aim",
-      "docs/manager-report.md",
+      "docs/manager-evaluation-signal.md",
     ]) {
       expect(pluginManagerGuideSkillText).toContain(requiredFragment);
     }
@@ -729,28 +733,27 @@ describe("opencode plugin package baseline", () => {
     expect(pluginManagerGuideSkillText).not.toContain("TBD");
   });
 
-  it("publishes a standalone manager report product landing point", () => {
+  it("documents manager evaluation signals without a standalone report resource", () => {
     for (const requiredFragment of [
-      "# Manager Report 产品落点",
-      "可发现、可阅读、可引用的服务端持久化记录",
-      "SQLite `manager_reports` 表中的 `content_markdown` 字段",
-      "POST /manager_reports",
-      "GET /manager_reports?project_path=...",
+      "# Manager 评估信号",
+      "不是一等持久化资源",
+      "`dimensions` 保存评估维度定义",
+      "`dimension_evaluations` 保存每次针对维度的评分",
+      "不是读取、创建或引用独立的 `manager_reports` 资源",
       "baseline_ref",
-      "coordinate_system",
-      "gap_analysis",
-      "iteration_direction",
-      "coordinator_handoff",
+      "dimensions",
+      "dimension_evaluations",
+      "差距分析",
       "docs/task-write-bulk.md",
       "不能替代 Coordinator 审批或 Task 写入流程",
-      "不得",
+      "作为独立 `manager_reports` API、SQLite 表、CLI 命令或 Web 资源存在",
       "POST /tasks",
     ]) {
-      expect(managerReportDocText).toContain(requiredFragment);
+      expect(managerEvaluationSignalDocText).toContain(requiredFragment);
     }
 
-    expect(managerReportDocText).not.toContain("TODO");
-    expect(managerReportDocText).not.toContain("TBD");
+    expect(managerEvaluationSignalDocText).not.toContain("TODO");
+    expect(managerEvaluationSignalDocText).not.toContain("TBD");
   });
 
   it("documents developer guide reporting rules and failure split", () => {

@@ -32,14 +32,6 @@ export type DashboardClosureCue = {
   isComplete: boolean;
 };
 
-export type DashboardManagerReport = {
-  id: string;
-  projectPath: string;
-  contentMarkdown: string;
-  baselineRef: string | null;
-  createdAt: string;
-};
-
 export type DashboardSummaryCard = {
   key: "pool" | "processing" | "historyResolved" | "historyRejected";
   label: string;
@@ -88,7 +80,6 @@ export type TaskDashboardViewModel = {
   dimensionReports: DashboardDimensionReportItem[];
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
-  managerReports: DashboardManagerReport[];
   taskWriteBulks: TaskWriteBulk[];
   rejectedFeedbackSignals: DashboardRejectedFeedbackSignal[];
   summaryCards: DashboardSummaryCard[];

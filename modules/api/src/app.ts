@@ -7,7 +7,6 @@ import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
 import type { OptimizerEvent, OptimizerRuntime } from "./optimizer-runtime.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
-import { registerManagerReportRoutes } from "./routes/manager-reports.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerOptimizerRoutes } from "./routes/optimizer.js";
 import { registerProjectRoutes } from "./routes/projects.js";
@@ -122,7 +121,6 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOptimizerRoutes(app, optimizerRuntime);
   registerProjectRoutes(app, { resourceScope });
   registerDimensionRoutes(app, { resourceScope });
-  registerManagerReportRoutes(app, { resourceScope });
   registerTaskWriteBulkRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,

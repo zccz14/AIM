@@ -1,28 +1,28 @@
 ---
 name: aim-manager-guide
-description: AIM Manager guidance for evaluating README goals against the latest baseline, defining iteration direction and Dimensions, and preparing Markdown Manager Report content for server-side persistence without creating tasks or executing work.
+description: AIM Manager guidance for evaluating README goals against the latest baseline, defining iteration direction and Dimensions, and preparing Coordinator-consumable evaluation signals without creating tasks or executing work.
 ---
 
 # aim-manager-guide
 
 ## 概述
 
-这个 skill 是 AIM Manager 的评估内容准备入口。Manager 负责评估 README 目标与最新 `origin/main` baseline 的差距，维护评估维度（Dimension），形成差距分析、迭代方向建议与需要 Director 澄清的开放问题。产品语义与交接边界见 `docs/manager-report.md`。
+这个 skill 是 AIM Manager 的评估内容准备入口。Manager 负责评估 README 目标与最新 `origin/main` baseline 的差距，维护评估维度（Dimension），形成差距分析、迭代方向建议与需要 Director 澄清的开放问题。产品语义与交接边界见 `docs/manager-evaluation-signal.md`。
 
-Manager 的产物是方向信号、评估维度和面向 Director / Coordinator 的评估报告，不是 Task Pool 写入，也不是后台调度协议。`Manager Report` 的 Markdown 结构应保持稳定，作为服务端资源的 `content_markdown` 保存；维度定义与维度评估在产品语义上分别落点到 `dimensions` 与 `dimension_evaluations`。
+Manager 的产物是方向信号、评估维度和面向 Director / Coordinator 的评估说明，不是 Task Pool 写入，也不是后台调度协议。维度定义与逐次评估结果分别落点到 `dimensions` 与 `dimension_evaluations`；不得再把评估说明保存为独立 `manager_reports` 资源。
 
 ## 何时使用
 
 - 需要评估 README 目标与最新 baseline 之间的差距，并判断下一轮迭代方向时。
 - 需要定义或维护本轮评估的维度，并为每个维度给出定量评分标准和定性描述标准时。
-- 需要把方向、差距、可信度、限制和开放问题整理成 Director 可理解、Coordinator 可消费的 `Manager Report` 时。
+- 需要把方向、差距、可信度、限制和开放问题整理成 Director 可理解、Coordinator 可消费的评估信号时。
 - 需要把可观测性资料或 Issues 纳入基线差距判断，但还没有进入 Task Pool 写入决策时。
 
 ## 产品入口
 
-- 当前可观察入口包括服务端 `manager_reports` 资源，以及用于维度定义和维度评估落点的 `dimensions` / `dimension_evaluations` 语义；本 packaged skill 只负责准备评估内容与 Markdown 报告。
-- 一份输出只有同时满足 Manager 评估语境、稳定 `Manager Report` Markdown 结构、面向 Coordinator handoff、且不直接写 Task Pool 时，才是产品内的 Manager Report。
-- `docs/manager-report.md` 是 Manager Report 的产品语义与交接边界说明；本 skill 是生成报告的操作入口。
+- 当前可观察入口是用于维度定义和维度评估落点的 `dimensions` / `dimension_evaluations` 语义；本 packaged skill 只负责准备评估内容与 Coordinator handoff。
+- 一份输出只有同时满足 Manager 评估语境、面向 Coordinator handoff、且不直接写 Task Pool 时，才是产品内的 Manager 评估信号。
+- `docs/manager-evaluation-signal.md` 是 Manager 评估信号的产品语义与交接边界说明。
 
 ## Dimension API 使用示例
 
@@ -112,14 +112,14 @@ Manager 默认不需要用户输入。开始工作时应先从环境中读取或
 - 可观测性资料，例如运行日志、检查结果、CI 状态、CLI / API / UI 可见行为；只使用当前环境能取得的事实。
 - Issues、讨论记录或其他目标反馈；只把可引用事实纳入报告。
 - 既有维度或维度评估记录；若存在，应作为历史评估输入而不是当前 baseline 的替代品。
-- 既有 Manager Report 或 Coordinator 输出；若存在，应作为历史方向输入而不是当前 baseline 的替代品。
+- 既有 Manager 评估信号或 Coordinator 输出；若存在，应作为历史方向输入而不是当前 baseline 的替代品。
 
 ## 缺失信息处理
 
 - 如果环境缺少某类信息，不要立即问用户，也不要虚构事实。
 - 把缺失项、可能影响和当前判断边界记录到 `confidence_and_limits`。
 - 只有当 README 目标本身不清晰，且这种不清晰会阻止稳定评估维度或迭代方向判断时，才在 `open_questions` 中给 Director 形成澄清问题。
-- 不得把环境缺失自动升级为用户问题；能用现有事实形成有边界判断时，应继续输出 Manager Report。
+- 不得把环境缺失自动升级为用户问题；能用现有事实形成有边界判断时，应继续输出 Manager 评估信号。
 
 ## Manager 边界
 
@@ -138,7 +138,7 @@ Manager 不得：
 - 输出可直接执行的 Developer Task Spec 当作已批准任务。
 - 修改代码、文档、测试、配置或运行 Developer 生命周期。
 - 决定具体 Developer 的 worktree、branch、PR、merge 或验证命令。
-- 把 `Manager Report` 写成仓库 Markdown 文件、绕过服务端 API 写 SQLite，或解释成后台自动化协议。
+- 把 Manager 评估信号写成独立 `manager_reports` 资源、仓库 Markdown 文件，绕过服务端 API 写 SQLite，或解释成后台自动化协议。
 
 ## 与其他 Skills 的边界
 
@@ -150,7 +150,7 @@ Manager 不得：
 
 ### `aim-coordinator-guide`
 
-Coordinator 通过服务端资源消费 Manager Report，并结合最新基线、当前 Task Pool 与 Rejected Task 反馈维护 Task Pool。Coordinator 的产物是可审批的 `Task Write Bulk` list，包含 `Create` / `Delete` 意图、依赖和路由。
+Coordinator 从 `dimensions` 与 `dimension_evaluations` 派生 Manager 评估信号，并结合最新基线、当前 Task Pool 与 Rejected Task 反馈维护 Task Pool。Coordinator 的产物是可审批的 `Task Write Bulk` list，包含 `Create` / `Delete` 意图、依赖和路由。
 
 Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 Coordinator 进入 `aim-create-tasks`。
 
@@ -164,7 +164,7 @@ Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 C
 
 ### `aim-developer-guide`
 
-`aim-developer-guide` 负责既有 AIM Task 的执行闭环，包括 worktree、实现、验证、commit、PR、auto-merge、checks 跟进和终态清理。Manager 不执行这些动作；Manager Report 最多为 Coordinator 后续维护 Task Pool 提供方向。
+`aim-developer-guide` 负责既有 AIM Task 的执行闭环，包括 worktree、实现、验证、commit、PR、auto-merge、checks 跟进和终态清理。Manager 不执行这些动作；Manager 评估信号最多为 Coordinator 后续维护 Task Pool 提供方向。
 
 ## 工作流程
 
@@ -178,12 +178,12 @@ Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 C
 8. 输出 `coordinator_handoff`，明确 Coordinator 后续维护 Task Pool 时应检查的候选差距、冲突、依赖和开放问题。
 9. 填写 `open_questions` 与 `confidence_and_limits`，把不确定性保留在报告中。
 
-## Manager Report 结构
+## Manager 评估信号结构
 
-输出应使用稳定 Markdown 结构，字段名保持一致，供 Coordinator 阅读和引用。这个结构是 Manager Report 资源的 Markdown 内容字段，不要求服务端或数据库按内部段落字段解析。
+输出应使用稳定 Markdown 结构，字段名保持一致，供 Coordinator 阅读和引用。这个结构只是评估信号的表达格式；持久化事实源仍是 `dimensions` 与 `dimension_evaluations`。
 
 ```markdown
-# Manager Report
+# Manager Evaluation Signal
 
 baseline_ref:
 - latest_origin_main: <最新 baseline 引用，例如 origin/main 或已知 commit>
@@ -260,6 +260,6 @@ confidence_and_limits:
 - [ ] 是否为每个维度设定了定量评分标准和定性描述标准。
 - [ ] 是否逐一形成了包含定量评分和定性描述的维度评估。
 - [ ] 是否把可观测性资料和 Issues 放在方向层处理，而不是直接生成 Task Pool 写入。
-- [ ] 是否只输出 Manager Report / 方向信号，没有直接创建 Task 或修改代码。
+- [ ] 是否只输出 Manager 评估信号 / 方向信号，没有直接创建 Task 或修改代码。
 - [ ] 是否把 Coordinator handoff 写成后续 Task Pool 维护输入，而不是 Task Write Bulk 本身。
-- [ ] 是否避免把 Manager Report 解释成 API schema、SQLite schema 或自动化协议。
+- [ ] 是否避免把 Manager 评估信号解释成独立 API schema、SQLite schema 或自动化协议。

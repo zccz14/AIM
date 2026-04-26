@@ -53,17 +53,6 @@ CREATE TABLE IF NOT EXISTS dimension_evaluations (
   FOREIGN KEY (dimension_id) REFERENCES dimensions(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS manager_reports (
-  project_path TEXT NOT NULL,
-  report_id TEXT NOT NULL,
-  content_markdown TEXT NOT NULL,
-  baseline_ref TEXT,
-  source_metadata TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (project_path, report_id)
-);
-
 CREATE TABLE IF NOT EXISTS task_write_bulks (
   project_path TEXT NOT NULL,
   bulk_id TEXT NOT NULL,
