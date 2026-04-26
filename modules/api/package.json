@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "dev": "pnpm exec tsx watch src/server.ts",
-    "build:dist": "pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/api/src/app.ts --entry modules/api/src/server.ts --out-dir modules/api/dist",
+    "build:dist": "pnpm --dir ../.. exec tsdown --config tsdown.config.ts --entry modules/api/src/app.ts --entry modules/api/src/server.ts --out-dir modules/api/dist && cp src/schema.sql dist/schema.sql",
     "build": "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
     "typecheck": "pnpm exec tsc --project tsconfig.json --noEmit",
     "test:type": "[ -n \"$SKIP_TEST\" ] || pnpm run typecheck",

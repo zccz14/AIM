@@ -10,6 +10,7 @@ import {
   type PatchDimensionRequest,
 } from "@aim-ai/contract";
 
+import { applySqliteSchema } from "./schema.js";
 import { openTaskDatabase } from "./task-database.js";
 
 type DimensionRow = {
@@ -111,36 +112,6 @@ const mapDimensionEvaluationRow = (row: DimensionEvaluationRow) =>
     created_at: row.created_at,
   });
 
-const createDimensionTables = (
-  database: ReturnType<typeof openTaskDatabase>,
-) => {
-  database.exec("PRAGMA foreign_keys = ON");
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${dimensionsTableName} (
-      id TEXT NOT NULL PRIMARY KEY,
-      project_path TEXT NOT NULL,
-      name TEXT NOT NULL,
-      goal TEXT NOT NULL,
-      evaluation_method TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${dimensionEvaluationsTableName} (
-      id TEXT NOT NULL PRIMARY KEY,
-      dimension_id TEXT NOT NULL,
-      project_path TEXT NOT NULL,
-      commit_sha TEXT NOT NULL,
-      evaluator_model TEXT NOT NULL,
-      score INTEGER NOT NULL,
-      evaluation TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (dimension_id) REFERENCES ${dimensionsTableName}(id) ON DELETE CASCADE
-    )
-  `);
-};
-
 const validateTableSchema = (
   database: ReturnType<typeof openTaskDatabase>,
   tableName: string,
@@ -179,7 +150,8 @@ const validateTableSchema = (
 const bootstrapDimensionDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
-  createDimensionTables(database);
+  database.exec("PRAGMA foreign_keys = ON");
+  applySqliteSchema(database);
   validateTableSchema(database, dimensionsTableName, dimensionColumns);
   validateTableSchema(
     database,

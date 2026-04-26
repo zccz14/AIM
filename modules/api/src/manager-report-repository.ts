@@ -4,6 +4,7 @@ import {
   managerReportSchema,
 } from "@aim-ai/contract";
 
+import { applySqliteSchema } from "./schema.js";
 import { openTaskDatabase } from "./task-database.js";
 
 type ManagerReportRow = {
@@ -71,23 +72,6 @@ const mapManagerReportRow = (row: ManagerReportRow) =>
     updated_at: row.updated_at,
   });
 
-const createManagerReportsTable = (
-  database: ReturnType<typeof openTaskDatabase>,
-) => {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${managerReportsTableName} (
-      project_path TEXT NOT NULL,
-      report_id TEXT NOT NULL,
-      content_markdown TEXT NOT NULL,
-      baseline_ref TEXT,
-      source_metadata TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (project_path, report_id)
-    )
-  `);
-};
-
 const validateManagerReportsTableSchema = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
@@ -119,7 +103,7 @@ const validateManagerReportsTableSchema = (
 const bootstrapManagerReportDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
-  createManagerReportsTable(database);
+  applySqliteSchema(database);
   validateManagerReportsTableSchema(database);
 
   return database;

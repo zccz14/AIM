@@ -8,6 +8,7 @@ import {
   taskSchema,
 } from "@aim-ai/contract";
 
+import { applySqliteIndexSchema, applySqliteTableSchema } from "./schema.js";
 import { openTaskDatabase } from "./task-database.js";
 
 type TaskRow = {
@@ -56,7 +57,6 @@ type IndexListRow = {
 const tasksTableName = "tasks";
 const projectsTableName = "projects";
 const unfinishedSessionIndexName = "tasks_unfinished_session_id_unique";
-const unfinishedSessionIndexPredicate = "done = 0 AND session_id IS NOT NULL";
 
 type ListTaskFilters = {
   done?: boolean;
@@ -182,51 +182,6 @@ const mapTaskRow = (row: TaskRow) =>
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
-
-const createProjectsTable = (database: ReturnType<typeof openTaskDatabase>) => {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${projectsTableName} (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      project_path TEXT NOT NULL UNIQUE,
-      global_provider_id TEXT NOT NULL,
-      global_model_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-};
-
-const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${tasksTableName} (
-      task_id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      task_spec TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      project_path TEXT NOT NULL,
-      developer_provider_id TEXT NOT NULL,
-      developer_model_id TEXT NOT NULL,
-      session_id TEXT,
-      worktree_path TEXT,
-      pull_request_url TEXT,
-      dependencies TEXT NOT NULL,
-      result TEXT NOT NULL DEFAULT '',
-      done INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-};
-
-const createTasksIndexes = (database: ReturnType<typeof openTaskDatabase>) => {
-  database.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS ${unfinishedSessionIndexName}
-    ON ${tasksTableName} (session_id)
-    WHERE ${unfinishedSessionIndexPredicate}
-  `);
-};
 
 const validateTasksIndexes = (
   database: ReturnType<typeof openTaskDatabase>,
@@ -367,12 +322,11 @@ const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
 const bootstrapTaskDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
-  createProjectsTable(database);
-  validateProjectsTableSchema(database);
-  createTasksTable(database);
+  applySqliteTableSchema(database);
   migrateLegacyTasksSchema(database);
+  validateProjectsTableSchema(database);
   validateTasksTableSchema(database);
-  createTasksIndexes(database);
+  applySqliteIndexSchema(database);
   validateTasksSchema(database);
 
   return database;
