@@ -94,7 +94,7 @@ jobs:
       - name: Build Pages artifact
         run: pnpm --filter @aim-ai/contract run build:dist && pnpm --filter @aim-ai/web run build:dist
         env:
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_BASE_PATH: /
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
