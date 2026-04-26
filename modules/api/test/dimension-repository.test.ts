@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createCoordinateRepository } from "../src/coordinate-repository.js";
+import { createDimensionRepository } from "../src/dimension-repository.js";
 
 type TableInfoRow = {
   name: string;
@@ -13,7 +13,7 @@ type TableInfoRow = {
   type: string;
 };
 
-const tempRoot = join(process.cwd(), ".tmp", "modules-api-coordinates");
+const tempRoot = join(process.cwd(), ".tmp", "modules-api-dimensions");
 
 const createProjectRoot = async (name: string) => {
   const projectRoot = join(tempRoot, name);
@@ -24,7 +24,7 @@ const createProjectRoot = async (name: string) => {
   return projectRoot;
 };
 
-const createCoordinateInput = {
+const createDimensionInput = {
   project_path: "/repo/main",
   name: "API Fit",
   goal: "Keep the public API aligned with manager workflow needs.",
@@ -44,29 +44,29 @@ afterEach(async () => {
   await rm(tempRoot, { force: true, recursive: true });
 });
 
-describe("coordinate repository", () => {
-  it("creates aim.sqlite and coordinate tables with cascading evaluation storage", async () => {
+describe("dimension repository", () => {
+  it("creates aim.sqlite and dimension tables with cascading evaluation storage", async () => {
     const projectRoot = await createProjectRoot("creates-tables");
     const databasePath = join(projectRoot, "aim.sqlite");
 
     await expect(access(databasePath)).rejects.toThrow();
 
-    const repository = createCoordinateRepository({ projectRoot });
+    const repository = createDimensionRepository({ projectRoot });
 
-    await repository.listCoordinates("/repo/main");
+    await repository.listDimensions("/repo/main");
 
     await expect(access(databasePath)).resolves.toBeUndefined();
 
     const database = new DatabaseSync(databasePath);
-    const coordinateColumns = database
-      .prepare("PRAGMA table_info(coordinates)")
+    const dimensionColumns = database
+      .prepare("PRAGMA table_info(dimensions)")
       .all() as TableInfoRow[];
     const evaluationColumns = database
-      .prepare("PRAGMA table_info(coordinate_evaluations)")
+      .prepare("PRAGMA table_info(dimension_evaluations)")
       .all() as TableInfoRow[];
     database.close();
 
-    expect(coordinateColumns.map((column) => column.name)).toEqual([
+    expect(dimensionColumns.map((column) => column.name)).toEqual([
       "id",
       "project_path",
       "name",
@@ -77,7 +77,7 @@ describe("coordinate repository", () => {
     ]);
     expect(evaluationColumns.map((column) => column.name)).toEqual([
       "id",
-      "coordinate_id",
+      "dimension_id",
       "project_path",
       "commit_sha",
       "evaluator_model",
@@ -87,64 +87,63 @@ describe("coordinate repository", () => {
     ]);
   });
 
-  it("creates, reads, lists, patches, and deletes coordinates", async () => {
+  it("creates, reads, lists, patches, and deletes dimensions", async () => {
     const projectRoot = await createProjectRoot("crud");
-    const repository = createCoordinateRepository({ projectRoot });
+    const repository = createDimensionRepository({ projectRoot });
 
-    const firstCoordinate = await repository.createCoordinate(
-      createCoordinateInput,
-    );
-    const secondCoordinate = await repository.createCoordinate({
-      ...createCoordinateInput,
+    const firstDimension =
+      await repository.createDimension(createDimensionInput);
+    const secondDimension = await repository.createDimension({
+      ...createDimensionInput,
       name: "Task Throughput",
     });
-    await repository.createCoordinate({
-      ...createCoordinateInput,
+    await repository.createDimension({
+      ...createDimensionInput,
       project_path: "/repo/other",
     });
 
-    expect(firstCoordinate).toMatchObject(createCoordinateInput);
-    expect(firstCoordinate.id).toEqual(expect.any(String));
-    await expect(repository.getCoordinate(firstCoordinate.id)).resolves.toEqual(
-      firstCoordinate,
+    expect(firstDimension).toMatchObject(createDimensionInput);
+    expect(firstDimension.id).toEqual(expect.any(String));
+    await expect(repository.getDimension(firstDimension.id)).resolves.toEqual(
+      firstDimension,
     );
-    await expect(repository.listCoordinates("/repo/main")).resolves.toEqual([
-      firstCoordinate,
-      secondCoordinate,
+    await expect(repository.listDimensions("/repo/main")).resolves.toEqual([
+      firstDimension,
+      secondDimension,
     ]);
 
-    const patchedCoordinate = await repository.patchCoordinate(
-      firstCoordinate.id,
+    const patchedDimension = await repository.patchDimension(
+      firstDimension.id,
       {
         goal: "Keep API, storage, and contract behavior aligned.",
       },
     );
 
-    expect(patchedCoordinate).toMatchObject({
-      id: firstCoordinate.id,
+    expect(patchedDimension).toMatchObject({
+      id: firstDimension.id,
       goal: "Keep API, storage, and contract behavior aligned.",
     });
-    expect(patchedCoordinate?.updated_at).not.toBe(firstCoordinate.updated_at);
+    expect(patchedDimension?.updated_at).not.toBe(firstDimension.updated_at);
 
-    await expect(repository.deleteCoordinate(firstCoordinate.id)).resolves.toBe(
+    await expect(repository.deleteDimension(firstDimension.id)).resolves.toBe(
       true,
     );
     await expect(
-      repository.getCoordinate(firstCoordinate.id),
+      repository.getDimension(firstDimension.id),
     ).resolves.toBeNull();
   });
 
-  it("appends evaluations and cascades them when deleting coordinates", async () => {
+  it("appends evaluations and cascades them when deleting dimensions", async () => {
     const projectRoot = await createProjectRoot("evaluations");
-    const repository = createCoordinateRepository({ projectRoot });
-    const coordinate = await repository.createCoordinate(createCoordinateInput);
+    const repository = createDimensionRepository({ projectRoot });
+    const dimension = await repository.createDimension(createDimensionInput);
 
-    const firstEvaluation = await repository.createCoordinateEvaluation(
-      coordinate.id,
+    const firstEvaluation = await repository.createDimensionEvaluation(
+      dimension.id,
       createEvaluationInput,
     );
-    const secondEvaluation = await repository.createCoordinateEvaluation(
-      coordinate.id,
+    const secondEvaluation = await repository.createDimensionEvaluation(
+      dimension.id,
       {
         ...createEvaluationInput,
         commit_sha: "abc1235",
@@ -155,27 +154,27 @@ describe("coordinate repository", () => {
 
     expect(firstEvaluation).toMatchObject({
       ...createEvaluationInput,
-      coordinate_id: coordinate.id,
+      dimension_id: dimension.id,
     });
     expect(firstEvaluation.id).toEqual(expect.any(String));
     await expect(
-      repository.listCoordinateEvaluations(coordinate.id),
+      repository.listDimensionEvaluations(dimension.id),
     ).resolves.toEqual([firstEvaluation, secondEvaluation]);
 
-    await repository.deleteCoordinate(coordinate.id);
+    await repository.deleteDimension(dimension.id);
 
     await expect(
-      repository.listCoordinateEvaluations(coordinate.id),
+      repository.listDimensionEvaluations(dimension.id),
     ).resolves.toEqual([]);
   });
 
-  it("rejects evaluations for missing coordinates", async () => {
-    const projectRoot = await createProjectRoot("missing-coordinate");
-    const repository = createCoordinateRepository({ projectRoot });
+  it("rejects evaluations for missing dimensions", async () => {
+    const projectRoot = await createProjectRoot("missing-dimension");
+    const repository = createDimensionRepository({ projectRoot });
 
     await expect(
-      repository.createCoordinateEvaluation(
-        "missing-coordinate",
+      repository.createDimensionEvaluation(
+        "missing-dimension",
         createEvaluationInput,
       ),
     ).resolves.toBeNull();

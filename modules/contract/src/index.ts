@@ -4,9 +4,9 @@ import { schemas } from "../generated/zod.js";
 
 export type { OpenApiDocument } from "./openapi.js";
 export {
-  coordinateByIdPath,
-  coordinateEvaluationsPath,
-  coordinatesPath,
+  dimensionByIdPath,
+  dimensionEvaluationsPath,
+  dimensionsPath,
   healthPath,
   managerReportByIdPath,
   managerReportsPath,
@@ -23,15 +23,15 @@ export {
   taskWriteBulkByIdPath,
   taskWriteBulksPath,
 } from "./openapi.js";
-export const coordinateSchema = schemas.Coordinate;
-export const createCoordinateRequestSchema = schemas.CreateCoordinateRequest;
-export const patchCoordinateRequestSchema = schemas.PatchCoordinateRequest;
-export const coordinateListResponseSchema = schemas.CoordinateListResponse;
-export const coordinateEvaluationSchema = schemas.CoordinateEvaluation;
-export const createCoordinateEvaluationRequestSchema =
-  schemas.CreateCoordinateEvaluationRequest;
-export const coordinateEvaluationListResponseSchema =
-  schemas.CoordinateEvaluationListResponse;
+export const dimensionSchema = schemas.Dimension;
+export const createDimensionRequestSchema = schemas.CreateDimensionRequest;
+export const patchDimensionRequestSchema = schemas.PatchDimensionRequest;
+export const dimensionListResponseSchema = schemas.DimensionListResponse;
+export const dimensionEvaluationSchema = schemas.DimensionEvaluation;
+export const createDimensionEvaluationRequestSchema =
+  schemas.CreateDimensionEvaluationRequest;
+export const dimensionEvaluationListResponseSchema =
+  schemas.DimensionEvaluationListResponse;
 export const healthResponseSchema = schemas.HealthResponse;
 export const healthStatusSchema = healthResponseSchema.shape.status;
 export const healthErrorSchema = schemas.HealthError;
@@ -63,18 +63,16 @@ export const taskStatusSchema = taskSchema.shape.status;
 export const taskErrorCodeSchema = taskErrorSchema.shape.code;
 
 export type HealthResponse = Infer<typeof healthResponseSchema>;
-export type Coordinate = Infer<typeof coordinateSchema>;
-export type CreateCoordinateRequest = Input<
-  typeof createCoordinateRequestSchema
+export type Dimension = Infer<typeof dimensionSchema>;
+export type CreateDimensionRequest = Input<typeof createDimensionRequestSchema>;
+export type PatchDimensionRequest = Infer<typeof patchDimensionRequestSchema>;
+export type DimensionListResponse = Infer<typeof dimensionListResponseSchema>;
+export type DimensionEvaluation = Infer<typeof dimensionEvaluationSchema>;
+export type CreateDimensionEvaluationRequest = Input<
+  typeof createDimensionEvaluationRequestSchema
 >;
-export type PatchCoordinateRequest = Infer<typeof patchCoordinateRequestSchema>;
-export type CoordinateListResponse = Infer<typeof coordinateListResponseSchema>;
-export type CoordinateEvaluation = Infer<typeof coordinateEvaluationSchema>;
-export type CreateCoordinateEvaluationRequest = Input<
-  typeof createCoordinateEvaluationRequestSchema
->;
-export type CoordinateEvaluationListResponse = Infer<
-  typeof coordinateEvaluationListResponseSchema
+export type DimensionEvaluationListResponse = Infer<
+  typeof dimensionEvaluationListResponseSchema
 >;
 export type HealthStatus = Infer<typeof healthStatusSchema>;
 export type HealthError = Infer<typeof healthErrorSchema>;
@@ -116,16 +114,15 @@ export type TaskError = Infer<typeof taskErrorSchema>;
 export type TaskStatus = Infer<typeof taskStatusSchema>;
 export type TaskErrorCode = Infer<typeof taskErrorCodeSchema>;
 export type HealthResponseSchema = typeof healthResponseSchema;
-export type CoordinateSchema = typeof coordinateSchema;
-export type CreateCoordinateRequestSchema =
-  typeof createCoordinateRequestSchema;
-export type PatchCoordinateRequestSchema = typeof patchCoordinateRequestSchema;
-export type CoordinateListResponseSchema = typeof coordinateListResponseSchema;
-export type CoordinateEvaluationSchema = typeof coordinateEvaluationSchema;
-export type CreateCoordinateEvaluationRequestSchema =
-  typeof createCoordinateEvaluationRequestSchema;
-export type CoordinateEvaluationListResponseSchema =
-  typeof coordinateEvaluationListResponseSchema;
+export type DimensionSchema = typeof dimensionSchema;
+export type CreateDimensionRequestSchema = typeof createDimensionRequestSchema;
+export type PatchDimensionRequestSchema = typeof patchDimensionRequestSchema;
+export type DimensionListResponseSchema = typeof dimensionListResponseSchema;
+export type DimensionEvaluationSchema = typeof dimensionEvaluationSchema;
+export type CreateDimensionEvaluationRequestSchema =
+  typeof createDimensionEvaluationRequestSchema;
+export type DimensionEvaluationListResponseSchema =
+  typeof dimensionEvaluationListResponseSchema;
 export type HealthStatusSchema = typeof healthStatusSchema;
 export type HealthErrorSchema = typeof healthErrorSchema;
 export type HealthErrorCodeSchema = typeof healthErrorCodeSchema;
@@ -158,18 +155,18 @@ export type TaskErrorSchema = typeof taskErrorSchema;
 export type TaskStatusSchema = typeof taskStatusSchema;
 export type TaskErrorCodeSchema = typeof taskErrorCodeSchema;
 export type ParsedHealthResponse = HealthResponse;
-export type ParsedCoordinate = Coordinate;
-export type ParsedCreateCoordinateRequest = Output<
-  typeof createCoordinateRequestSchema
+export type ParsedDimension = Dimension;
+export type ParsedCreateDimensionRequest = Output<
+  typeof createDimensionRequestSchema
 >;
-export type ParsedPatchCoordinateRequest = PatchCoordinateRequest;
-export type ParsedCoordinateListResponse = CoordinateListResponse;
-export type ParsedCoordinateEvaluation = CoordinateEvaluation;
-export type ParsedCreateCoordinateEvaluationRequest = Output<
-  typeof createCoordinateEvaluationRequestSchema
+export type ParsedPatchDimensionRequest = PatchDimensionRequest;
+export type ParsedDimensionListResponse = DimensionListResponse;
+export type ParsedDimensionEvaluation = DimensionEvaluation;
+export type ParsedCreateDimensionEvaluationRequest = Output<
+  typeof createDimensionEvaluationRequestSchema
 >;
-export type ParsedCoordinateEvaluationListResponse =
-  CoordinateEvaluationListResponse;
+export type ParsedDimensionEvaluationListResponse =
+  DimensionEvaluationListResponse;
 export type ParsedHealthError = HealthError;
 export type ParsedTask = Task;
 export type ParsedCreateTaskRequest = Output<typeof createTaskRequestSchema>;

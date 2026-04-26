@@ -3,10 +3,9 @@ import { openApiDocument as generatedOpenApiDocument } from "../generated/openap
 export type OpenApiDocument = typeof generatedOpenApiDocument;
 
 export const healthPath = "/health";
-export const coordinateByIdPath = "/coordinates/{coordinateId}";
-export const coordinateEvaluationsPath =
-  "/coordinates/{coordinateId}/evaluations";
-export const coordinatesPath = "/coordinates";
+export const dimensionByIdPath = "/dimensions/{dimensionId}";
+export const dimensionEvaluationsPath = "/dimensions/{dimensionId}/evaluations";
+export const dimensionsPath = "/dimensions";
 export const managerReportByIdPath = "/manager_reports/{reportId}";
 export const managerReportsPath = "/manager_reports";
 export const opencodeModelsPath = "/opencode/models";

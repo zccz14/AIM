@@ -162,7 +162,7 @@ export type TaskWriteBulkListResponse = {
   items: Array<TaskWriteBulk>;
 };
 
-export type Coordinate = {
+export type Dimension = {
   readonly id: string;
   project_path: string;
   name: string;
@@ -172,29 +172,29 @@ export type Coordinate = {
   readonly updated_at: string;
 };
 
-export type CreateCoordinateRequest = {
+export type CreateDimensionRequest = {
   project_path: string;
   name: string;
   goal: string;
   evaluation_method: string;
 };
 
-export type PatchCoordinateRequest = {
+export type PatchDimensionRequest = {
   name?: string;
   goal?: string;
   evaluation_method?: string;
 };
 
-export type CoordinateListResponse = {
-  items: Array<Coordinate>;
+export type DimensionListResponse = {
+  items: Array<Dimension>;
 };
 
 /**
- * Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
+ * Immutable append-only evaluation result for one dimension at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
  */
-export type CoordinateEvaluation = {
+export type DimensionEvaluation = {
   readonly id: string;
-  readonly coordinate_id: string;
+  readonly dimension_id: string;
   project_path: string;
   commit_sha: string;
   evaluator_model: string;
@@ -206,7 +206,7 @@ export type CoordinateEvaluation = {
   readonly created_at: string;
 };
 
-export type CreateCoordinateEvaluationRequest = {
+export type CreateDimensionEvaluationRequest = {
   project_path: string;
   commit_sha: string;
   evaluator_model: string;
@@ -217,8 +217,8 @@ export type CreateCoordinateEvaluationRequest = {
   evaluation: string;
 };
 
-export type CoordinateEvaluationListResponse = {
-  items: Array<CoordinateEvaluation>;
+export type DimensionEvaluationListResponse = {
+  items: Array<DimensionEvaluation>;
 };
 
 export type OpenCodeModelCombination = {
@@ -244,8 +244,8 @@ export type ErrorResponse = {
     | "TASK_WRITE_BULK_NOT_FOUND"
     | "TASK_WRITE_BULK_CONFLICT"
     | "TASK_WRITE_BULK_VALIDATION_ERROR"
-    | "COORDINATE_NOT_FOUND"
-    | "COORDINATE_VALIDATION_ERROR"
+    | "DIMENSION_NOT_FOUND"
+    | "DIMENSION_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
@@ -293,21 +293,21 @@ export type TaskWriteBulkListResponseWritable = {
   items: Array<TaskWriteBulkWritable>;
 };
 
-export type CoordinateWritable = {
+export type DimensionWritable = {
   project_path: string;
   name: string;
   goal: string;
   evaluation_method: string;
 };
 
-export type CoordinateListResponseWritable = {
-  items: Array<CoordinateWritable>;
+export type DimensionListResponseWritable = {
+  items: Array<DimensionWritable>;
 };
 
 /**
- * Immutable append-only evaluation result for one coordinate at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
+ * Immutable append-only evaluation result for one dimension at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
  */
-export type CoordinateEvaluationWritable = {
+export type DimensionEvaluationWritable = {
   project_path: string;
   commit_sha: string;
   evaluator_model: string;
@@ -318,8 +318,8 @@ export type CoordinateEvaluationWritable = {
   evaluation: string;
 };
 
-export type CoordinateEvaluationListResponseWritable = {
-  items: Array<CoordinateEvaluationWritable>;
+export type DimensionEvaluationListResponseWritable = {
+  items: Array<DimensionEvaluationWritable>;
 };
 
 export type TaskIdPathParameter = string;
@@ -336,7 +336,7 @@ export type ReportIdPathParameter = string;
 
 export type BulkIdPathParameter = string;
 
-export type CoordinateIdPathParameter = string;
+export type DimensionIdPathParameter = string;
 
 export type GetHealthData = {
   body?: never;
@@ -917,211 +917,211 @@ export type GetTaskWriteBulkByIdResponses = {
 export type GetTaskWriteBulkByIdResponse =
   GetTaskWriteBulkByIdResponses[keyof GetTaskWriteBulkByIdResponses];
 
-export type ListCoordinatesData = {
+export type ListDimensionsData = {
   body?: never;
   path?: never;
   query: {
     project_path: string;
   };
-  url: "/coordinates";
+  url: "/dimensions";
 };
 
-export type ListCoordinatesErrors = {
+export type ListDimensionsErrors = {
   /**
-   * Invalid coordinate filter
+   * Invalid dimension filter
    */
   400: ErrorResponse;
 };
 
-export type ListCoordinatesError =
-  ListCoordinatesErrors[keyof ListCoordinatesErrors];
+export type ListDimensionsError =
+  ListDimensionsErrors[keyof ListDimensionsErrors];
 
-export type ListCoordinatesResponses = {
+export type ListDimensionsResponses = {
   /**
-   * Coordinate collection
+   * Dimension collection
    */
-  200: CoordinateListResponse;
+  200: DimensionListResponse;
 };
 
-export type ListCoordinatesResponse =
-  ListCoordinatesResponses[keyof ListCoordinatesResponses];
+export type ListDimensionsResponse =
+  ListDimensionsResponses[keyof ListDimensionsResponses];
 
-export type CreateCoordinateData = {
-  body: CreateCoordinateRequest;
+export type CreateDimensionData = {
+  body: CreateDimensionRequest;
   path?: never;
   query?: never;
-  url: "/coordinates";
+  url: "/dimensions";
 };
 
-export type CreateCoordinateErrors = {
+export type CreateDimensionErrors = {
   /**
-   * Invalid coordinate payload
+   * Invalid dimension payload
    */
   400: ErrorResponse;
 };
 
-export type CreateCoordinateError =
-  CreateCoordinateErrors[keyof CreateCoordinateErrors];
+export type CreateDimensionError =
+  CreateDimensionErrors[keyof CreateDimensionErrors];
 
-export type CreateCoordinateResponses = {
+export type CreateDimensionResponses = {
   /**
-   * Created coordinate
+   * Created dimension
    */
-  201: Coordinate;
+  201: Dimension;
 };
 
-export type CreateCoordinateResponse =
-  CreateCoordinateResponses[keyof CreateCoordinateResponses];
+export type CreateDimensionResponse =
+  CreateDimensionResponses[keyof CreateDimensionResponses];
 
-export type DeleteCoordinateByIdData = {
+export type DeleteDimensionByIdData = {
   body?: never;
   path: {
-    coordinateId: string;
+    dimensionId: string;
   };
   query?: never;
-  url: "/coordinates/{coordinateId}";
+  url: "/dimensions/{dimensionId}";
 };
 
-export type DeleteCoordinateByIdErrors = {
+export type DeleteDimensionByIdErrors = {
   /**
-   * Coordinate not found
+   * Dimension not found
    */
   404: ErrorResponse;
 };
 
-export type DeleteCoordinateByIdError =
-  DeleteCoordinateByIdErrors[keyof DeleteCoordinateByIdErrors];
+export type DeleteDimensionByIdError =
+  DeleteDimensionByIdErrors[keyof DeleteDimensionByIdErrors];
 
-export type DeleteCoordinateByIdResponses = {
+export type DeleteDimensionByIdResponses = {
   /**
-   * Coordinate deleted
+   * Dimension deleted
    */
   204: void;
 };
 
-export type DeleteCoordinateByIdResponse =
-  DeleteCoordinateByIdResponses[keyof DeleteCoordinateByIdResponses];
+export type DeleteDimensionByIdResponse =
+  DeleteDimensionByIdResponses[keyof DeleteDimensionByIdResponses];
 
-export type GetCoordinateByIdData = {
+export type GetDimensionByIdData = {
   body?: never;
   path: {
-    coordinateId: string;
+    dimensionId: string;
   };
   query?: never;
-  url: "/coordinates/{coordinateId}";
+  url: "/dimensions/{dimensionId}";
 };
 
-export type GetCoordinateByIdErrors = {
+export type GetDimensionByIdErrors = {
   /**
-   * Coordinate not found
+   * Dimension not found
    */
   404: ErrorResponse;
 };
 
-export type GetCoordinateByIdError =
-  GetCoordinateByIdErrors[keyof GetCoordinateByIdErrors];
+export type GetDimensionByIdError =
+  GetDimensionByIdErrors[keyof GetDimensionByIdErrors];
 
-export type GetCoordinateByIdResponses = {
+export type GetDimensionByIdResponses = {
   /**
-   * Coordinate detail
+   * Dimension detail
    */
-  200: Coordinate;
+  200: Dimension;
 };
 
-export type GetCoordinateByIdResponse =
-  GetCoordinateByIdResponses[keyof GetCoordinateByIdResponses];
+export type GetDimensionByIdResponse =
+  GetDimensionByIdResponses[keyof GetDimensionByIdResponses];
 
-export type PatchCoordinateByIdData = {
-  body: PatchCoordinateRequest;
+export type PatchDimensionByIdData = {
+  body: PatchDimensionRequest;
   path: {
-    coordinateId: string;
+    dimensionId: string;
   };
   query?: never;
-  url: "/coordinates/{coordinateId}";
+  url: "/dimensions/{dimensionId}";
 };
 
-export type PatchCoordinateByIdErrors = {
+export type PatchDimensionByIdErrors = {
   /**
-   * Invalid coordinate patch
+   * Invalid dimension patch
    */
   400: ErrorResponse;
   /**
-   * Coordinate not found
+   * Dimension not found
    */
   404: ErrorResponse;
 };
 
-export type PatchCoordinateByIdError =
-  PatchCoordinateByIdErrors[keyof PatchCoordinateByIdErrors];
+export type PatchDimensionByIdError =
+  PatchDimensionByIdErrors[keyof PatchDimensionByIdErrors];
 
-export type PatchCoordinateByIdResponses = {
+export type PatchDimensionByIdResponses = {
   /**
-   * Updated coordinate
+   * Updated dimension
    */
-  200: Coordinate;
+  200: Dimension;
 };
 
-export type PatchCoordinateByIdResponse =
-  PatchCoordinateByIdResponses[keyof PatchCoordinateByIdResponses];
+export type PatchDimensionByIdResponse =
+  PatchDimensionByIdResponses[keyof PatchDimensionByIdResponses];
 
-export type ListCoordinateEvaluationsData = {
+export type ListDimensionEvaluationsData = {
   body?: never;
   path: {
-    coordinateId: string;
+    dimensionId: string;
   };
   query?: never;
-  url: "/coordinates/{coordinateId}/evaluations";
+  url: "/dimensions/{dimensionId}/evaluations";
 };
 
-export type ListCoordinateEvaluationsErrors = {
+export type ListDimensionEvaluationsErrors = {
   /**
-   * Coordinate not found
+   * Dimension not found
    */
   404: ErrorResponse;
 };
 
-export type ListCoordinateEvaluationsError =
-  ListCoordinateEvaluationsErrors[keyof ListCoordinateEvaluationsErrors];
+export type ListDimensionEvaluationsError =
+  ListDimensionEvaluationsErrors[keyof ListDimensionEvaluationsErrors];
 
-export type ListCoordinateEvaluationsResponses = {
+export type ListDimensionEvaluationsResponses = {
   /**
-   * Coordinate evaluation collection
+   * Dimension evaluation collection
    */
-  200: CoordinateEvaluationListResponse;
+  200: DimensionEvaluationListResponse;
 };
 
-export type ListCoordinateEvaluationsResponse =
-  ListCoordinateEvaluationsResponses[keyof ListCoordinateEvaluationsResponses];
+export type ListDimensionEvaluationsResponse =
+  ListDimensionEvaluationsResponses[keyof ListDimensionEvaluationsResponses];
 
-export type CreateCoordinateEvaluationData = {
-  body: CreateCoordinateEvaluationRequest;
+export type CreateDimensionEvaluationData = {
+  body: CreateDimensionEvaluationRequest;
   path: {
-    coordinateId: string;
+    dimensionId: string;
   };
   query?: never;
-  url: "/coordinates/{coordinateId}/evaluations";
+  url: "/dimensions/{dimensionId}/evaluations";
 };
 
-export type CreateCoordinateEvaluationErrors = {
+export type CreateDimensionEvaluationErrors = {
   /**
-   * Invalid coordinate evaluation payload
+   * Invalid dimension evaluation payload
    */
   400: ErrorResponse;
   /**
-   * Coordinate not found
+   * Dimension not found
    */
   404: ErrorResponse;
 };
 
-export type CreateCoordinateEvaluationError =
-  CreateCoordinateEvaluationErrors[keyof CreateCoordinateEvaluationErrors];
+export type CreateDimensionEvaluationError =
+  CreateDimensionEvaluationErrors[keyof CreateDimensionEvaluationErrors];
 
-export type CreateCoordinateEvaluationResponses = {
+export type CreateDimensionEvaluationResponses = {
   /**
-   * Created coordinate evaluation
+   * Created dimension evaluation
    */
-  201: CoordinateEvaluation;
+  201: DimensionEvaluation;
 };
 
-export type CreateCoordinateEvaluationResponse =
-  CreateCoordinateEvaluationResponses[keyof CreateCoordinateEvaluationResponses];
+export type CreateDimensionEvaluationResponse =
+  CreateDimensionEvaluationResponses[keyof CreateDimensionEvaluationResponses];

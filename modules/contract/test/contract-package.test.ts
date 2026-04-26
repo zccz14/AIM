@@ -303,19 +303,19 @@ describe("contract package baseline", () => {
     });
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
-      "coordinateByIdPath",
-      "coordinateEvaluationListResponseSchema",
-      "coordinateEvaluationSchema",
-      "coordinateEvaluationsPath",
-      "coordinateListResponseSchema",
-      "coordinateSchema",
-      "coordinatesPath",
       "createContractClient",
-      "createCoordinateEvaluationRequestSchema",
-      "createCoordinateRequestSchema",
+      "createDimensionEvaluationRequestSchema",
+      "createDimensionRequestSchema",
       "createManagerReportRequestSchema",
       "createTaskRequestSchema",
       "createTaskWriteBulkRequestSchema",
+      "dimensionByIdPath",
+      "dimensionEvaluationListResponseSchema",
+      "dimensionEvaluationSchema",
+      "dimensionEvaluationsPath",
+      "dimensionListResponseSchema",
+      "dimensionSchema",
+      "dimensionsPath",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
@@ -329,7 +329,7 @@ describe("contract package baseline", () => {
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
-      "patchCoordinateRequestSchema",
+      "patchDimensionRequestSchema",
       "patchTaskRequestSchema",
       "taskByIdPath",
       "taskDependenciesPath",
@@ -358,14 +358,14 @@ describe("contract package baseline", () => {
       contractModule.openApiDocument.paths[contractModule.healthPath],
     ).toBeDefined();
     expect(
-      contractModule.openApiDocument.paths[contractModule.coordinatesPath],
+      contractModule.openApiDocument.paths[contractModule.dimensionsPath],
     ).toBeDefined();
     expect(
-      contractModule.openApiDocument.paths[contractModule.coordinateByIdPath],
+      contractModule.openApiDocument.paths[contractModule.dimensionByIdPath],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[
-        contractModule.coordinateEvaluationsPath
+        contractModule.dimensionEvaluationsPath
       ],
     ).toBeDefined();
     expect(
@@ -1194,7 +1194,7 @@ describe("contract package baseline", () => {
       "taskWriteBulksPath",
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
-      "coordinatesPath",
+      "dimensionsPath",
     );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(
