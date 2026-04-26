@@ -18,14 +18,9 @@ type SchedulerTaskRepository = {
   listUnfinishedTasks(): Promise<Task[]>;
 };
 
-type OptimizerTaskProducer = {
-  produceTasks(): Promise<void> | void;
-};
-
 type CreateTaskSchedulerOptions = {
   coordinator: TaskSessionCoordinator;
   logger?: ApiLogger;
-  taskProducer?: OptimizerTaskProducer;
   taskRepository: SchedulerTaskRepository;
 };
 
@@ -205,8 +200,6 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       const tasks = await options.taskRepository.listUnfinishedTasks();
 
       if (tasks.length === 0) {
-        await options.taskProducer?.produceTasks();
-
         return;
       }
 

@@ -497,6 +497,23 @@ describe("contract package baseline", () => {
           type: "task_resolved",
         },
         last_scan_at: "2026-04-26T12:00:00.000Z",
+        lanes: {
+          coordinator_task_pool: {
+            last_error: null,
+            last_scan_at: null,
+            running: true,
+          },
+          developer_follow_up: {
+            last_error: null,
+            last_scan_at: "2026-04-26T12:00:00.000Z",
+            running: true,
+          },
+          manager_evaluation: {
+            last_error: null,
+            last_scan_at: null,
+            running: true,
+          },
+        },
         running: true,
       }),
     ).toEqual({
@@ -507,6 +524,23 @@ describe("contract package baseline", () => {
         type: "task_resolved",
       },
       last_scan_at: "2026-04-26T12:00:00.000Z",
+      lanes: {
+        coordinator_task_pool: {
+          last_error: null,
+          last_scan_at: null,
+          running: true,
+        },
+        developer_follow_up: {
+          last_error: null,
+          last_scan_at: "2026-04-26T12:00:00.000Z",
+          running: true,
+        },
+        manager_evaluation: {
+          last_error: null,
+          last_scan_at: null,
+          running: true,
+        },
+      },
       running: true,
     });
   });

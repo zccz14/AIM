@@ -47,11 +47,25 @@ const OptimizerEventStatus = z
     type: OptimizerTrigger,
   })
   .strict();
+const OptimizerLaneStatus = z
+  .object({
+    last_error: z.union([z.string(), z.null()]),
+    last_scan_at: z.union([z.string(), z.null()]),
+    running: z.boolean(),
+  })
+  .strict();
 const OptimizerStatusResponse = z
   .object({
     enabled_triggers: z.array(OptimizerTrigger),
     last_event: z.union([OptimizerEventStatus, z.null()]),
     last_scan_at: z.union([z.string(), z.null()]),
+    lanes: z
+      .object({
+        manager_evaluation: OptimizerLaneStatus,
+        coordinator_task_pool: OptimizerLaneStatus,
+        developer_follow_up: OptimizerLaneStatus,
+      })
+      .strict(),
     running: z.boolean(),
   })
   .strict();
@@ -257,6 +271,7 @@ export const schemas = {
   ErrorResponse,
   OptimizerTrigger,
   OptimizerEventStatus,
+  OptimizerLaneStatus,
   OptimizerStatusResponse,
   CreateTaskRequest,
   Task,

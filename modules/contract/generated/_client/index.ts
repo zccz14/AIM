@@ -157,6 +157,7 @@ export type {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   OptimizerEventStatus,
+  OptimizerLaneStatus,
   OptimizerStatusResponse,
   OptimizerTrigger,
   PatchDimensionByIdData,

@@ -236,6 +236,17 @@ export type OptimizerStatusResponse = {
   enabled_triggers: Array<OptimizerTrigger>;
   last_event: OptimizerEventStatus | null;
   last_scan_at: string | null;
+  lanes: {
+    manager_evaluation: OptimizerLaneStatus;
+    coordinator_task_pool: OptimizerLaneStatus;
+    developer_follow_up: OptimizerLaneStatus;
+  };
+  running: boolean;
+};
+
+export type OptimizerLaneStatus = {
+  last_error: string | null;
+  last_scan_at: string | null;
   running: boolean;
 };
 
