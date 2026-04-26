@@ -26,9 +26,11 @@ Maintain AIM evaluation dimensions, evaluations, and Manager reports by reading 
 Write results back through AIM API Server only: create or update dimensions/evaluations/manager reports using the available AIM API contracts. Do not create Developer Tasks from this Manager lane.`;
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
-Maintain the AIM Task Pool from Manager output, latest baseline facts, current unfinished Tasks, and rejected Task feedback. Keep useful Tasks available for Developers, but do not create a fixed static Developer Task as an optimizer loop.
+Maintain the AIM Task Pool from Manager output, latest baseline facts, current unfinished Tasks, and rejected Task feedback. First read those inputs, then form a concrete Task Write Bulk intent with specific Create/Delete decisions before any Task Pool write.
 
-Write Task Bulk/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable.`;
+Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
+
+Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager Report gaps directly into Tasks.`;
 const parsedSessionIdleFallbackTimeoutMs = Number.parseInt(
   process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS ?? "",
   10,
