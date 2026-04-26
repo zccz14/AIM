@@ -85,10 +85,6 @@ describe("server cli command", () => {
       [cliBinUrl.pathname, "server", "start", "--port", String(port)],
       {
         cwd: cliRootUrl,
-        env: {
-          ...process.env,
-          TASK_SCHEDULER_ENABLED: "false",
-        },
         stdio: ["ignore", "pipe", "pipe"],
       },
     );

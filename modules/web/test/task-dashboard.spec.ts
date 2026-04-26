@@ -36,6 +36,23 @@ const buildTask = ({
 
 const buildOptimizerStatus = (running: boolean) => ({
   enabled_triggers: ["task_resolved"],
+  lanes: {
+    coordinator_task_pool: {
+      last_error: null,
+      last_scan_at: null,
+      running,
+    },
+    developer_follow_up: {
+      last_error: null,
+      last_scan_at: null,
+      running,
+    },
+    manager_evaluation: {
+      last_error: null,
+      last_scan_at: null,
+      running,
+    },
+  },
   last_event: null,
   last_scan_at: null,
   running,

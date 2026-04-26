@@ -6,6 +6,16 @@ const mockCreateApiLogger = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
+const mockCreateAgentSessionCoordinator = vi.fn();
+const mockCreateAgentSessionLane = vi.fn();
+
+vi.mock("../src/agent-session-coordinator.js", () => ({
+  createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
+}));
+
+vi.mock("../src/agent-session-lane.js", () => ({
+  createAgentSessionLane: mockCreateAgentSessionLane,
+}));
 
 vi.mock("@hono/node-server", () => ({
   serve: mockServe,
@@ -35,13 +45,11 @@ describe("server startup", () => {
   afterEach(() => {
     delete process.env.OPENCODE_BASE_URL;
     delete process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS;
-    delete process.env.TASK_SCHEDULER_ENABLED;
     vi.resetModules();
     vi.clearAllMocks();
   });
 
-  it("passes explicit coordinator config when scheduler is enabled", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
+  it("passes explicit OpenCode config to all optimizer lane coordinators", async () => {
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
     process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS = "60000";
 
@@ -60,12 +68,22 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
 
     const { startServer } = await import("../src/server.js");
 
     startServer();
 
     expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
+      baseUrl: "http://127.0.0.1:54321",
+      sessionIdleFallbackTimeoutMs: 60000,
+    });
+    expect(mockCreateAgentSessionCoordinator).toHaveBeenCalledWith({
       baseUrl: "http://127.0.0.1:54321",
       sessionIdleFallbackTimeoutMs: 60000,
     });
@@ -87,6 +105,12 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -97,9 +121,7 @@ describe("server startup", () => {
     });
   });
 
-  it("does not require provider or model env vars when scheduler is enabled", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
-
+  it("does not require provider or model env vars at optimizer startup", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -114,6 +136,12 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -121,7 +149,6 @@ describe("server startup", () => {
   });
 
   it("creates one api logger and passes it to app and scheduler", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
 
     const logger = {
@@ -144,6 +171,12 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -167,9 +200,7 @@ describe("server startup", () => {
     );
   });
 
-  it("passes an inactive optimizer runtime to the app when startup is disabled", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "false";
-
+  it("starts all optimizer lanes by default", async () => {
     const logger = {
       error: vi.fn(),
       info: vi.fn(),
@@ -184,6 +215,16 @@ describe("server startup", () => {
       start: vi.fn(),
       stop: vi.fn(),
     };
+    const managerLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    const coordinatorLane = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
 
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -191,6 +232,10 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane
+      .mockReturnValueOnce(managerLane)
+      .mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -208,12 +253,12 @@ describe("server startup", () => {
         }),
       }),
     );
-    expect(scheduler.start).not.toHaveBeenCalled();
+    expect(managerLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
+    expect(coordinatorLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
+    expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
   });
 
-  it("keeps scheduler stopped on startup when disabled", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "false";
-
+  it("creates manager, coordinator, and developer lanes without a task producer", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -229,15 +274,29 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue({});
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
 
     const { startServer } = await import("../src/server.js");
 
     expect(() => startServer()).not.toThrow();
     expect(mockCreateTaskScheduler).toHaveBeenCalledTimes(1);
-    expect(scheduler.start).not.toHaveBeenCalled();
+    expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
+      expect.not.objectContaining({ taskProducer: expect.anything() }),
+    );
+    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+      expect.objectContaining({ laneName: "manager_evaluation" }),
+    );
+    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+      expect.objectContaining({ laneName: "coordinator_task_pool" }),
+    );
+    expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
   });
   it("does not leave the server listening when scheduler startup fails", async () => {
-    process.env.TASK_SCHEDULER_ENABLED = "true";
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
 
     let listening = false;

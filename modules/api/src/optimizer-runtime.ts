@@ -1,9 +1,25 @@
 import type { OptimizerStatusResponse } from "@aim-ai/contract";
+import type { ApiLogger } from "./api-logger.js";
 
-type OptimizerScheduler = {
+type OptimizerLaneScheduler = {
+  getStatus?(): {
+    last_error: null | string;
+    last_scan_at: null | string;
+    running: boolean;
+  };
   scanOnce(context?: { resolvedTaskId?: string }): Promise<void> | void;
   start(options: { intervalMs: number }): void;
   stop(): Promise<void>;
+};
+
+export type OptimizerLaneName =
+  | "coordinator_task_pool"
+  | "developer_follow_up"
+  | "manager_evaluation";
+
+export type OptimizerLaneRegistration = {
+  lane: OptimizerLaneScheduler;
+  name: OptimizerLaneName;
 };
 
 export type OptimizerEvent = {
@@ -20,15 +36,50 @@ export type OptimizerRuntime = {
 
 export const createOptimizerRuntime = ({
   intervalMs,
-  scheduler,
+  lanes,
+  logger,
 }: {
   intervalMs: number;
-  scheduler: OptimizerScheduler;
+  lanes: OptimizerLaneRegistration[];
+  logger?: ApiLogger;
 }): OptimizerRuntime => {
   let running = false;
   let lastEvent: OptimizerStatusResponse["last_event"] = null;
   let lastScanAt: OptimizerStatusResponse["last_scan_at"] = null;
   let stopPromise: Promise<void> | null = null;
+  const laneStates = new Map(
+    lanes.map(({ name }) => [
+      name,
+      {
+        last_error: null as null | string,
+        last_scan_at: null as null | string,
+        running: false,
+      },
+    ]),
+  );
+
+  const laneStatus = () => {
+    const entries = lanes.map(({ lane, name }) => [
+      name,
+      lane.getStatus?.() ?? laneStates.get(name),
+    ]);
+
+    return Object.fromEntries(entries) as NonNullable<
+      OptimizerStatusResponse["lanes"]
+    >;
+  };
+
+  const recordLaneError = (name: OptimizerLaneName, error: unknown) => {
+    const laneState = laneStates.get(name);
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (laneState) {
+      laneState.last_error = message;
+      laneState.running = false;
+    }
+
+    logger?.error({ err: error, lane: name }, "Optimizer lane failed to start");
+  };
 
   return {
     getStatus() {
@@ -36,6 +87,7 @@ export const createOptimizerRuntime = ({
         enabled_triggers: ["task_resolved"],
         last_event: lastEvent,
         last_scan_at: lastScanAt,
+        lanes: laneStatus(),
         running,
       };
     },
@@ -53,8 +105,31 @@ export const createOptimizerRuntime = ({
         return;
       }
 
-      await scheduler.scanOnce({ resolvedTaskId: event.taskId });
-      lastScanAt = new Date().toISOString();
+      const developerLane = lanes.find(
+        ({ name }) => name === "developer_follow_up",
+      );
+
+      const developerLaneState = laneStates.get("developer_follow_up");
+
+      try {
+        await developerLane?.lane.scanOnce({ resolvedTaskId: event.taskId });
+        lastScanAt = new Date().toISOString();
+
+        if (developerLaneState) {
+          developerLaneState.last_error = null;
+          developerLaneState.last_scan_at = lastScanAt;
+        }
+      } catch (error) {
+        if (developerLaneState) {
+          developerLaneState.last_error =
+            error instanceof Error ? error.message : String(error);
+        }
+
+        logger?.error(
+          { err: error, lane: "developer_follow_up" },
+          "Optimizer lane failed while handling event",
+        );
+      }
     },
 
     start() {
@@ -63,7 +138,19 @@ export const createOptimizerRuntime = ({
       }
 
       running = true;
-      scheduler.start({ intervalMs });
+      for (const { lane, name } of lanes) {
+        try {
+          lane.start({ intervalMs });
+          const laneState = laneStates.get(name);
+
+          if (laneState) {
+            laneState.last_error = null;
+            laneState.running = true;
+          }
+        } catch (error) {
+          recordLaneError(name, error);
+        }
+      }
     },
 
     async stop() {
@@ -72,9 +159,20 @@ export const createOptimizerRuntime = ({
       }
 
       running = false;
-      stopPromise ??= scheduler.stop().finally(() => {
-        stopPromise = null;
-      });
+      stopPromise ??= Promise.all(
+        lanes.map(async ({ lane, name }) => {
+          await lane.stop();
+          const laneState = laneStates.get(name);
+
+          if (laneState) {
+            laneState.running = false;
+          }
+        }),
+      )
+        .then(() => undefined)
+        .finally(() => {
+          stopPromise = null;
+        });
 
       await stopPromise;
     },

@@ -2003,7 +2003,13 @@ export const openApiDocument = {
       OptimizerStatusResponse: {
         type: "object",
         additionalProperties: false,
-        required: ["enabled_triggers", "last_event", "last_scan_at", "running"],
+        required: [
+          "enabled_triggers",
+          "last_event",
+          "last_scan_at",
+          "lanes",
+          "running",
+        ],
         properties: {
           enabled_triggers: {
             type: "array",
@@ -2020,6 +2026,43 @@ export const openApiDocument = {
                 type: "null",
               },
             ],
+          },
+          last_scan_at: {
+            type: ["string", "null"],
+            format: "date-time",
+          },
+          lanes: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "manager_evaluation",
+              "coordinator_task_pool",
+              "developer_follow_up",
+            ],
+            properties: {
+              manager_evaluation: {
+                $ref: "#/components/schemas/OptimizerLaneStatus",
+              },
+              coordinator_task_pool: {
+                $ref: "#/components/schemas/OptimizerLaneStatus",
+              },
+              developer_follow_up: {
+                $ref: "#/components/schemas/OptimizerLaneStatus",
+              },
+            },
+          },
+          running: {
+            type: "boolean",
+          },
+        },
+      },
+      OptimizerLaneStatus: {
+        type: "object",
+        additionalProperties: false,
+        required: ["last_error", "last_scan_at", "running"],
+        properties: {
+          last_error: {
+            type: ["string", "null"],
           },
           last_scan_at: {
             type: ["string", "null"],

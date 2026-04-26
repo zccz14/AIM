@@ -36,13 +36,15 @@ AIM 包含了 Manager, Coordinator 和 Developer 的职责。
 
 ## AIM 优化器
 
-AIM 优化器是 AIM 的核心组件，负责从基线出发，持续向目标状态推进。AIM 优化器的目标是，在最小化人工干预的前提下，最大化推进效率。AIM 优化器的落点在 AIM Server 后端逻辑中，属于后台自动任务。
+AIM 优化器是 AIM 的核心组件，负责从基线出发，持续向目标状态推进。AIM 优化器的目标是，在最小化人工干预的前提下，最大化推进效率。AIM 优化器的落点在 AIM Server 后端逻辑中，属于后台自动任务，服务启动后默认开启。
 
-1. 当基线更新时：AIM Manager 维护评估维度、评估最新基线、提出下一步建议。
-2. 当 Task Pool 空闲、Task 结束、维度更新、评估结果更新时：AIM Coordinator 基于评估维度和结果，生产新的 Task。
-3. 对于每个未完成的 Task：AIM Developer 持续执行 Task，更新基线。有 `resolved` / `rejected` 结果。
+优化器包含三条相互独立的调度 lane：
 
-AIM 优化器可以被启动和停止。有一个 POST `/optimizer/start` 的 API 来启动优化器，POST `/optimizer/stop` 的 API 来停止优化器。当优化器正在运行时，它会持续监控基线的变化、Task Pool 的状态、评估维度和结果的更新，并根据这些信息来调整 Task 的优先级和内容，以最大化推进效率。可以通过 GET `/optimizer/status` 的 API 来查询优化器的当前状态，例如是否正在运行。
+1. Manager evaluation lane：维护评估维度、评估最新基线、产出 Manager reports。
+2. Coordinator task-pool lane：基于 Manager 输出、当前 Task Pool、rejected Task 反馈维护 Task Pool，保证始终有可推进的 Task。
+3. Developer follow-up lane：持续跟进所有未完成 Task，直到 Task `resolved` 或 `rejected`。
+
+AIM 优化器可以被启动和停止。有一个 POST `/optimizer/start` 的 API 来启动优化器，POST `/optimizer/stop` 的 API 来停止优化器。当优化器正在运行时，三条 lane 会分别维护评估、维护 Task Pool、跟进未完成 Task；任一 lane 失败只影响自身状态，不阻塞其他 lane。可以通过 GET `/optimizer/status` 的 API 查询优化器和各 lane 的当前状态。
 
 AIM 优化器的状态开关在 GUI 上也有一个非常明显的落点，可以放在 AppHeader 上，作为一个 Switch 开关，来控制优化器的启动和停止。
 

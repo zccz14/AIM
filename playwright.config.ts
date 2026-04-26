@@ -32,7 +32,6 @@ export default defineConfig({
       env: {
         ...process.env,
         PORT: `${apiPort}`,
-        TASK_SCHEDULER_ENABLED: "false",
       },
     },
     {
