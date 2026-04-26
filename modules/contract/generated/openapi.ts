@@ -1224,6 +1224,7 @@ export const openApiDocument = {
           "task_id",
           "title",
           "task_spec",
+          "project_id",
           "project_path",
           "developer_provider_id",
           "developer_model_id",
@@ -1248,6 +1249,10 @@ export const openApiDocument = {
             minLength: 1,
           },
           title: {
+            type: "string",
+            minLength: 1,
+          },
+          project_id: {
             type: "string",
             minLength: 1,
           },
@@ -1305,13 +1310,7 @@ export const openApiDocument = {
       CreateTaskRequest: {
         type: "object",
         additionalProperties: false,
-        required: [
-          "title",
-          "task_spec",
-          "project_path",
-          "developer_provider_id",
-          "developer_model_id",
-        ],
+        required: ["title", "task_spec", "project_id"],
         properties: {
           title: {
             type: "string",
@@ -1321,15 +1320,7 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
-          project_path: {
-            type: "string",
-            minLength: 1,
-          },
-          developer_provider_id: {
-            type: "string",
-            minLength: 1,
-          },
-          developer_model_id: {
+          project_id: {
             type: "string",
             minLength: 1,
           },

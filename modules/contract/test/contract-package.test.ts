@@ -558,17 +558,13 @@ describe("contract package baseline", () => {
     );
     expect(
       contractModule.createTaskRequestSchema.parse({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
+        project_id: "project-main",
         task_spec: "Ship contract",
-        project_path: "/repo",
         title: "Ship contract",
       }),
     ).toEqual({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
+      project_id: "project-main",
       task_spec: "Ship contract",
-      project_path: "/repo",
       result: "",
       title: "Ship contract",
     });
@@ -598,6 +594,7 @@ describe("contract package baseline", () => {
       contractModule.taskSchema.parse({
         developer_model_id: "claude-sonnet-4-5",
         developer_provider_id: "anthropic",
+        project_id: "project-main",
         task_id: "task-1",
         task_spec: "Ship contract",
         title: "Ship contract",
@@ -623,6 +620,7 @@ describe("contract package baseline", () => {
           {
             developer_model_id: "claude-sonnet-4-5",
             developer_provider_id: "anthropic",
+            project_id: "project-main",
             task_id: "task-1",
             task_spec: "Ship contract",
             title: "Ship contract",
@@ -654,6 +652,7 @@ describe("contract package baseline", () => {
       contractModule.taskSchema.safeParse({
         task_id: "task-1",
         task_spec: "Ship contract",
+        project_id: "project-main",
         project_path: "/repo",
         session_id: null,
         worktree_path: null,
@@ -1042,13 +1041,7 @@ describe("contract package baseline", () => {
     ).toBeDefined();
 
     expect(createTaskRequestSchema).toMatchObject({
-      required: [
-        "title",
-        "task_spec",
-        "project_path",
-        "developer_provider_id",
-        "developer_model_id",
-      ],
+      required: ["title", "task_spec", "project_id"],
     });
     expect(
       Object.keys(
@@ -1057,9 +1050,7 @@ describe("contract package baseline", () => {
       ).sort(),
     ).toEqual([
       "dependencies",
-      "developer_model_id",
-      "developer_provider_id",
-      "project_path",
+      "project_id",
       "pull_request_url",
       "result",
       "session_id",
@@ -1155,7 +1146,7 @@ describe("contract package baseline", () => {
     });
   });
 
-  it("requires project_path in task responses and create requests", async () => {
+  it("requires project_id in task responses and create requests while retaining project_path on responses", async () => {
     const taskSchema = contractModule.openApiDocument.components.schemas
       .Task as {
       properties: Record<string, unknown>;
@@ -1172,12 +1163,13 @@ describe("contract package baseline", () => {
     );
 
     expect(taskSchema.required).toContain("project_path");
-    expect(createSchema.required).toContain("project_path");
+    expect(taskSchema.required).toContain("project_id");
+    expect(createSchema.required).toContain("project_id");
     expect(taskSchema.properties.project_path).toEqual({
       minLength: 1,
       type: "string",
     });
-    expect(createSchema.properties.project_path).toEqual({
+    expect(createSchema.properties.project_id).toEqual({
       minLength: 1,
       type: "string",
     });
@@ -1201,6 +1193,7 @@ describe("contract package baseline", () => {
       }).success,
     ).toBe(false);
     expect(generatedTypeDefinitions).toContain("project_path: string;");
+    expect(generatedTypeDefinitions).toContain("project_id: string;");
     expect(generatedTypeDefinitions).toContain("result: string;");
   });
 
@@ -1495,6 +1488,7 @@ describe("contract package baseline", () => {
       task_id: "task-1",
       title: "Write spec",
       task_spec: "write spec",
+      project_id: "project-main",
       project_path: "/repo",
       developer_provider_id: "anthropic",
       developer_model_id: "claude-sonnet-4-5",
@@ -1554,9 +1548,7 @@ describe("contract package baseline", () => {
               JSON.stringify({
                 title: "Write spec",
                 task_spec: "write spec",
-                project_path: "/repo",
-                developer_provider_id: "anthropic",
-                developer_model_id: "claude-sonnet-4-5",
+                project_id: "project-main",
                 dependencies: [],
               })
           ) {
@@ -1630,9 +1622,7 @@ describe("contract package baseline", () => {
       client.createTask({
         title: "Write spec",
         task_spec: "write spec",
-        project_path: "/repo",
-        developer_provider_id: "anthropic",
-        developer_model_id: "claude-sonnet-4-5",
+        project_id: "project-main",
         dependencies: [],
       }),
     ).resolves.toMatchObject({
@@ -1675,9 +1665,7 @@ describe("contract package baseline", () => {
         body: {
           title: "Write spec",
           task_spec: "write spec",
-          project_path: "/repo",
-          developer_provider_id: "anthropic",
-          developer_model_id: "claude-sonnet-4-5",
+          project_id: "project-main",
           dependencies: [],
         },
         method: "POST",
@@ -1761,7 +1749,10 @@ describe("contract package baseline", () => {
       fetch: fetcher,
     });
 
-    const result = client.createTask({ task_spec: "", project_path: "/repo" });
+    const result = client.createTask({
+      project_id: "project-main",
+      task_spec: "",
+    });
 
     await expect(result).rejects.toBeInstanceOf(
       contractModule.ContractClientError,

@@ -9,6 +9,20 @@ const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
 
+const configuredProject = {
+  created_at: "2026-04-26T00:00:00.000Z",
+  global_model_id: "claude-sonnet-4-5",
+  global_provider_id: "anthropic",
+  id: "project-main",
+  name: "Main project",
+  project_path: "/repo/main",
+  updated_at: "2026-04-26T00:00:00.000Z",
+};
+
+const createRepositoryMock = () => ({
+  getFirstProject: () => configuredProject,
+});
+
 vi.mock("../src/agent-session-coordinator.js", () => ({
   createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
 }));
@@ -65,7 +79,7 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -102,7 +116,7 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -133,7 +147,7 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -168,7 +182,7 @@ describe("server startup", () => {
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -229,7 +243,7 @@ describe("server startup", () => {
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -271,7 +285,7 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});

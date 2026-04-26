@@ -292,7 +292,7 @@ test("routes task creation through feature-local api and mutation helpers", asyn
   expect(apiSource).not.toContain("createContractClient");
   expect(apiSource).not.toContain("readServerBaseUrl");
   expect(apiSource).not.toContain("resolveContractUrl");
-  expect(apiSource).toContain("project_path: input.projectPath");
+  expect(apiSource).toContain("project_id: input.projectPath");
   expect(mutationSource).toContain("taskSpec: string");
   expect(mutationSource).toContain("projectPath: string");
   expect(apiClientSource).toContain('request.headers.get("content-type")');

@@ -98,6 +98,21 @@ const parseCreateTaskRequest = async (request: Request) => {
   const result = createTaskRequestSchema.safeParse(payload);
 
   if (!result.success) {
+    if (
+      payload !== null &&
+      typeof payload === "object" &&
+      typeof (payload as { developer_model_id?: unknown })
+        .developer_model_id === "string" &&
+      typeof (payload as { developer_provider_id?: unknown })
+        .developer_provider_id === "string" &&
+      typeof (payload as { project_path?: unknown }).project_path ===
+        "string" &&
+      typeof (payload as { task_spec?: unknown }).task_spec === "string" &&
+      typeof (payload as { title?: unknown }).title === "string"
+    ) {
+      return { data: payload as never, ok: true as const };
+    }
+
     return {
       error: buildValidationError("Invalid task payload"),
       ok: false as const,
@@ -286,6 +301,12 @@ export const registerTaskRoutes = (
     }
 
     let models: Awaited<ReturnType<OpenCodeSdkAdapter["listSupportedModels"]>>;
+    const legacyInput = input.data as typeof input.data & {
+      developer_model_id?: string;
+      developer_provider_id?: string;
+      project_path?: string;
+    };
+    const projectId = legacyInput.project_id ?? legacyInput.project_path;
 
     try {
       models = await getOpenCodeModelsAdapter().listSupportedModels();
@@ -293,16 +314,63 @@ export const registerTaskRoutes = (
       return context.json(buildOpenCodeModelsUnavailableError(), 503);
     }
 
+    const project = projectId
+      ? await getRepository().getProjectById(projectId)
+      : null;
+
+    if (!project) {
+      if (
+        legacyInput.project_path &&
+        legacyInput.developer_provider_id &&
+        legacyInput.developer_model_id
+      ) {
+        const matchingLegacyModel = models.items.find(
+          (model) =>
+            model.provider_id === legacyInput.developer_provider_id &&
+            model.model_id === legacyInput.developer_model_id,
+        );
+
+        if (!matchingLegacyModel) {
+          return context.json(
+            buildValidationError(
+              `Requested developer_provider_id "${legacyInput.developer_provider_id}" with developer_model_id "${legacyInput.developer_model_id}" is not available. Use GET /opencode/models to choose a supported provider/model combination.`,
+            ),
+            400,
+          );
+        }
+
+        const payload = await getRepository().createTask(input.data);
+
+        logger?.info(buildTaskLogFields("task_created", payload));
+
+        return context.json(payload, 201);
+      }
+
+      return context.json(
+        buildValidationError(`Project ${projectId ?? ""} was not found`),
+        400,
+      );
+    }
+
+    if (!project.global_provider_id.trim() || !project.global_model_id.trim()) {
+      return context.json(
+        buildValidationError(
+          `Project ${projectId} is missing global provider/model configuration`,
+        ),
+        400,
+      );
+    }
+
     const matchingModel = models.items.find(
       (model) =>
-        model.provider_id === input.data.developer_provider_id &&
-        model.model_id === input.data.developer_model_id,
+        model.provider_id === project.global_provider_id &&
+        model.model_id === project.global_model_id,
     );
 
     if (!matchingModel) {
       return context.json(
         buildValidationError(
-          `Requested developer_provider_id "${input.data.developer_provider_id}" with developer_model_id "${input.data.developer_model_id}" is not available. Use GET /opencode/models to choose a supported provider/model combination.`,
+          `Project ${project.id} global_provider_id "${project.global_provider_id}" with global_model_id "${project.global_model_id}" is not available. Use GET /opencode/models to choose a supported provider/model combination.`,
         ),
         400,
       );

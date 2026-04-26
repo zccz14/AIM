@@ -17,6 +17,7 @@ type TaskRow = {
   dependencies: string;
   done: number;
   pull_request_url: null | string;
+  project_id: string;
   project_path: string;
   result: string;
   session_id: null | string;
@@ -26,6 +27,16 @@ type TaskRow = {
   title: string;
   updated_at: string;
   worktree_path: null | string;
+};
+
+type ProjectRow = {
+  created_at: string;
+  global_model_id: string;
+  global_provider_id: string;
+  id: string;
+  name: string;
+  project_path: string;
+  updated_at: string;
 };
 
 type TableInfoRow = {
@@ -43,6 +54,7 @@ type IndexListRow = {
 };
 
 const tasksTableName = "tasks";
+const projectsTableName = "projects";
 const unfinishedSessionIndexName = "tasks_unfinished_session_id_unique";
 const unfinishedSessionIndexPredicate = "done = 0 AND session_id IS NOT NULL";
 
@@ -60,6 +72,7 @@ const requiredColumns = [
   { name: "task_id", notnull: 0, pk: 1, type: "TEXT" },
   { name: "title", notnull: 1, pk: 0, type: "TEXT" },
   { name: "task_spec", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "project_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
   { name: "developer_provider_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "developer_model_id", notnull: 1, pk: 0, type: "TEXT" },
@@ -74,10 +87,31 @@ const requiredColumns = [
   { name: "updated_at", notnull: 1, pk: 0, type: "TEXT" },
 ] as const;
 
+const requiredProjectColumns = [
+  { name: "id", notnull: 0, pk: 1, type: "TEXT" },
+  { name: "name", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "global_provider_id", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "global_model_id", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "updated_at", notnull: 1, pk: 0, type: "TEXT" },
+] as const;
+
 const isDoneStatus = (status: TaskStatus) =>
   status === "resolved" || status === "rejected";
 
 const buildSchemaError = () => new Error("tasks schema is incompatible");
+
+const buildProjectConfigurationError = (projectId: string) =>
+  new Error(
+    `Project ${projectId} is missing global provider/model configuration`,
+  );
+
+type LegacyCreateTaskRequest = CreateTaskRequest & {
+  developer_model_id?: string;
+  developer_provider_id?: string;
+  project_path?: string;
+};
 
 const normalizeColumnType = (type: string) => {
   const normalizedType = type.trim().toUpperCase();
@@ -134,6 +168,7 @@ const mapTaskRow = (row: TaskRow) =>
     task_id: row.task_id,
     title: row.title,
     task_spec: row.task_spec,
+    project_id: row.project_id,
     project_path: row.project_path,
     developer_provider_id: row.developer_provider_id,
     developer_model_id: row.developer_model_id,
@@ -148,12 +183,27 @@ const mapTaskRow = (row: TaskRow) =>
     updated_at: row.updated_at,
   });
 
+const createProjectsTable = (database: ReturnType<typeof openTaskDatabase>) => {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS ${projectsTableName} (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      project_path TEXT NOT NULL UNIQUE,
+      global_provider_id TEXT NOT NULL,
+      global_model_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+};
+
 const createTasksTable = (database: ReturnType<typeof openTaskDatabase>) => {
   database.exec(`
     CREATE TABLE IF NOT EXISTS ${tasksTableName} (
       task_id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       task_spec TEXT NOT NULL,
+      project_id TEXT NOT NULL,
       project_path TEXT NOT NULL,
       developer_provider_id TEXT NOT NULL,
       developer_model_id TEXT NOT NULL,
@@ -227,6 +277,80 @@ const validateTasksTableSchema = (
       normalizeColumnType(actualColumn.type) !== expectedColumn.type ||
       ("defaultValue" in expectedColumn &&
         actualColumn.dflt_value !== expectedColumn.defaultValue) ||
+      (expectedColumn.name !== "project_id" &&
+        expectedColumn.pk === 0 &&
+        actualColumn.notnull !== expectedColumn.notnull) ||
+      actualColumn.pk !== expectedColumn.pk
+    ) {
+      throw buildSchemaError();
+    }
+  }
+};
+
+const migrateLegacyTasksSchema = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
+  const rows = database
+    .prepare(`PRAGMA table_info(${tasksTableName})`)
+    .all() as TableInfoRow[];
+
+  if (rows.length === 0 || rows.some((row) => row.name === "project_id")) {
+    return;
+  }
+
+  const columnNames = new Set(rows.map((row) => row.name));
+
+  if (
+    !columnNames.has("project_path") ||
+    !columnNames.has("developer_provider_id") ||
+    !columnNames.has("developer_model_id")
+  ) {
+    return;
+  }
+
+  database.exec(`
+    INSERT OR IGNORE INTO ${projectsTableName} (
+      id,
+      name,
+      project_path,
+      global_provider_id,
+      global_model_id,
+      created_at,
+      updated_at
+    )
+    SELECT DISTINCT
+      project_path,
+      project_path,
+      project_path,
+      developer_provider_id,
+      developer_model_id,
+      created_at,
+      updated_at
+    FROM ${tasksTableName}
+  `);
+  database.exec(`ALTER TABLE ${tasksTableName} ADD COLUMN project_id TEXT`);
+  database.exec(`UPDATE ${tasksTableName} SET project_id = project_path`);
+};
+
+const validateProjectsTableSchema = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
+  const rows = database
+    .prepare(`PRAGMA table_info(${projectsTableName})`)
+    .all() as TableInfoRow[];
+
+  if (rows.length === 0) {
+    throw buildSchemaError();
+  }
+
+  const columns = new Map(rows.map((row) => [row.name, row]));
+
+  for (const expectedColumn of requiredProjectColumns) {
+    const actualColumn = columns.get(expectedColumn.name);
+
+    if (
+      !actualColumn ||
+      normalizeColumnType(actualColumn.type) !== expectedColumn.type ||
       (expectedColumn.pk === 0 &&
         actualColumn.notnull !== expectedColumn.notnull) ||
       actualColumn.pk !== expectedColumn.pk
@@ -243,7 +367,10 @@ const validateTasksSchema = (database: ReturnType<typeof openTaskDatabase>) => {
 const bootstrapTaskDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
+  createProjectsTable(database);
+  validateProjectsTableSchema(database);
   createTasksTable(database);
+  migrateLegacyTasksSchema(database);
   validateTasksTableSchema(database);
   createTasksIndexes(database);
   validateTasksSchema(database);
@@ -259,6 +386,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       task_id,
       title,
       task_spec,
+      project_id,
       project_path,
       developer_provider_id,
       developer_model_id,
@@ -271,13 +399,37 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const getProjectByIdStatement = database.prepare(`
+    SELECT
+      id,
+      name,
+      project_path,
+      global_provider_id,
+      global_model_id,
+      created_at,
+      updated_at
+    FROM ${projectsTableName}
+    WHERE id = ?
+  `);
+  const insertProjectStatement = database.prepare(`
+    INSERT INTO ${projectsTableName} (
+      id,
+      name,
+      project_path,
+      global_provider_id,
+      global_model_id,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const listTasksStatement = database.prepare(`
     SELECT
       task_id,
       title,
       task_spec,
+      project_id,
       project_path,
       developer_provider_id,
       developer_model_id,
@@ -298,6 +450,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       task_id,
       title,
       task_spec,
+      project_id,
       project_path,
       developer_provider_id,
       developer_model_id,
@@ -337,16 +490,72 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   `);
 
   return {
+    getProjectById(projectId: string): Promise<null | ProjectRow> {
+      const project = getProjectByIdStatement.get(projectId) as
+        | ProjectRow
+        | undefined;
+
+      return Promise.resolve(project ?? null);
+    },
+    getFirstProject(): null | ProjectRow {
+      const project = database
+        .prepare(
+          `SELECT id, name, project_path, global_provider_id, global_model_id, created_at, updated_at FROM ${projectsTableName} ORDER BY created_at ASC, id ASC LIMIT 1`,
+        )
+        .get() as ProjectRow | undefined;
+
+      return project ?? null;
+    },
     async createTask(input: CreateTaskRequest): Promise<Task> {
       const timestamp = new Date().toISOString();
       const taskId = randomUUID();
+      const legacyInput = input as LegacyCreateTaskRequest;
+      const projectId = legacyInput.project_id ?? legacyInput.project_path;
+
+      if (!projectId) {
+        throw new Error("Task requires project_id");
+      }
+
+      let project = getProjectByIdStatement.get(projectId) as
+        | ProjectRow
+        | undefined;
+
+      if (!project) {
+        if (
+          !legacyInput.project_path ||
+          !legacyInput.developer_provider_id ||
+          !legacyInput.developer_model_id
+        ) {
+          throw new Error(`Project ${projectId} was not found`);
+        }
+
+        insertProjectStatement.run(
+          projectId,
+          projectId,
+          legacyInput.project_path,
+          legacyInput.developer_provider_id,
+          legacyInput.developer_model_id,
+          timestamp,
+          timestamp,
+        );
+        project = getProjectByIdStatement.get(projectId) as ProjectRow;
+      }
+
+      if (
+        !project.global_provider_id.trim() ||
+        !project.global_model_id.trim()
+      ) {
+        throw buildProjectConfigurationError(projectId);
+      }
+
       const task = mapTaskRow({
         task_id: taskId,
         title: input.title,
         task_spec: input.task_spec,
-        project_path: input.project_path,
-        developer_provider_id: input.developer_provider_id,
-        developer_model_id: input.developer_model_id,
+        project_id: projectId,
+        project_path: project.project_path,
+        developer_provider_id: project.global_provider_id,
+        developer_model_id: project.global_model_id,
         session_id: input.session_id ?? null,
         worktree_path: input.worktree_path ?? null,
         pull_request_url: input.pull_request_url ?? null,
@@ -362,6 +571,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.task_id,
         task.title,
         task.task_spec,
+        task.project_id,
         task.project_path,
         task.developer_provider_id,
         task.developer_model_id,
@@ -418,6 +628,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             task_id,
             title,
             task_spec,
+            project_id,
             project_path,
             developer_provider_id,
             developer_model_id,

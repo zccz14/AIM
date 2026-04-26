@@ -17,8 +17,6 @@ import {
 const defaultPort = 8192;
 const defaultSchedulerIntervalMs = 5_000;
 const defaultOpencodeBaseUrl = "http://localhost:4096";
-const defaultDeveloperProviderId = "anthropic";
-const defaultDeveloperModelId = "claude-sonnet-4-5";
 const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
 Maintain AIM evaluation dimensions, evaluations, and Manager reports by reading the latest origin/main baseline, README goals, current dimensions, evaluations, Manager reports, Task Pool, and rejected Tasks through AIM API Server.
@@ -31,6 +29,21 @@ Maintain the AIM Task Pool from Manager output, latest baseline facts, current u
 Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
 
 Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager Report gaps directly into Tasks.`;
+const createMissingProjectLane = () => ({
+  scanOnce() {
+    throw new Error(
+      "AIM optimizer lane requires at least one configured project",
+    );
+  },
+  start() {
+    throw new Error(
+      "AIM optimizer lane requires at least one configured project",
+    );
+  },
+  stop() {
+    return Promise.resolve();
+  },
+});
 const parsedSessionIdleFallbackTimeoutMs = Number.parseInt(
   process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS ?? "",
   10,
@@ -60,38 +73,41 @@ export const startServer = () => {
   const taskRepository = createTaskRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
+  const project = taskRepository.getFirstProject();
   const scheduler = createTaskScheduler({
     coordinator: createTaskSessionCoordinator(coordinatorConfig),
     logger,
     taskRepository,
   });
   const agentCoordinator = createAgentSessionCoordinator(coordinatorConfig);
-  const projectPath =
-    process.env.AIM_TASK_PROJECT_PATH?.trim() || process.cwd();
-  const providerId =
-    process.env.AIM_DEVELOPER_PROVIDER_ID?.trim() || defaultDeveloperProviderId;
-  const modelId =
-    process.env.AIM_DEVELOPER_MODEL_ID?.trim() || defaultDeveloperModelId;
-  const managerLane = createAgentSessionLane({
-    coordinator: agentCoordinator,
-    laneName: "manager_evaluation",
-    logger,
-    modelId,
-    projectPath,
-    prompt: managerPrompt,
-    providerId,
-    title: "AIM Manager evaluation lane",
-  });
-  const coordinatorLane = createAgentSessionLane({
-    coordinator: agentCoordinator,
-    laneName: "coordinator_task_pool",
-    logger,
-    modelId,
-    projectPath,
-    prompt: coordinatorPrompt,
-    providerId,
-    title: "AIM Coordinator task-pool lane",
-  });
+  const configuredProject =
+    project?.global_provider_id.trim() && project.global_model_id.trim()
+      ? project
+      : null;
+  const managerLane = configuredProject
+    ? createAgentSessionLane({
+        coordinator: agentCoordinator,
+        laneName: "manager_evaluation",
+        logger,
+        modelId: configuredProject.global_model_id,
+        projectPath: configuredProject.project_path,
+        prompt: managerPrompt,
+        providerId: configuredProject.global_provider_id,
+        title: "AIM Manager evaluation lane",
+      })
+    : createMissingProjectLane();
+  const coordinatorLane = configuredProject
+    ? createAgentSessionLane({
+        coordinator: agentCoordinator,
+        laneName: "coordinator_task_pool",
+        logger,
+        modelId: configuredProject.global_model_id,
+        projectPath: configuredProject.project_path,
+        prompt: coordinatorPrompt,
+        providerId: configuredProject.global_provider_id,
+        title: "AIM Coordinator task-pool lane",
+      })
+    : createMissingProjectLane();
   const optimizerRuntime = createOptimizerRuntime({
     intervalMs: schedulerIntervalMs,
     lanes: [
