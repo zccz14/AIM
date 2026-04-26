@@ -1,7 +1,19 @@
 import type { TaskWriteBulk } from "@aim-ai/contract";
 
 import { Button } from "../../../components/ui/button.js";
-import { Card } from "../../../components/ui/card.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
 
 export const TaskWriteBulkSection = ({
   bulks,
@@ -26,41 +38,49 @@ export const TaskWriteBulkSection = ({
       </p>
     </div>
     <Card className="evidence-panel section-stack">
-      <div>
+      <CardHeader className="surface-panel__header">
         <p className="eyebrow">Coordinator Candidates</p>
-        <h3 className="section-title">Task Write Bulks</h3>
-      </div>
-      <p className="section-copy">
-        Pre-approval Coordinator write intent. No tasks have been created or
-        executed from these records.
-      </p>
-      {bulks.length === 0 ? (
-        <p className="muted-text">
-          No Task Write Bulk intent is available from the configured server.
-        </p>
-      ) : (
-        <div className="task-write-bulk-list">
-          {bulks.map((bulk) => (
-            <Button
-              className="task-write-bulk-row"
-              key={bulk.bulk_id}
-              onClick={() => onSelectBulk(bulk.bulk_id)}
-              type="button"
-              variant="outline"
-            >
-              <span className="task-write-bulk-row__main">
-                <strong>{bulk.bulk_id}</strong>
-                <span>{bulk.project_path}</span>
-              </span>
-              <span className="task-write-bulk-row__meta">
-                <span>{`${bulk.entries.length} proposed entries`}</span>
-                <span>{bulk.baseline_ref ?? "No baseline_ref"}</span>
-                <span>{bulk.created_at}</span>
-              </span>
-            </Button>
-          ))}
-        </div>
-      )}
+        <CardTitle className="section-title">Task Write Bulks</CardTitle>
+        <CardDescription className="section-copy">
+          Pre-approval Coordinator write intent. No tasks have been created or
+          executed from these records.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {bulks.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>No Task Write Bulk intent available</EmptyTitle>
+              <EmptyDescription>
+                The configured server has no pre-approval Coordinator write
+                intent to inspect.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="task-write-bulk-list">
+            {bulks.map((bulk) => (
+              <Button
+                className="task-write-bulk-row"
+                key={bulk.bulk_id}
+                onClick={() => onSelectBulk(bulk.bulk_id)}
+                type="button"
+                variant="outline"
+              >
+                <span className="task-write-bulk-row__main">
+                  <strong>{bulk.bulk_id}</strong>
+                  <span>{bulk.project_path}</span>
+                </span>
+                <span className="task-write-bulk-row__meta">
+                  <span>{`${bulk.entries.length} proposed entries`}</span>
+                  <span>{bulk.baseline_ref ?? "No baseline_ref"}</span>
+                  <span>{bulk.created_at}</span>
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </CardContent>
     </Card>
   </section>
 );

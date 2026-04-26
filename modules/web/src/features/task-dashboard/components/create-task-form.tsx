@@ -2,8 +2,15 @@ import type { OpenCodeModelCombination } from "@aim-ai/contract";
 import { useEffect, useState } from "react";
 
 import { Button } from "../../../components/ui/button.js";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
-import { Label } from "../../../components/ui/label.js";
 import {
   LyraKicker,
   LyraMuted,
@@ -11,7 +18,14 @@ import {
   LyraStack,
   LyraSurface,
 } from "../../../components/ui/lyra-surface.js";
-import { Select } from "../../../components/ui/select.js";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../components/ui/select.js";
 import { Textarea } from "../../../components/ui/textarea.js";
 import { useI18n } from "../../../lib/i18n.js";
 
@@ -148,27 +162,39 @@ export const CreateTaskForm = ({
               <LyraKicker>Task Brief</LyraKicker>
               <h3>{t("taskSpec")}</h3>
             </div>
-            <Label className="lyra-field-control" htmlFor="create-task-title">
-              <span>{t("title")}</span>
-              <Input
-                disabled={isSubmitting}
-                id="create-task-title"
-                onChange={(event) => setTitle(event.currentTarget.value)}
-                placeholder="Summarize the task"
-                type="text"
-                value={title}
-              />
-            </Label>
-            <Label className="lyra-field-control" htmlFor="create-task-spec">
-              <span>{t("taskSpec")}</span>
-              <Textarea
-                disabled={isSubmitting}
-                id="create-task-spec"
-                onChange={(event) => setTaskSpec(event.currentTarget.value)}
-                placeholder="Describe the task to create"
-                value={taskSpec}
-              />
-            </Label>
+            <FieldGroup>
+              <Field
+                className="lyra-field-control"
+                data-disabled={isSubmitting}
+              >
+                <FieldLabel htmlFor="create-task-title">
+                  {t("title")}
+                </FieldLabel>
+                <Input
+                  disabled={isSubmitting}
+                  id="create-task-title"
+                  onChange={(event) => setTitle(event.currentTarget.value)}
+                  placeholder="Summarize the task"
+                  type="text"
+                  value={title}
+                />
+              </Field>
+              <Field
+                className="lyra-field-control"
+                data-disabled={isSubmitting}
+              >
+                <FieldLabel htmlFor="create-task-spec">
+                  {t("taskSpec")}
+                </FieldLabel>
+                <Textarea
+                  disabled={isSubmitting}
+                  id="create-task-spec"
+                  onChange={(event) => setTaskSpec(event.currentTarget.value)}
+                  placeholder="Describe the task to create"
+                  value={taskSpec}
+                />
+              </Field>
+            </FieldGroup>
           </LyraStack>
         </LyraPanel>
 
@@ -178,53 +204,64 @@ export const CreateTaskForm = ({
               <LyraKicker>{t("workspaceTarget")}</LyraKicker>
               <h3>{t("projectPath")}</h3>
             </div>
-            <Label
-              className="lyra-field-control"
-              htmlFor="create-task-project-path"
-            >
-              <span>{t("projectPath")}</span>
-              <Input
-                disabled={isSubmitting}
-                id="create-task-project-path"
-                onChange={(event) => setProjectPath(event.currentTarget.value)}
-                placeholder="/absolute/path/to/repo"
-                type="text"
-                value={projectPath}
-              />
-            </Label>
-
-            <Label
-              className="lyra-field-control"
-              htmlFor="create-task-developer-model"
-            >
-              <span>{t("developerModel")}</span>
-              <Select
-                disabled={isSubmitting || models.length === 0}
-                id="create-task-developer-model"
-                onChange={(event) =>
-                  setSelectedModelKey(event.currentTarget.value)
-                }
-                value={selectedModelKey}
+            <FieldGroup>
+              <Field
+                className="lyra-field-control"
+                data-disabled={isSubmitting}
               >
-                {models.length === 0 ? (
-                  <option value="">No models available</option>
-                ) : null}
-                {models.map((model) => (
-                  <option
-                    key={`${model.provider_id}::${model.model_id}`}
-                    value={`${model.provider_id}::${model.model_id}`}
-                  >
-                    {model.provider_name} / {model.model_name}
-                  </option>
-                ))}
-              </Select>
-            </Label>
+                <FieldLabel htmlFor="create-task-project-path">
+                  {t("projectPath")}
+                </FieldLabel>
+                <Input
+                  disabled={isSubmitting}
+                  id="create-task-project-path"
+                  onChange={(event) =>
+                    setProjectPath(event.currentTarget.value)
+                  }
+                  placeholder="/absolute/path/to/repo"
+                  type="text"
+                  value={projectPath}
+                />
+              </Field>
 
-            <LyraStack>
-              <div>
-                <LyraKicker>Submission Checklist</LyraKicker>
-                <h3>{t("beforeYouSend")}</h3>
-              </div>
+              <Field
+                className="lyra-field-control"
+                data-disabled={isSubmitting || models.length === 0}
+              >
+                <FieldLabel>{t("developerModel")}</FieldLabel>
+                <Select
+                  disabled={isSubmitting || models.length === 0}
+                  onValueChange={setSelectedModelKey}
+                  value={selectedModelKey}
+                >
+                  <SelectTrigger
+                    aria-label={t("developerModel")}
+                    id="create-task-developer-model"
+                  >
+                    <SelectValue placeholder="No models available" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {models.map((model) => (
+                        <SelectItem
+                          key={`${model.provider_id}::${model.model_id}`}
+                          value={`${model.provider_id}::${model.model_id}`}
+                        >
+                          {model.provider_name} / {model.model_name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Select the Developer model for this task.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+
+            <FieldSet>
+              <FieldLegend>{t("beforeYouSend")}</FieldLegend>
+              <FieldDescription>Submission Checklist</FieldDescription>
               <div className="aim-checklist">
                 {checklistItems.map((item) => (
                   <div className="aim-checklist-item" key={item}>
@@ -235,7 +272,7 @@ export const CreateTaskForm = ({
                   </div>
                 ))}
               </div>
-            </LyraStack>
+            </FieldSet>
           </LyraStack>
         </aside>
       </div>

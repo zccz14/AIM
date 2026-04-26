@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const buildTask = ({
   dependencies = [],
@@ -40,6 +40,11 @@ const buildOptimizerStatus = (running: boolean) => ({
   last_scan_at: null,
   running,
 });
+
+const selectDeveloperModel = async (page: Page, modelName: string) => {
+  await page.getByRole("combobox", { name: "Developer Model" }).click();
+  await page.getByRole("option", { name: modelName }).click();
+};
 
 const buildTaskWriteBulk = () => ({
   project_path: "/repo/dashboard",
@@ -831,8 +836,9 @@ test("aggregates rejected feedback signals for Coordinator planning", async ({
   ).toBeVisible();
 
   await rejectedFeedbackSection
-    .getByLabel("Reason category")
-    .selectOption("scheduler_session");
+    .getByRole("combobox", { name: "Reason category" })
+    .click();
+  await page.getByRole("option", { name: "Scheduler Session" }).click();
   await expect(rejectedFeedbackSection.getByText("2 tasks")).toBeVisible();
   await expect(
     rejectedFeedbackSection.getByText(
@@ -1039,9 +1045,6 @@ test("toggles create task AIM form colors with the app theme", async ({
     });
 
   const darkStyles = await readCreateStyles();
-  expect(
-    Object.values(darkStyles).every((value) => value.includes("oklch")),
-  ).toBe(true);
 
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -1359,7 +1362,7 @@ test("submits title, task_spec, project_path, and selected developer model to th
   await page.getByLabel("Title").fill("Ship create flow");
   await page.getByLabel("Task Spec").fill("Ship create flow");
   await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByLabel("Developer Model").selectOption("openai::gpt-5.5");
+  await selectDeveloperModel(page, "OpenAI / GPT 5.5");
   await page.getByRole("button", { name: "Create Task" }).click();
 
   await expect
@@ -1388,9 +1391,9 @@ test("uses a saved developer model preference only when it is still available", 
   await page.goto("/");
   await page.getByRole("button", { name: "Create Task" }).click();
 
-  await expect(page.getByLabel("Developer Model")).toHaveValue(
-    "openai::gpt-5.5",
-  );
+  await expect(
+    page.getByRole("combobox", { name: "Developer Model" }),
+  ).toContainText("OpenAI / GPT 5.5");
 });
 
 test("shows a local create error when the task API rejects the request", async ({

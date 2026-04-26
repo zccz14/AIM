@@ -14,7 +14,7 @@ export const LanguageToggle = () => {
       size="sm"
       variant="outline"
     >
-      <Languages size={16} />
+      <Languages data-icon="inline-start" />
       <span>{isChinese ? "EN" : "中文"}</span>
     </Button>
   );

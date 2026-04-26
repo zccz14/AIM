@@ -1,9 +1,23 @@
 import { useState } from "react";
 
-import { Button } from "../../../components/ui/button.js";
-import { Card } from "../../../components/ui/card.js";
-import { Input } from "../../../components/ui/input.js";
-import { Label } from "../../../components/ui/label.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card.js";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "../../../components/ui/field.js";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "../../../components/ui/input-group.js";
 import {
   readServerBaseUrl,
   saveServerBaseUrl,
@@ -19,34 +33,42 @@ export const ServerBaseUrlForm = ({
 
   return (
     <Card className="surface-panel section-stack">
-      <div>
+      <CardHeader className="surface-panel__header">
         <p className="eyebrow">Connection</p>
-        <h2 className="section-title">Server Base URL</h2>
-        <p className="section-copy">
+        <CardTitle className="section-title">Server Base URL</CardTitle>
+        <CardDescription className="section-copy">
           Point AIM Navigator at the API instance you want to inspect.
-        </p>
-      </div>
-      <div className="server-form">
-        <Label className="field-stack">
-          <span className="field-label">SERVER_BASE_URL</span>
-          <Input
-            onChange={(event) => {
-              setValue(event.currentTarget.value);
-              setSavedValue(null);
-            }}
-            value={value}
-          />
-        </Label>
-        <Button
-          onClick={async () => {
-            setSavedValue(saveServerBaseUrl(value));
-            await onSave?.();
-          }}
-        >
-          Save
-        </Button>
-      </div>
-      {savedValue ? <p className="muted-text">Saved: {savedValue}</p> : null}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Field>
+          <FieldLabel htmlFor="server-base-url">SERVER_BASE_URL</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="server-base-url"
+              onChange={(event) => {
+                setValue(event.currentTarget.value);
+                setSavedValue(null);
+              }}
+              value={value}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                onClick={async () => {
+                  setSavedValue(saveServerBaseUrl(value));
+                  await onSave?.();
+                }}
+                variant="secondary"
+              >
+                Save
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+          {savedValue ? (
+            <FieldDescription>Saved: {savedValue}</FieldDescription>
+          ) : null}
+        </Field>
+      </CardContent>
     </Card>
   );
 };

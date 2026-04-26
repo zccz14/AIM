@@ -1,7 +1,12 @@
 import { FileText } from "lucide-react";
 
 import { Button } from "../../../components/ui/button.js";
-import { Card } from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
 import type { DashboardManagerReport } from "../model/task-dashboard-view-model.js";
 
 const getReportPreview = (contentMarkdown: string) => {
@@ -44,13 +49,16 @@ export const ManagerReportSection = ({
     </div>
 
     {managerReports.length === 0 ? (
-      <Card className="state-card manager-report-empty">
-        <p className="muted-text">
-          No Manager Reports are available for the current Task Pool project
-          paths. Create or refresh task evidence for a project that has manager
-          handoff reports.
-        </p>
-      </Card>
+      <Empty className="state-card manager-report-empty border">
+        <EmptyHeader>
+          <EmptyTitle>No Manager Reports available</EmptyTitle>
+          <EmptyDescription>
+            No Manager Reports are available for the current Task Pool project
+            paths. Create or refresh task evidence for a project that has
+            manager handoff reports.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     ) : (
       <div className="manager-report-list">
         {managerReports.map((report) => (
@@ -60,7 +68,7 @@ export const ManagerReportSection = ({
           >
             <div className="manager-report-card__main">
               <div className="manager-report-card__title-row">
-                <FileText aria-hidden="true" size={18} />
+                <FileText aria-hidden="true" />
                 <h3>{report.id}</h3>
               </div>
               <p className="muted-text">

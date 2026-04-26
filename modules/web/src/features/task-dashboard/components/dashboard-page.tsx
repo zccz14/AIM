@@ -3,9 +3,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "../../../components/ui/alert.js";
 import { Button } from "../../../components/ui/button.js";
-import { Card } from "../../../components/ui/card.js";
+import { Card, CardContent } from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
 import { LanguageToggle } from "../../../components/ui/language-toggle.js";
+import { Skeleton } from "../../../components/ui/skeleton.js";
 import { Switch } from "../../../components/ui/switch.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
@@ -333,7 +345,7 @@ export const DashboardPage = () => {
         <li>{t("taskIntakeLower")}</li>
       </ul>
       <Button onClick={goToCreateTask} variant="outline">
-        <Plus size={16} />
+        <Plus data-icon="inline-start" />
         {t("taskIntakeLower")}
       </Button>
     </aside>
@@ -381,23 +393,26 @@ export const DashboardPage = () => {
 
         {dashboardQuery.isPending ? (
           <Card className="state-card">
-            <div className="state-card__content">
+            <CardContent className="state-card__content">
               <LoaderCircle
                 aria-label="Loading task dashboard"
                 className="animate-spin"
+                data-icon="inline-start"
               />
-              <p className="muted-text">{t("loadingConvergenceEvidence")}</p>
-            </div>
+              <div className="section-stack">
+                <p className="muted-text">{t("loadingConvergenceEvidence")}</p>
+                <Skeleton className="h-3 w-full max-w-sm" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </CardContent>
           </Card>
         ) : null}
 
         {dashboardQuery.isError ? (
-          <section className="alert-card">
-            <div className="form-stack">
-              <p className="field-label">
-                <AlertCircle aria-hidden="true" size={16} />{" "}
-                {t("dashboardError")}
-              </p>
+          <Alert className="alert-card" variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertTitle>{t("dashboardError")}</AlertTitle>
+            <AlertDescription>
               <p>{getTaskDashboardErrorMessage(dashboardQuery.error)}</p>
               <Button
                 disabled={dashboardQuery.isFetching}
@@ -406,14 +421,20 @@ export const DashboardPage = () => {
               >
                 {t("retry")}
               </Button>
-            </div>
-          </section>
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         {dashboardQuery.isSuccess && !hasDashboardData ? (
-          <Card className="state-card">
-            <p className="muted-text">{t("noActiveDashboardData")}</p>
-          </Card>
+          <Empty className="state-card border">
+            <EmptyHeader>
+              <EmptyTitle>{t("noActiveDashboardData")}</EmptyTitle>
+              <EmptyDescription>
+                Refresh the configured server or create a task intake to begin
+                collecting convergence evidence.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : null}
 
         {dashboardQuery.isSuccess && hasDashboardData ? (
@@ -512,7 +533,7 @@ export const DashboardPage = () => {
                     size="sm"
                     variant="outline"
                   >
-                    <RefreshCw size={16} />
+                    <RefreshCw data-icon="inline-start" />
                     {t("refresh")}
                   </Button>
                 ) : null}
@@ -591,7 +612,7 @@ export const DashboardPage = () => {
               <div className="hero-actions">
                 {route.kind === "dashboard" ? (
                   <Button onClick={goToCreateTask}>
-                    <Plus size={16} />
+                    <Plus data-icon="inline-start" />
                     {t("createTask")}
                   </Button>
                 ) : null}

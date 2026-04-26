@@ -7,9 +7,20 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
-import { Card } from "../../../components/ui/card.js";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
+import { Field, FieldLabel } from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
-import { Label } from "../../../components/ui/label.js";
 import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
@@ -80,65 +91,80 @@ export const TaskTableSection = ({
 
   return (
     <Card className="surface-table section-stack">
-      <div>
+      <CardHeader className="surface-panel__header">
         <p className="eyebrow">{t("taskPool")}</p>
-        <h2 className="section-title">{t("activeUnfinishedTasks")}</h2>
-      </div>
-      <Label className="field-stack">
-        <span className="field-label">{t("filterTasks")}</span>
-        <Input
-          onChange={(event) => setFilterValue(event.currentTarget.value)}
-          value={filterValue}
-        />
-      </Label>
+        <CardTitle className="section-title">
+          {t("activeUnfinishedTasks")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="section-stack">
+        <Field>
+          <FieldLabel htmlFor="task-filter">{t("filterTasks")}</FieldLabel>
+          <Input
+            id="task-filter"
+            onChange={(event) => setFilterValue(event.currentTarget.value)}
+            value={filterValue}
+          />
+        </Field>
 
-      <div className="table-scroll">
-        <table className="task-table">
-          <thead data-testid="dashboard-table-header">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
+        <div className="table-scroll">
+          <table className="task-table">
+            <thead data-testid="dashboard-table-header">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
 
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                className="table-row"
-                key={row.id}
-                onClick={() => onSelectTask(row.original.id)}
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectTask(row.original.id);
-                  }
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  className="table-row"
+                  key={row.id}
+                  onClick={() => onSelectTask(row.original.id)}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectTask(row.original.id);
+                    }
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      {table.getRowModel().rows.length === 0 ? (
-        <p className="muted-text">{t("noMatchingTasks")}</p>
-      ) : null}
+        {table.getRowModel().rows.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>{t("noMatchingTasks")}</EmptyTitle>
+              <EmptyDescription>
+                Adjust the task filter or refresh the configured server.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : null}
+      </CardContent>
     </Card>
   );
 };
