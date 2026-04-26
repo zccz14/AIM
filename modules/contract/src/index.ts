@@ -15,6 +15,8 @@ export {
   optimizerStartPath,
   optimizerStatusPath,
   optimizerStopPath,
+  projectByIdPath,
+  projectsPath,
   taskByIdPath,
   taskDependenciesPath,
   taskPullRequestUrlPath,
@@ -39,6 +41,10 @@ export const healthResponseSchema = schemas.HealthResponse;
 export const healthStatusSchema = healthResponseSchema.shape.status;
 export const healthErrorSchema = schemas.HealthError;
 export const healthErrorCodeSchema = healthErrorSchema.shape.code;
+export const projectSchema = schemas.Project;
+export const createProjectRequestSchema = schemas.CreateProjectRequest;
+export const patchProjectRequestSchema = schemas.PatchProjectRequest;
+export const projectListResponseSchema = schemas.ProjectListResponse;
 export const taskSchema = schemas.Task;
 export const createTaskRequestSchema = schemas.CreateTaskRequest;
 export const patchTaskRequestSchema = schemas.PatchTaskRequest;
@@ -81,6 +87,10 @@ export type DimensionEvaluationListResponse = Infer<
 export type HealthStatus = Infer<typeof healthStatusSchema>;
 export type HealthError = Infer<typeof healthErrorSchema>;
 export type HealthErrorCode = Infer<typeof healthErrorCodeSchema>;
+export type Project = Infer<typeof projectSchema>;
+export type CreateProjectRequest = Input<typeof createProjectRequestSchema>;
+export type PatchProjectRequest = Infer<typeof patchProjectRequestSchema>;
+export type ProjectListResponse = Infer<typeof projectListResponseSchema>;
 export type Task = Infer<typeof taskSchema>;
 export type CreateTaskRequest = Input<typeof createTaskRequestSchema>;
 export type PatchTaskRequest = Infer<typeof patchTaskRequestSchema>;
@@ -133,6 +143,10 @@ export type DimensionEvaluationListResponseSchema =
 export type HealthStatusSchema = typeof healthStatusSchema;
 export type HealthErrorSchema = typeof healthErrorSchema;
 export type HealthErrorCodeSchema = typeof healthErrorCodeSchema;
+export type ProjectSchema = typeof projectSchema;
+export type CreateProjectRequestSchema = typeof createProjectRequestSchema;
+export type PatchProjectRequestSchema = typeof patchProjectRequestSchema;
+export type ProjectListResponseSchema = typeof projectListResponseSchema;
 export type TaskSchema = typeof taskSchema;
 export type CreateTaskRequestSchema = typeof createTaskRequestSchema;
 export type PatchTaskRequestSchema = typeof patchTaskRequestSchema;
@@ -177,6 +191,12 @@ export type ParsedCreateDimensionEvaluationRequest = Output<
 export type ParsedDimensionEvaluationListResponse =
   DimensionEvaluationListResponse;
 export type ParsedHealthError = HealthError;
+export type ParsedProject = Project;
+export type ParsedCreateProjectRequest = Output<
+  typeof createProjectRequestSchema
+>;
+export type ParsedPatchProjectRequest = PatchProjectRequest;
+export type ParsedProjectListResponse = ProjectListResponse;
 export type ParsedTask = Task;
 export type ParsedCreateTaskRequest = Output<typeof createTaskRequestSchema>;
 export type ParsedPatchTaskRequest = PatchTaskRequest;

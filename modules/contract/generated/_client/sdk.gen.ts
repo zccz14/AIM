@@ -17,6 +17,9 @@ import type {
   CreateManagerReportData,
   CreateManagerReportErrors,
   CreateManagerReportResponses,
+  CreateProjectData,
+  CreateProjectErrors,
+  CreateProjectResponses,
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskResponses,
@@ -26,6 +29,9 @@ import type {
   DeleteDimensionByIdData,
   DeleteDimensionByIdErrors,
   DeleteDimensionByIdResponses,
+  DeleteProjectByIdData,
+  DeleteProjectByIdErrors,
+  DeleteProjectByIdResponses,
   DeleteTaskByIdData,
   DeleteTaskByIdErrors,
   DeleteTaskByIdResponses,
@@ -61,6 +67,8 @@ import type {
   ListOpenCodeModelsData,
   ListOpenCodeModelsErrors,
   ListOpenCodeModelsResponses,
+  ListProjectsData,
+  ListProjectsResponses,
   ListTasksData,
   ListTasksErrors,
   ListTasksResponses,
@@ -70,6 +78,9 @@ import type {
   PatchDimensionByIdData,
   PatchDimensionByIdErrors,
   PatchDimensionByIdResponses,
+  PatchProjectByIdData,
+  PatchProjectByIdErrors,
+  PatchProjectByIdResponses,
   PatchTaskByIdData,
   PatchTaskByIdErrors,
   PatchTaskByIdResponses,
@@ -135,6 +146,66 @@ export const listOpenCodeModels = <ThrowOnError extends boolean = false>(
     ListOpenCodeModelsErrors,
     ThrowOnError
   >({ url: "/opencode/models", ...options });
+
+/**
+ * List projects
+ */
+export const listProjects = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProjectsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListProjectsResponses, unknown, ThrowOnError>(
+    { url: "/projects", ...options },
+  );
+
+/**
+ * Create a project
+ */
+export const createProject = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateProjectResponses,
+    CreateProjectErrors,
+    ThrowOnError
+  >({
+    url: "/projects",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a project
+ */
+export const deleteProjectById = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProjectByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProjectByIdResponses,
+    DeleteProjectByIdErrors,
+    ThrowOnError
+  >({ url: "/projects/{projectId}", ...options });
+
+/**
+ * Update a project
+ */
+export const patchProjectById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchProjectByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    PatchProjectByIdResponses,
+    PatchProjectByIdErrors,
+    ThrowOnError
+  >({
+    url: "/projects/{projectId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * Read AIM optimizer runtime status

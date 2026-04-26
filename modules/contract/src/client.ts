@@ -1,8 +1,10 @@
 import { createClient as createGeneratedClient } from "../generated/_client/client/index.js";
 import {
   createManagerReport,
+  createProject,
   createTask,
   createTaskWriteBulk,
+  deleteProjectById,
   deleteTaskById,
   getHealth,
   getManagerReportById,
@@ -11,8 +13,10 @@ import {
   getTaskWriteBulkById,
   listManagerReports,
   listOpenCodeModels,
+  listProjects,
   listTasks,
   listTaskWriteBulks,
+  patchProjectById,
   patchTaskById,
   rejectTaskById,
   resolveTaskById,
@@ -23,12 +27,16 @@ import type {
   CreateManagerReportError,
   CreateManagerReportRequest,
   CreateManagerReportResponse,
+  CreateProjectError,
+  CreateProjectRequest,
+  CreateProjectResponse,
   CreateTaskError,
   CreateTaskRequest,
   CreateTaskResponse,
   CreateTaskWriteBulkError,
   CreateTaskWriteBulkRequest,
   CreateTaskWriteBulkResponse,
+  DeleteProjectByIdError,
   DeleteTaskByIdError,
   ErrorResponse,
   GetHealthError,
@@ -52,9 +60,14 @@ import type {
   ManagerReportListResponse,
   OpenCodeModelsResponse,
   OptimizerStatusResponse,
+  PatchProjectByIdError,
+  PatchProjectByIdResponse,
+  PatchProjectRequest,
   PatchTaskByIdError,
   PatchTaskByIdResponse,
   PatchTaskRequest,
+  Project,
+  ProjectListResponse,
   RejectTaskByIdError,
   ResolveTaskByIdError,
   StartOptimizerResponse,
@@ -102,6 +115,13 @@ export type ContractClient = {
     done?: boolean;
     session_id?: string;
   }): Promise<TaskListResponse>;
+  listProjects(): Promise<ProjectListResponse>;
+  createProject(input: CreateProjectRequest): Promise<Project>;
+  patchProjectById(
+    projectId: string,
+    input: PatchProjectRequest,
+  ): Promise<Project>;
+  deleteProjectById(projectId: string): Promise<void>;
   listManagerReports(query: {
     project_path: string;
   }): Promise<ManagerReportListResponse>;
@@ -134,6 +154,8 @@ const generatedBaseUrl = "http://contract.internal";
 const generatedBaseOrigin = new URL(generatedBaseUrl).origin;
 const healthResponseSchema = schemas.HealthResponse;
 const healthErrorSchema = schemas.HealthError;
+const projectSchema = schemas.Project;
+const projectListResponseSchema = schemas.ProjectListResponse;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const managerReportSchema = schemas.ManagerReport;
@@ -255,6 +277,83 @@ export const createContractClient = ({
       return taskListResponseSchema.parse(
         result.data satisfies ListTasksResponse,
       ) satisfies TaskListResponse;
+    },
+
+    async listProjects() {
+      const result = await listProjects({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      return projectListResponseSchema.parse(
+        result.data,
+      ) satisfies ProjectListResponse;
+    },
+
+    async createProject(input) {
+      const result = await createProject({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies CreateProjectError),
+        );
+      }
+
+      return projectSchema.parse(
+        result.data satisfies CreateProjectResponse,
+      ) satisfies Project;
+    },
+
+    async patchProjectById(projectId, input) {
+      const result = await patchProjectById({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies PatchProjectByIdError),
+        );
+      }
+
+      return projectSchema.parse(
+        result.data satisfies PatchProjectByIdResponse,
+      ) satisfies Project;
+    },
+
+    async deleteProjectById(projectId) {
+      const result = await deleteProjectById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies DeleteProjectByIdError),
+        );
+      }
     },
 
     async listOpenCodeModels() {

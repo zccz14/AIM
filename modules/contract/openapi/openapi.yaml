@@ -44,6 +44,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /projects:
+    post:
+      operationId: createProject
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid project payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listProjects
+      summary: List projects
+      responses:
+        "200":
+          description: Project collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+  /projects/{projectId}:
+    patch:
+      operationId: patchProjectById
+      summary: Update a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchProjectRequest"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid project patch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProjectById
+      summary: Delete a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPathParameter"
+      responses:
+        "204":
+          description: Project deleted
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /optimizer/status:
     get:
       operationId: getOptimizerStatus
@@ -684,6 +762,13 @@ components:
       schema:
         type: string
         minLength: 1
+    ProjectIdPathParameter:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
     ProjectPathQueryParameter:
       name: project_path
       in: query
@@ -738,6 +823,89 @@ components:
           type: string
           description: Human-readable error detail
           minLength: 1
+    Project:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - project_path
+        - global_provider_id
+        - global_model_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          minLength: 1
+          readOnly: true
+        name:
+          type: string
+          minLength: 1
+        project_path:
+          type: string
+          minLength: 1
+        global_provider_id:
+          type: string
+          minLength: 1
+        global_model_id:
+          type: string
+          minLength: 1
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - project_path
+        - global_provider_id
+        - global_model_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+        project_path:
+          type: string
+          minLength: 1
+        global_provider_id:
+          type: string
+          minLength: 1
+        global_model_id:
+          type: string
+          minLength: 1
+    PatchProjectRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        project_path:
+          type: string
+          minLength: 1
+        global_provider_id:
+          type: string
+          minLength: 1
+        global_model_id:
+          type: string
+          minLength: 1
+    ProjectListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
     Task:
       type: object
       additionalProperties: false
@@ -1471,6 +1639,9 @@ components:
             - TASK_CONFLICT
             - TASK_VALIDATION_ERROR
             - TASK_UNSUPPORTED_STATUS
+            - PROJECT_NOT_FOUND
+            - PROJECT_CONFLICT
+            - PROJECT_VALIDATION_ERROR
             - MANAGER_REPORT_NOT_FOUND
             - MANAGER_REPORT_CONFLICT
             - MANAGER_REPORT_VALIDATION_ERROR

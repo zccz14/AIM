@@ -173,6 +173,28 @@ const buildDimensionEvaluation = ({
   created_at: createdAt,
 });
 
+const buildProject = ({
+  globalModelId = "claude-sonnet-4-5",
+  globalProviderId = "anthropic",
+  name = "Main project",
+  projectId = "project-main",
+  projectPath = "/repo/main",
+}: {
+  globalModelId?: string;
+  globalProviderId?: string;
+  name?: string;
+  projectId?: string;
+  projectPath?: string;
+} = {}) => ({
+  id: projectId,
+  name,
+  project_path: projectPath,
+  global_provider_id: globalProviderId,
+  global_model_id: globalModelId,
+  created_at: "2026-04-26T00:00:00.000Z",
+  updated_at: "2026-04-26T00:00:00.000Z",
+});
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
@@ -700,6 +722,144 @@ test("presents a cohesive Director cockpit with convergence, evidence, and inter
   await expect(
     page.getByRole("button", { exact: true, name: "Task intake" }),
   ).toBeVisible();
+});
+
+test("manages projects with list, create, edit, and delete actions", async ({
+  page,
+}) => {
+  let projects = [
+    buildProject(),
+    buildProject({
+      globalModelId: "gpt-5.5",
+      globalProviderId: "openai",
+      name: "Research project",
+      projectId: "project-research",
+      projectPath: "/repo/research",
+    }),
+  ];
+  const requests: Array<{
+    method: string;
+    postData: null | string;
+    url: string;
+  }> = [];
+
+  await page.route("**/projects**", async (route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    const projectId = decodeURIComponent(
+      requestUrl.pathname.split("/").at(-1) ?? "",
+    );
+
+    requests.push({
+      method: request.method(),
+      postData: request.postData(),
+      url: request.url(),
+    });
+
+    if (request.method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ items: projects }),
+      });
+      return;
+    }
+
+    if (request.method() === "POST") {
+      const payload = JSON.parse(request.postData() ?? "{}") as {
+        global_model_id: string;
+        global_provider_id: string;
+        name: string;
+        project_path: string;
+      };
+      const createdProject = buildProject({
+        globalModelId: payload.global_model_id,
+        globalProviderId: payload.global_provider_id,
+        name: payload.name,
+        projectId: "project-created",
+        projectPath: payload.project_path,
+      });
+
+      projects = [...projects, createdProject];
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(createdProject),
+      });
+      return;
+    }
+
+    if (request.method() === "PATCH") {
+      const payload = JSON.parse(request.postData() ?? "{}") as {
+        global_model_id?: string;
+        global_provider_id?: string;
+        name?: string;
+        project_path?: string;
+      };
+      const existingProject = projects.find(
+        (project) => project.id === projectId,
+      );
+      const updatedProject = {
+        ...existingProject,
+        ...payload,
+        updated_at: "2026-04-26T00:05:00.000Z",
+      };
+
+      projects = projects.map((project) =>
+        project.id === projectId ? updatedProject : project,
+      );
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(updatedProject),
+      });
+      return;
+    }
+
+    if (request.method() === "DELETE") {
+      projects = projects.filter((project) => project.id !== projectId);
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.goto("/#/projects");
+
+  await expect(
+    page.getByRole("heading", { name: "Project Register" }),
+  ).toBeVisible();
+  await expect(page.getByRole("row", { name: /Main project/ })).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Research project/ }),
+  ).toBeVisible();
+
+  await page.getByLabel("Project Name").fill("Created project");
+  await page.getByLabel("Project Path").fill("/repo/created");
+  await page.getByLabel("Global Provider").fill("anthropic");
+  await page.getByLabel("Global Model").fill("claude-sonnet-4-5");
+  await page.getByRole("button", { name: "Create Project" }).click();
+
+  await expect(
+    page.getByRole("row", { name: /Created project/ }),
+  ).toBeVisible();
+  expect(requests.some((request) => request.method === "POST")).toBe(true);
+
+  await page.getByRole("button", { name: "Edit Main project" }).click();
+  await page.getByLabel("Project Name").fill("Renamed project");
+  await page.getByLabel("Global Provider").fill("openai");
+  await page.getByLabel("Global Model").fill("gpt-5.5");
+  await page.getByRole("button", { name: "Save Project" }).click();
+
+  await expect(
+    page.getByRole("row", { name: /Renamed project/ }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Delete Renamed project" }).click();
+
+  await expect(page.getByRole("row", { name: /Renamed project/ })).toHaveCount(
+    0,
+  );
+  expect(requests.some((request) => request.method === "PATCH")).toBe(true);
+  expect(requests.some((request) => request.method === "DELETE")).toBe(true);
 });
 
 test("separates unfinished Task Pool data from completed history results", async ({

@@ -10,6 +10,7 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerManagerReportRoutes } from "./routes/manager-reports.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerOptimizerRoutes } from "./routes/optimizer.js";
+import { registerProjectRoutes } from "./routes/projects.js";
 import { registerTaskWriteBulkRoutes } from "./routes/task-write-bulks.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
@@ -77,6 +78,7 @@ export const createApp = (_options: CreateAppOptions = {}) => {
     app,
     _options.optimizerRuntime ?? createInactiveOptimizerRuntime(),
   );
+  registerProjectRoutes(app);
   registerDimensionRoutes(app);
   registerManagerReportRoutes(app);
   registerTaskWriteBulkRoutes(app);

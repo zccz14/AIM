@@ -133,6 +133,74 @@ afterEach(async () => {
 });
 
 describe("task routes", () => {
+  it("supports project CRUD through API routes", async () => {
+    await useProjectRoot("supports-project-crud-routes");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request("/projects", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        global_model_id: "claude-sonnet-4-5",
+        global_provider_id: "anthropic",
+        name: "Main project",
+        project_path: "/repo/main",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdProject = await createResponse.json();
+
+    expect(createdProject).toMatchObject({
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      name: "Main project",
+      project_path: "/repo/main",
+    });
+    expect(typeof createdProject.id).toBe("string");
+
+    const listResponse = await app.request("/projects");
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      items: [createdProject],
+    });
+
+    const patchResponse = await app.request(`/projects/${createdProject.id}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        global_model_id: "gpt-5.5",
+        global_provider_id: "openai",
+        name: "Renamed project",
+      }),
+    });
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      global_model_id: "gpt-5.5",
+      global_provider_id: "openai",
+      id: createdProject.id,
+      name: "Renamed project",
+      project_path: "/repo/main",
+    });
+
+    const deleteResponse = await app.request(`/projects/${createdProject.id}`, {
+      method: "DELETE",
+    });
+
+    expect(deleteResponse.status).toBe(204);
+
+    const emptyListResponse = await app.request("/projects");
+
+    await expect(emptyListResponse.json()).resolves.toEqual({ items: [] });
+  });
+
   it("rejects POST /tasks when project_path is missing", async () => {
     await useProjectRoot("rejects-missing-project-path");
 

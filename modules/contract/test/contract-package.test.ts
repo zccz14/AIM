@@ -315,6 +315,7 @@ describe("contract package baseline", () => {
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
       "createManagerReportRequestSchema",
+      "createProjectRequestSchema",
       "createTaskRequestSchema",
       "createTaskWriteBulkRequestSchema",
       "dimensionByIdPath",
@@ -342,7 +343,12 @@ describe("contract package baseline", () => {
       "optimizerStatusResponseSchema",
       "optimizerStopPath",
       "patchDimensionRequestSchema",
+      "patchProjectRequestSchema",
       "patchTaskRequestSchema",
+      "projectByIdPath",
+      "projectListResponseSchema",
+      "projectSchema",
+      "projectsPath",
       "taskByIdPath",
       "taskDependenciesPath",
       "taskDependenciesRequestSchema",
@@ -391,6 +397,12 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.optimizerStopPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.projectsPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.projectByIdPath],
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.tasksPath],

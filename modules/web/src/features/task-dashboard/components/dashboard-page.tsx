@@ -54,6 +54,7 @@ import { DimensionDetailsPage } from "./dimension-details-page.js";
 import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
 import { ManagerReportSection } from "./manager-report-section.js";
 import { OverviewSection } from "./overview-section.js";
+import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
 import { TaskTableSection } from "./task-table-section.js";
@@ -67,11 +68,13 @@ type DashboardRoute =
   | { kind: "create" }
   | { dimensionId: string; kind: "dimension" }
   | { kind: "managerReport"; projectPath: string; reportId: string }
+  | { kind: "projects" }
   | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
 
 const DASHBOARD_PATH = "/";
 const CREATE_TASK_PATH = "/tasks/new";
+const PROJECTS_PATH = "/projects";
 
 const getCurrentPath = () => {
   const hashPath = window.location.hash.slice(1);
@@ -82,6 +85,10 @@ const getCurrentPath = () => {
 const getDashboardRoute = (pathname: string): DashboardRoute => {
   if (pathname === CREATE_TASK_PATH) {
     return { kind: "create" };
+  }
+
+  if (pathname === PROJECTS_PATH) {
+    return { kind: "projects" };
   }
 
   const taskMatch = pathname.match(/^\/tasks\/([^/]+)$/);
@@ -280,6 +287,11 @@ export const DashboardPage = () => {
     navigateTo(CREATE_TASK_PATH);
   };
 
+  const goToProjects = () => {
+    createTaskMutation.reset();
+    navigateTo(PROJECTS_PATH);
+  };
+
   const goToTask = (taskId: string) => {
     navigateTo(`/tasks/${encodeURIComponent(taskId)}`);
   };
@@ -334,13 +346,15 @@ export const DashboardPage = () => {
       ? t("baselineConvergenceCockpit")
       : route.kind === "create"
         ? t("createTask")
-        : route.kind === "managerReport"
-          ? t("managerReport")
-          : route.kind === "dimension"
-            ? "Dimension Detail"
-            : route.kind === "task-write-bulk"
-              ? "Task Write Bulk Details"
-              : t("taskDetails");
+        : route.kind === "projects"
+          ? "Project Register"
+          : route.kind === "managerReport"
+            ? t("managerReport")
+            : route.kind === "dimension"
+              ? "Dimension Detail"
+              : route.kind === "task-write-bulk"
+                ? "Task Write Bulk Details"
+                : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
@@ -405,6 +419,18 @@ export const DashboardPage = () => {
           scope="Task Details"
         >
           <TaskDetailsPage task={selectedTask} />
+        </DashboardPanelBoundary>
+      );
+    }
+
+    if (route.kind === "projects") {
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind]}
+          scope="Project Register"
+        >
+          <ProjectRegisterPage />
         </DashboardPanelBoundary>
       );
     }
@@ -700,6 +726,12 @@ export const DashboardPage = () => {
                     false,
                     t("interventionQueue"),
                     goToDashboard,
+                  )}
+                  {renderNavAction(
+                    route.kind === "projects",
+                    false,
+                    "Projects",
+                    goToProjects,
                   )}
                   {renderNavAction(
                     route.kind === "create",
