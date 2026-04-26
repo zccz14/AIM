@@ -7,20 +7,20 @@ description: AIM Manager guidance for evaluating README goals against the latest
 
 ## 概述
 
-这个 skill 是 AIM Manager 的评估内容准备入口。Manager 负责把 README 目标、最新 `origin/main` baseline、可观测性资料、Issues、现有 Tasks / Task Pool、Rejected Task 反馈等环境信息综合成方向判断，形成可提交到服务端 Manager Report 资源的 Markdown 内容。产品语义与交接边界见 `docs/manager-report.md`。
+这个 skill 是 AIM Manager 的评估内容准备入口。Manager 负责评估 README 目标与最新 `origin/main` baseline 的差距，维护评估坐标系，形成差距分析、迭代方向建议与需要 Director 澄清的开放问题。产品语义与交接边界见 `docs/manager-report.md`。
 
-Manager 的产物是方向信号和评估坐标系，不是 Task Pool 写入，也不是后台调度协议。`Manager Report` 的 Markdown 结构应保持稳定，作为服务端资源的 `content_markdown` 保存，便于 Coordinator 通过服务端资源继续维护 Task Pool。
+Manager 的产物是方向信号、评估坐标系和面向 Director / Coordinator 的评估报告，不是 Task Pool 写入，也不是后台调度协议。`Manager Report` 的 Markdown 结构应保持稳定，作为服务端资源的 `content_markdown` 保存；坐标系维度与维度评估在产品语义上分别落点到 `dimensions` 与 `dimension_evaluations`。
 
 ## 何时使用
 
 - 需要评估 README 目标与最新 baseline 之间的差距，并判断下一轮迭代方向时。
-- 需要定义本轮评估的坐标系，例如按产品能力、Agent 角色、Task 生命周期、GitHub 闭环、可观测性或文档承诺来拆分目标时。
-- 需要把方向、差距、可信度和限制整理成 Coordinator 可消费的 `Manager Report` 时。
-- 需要把 Issues、当前 Task Pool、Rejected Task 反馈纳入方向判断，但还没有进入 Task 写入决策时。
+- 需要定义或维护本轮评估的坐标系，并为每个维度给出定量评分标准和定性描述标准时。
+- 需要把方向、差距、可信度、限制和开放问题整理成 Director 可理解、Coordinator 可消费的 `Manager Report` 时。
+- 需要把可观测性资料或 Issues 纳入基线差距判断，但还没有进入 Task Pool 写入决策时。
 
 ## 产品入口
 
-- 当前可观察入口是服务端 `manager_reports` 资源；本 packaged skill 只负责准备可提交的 Markdown 内容。
+- 当前可观察入口包括服务端 `manager_reports` 资源，以及后续用于坐标系和维度评估落点的 `dimensions` / `dimension_evaluations` 语义；本 packaged skill 只负责准备评估内容与 Markdown 报告。
 - 一份输出只有同时满足 Manager 评估语境、稳定 `Manager Report` Markdown 结构、面向 Coordinator handoff、且不直接写 Task Pool 时，才是产品内的 Manager Report。
 - `docs/manager-report.md` 是 Manager Report 的产品语义与交接边界说明；本 skill 是生成报告的操作入口。
 
@@ -39,12 +39,11 @@ Manager 默认不需要用户输入。开始工作时应先从环境中读取或
 
 可用输入包括：
 
-- README 原文与相关目标章节。
+- README 原文与相关目标章节；README 本质上是来自 Director 的目标输入。
 - 最新 `origin/main` baseline 的只读事实，包括代码、文档、配置、测试、已合并 PR 与可观测行为。
 - 可观测性资料，例如运行日志、检查结果、CI 状态、CLI / API / UI 可见行为；只使用当前环境能取得的事实。
 - Issues、讨论记录或其他目标反馈；只把可引用事实纳入报告。
-- 当前 Tasks / Task Pool，包括未完成 Task 的标题、Spec、状态、依赖和已知阻塞。
-- Rejected Task 反馈，包括失败原因、失败时的 baseline 事实、暴露的前提缺口或目标歧义。
+- 既有坐标系或维度评估记录；若存在，应作为历史评估输入而不是当前 baseline 的替代品。
 - 既有 Manager Report 或 Coordinator 输出；若存在，应作为历史方向输入而不是当前 baseline 的替代品。
 
 ## 缺失信息处理
@@ -59,10 +58,11 @@ Manager 默认不需要用户输入。开始工作时应先从环境中读取或
 Manager 可以：
 
 - 评估 README 目标与最新 baseline 的差距。
-- 定义本轮评估坐标系，并说明为什么这些坐标能覆盖 README 目标。
-- 汇总 baseline facts、gap analysis 和 iteration direction。
-- 将 Issues、Task Pool、Rejected Task 反馈转化为方向层证据。
+- 定义或维护评估坐标系，并为每个维度说明名称、含义、度量方式、定量评分标准和定性描述标准。
+- 汇总 baseline facts、gap analysis、dimension evaluations 和 iteration direction。
+- 将可观测性资料与 Issues 转化为方向层证据。
 - 产出给 Coordinator 的 `coordinator_handoff`，说明后续 Task Pool 维护应关注哪些差距、冲突、前提或删除候选。
+- 向 Director 汇报当前基线与目标状态的差距，帮助 Director 理解现状并判断是否继续投入资源。
 
 Manager 不得：
 
@@ -76,13 +76,13 @@ Manager 不得：
 
 ### `aim-evaluate-readme`
 
-`aim-evaluate-readme` 是窄口径 README-to-baseline claim 核对工具，输出 `claim_checks`、`conclusion_category` 和 `iteration_signal`。Manager 可以吸收这类结果，但 Manager 更高一层：它会定义评估坐标系，合并 Task Pool、Issues、Rejected Task 和可观测性事实，形成 Coordinator 可用的方向报告。
+`aim-evaluate-readme` 是窄口径 README-to-baseline claim 核对工具，输出 `claim_checks`、`conclusion_category` 和 `iteration_signal`。Manager 可以吸收这类结果，但 Manager 更高一层：它会定义评估坐标系，结合可观测性资料与 Issues，形成 Director 可理解、Coordinator 可用的方向报告。
 
-如果只需要逐条核对 README 声明，不需要综合 Task Pool 或定义迭代方向，应使用 `aim-evaluate-readme`。
+如果只需要逐条核对 README 声明，不需要定义坐标系或迭代方向，应使用 `aim-evaluate-readme`。
 
 ### `aim-coordinator-guide`
 
-Coordinator 通过服务端资源消费 Manager Report，负责维护 Task Pool。Coordinator 的产物是可审批的 `Task Write Bulk` list，包含 `Create` / `Delete` 意图、依赖和路由。
+Coordinator 通过服务端资源消费 Manager Report，并结合最新基线、当前 Task Pool 与 Rejected Task 反馈维护 Task Pool。Coordinator 的产物是可审批的 `Task Write Bulk` list，包含 `Create` / `Delete` 意图、依赖和路由。
 
 Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 Coordinator 进入 `aim-create-tasks`。
 
@@ -102,12 +102,12 @@ Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 C
 
 1. 读取 README，确认本次要评估的目标范围。
 2. 刷新并读取最新 `origin/main` baseline 的只读事实；不得用未合并分支或草稿 PR 替代 baseline。
-3. 收集环境中可得的可观测性资料、Issues、当前 Tasks / Task Pool、Rejected Task 反馈。
-4. 定义 `coordinate_system`，说明本轮如何拆分 README 目标与 baseline 能力。
+3. 收集环境中可得的可观测性资料、Issues、既有坐标系或维度评估记录。
+4. 定义或维护 `coordinate_system`，说明本轮如何拆分 README 目标与 baseline 能力，并为每个维度设定定量评分标准与定性描述标准。
 5. 汇总 `baseline_facts`，每条事实应可追溯到环境来源。
-6. 形成 `gap_analysis`，区分已对齐、README ahead、baseline ahead、冲突、歧义和前提缺口。
+6. 形成 `dimension_evaluations` 与 `gap_analysis`，区分已对齐、README ahead、baseline ahead、冲突、歧义和前提缺口。
 7. 给出 `iteration_direction`，表达方向语义而不是 Task 写入或执行排序。
-8. 输出 `coordinator_handoff`，明确 Coordinator 后续维护 Task Pool 时应检查的候选差距、冲突、依赖和 rejected feedback。
+8. 输出 `coordinator_handoff`，明确 Coordinator 后续维护 Task Pool 时应检查的候选差距、冲突、依赖和开放问题。
 9. 填写 `open_questions` 与 `confidence_and_limits`，把不确定性保留在报告中。
 
 ## Manager Report 结构
@@ -128,11 +128,19 @@ coordinate_system:
 - axis: <坐标名称>
   why_it_matters: <为什么这个坐标覆盖 README 目标>
   evaluation_lens: <如何用它观察 baseline 与差距>
+  quantitative_standard: <定量评分标准>
+  qualitative_standard: <定性描述标准>
 
 baseline_facts:
-- source: <README / code / docs / tests / issue / task / rejected_task / observability>
+- source: <README / code / docs / tests / issue / observability / dimension_history>
   fact: <可追溯事实>
   evidence: <路径、命令、Issue、Task 或其他来源>
+
+dimension_evaluations:
+- coordinate: <对应坐标>
+  quantitative_score: <基于该维度评分标准的分数或无法评分说明>
+  qualitative_assessment: <基于该维度描述标准的评估>
+  evidence: <支持评估的事实>
 
 gap_analysis:
 - coordinate: <对应坐标>
@@ -148,7 +156,7 @@ iteration_direction:
 
 coordinator_handoff:
 - focus: <Coordinator 应关注的 Task Pool 维护点>
-  reason: <与 README、baseline 或 rejected feedback 的关系>
+  reason: <与 README、baseline、可观测事实或开放问题的关系>
   suggested_route: evaluate_existing_tasks | consider_create | consider_delete | wait_for_director_clarification | no_task_pool_change
 
 open_questions:
@@ -164,8 +172,9 @@ confidence_and_limits:
 
 - `baseline_ref` 必须明确指向最新 `origin/main` baseline 的认知；如果无法取得 commit，说明限制而不是伪造。
 - `readme_target_summary` 只总结 README 已表达的目标，不补写未出现的目标。
-- `coordinate_system` 应解释评估坐标，不只是列模块名。
+- `coordinate_system` 应解释评估坐标，不只是列模块名；每个维度都应包含定量评分标准和定性描述标准。
 - `baseline_facts` 必须区分事实来源；没有证据的判断只能进入 limits。
+- `dimension_evaluations` 必须按坐标系逐一评估最新 baseline，并同时包含定量评分和定性描述；无法评分时说明证据限制。
 - `gap_analysis.status` 可使用建议标签，但不要把标签扩展成 API 枚举承诺。
 - `iteration_direction` 只表达方向，不包含 Task Spec、执行步骤或开发排期。
 - `coordinator_handoff.suggested_route` 只是给 Coordinator 的阅读提示，不是自动路由协议。
@@ -177,8 +186,10 @@ confidence_and_limits:
 - [ ] 是否默认从环境收集输入，而不是先问用户。
 - [ ] 是否只在 README 目标不清晰且阻止评估时输出 `open_questions`。
 - [ ] 是否明确 baseline 是最新 `origin/main`，并排除了未合并分支事实。
-- [ ] 是否定义了坐标系，而不是只复述 README 或列任务。
-- [ ] 是否把 Issues、Task Pool 和 Rejected Task 反馈放在方向层处理。
+- [ ] 是否定义或维护了坐标系，而不是只复述 README 或列任务。
+- [ ] 是否为每个维度设定了定量评分标准和定性描述标准。
+- [ ] 是否逐一形成了包含定量评分和定性描述的维度评估。
+- [ ] 是否把可观测性资料和 Issues 放在方向层处理，而不是直接生成 Task Pool 写入。
 - [ ] 是否只输出 Manager Report / 方向信号，没有直接创建 Task 或修改代码。
 - [ ] 是否把 Coordinator handoff 写成后续 Task Pool 维护输入，而不是 Task Write Bulk 本身。
 - [ ] 是否避免把 Manager Report 解释成 API schema、SQLite schema 或自动化协议。
