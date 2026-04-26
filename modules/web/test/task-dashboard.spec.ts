@@ -1765,6 +1765,16 @@ test("renders task spec markdown with GFM tables in task details", async ({
   await expect(page.getByRole("table")).toBeVisible();
   await expect(page.getByRole("cell", { name: "Ship" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Ops" })).toBeVisible();
+
+  const markdownRegion = page
+    .getByRole("table")
+    .locator(
+      "xpath=ancestor::div[contains(@class, 'text-card-foreground')][1]",
+    );
+  await expect(markdownRegion).toHaveClass(/(^|\s)prose(\s|$)/);
+  await expect(markdownRegion).toHaveClass(/(^|\s)prose-neutral(\s|$)/);
+  await expect(markdownRegion).toHaveClass(/(^|\s)dark:prose-invert(\s|$)/);
+  await expect(markdownRegion).toHaveClass(/(^|\s)max-w-none(\s|$)/);
 });
 
 test("brands task details with grouped metadata and pull request access", async ({
