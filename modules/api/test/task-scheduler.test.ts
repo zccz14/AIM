@@ -34,10 +34,59 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   await rm(tempRoot, { force: true, recursive: true });
 });
 
 describe("task scheduler", () => {
+  it("stops a sleeping scheduler loop when an await using scope exits", async () => {
+    vi.useFakeTimers();
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+    };
+    const schedulerPromise = (async () => {
+      await using scheduler = createTaskScheduler({
+        coordinator: createCoordinator(),
+        taskRepository: repository,
+      });
+
+      scheduler.start({ intervalMs: 60_000 });
+      await vi.waitFor(() => {
+        expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
+      });
+
+      return scheduler;
+    })();
+
+    await expect(schedulerPromise).resolves.toBeDefined();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
+  });
+
+  it("allows repeated scheduler async disposal without restarting stop behavior", async () => {
+    vi.useFakeTimers();
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+    };
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      taskRepository: repository,
+    });
+
+    scheduler.start({ intervalMs: 60_000 });
+    await vi.waitFor(() => {
+      expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
+    });
+
+    await scheduler[Symbol.asyncDispose]();
+    await expect(scheduler[Symbol.asyncDispose]()).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
+  });
+
   it("logs task_session_bound only after assignment succeeds", async () => {
     const initialTask = createTask();
     const boundTask = createTask({

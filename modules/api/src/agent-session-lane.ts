@@ -147,5 +147,8 @@ export const createAgentSessionLane = (
 
       return loopPromise ?? Promise.resolve();
     },
+    async [Symbol.asyncDispose]() {
+      await this.stop();
+    },
   };
 };
