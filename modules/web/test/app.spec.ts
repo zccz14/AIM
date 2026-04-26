@@ -88,7 +88,6 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
     [
       "dashboard-page.tsx",
       "overview-section.tsx",
-      "dependency-graph-section.tsx",
       "task-table-section.tsx",
       "server-base-url-form.tsx",
       "create-task-form.tsx",
@@ -185,21 +184,17 @@ test("keeps task dashboard data behind adapter and local config boundaries", asy
 
   expect(appSource).not.toContain("task_spec");
   expect(appSource).not.toContain("waiting_assumptions");
-  expect(dashboardPageSource).toContain("DependencyGraphSection");
-  expect(dashboardPageSource).toContain(
-    "graphEdges={dashboardQuery.data.graphEdges}",
-  );
-  expect(dashboardPageSource).toContain(
-    "graphNodes={dashboardQuery.data.graphNodes}",
-  );
+  expect(dashboardPageSource).not.toContain("DependencyGraphSection");
+  expect(dashboardPageSource).not.toContain("graphEdges");
+  expect(dashboardPageSource).not.toContain("graphNodes");
   expect(apiClientSource).toContain("readServerBaseUrl");
   expect(apiClientSource).not.toContain("https://aim.zccz14.com");
   expect(configSource).toContain("http://localhost:8192");
   expect(adapterSource).toContain("toDashboardStatus");
   expect(adapterSource).toContain("processing");
   expect(adapterSource).not.toContain("waiting_assumptions");
-  expect(adapterSource).toContain("graphNodes");
-  expect(adapterSource).toContain("graphEdges");
+  expect(adapterSource).not.toContain("graphNodes");
+  expect(adapterSource).not.toContain("graphEdges");
 });
 
 test("wires the shared AIM icon assets into web and README entry points", async () => {
@@ -331,7 +326,7 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 });
 
-test("shares branded dashboard shell tokens across overview, graph, and table", async () => {
+test("shares branded dashboard shell tokens across overview and table", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
     `${process.cwd()}/modules/web/src/main.tsx`,
@@ -349,10 +344,6 @@ test("shares branded dashboard shell tokens across overview, graph, and table", 
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/overview-section.tsx`,
     "utf8",
   );
-  const graphSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/dependency-graph-section.tsx`,
-    "utf8",
-  );
   const tableSource = await readFile(
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-table-section.tsx`,
     "utf8",
@@ -362,11 +353,10 @@ test("shares branded dashboard shell tokens across overview, graph, and table", 
   expect(stylesSource).toContain('html[data-theme="dark"]');
   expect(stylesSource).toContain('html[data-theme="light"]');
   expect(stylesSource).toContain("--status-ready");
-  expect(stylesSource).toContain(".graph-node");
+  expect(stylesSource).not.toContain(".graph-node");
   expect(stylesSource).toContain(".task-table thead th");
   expect(dashboardPageSource).toContain("ThemeToggle");
   expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
   expect(overviewSource).toContain("Recent Active Tasks");
-  expect(graphSource).toContain('className="graph-node nodrag nopan"');
   expect(tableSource).toContain('data-testid="dashboard-table-header"');
 });

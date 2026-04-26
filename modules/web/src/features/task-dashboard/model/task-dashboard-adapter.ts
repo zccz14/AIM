@@ -10,32 +10,6 @@ import type {
   TaskDashboardViewModel,
 } from "./task-dashboard-view-model.js";
 
-export type DashboardGraphNode = {
-  id: string;
-  data: {
-    color: string;
-    label: string;
-    status: DashboardStatus;
-    testId: string;
-  };
-  position: {
-    x: number;
-    y: number;
-  };
-};
-
-export type DashboardGraphEdge = {
-  id: string;
-  source: string;
-  target: string;
-};
-
-const statusColorMap: Record<DashboardStatus, string> = {
-  processing: "oklch(77% 0.12 85deg)",
-  resolved: "oklch(74% 0.11 145deg)",
-  rejected: "oklch(68% 0.15 25deg)",
-};
-
 export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
   switch (status) {
     case "processing":
@@ -243,49 +217,9 @@ export const adaptDashboardManagerReport = (
   createdAt: report.created_at,
 });
 
-const getTaskDepth = (
-  task: DashboardTask,
-  tasksById: Map<string, DashboardTask>,
-  depthByTaskId: Map<string, number>,
-  activeTaskIds: Set<string>,
-): number => {
-  const cachedDepth = depthByTaskId.get(task.id);
-
-  if (cachedDepth !== undefined) {
-    return cachedDepth;
-  }
-
-  if (activeTaskIds.has(task.id)) {
-    return 0;
-  }
-
-  activeTaskIds.add(task.id);
-
-  const dependencyDepths = task.dependencies
-    .map((dependencyId) => tasksById.get(dependencyId))
-    .filter(
-      (dependency): dependency is DashboardTask => dependency !== undefined,
-    )
-    .map((dependency) =>
-      getTaskDepth(dependency, tasksById, depthByTaskId, activeTaskIds),
-    );
-
-  activeTaskIds.delete(task.id);
-
-  const depth =
-    dependencyDepths.length === 0 ? 0 : Math.max(...dependencyDepths) + 1;
-
-  depthByTaskId.set(task.id, depth);
-
-  return depth;
-};
-
 export const adaptTaskDashboard = (
   response: TaskDashboardResponse,
-): TaskDashboardViewModel & {
-  graphEdges: DashboardGraphEdge[];
-  graphNodes: DashboardGraphNode[];
-} => {
+): TaskDashboardViewModel => {
   const tasks = response.active.items.map(adaptDashboardTask);
   const historyTasks = response.history.items.map(adaptDashboardTask);
   const managerReports = response.managerReports.map(
@@ -321,41 +255,6 @@ export const adaptTaskDashboard = (
       return rightDate.localeCompare(leftDate);
     });
   const rejectedFeedbackSignals = buildRejectedFeedbackSignals(historyTasks);
-  const tasksById = new Map(tasks.map((task) => [task.id, task]));
-  const depthByTaskId = new Map<string, number>();
-  const rowByDepth = new Map<number, number>();
-  const graphNodes = tasks.map<DashboardGraphNode>((task) => {
-    const depth = getTaskDepth(
-      task,
-      tasksById,
-      depthByTaskId,
-      new Set<string>(),
-    );
-    const row = rowByDepth.get(depth) ?? 0;
-
-    rowByDepth.set(depth, row + 1);
-
-    return {
-      id: task.id,
-      data: {
-        color: statusColorMap[task.dashboardStatus],
-        label: task.title,
-        status: task.dashboardStatus,
-        testId: `graph-node-${task.id}`,
-      },
-      position: {
-        x: depth * 240,
-        y: row * 140,
-      },
-    };
-  });
-  const graphEdges = tasks.flatMap((task) =>
-    task.dependencies.map<DashboardGraphEdge>((dependencyId) => ({
-      id: `${dependencyId}-${task.id}`,
-      source: dependencyId,
-      target: task.id,
-    })),
-  );
   const processingCount = countTasksByStatus(tasks, "processing");
   const resolvedCount = countTasksByStatus(historyTasks, "resolved");
   const rejectedCount = countTasksByStatus(historyTasks, "rejected");
@@ -368,8 +267,6 @@ export const adaptTaskDashboard = (
   const attentionSignalCount = dependencyLinkedCount + rejectedCount;
 
   return {
-    graphEdges,
-    graphNodes,
     dimensionReports,
     historyTasks,
     managerReports,

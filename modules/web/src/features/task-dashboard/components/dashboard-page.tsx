@@ -25,7 +25,6 @@ import { useTaskCreateMutation } from "../use-task-create-mutation.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
 import { CreateTaskForm } from "./create-task-form.js";
-import { DependencyGraphSection } from "./dependency-graph-section.js";
 import { DimensionDetailsPage } from "./dimension-details-page.js";
 import { ManagerReportDetailsPage } from "./manager-report-details-page.js";
 import { ManagerReportSection } from "./manager-report-section.js";
@@ -426,11 +425,6 @@ export const DashboardPage = () => {
               <TaskWriteBulkSection
                 bulks={dashboardQuery.data.taskWriteBulks}
                 onSelectBulk={goToTaskWriteBulk}
-              />
-              <DependencyGraphSection
-                graphEdges={dashboardQuery.data.graphEdges}
-                graphNodes={dashboardQuery.data.graphNodes}
-                onSelectTask={goToTask}
               />
               <ManagerReportSection
                 managerReports={dashboardQuery.data.managerReports}
