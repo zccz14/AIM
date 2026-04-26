@@ -1,4 +1,9 @@
-import { Card } from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
 
 const scoreAxisLabels = [100, 50, 0];
@@ -17,9 +22,14 @@ export const DimensionDetailsPage = ({
 }) => {
   if (!report) {
     return (
-      <Card className="state-card">
-        <p className="muted-text">Dimension not found.</p>
-      </Card>
+      <Empty className="state-card border">
+        <EmptyHeader>
+          <EmptyTitle>Dimension not found.</EmptyTitle>
+          <EmptyDescription>
+            Return to the cockpit and select an available dimension report.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -41,9 +51,14 @@ export const DimensionDetailsPage = ({
       <p className="table-meta">Method: {report.dimension.evaluation_method}</p>
 
       {report.evaluations.length === 0 ? (
-        <Card className="state-card">
-          <p className="muted-text">No dimension evaluation recorded yet.</p>
-        </Card>
+        <Empty className="state-card border">
+          <EmptyHeader>
+            <EmptyTitle>No dimension evaluation recorded yet.</EmptyTitle>
+            <EmptyDescription>
+              The score trend will appear after AIM records evaluation evidence.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <figure
           aria-label={`${report.dimension.name} score trend`}

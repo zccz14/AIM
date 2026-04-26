@@ -1,4 +1,30 @@
+@import "tailwindcss";
 @import "./components/ui/lyra-preset.css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
 
 :root,
 html[data-theme="dark"] {
@@ -7,9 +33,14 @@ html[data-theme="dark"] {
   --background-elevated: var(--lyra-background-elevated);
   --border: var(--lyra-border);
   --card: var(--lyra-card);
+  --card-foreground: var(--lyra-foreground);
   --card-strong: var(--lyra-card-strong);
   --foreground: var(--lyra-foreground);
   --foreground-muted: var(--lyra-foreground-muted);
+  --muted: var(--lyra-secondary);
+  --muted-foreground: var(--lyra-foreground-muted);
+  --popover: var(--lyra-card-strong);
+  --popover-foreground: var(--lyra-foreground);
   --primary: var(--lyra-primary);
   --primary-foreground: var(--lyra-primary-foreground);
   --secondary: var(--lyra-secondary);
@@ -57,9 +88,14 @@ html[data-theme="light"] {
   --background-elevated: var(--lyra-background-elevated);
   --border: var(--lyra-border);
   --card: var(--lyra-card);
+  --card-foreground: var(--lyra-foreground);
   --card-strong: var(--lyra-card-strong);
   --foreground: var(--lyra-foreground);
   --foreground-muted: var(--lyra-foreground-muted);
+  --muted: var(--lyra-secondary);
+  --muted-foreground: var(--lyra-foreground-muted);
+  --popover: var(--lyra-card-strong);
+  --popover-foreground: var(--lyra-foreground);
   --primary: var(--lyra-primary);
   --primary-foreground: var(--lyra-primary-foreground);
   --secondary: var(--lyra-secondary);
@@ -661,6 +697,26 @@ a {
   padding: 20px;
 }
 
+.surface-panel__header,
+.surface-panel > [data-slot="card-content"],
+.surface-table > [data-slot="card-content"],
+.evidence-panel > [data-slot="card-content"] {
+  padding-inline: 0;
+}
+
+.surface-panel__header {
+  gap: 8px;
+  padding-block: 0;
+}
+
+[data-slot="field"],
+[data-slot="field-set"] {
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
 .surface-table {
   overflow: hidden;
 }
@@ -954,58 +1010,6 @@ a {
   resize: vertical;
 }
 
-[data-slot="button"] {
-  display: inline-flex;
-  min-height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) - 0.35rem);
-  background: var(--primary);
-  color: var(--primary-foreground);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding: 0.45rem 1rem;
-  text-decoration: none;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    transform 120ms ease;
-}
-
-[data-slot="button"]:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-[data-slot="button"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-[data-slot="button"][class*="border"] {
-  border-color: var(--border);
-  background: var(--background-elevated);
-  color: var(--foreground);
-}
-
-[data-slot="button"][class*="text-primary"] {
-  min-height: auto;
-  justify-content: flex-start;
-  border-color: transparent;
-  background: transparent;
-  color: var(--primary);
-  padding: 0;
-}
-
-[data-slot="button"][class*="size-9"] {
-  min-width: 2.25rem;
-  padding: 0;
-}
-
 .optimizer-switch-control {
   display: inline-flex;
   min-height: 2.25rem;
@@ -1025,52 +1029,6 @@ a {
 .optimizer-switch-control:has([data-slot="switch"]:disabled) {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-[data-slot="switch"] {
-  position: relative;
-  display: inline-flex;
-  width: 2.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background-muted);
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-
-[data-slot="switch"][data-state="checked"] {
-  border-color: var(--primary);
-  background: var(--primary);
-}
-
-[data-slot="switch"]:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ring);
-}
-
-[data-slot="switch"]:disabled {
-  cursor: not-allowed;
-}
-
-[data-slot="switch-thumb"] {
-  display: block;
-  width: 0.95rem;
-  height: 0.95rem;
-  border-radius: 999px;
-  background: var(--foreground);
-  transform: translateX(0.15rem);
-  transition: transform 120ms ease;
-}
-
-[data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"] {
-  background: var(--primary-foreground);
-  transform: translateX(1rem);
 }
 
 .alert-card {
@@ -1307,6 +1265,21 @@ a {
 .aim-status-badge[data-status="running"] {
   color: var(--status-blocked);
   background: color-mix(in srgb, var(--status-blocked) 18%, transparent);
+}
+
+.aim-status-badge[data-status="processing"] {
+  color: var(--status-running);
+  background: color-mix(in srgb, var(--status-running) 18%, transparent);
+}
+
+.aim-status-badge[data-status="rejected"] {
+  color: var(--status-failed);
+  background: color-mix(in srgb, var(--status-failed) 20%, transparent);
+}
+
+.aim-status-badge[data-status="resolved"] {
+  color: var(--status-done);
+  background: color-mix(in srgb, var(--status-done) 18%, transparent);
 }
 
 .aim-status-badge[data-status="blocked"] {

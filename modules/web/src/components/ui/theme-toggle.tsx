@@ -30,7 +30,11 @@ export const ThemeToggle = () => {
       size="sm"
       variant="outline"
     >
-      {isDark ? <SunMedium size={16} /> : <MoonStar size={16} />}
+      {isDark ? (
+        <SunMedium data-icon="inline-start" />
+      ) : (
+        <MoonStar data-icon="inline-start" />
+      )}
       <span>{text}</span>
     </Button>
   );

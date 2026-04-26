@@ -1,6 +1,11 @@
 import { Gauge } from "lucide-react";
 
-import { Card } from "../../../components/ui/card.js";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "../../../components/ui/empty.js";
 import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
 
@@ -28,16 +33,21 @@ export const AimDimensionReportSection = ({
       </div>
 
       {dimensionReports.length === 0 ? (
-        <Card className="state-card aim-dimension-report__empty">
-          <p className="muted-text">{t("noAimDimensionReport")}</p>
-        </Card>
+        <Empty className="state-card aim-dimension-report__empty border">
+          <EmptyHeader>
+            <EmptyTitle>{t("noAimDimensionReport")}</EmptyTitle>
+            <EmptyDescription>
+              Refresh after a Manager evaluation records AIM dimension evidence.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <div className="aim-dimension-list">
           {dimensionReports.map(({ dimension, latestEvaluation }) => (
             <article className="aim-dimension-item" key={dimension.id}>
               <div className="aim-dimension-item__main">
                 <div className="manager-report-card__title-row">
-                  <Gauge aria-hidden="true" size={18} />
+                  <Gauge aria-hidden="true" />
                   <h3>
                     <button
                       className="link-button"
