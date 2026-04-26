@@ -861,7 +861,9 @@ test("renders the AIM brand mark and favicon entrypoint", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByAltText("AIM icon")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "AIM" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { exact: true, name: "AIM" }),
+  ).toBeVisible();
   await expect(
     page.getByText("Baseline convergence for the AIM Director"),
   ).toBeVisible();
