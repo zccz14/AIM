@@ -700,8 +700,12 @@ a {
 .nav-group,
 .actions-group {
   display: flex;
+  min-inline-size: 0;
   gap: 12px;
   flex-wrap: wrap;
+  margin: 0;
+  border: 0;
+  padding: 0;
 }
 
 .field-stack {

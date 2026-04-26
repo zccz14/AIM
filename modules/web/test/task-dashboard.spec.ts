@@ -603,6 +603,19 @@ test("toggles the branded shell between dark and light themes", async ({
   await expect(page.locator("body")).toContainText("AIM Navigator");
 });
 
+test("places refresh with the global theme controls", async ({ page }) => {
+  await page.goto("/");
+
+  const globalControls = page.getByRole("group", { name: "Global controls" });
+
+  await expect(
+    globalControls.getByRole("button", { name: "Switch to light theme" }),
+  ).toBeVisible();
+  await expect(
+    globalControls.getByRole("button", { exact: true, name: "Refresh" }),
+  ).toBeVisible();
+});
+
 test("toggles task details AIM panel colors with the app theme", async ({
   page,
 }) => {
