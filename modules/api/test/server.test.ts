@@ -296,6 +296,52 @@ describe("server startup", () => {
     );
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
   });
+
+  it("instructs the coordinator lane to use concrete Task Write Bulk intent instead of optimizer-loop placeholders", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue({});
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    const coordinatorLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
+      ([config]) => config.laneName === "coordinator_task_pool",
+    )?.[0];
+
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "form a concrete Task Write Bulk intent",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Reject or record feedback for generic optimizer-loop Tasks",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      'Do not create a "Continue AIM optimizer loop"',
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Do not bypass Task Write Bulk approval or independent Task Spec validation",
+    );
+  });
+
   it("does not leave the server listening when scheduler startup fails", async () => {
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
 
