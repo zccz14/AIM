@@ -249,5 +249,8 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       return loopPromise ?? Promise.resolve();
     },
+    async [Symbol.asyncDispose]() {
+      await this.stop();
+    },
   };
 };
