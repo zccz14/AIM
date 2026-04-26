@@ -9,7 +9,10 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteIndexSchema, applySqliteTableSchema } from "./schema.js";
-import { openTaskDatabase } from "./task-database.js";
+import {
+  createTaskDatabaseAsyncDispose,
+  openTaskDatabase,
+} from "./task-database.js";
 
 type TaskRow = {
   created_at: string;
@@ -334,6 +337,7 @@ const bootstrapTaskDatabase = (projectRoot?: string) => {
 
 export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const database = bootstrapTaskDatabase(options.projectRoot);
+  const asyncDisposeDatabase = createTaskDatabaseAsyncDispose(database);
 
   const insertTaskStatement = database.prepare(`
     INSERT INTO ${tasksTableName} (
@@ -444,6 +448,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   `);
 
   return {
+    [Symbol.asyncDispose]: asyncDisposeDatabase,
     getProjectById(projectId: string): Promise<null | ProjectRow> {
       const project = getProjectByIdStatement.get(projectId) as
         | ProjectRow

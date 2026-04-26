@@ -86,6 +86,30 @@ describe("task repository", () => {
     await expect(access(databasePath)).resolves.toBeUndefined();
   });
 
+  it("closes its database when an await using scope exits", async () => {
+    const projectRoot = await createProjectRoot("await-using-closes-db");
+    let repository: ReturnType<typeof createTaskRepository> | undefined;
+
+    await (async () => {
+      await using scopedRepository = createTaskRepository({ projectRoot });
+
+      repository = scopedRepository;
+      await scopedRepository.listTasks();
+    })();
+
+    await expect(async () => {
+      await repository?.listTasks();
+    }).rejects.toThrow(/closed|finalized|open/i);
+  });
+
+  it("allows repeated async disposal without throwing", async () => {
+    const projectRoot = await createProjectRoot("idempotent-disposal");
+    const repository = createTaskRepository({ projectRoot });
+
+    await repository[Symbol.asyncDispose]();
+    await expect(repository[Symbol.asyncDispose]()).resolves.toBeUndefined();
+  });
+
   it("creates the tasks table automatically before storing rows", async () => {
     const projectRoot = await createProjectRoot("creates-tasks-table");
 

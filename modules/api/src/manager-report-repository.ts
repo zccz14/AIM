@@ -5,7 +5,10 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteSchema } from "./schema.js";
-import { openTaskDatabase } from "./task-database.js";
+import {
+  createTaskDatabaseAsyncDispose,
+  openTaskDatabase,
+} from "./task-database.js";
 
 type ManagerReportRow = {
   baseline_ref: null | string;
@@ -113,6 +116,7 @@ export const createManagerReportRepository = (
   options: ManagerReportRepositoryOptions = {},
 ) => {
   const database = bootstrapManagerReportDatabase(options.projectRoot);
+  const asyncDisposeDatabase = createTaskDatabaseAsyncDispose(database);
   const insertManagerReportStatement = database.prepare(`
     INSERT INTO ${managerReportsTableName} (
       project_path,
@@ -151,6 +155,7 @@ export const createManagerReportRepository = (
   `);
 
   return {
+    [Symbol.asyncDispose]: asyncDisposeDatabase,
     createManagerReport(
       input: CreateManagerReportRequest,
     ): Promise<null | ManagerReport> {
