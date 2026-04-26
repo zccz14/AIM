@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAgentSessionLane } from "../src/agent-session-lane.js";
 
@@ -18,7 +18,57 @@ const createLane = (overrides = {}) =>
     ...overrides,
   });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("agent session lane", () => {
+  it("stops a sleeping lane loop when an await using scope exits", async () => {
+    vi.useFakeTimers();
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lanePromise = (async () => {
+      await using lane = createLane({ coordinator });
+
+      lane.start({ intervalMs: 60_000 });
+      await vi.waitFor(() => {
+        expect(coordinator.createSession).toHaveBeenCalledOnce();
+      });
+
+      return lane;
+    })();
+
+    await expect(lanePromise).resolves.toBeDefined();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+  });
+
+  it("allows repeated lane async disposal without restarting stop behavior", async () => {
+    vi.useFakeTimers();
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({ coordinator });
+
+    lane.start({ intervalMs: 60_000 });
+    await vi.waitFor(() => {
+      expect(coordinator.createSession).toHaveBeenCalledOnce();
+    });
+
+    await lane[Symbol.asyncDispose]();
+    await expect(lane[Symbol.asyncDispose]()).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+  });
+
   it("exposes scan errors and successful scan timestamps for optimizer status", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
