@@ -1101,13 +1101,68 @@ describe("opencode plugin package baseline", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://aim.test/opencode/sessions/session-1",
     );
-    expect(promptAsync).toHaveBeenCalledWith({
+    expect(promptAsync).toHaveBeenCalledOnce();
+    const [promptRequest] = promptAsync.mock.calls[0] ?? [];
+    const promptText = promptRequest?.body.parts[0]?.text;
+
+    expect(promptRequest).toMatchObject({
       body: {
-        parts: [{ text: "Continue the standalone session.", type: "text" }],
+        parts: [{ type: "text" }],
       },
       path: { id: "session-1" },
       throwOnError: true,
     });
+    expect(promptText).toContain("Continue the standalone session.");
+    expect(promptText).toContain("aim_session_resolve");
+    expect(promptText).toContain("aim_session_reject");
+    expect(promptText).toMatch(/loop will not end/i);
+  });
+
+  it("appends terminal instructions even when the stored continue prompt mentions a session tool", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "pending",
+            continue_prompt:
+              "Continue and remember aim_session_resolve exists.",
+            value: null,
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:00:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      ),
+    );
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { promptAsync } },
+    } as unknown as PluginInput);
+
+    await hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    const [promptRequest] = promptAsync.mock.calls[0] ?? [];
+    const promptText = promptRequest?.body.parts[0]?.text;
+
+    expect(promptText).toContain(
+      "Continue and remember aim_session_resolve exists.",
+    );
+    expect(promptText?.match(/aim_session_resolve/g)?.length).toBeGreaterThan(
+      1,
+    );
+    expect(promptText).toContain("aim_session_reject");
+    expect(promptText).toMatch(/loop will not end/i);
   });
 
   it("does not continue settled or unknown AIM-controlled sessions", async () => {
