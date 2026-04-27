@@ -16,6 +16,10 @@ type OpenCodeSession = {
   state: "pending" | "rejected" | "resolved";
 };
 
+const continuationTerminalInstructions = `
+
+Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
+
 const getAimApiBaseUrl = () =>
   (
     process.env.AIM_API_BASE_URL ??
@@ -96,7 +100,12 @@ export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
 
       await ctx.client.session.promptAsync({
         body: {
-          parts: [{ text: continuePrompt, type: "text" }],
+          parts: [
+            {
+              text: `${continuePrompt}${continuationTerminalInstructions}`,
+              type: "text",
+            },
+          ],
         },
         path: { id: sessionId },
         throwOnError: true,
