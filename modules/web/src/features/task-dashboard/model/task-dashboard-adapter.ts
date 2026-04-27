@@ -103,12 +103,12 @@ const buildRejectedFeedbackSignals = (
     const reasonSummary = summarizeTaskResult(task.result);
     const normalizedReason = normalizeSignalText(task.result);
     const key = `${reasonCategory}:${normalizedReason || "missing-feedback"}`;
-    const coordinate = task.projectPath;
+    const coordinate = task.projectCoordinate;
     const currentSignal = signalsByKey.get(key);
     const sampleTask = {
       id: task.id,
       title: task.title,
-      projectPath: task.projectPath,
+      projectCoordinate: task.projectCoordinate,
       updatedAt: task.updatedAt,
     };
 
@@ -194,7 +194,7 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   taskSpec: task.task_spec,
   result: task.result,
   projectId: task.project_id,
-  projectPath: task.project_id,
+  projectCoordinate: task.project_id,
   contractStatus: task.status,
   dashboardStatus: toDashboardStatus(task.status),
   sessionId: task.session_id,

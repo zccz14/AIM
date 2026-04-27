@@ -7,7 +7,7 @@ type CreateAgentSessionLaneOptions = {
   laneName: Exclude<OptimizerLaneName, "developer_follow_up">;
   logger?: ApiLogger;
   modelId: string;
-  projectPath: string;
+  projectDirectory: string | (() => Promise<string>);
   prompt: string;
   providerId: string;
   title: string;
@@ -35,9 +35,14 @@ export const createAgentSessionLane = (
   let wakeSleepingLoop: (() => void) | undefined;
   let session: ManagedAgentSession | null = null;
 
-  const input = () => ({
+  const resolveProjectDirectory = () =>
+    typeof options.projectDirectory === "function"
+      ? options.projectDirectory()
+      : Promise.resolve(options.projectDirectory);
+
+  const input = (projectDirectory: string) => ({
     modelId: options.modelId,
-    projectPath: options.projectPath,
+    projectDirectory,
     prompt: options.prompt,
     providerId: options.providerId,
     title: options.title,
@@ -66,8 +71,12 @@ export const createAgentSessionLane = (
     }
 
     scanPromise = (async () => {
+      const projectDirectory = await resolveProjectDirectory();
+
       if (!sessionId) {
-        session = await options.coordinator.createSession(input());
+        session = await options.coordinator.createSession(
+          input(projectDirectory),
+        );
         sessionId = session.sessionId;
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
@@ -79,11 +88,14 @@ export const createAgentSessionLane = (
 
       const state = await options.coordinator.getSessionState(
         sessionId,
-        options.projectPath,
+        projectDirectory,
       );
 
       if (state === "idle") {
-        await options.coordinator.sendPrompt(sessionId, input());
+        await options.coordinator.sendPrompt(
+          sessionId,
+          input(projectDirectory),
+        );
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
           "Optimizer lane session continued",

@@ -32,12 +32,10 @@ export const OverviewSection = ({
   const { t } = useI18n();
   const projectRows = dashboard.projects.map((project) => {
     const activeTasks = dashboard.tasks.filter(
-      (task) =>
-        task.projectId === project.id || task.projectPath === project.id,
+      (task) => task.projectId === project.id,
     );
     const completedTasks = dashboard.historyTasks.filter(
-      (task) =>
-        task.projectId === project.id || task.projectPath === project.id,
+      (task) => task.projectId === project.id,
     );
     const dimensions = dashboard.dimensionReports.filter(
       (report) => report.dimension.project_id === project.id,
@@ -81,7 +79,7 @@ export const OverviewSection = ({
           <p className={eyebrow}>Projects</p>
           <CardTitle className={sectionTitle}>Project Health</CardTitle>
           <CardDescription>
-            Project-level scan path for dimensions and task pool pressure.
+            Project-level scan target for dimensions and task pool pressure.
           </CardDescription>
         </CardHeader>
         <CardContent className={taskList}>

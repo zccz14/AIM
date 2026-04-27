@@ -8,6 +8,7 @@ const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
+const mockEnsureProjectWorkspace = vi.fn();
 
 const configuredProject = {
   created_at: "2026-04-26T00:00:00.000Z",
@@ -55,12 +56,17 @@ vi.mock("../src/task-session-coordinator.js", () => ({
   createTaskSessionCoordinator: mockCreateTaskSessionCoordinator,
 }));
 
+vi.mock("../src/project-workspace.js", () => ({
+  ensureProjectWorkspace: mockEnsureProjectWorkspace,
+}));
+
 describe("server startup", () => {
   afterEach(() => {
     delete process.env.OPENCODE_BASE_URL;
     delete process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS;
     vi.resetModules();
     vi.clearAllMocks();
+    mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
   });
 
   it("passes explicit OpenCode config to all optimizer lane coordinators", async () => {
@@ -309,6 +315,50 @@ describe("server startup", () => {
       expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
     expect(scheduler.start).not.toHaveBeenCalled();
+  });
+
+  it("defers AIM-managed workspace creation until manager and coordinator lanes scan", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    });
+    mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
+
+    const laneConfigs = mockCreateAgentSessionLane.mock.calls.map(
+      ([config]) => config,
+    );
+
+    await laneConfigs[0].projectDirectory();
+    await laneConfigs[1].projectDirectory();
+
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(2);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
+      git_origin_url: configuredProject.git_origin_url,
+      project_id: configuredProject.id,
+    });
   });
 
   it("instructs the coordinator lane to use concrete task batch operations instead of optimizer-loop placeholders", async () => {
