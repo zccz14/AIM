@@ -59,6 +59,28 @@ export type ProjectListResponse = {
 
 export type OptimizerTriggerSource = "task_resolved";
 
+export type OpenCodeSessionState = "pending" | "resolved" | "rejected";
+
+export type OpenCodeSession = {
+  session_id: string;
+  state: OpenCodeSessionState;
+  value: string | null;
+  reason: string | null;
+  continue_prompt: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateOpenCodeSessionRequest = {
+  session_id: string;
+  continue_prompt?: string | null;
+};
+
+export type OpenCodeSessionSettleRequest = {
+  value?: string;
+  reason?: string;
+};
+
 export type ProjectOptimizerRecentEvent = {
   task_id: string;
   triggered_scan: boolean;
@@ -316,6 +338,14 @@ export type ProjectListResponseWritable = {
   items: Array<ProjectWritable>;
 };
 
+export type OpenCodeSessionWritable = {
+  session_id: string;
+  state: OpenCodeSessionState;
+  value: string | null;
+  reason: string | null;
+  continue_prompt: string | null;
+};
+
 export type TaskWritable = {
   task_spec: string;
   title: string;
@@ -374,6 +404,8 @@ export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
 export type TaskDoneQueryParameter = boolean;
 
 export type TaskSessionIdQueryParameter = string;
+
+export type OpenCodeSessionIdPathParameter = string;
 
 export type ProjectIdPathParameter = string;
 
@@ -451,6 +483,128 @@ export type ListOpenCodeModelsResponses = {
 
 export type ListOpenCodeModelsResponse =
   ListOpenCodeModelsResponses[keyof ListOpenCodeModelsResponses];
+
+export type CreateOpenCodeSessionData = {
+  body: CreateOpenCodeSessionRequest;
+  path?: never;
+  query?: never;
+  url: "/opencode/sessions";
+};
+
+export type CreateOpenCodeSessionErrors = {
+  /**
+   * Invalid OpenCode session payload
+   */
+  400: ErrorResponse;
+};
+
+export type CreateOpenCodeSessionError =
+  CreateOpenCodeSessionErrors[keyof CreateOpenCodeSessionErrors];
+
+export type CreateOpenCodeSessionResponses = {
+  /**
+   * Created OpenCode session promise
+   */
+  201: OpenCodeSession;
+};
+
+export type CreateOpenCodeSessionResponse =
+  CreateOpenCodeSessionResponses[keyof CreateOpenCodeSessionResponses];
+
+export type GetOpenCodeSessionByIdData = {
+  body?: never;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}";
+};
+
+export type GetOpenCodeSessionByIdErrors = {
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetOpenCodeSessionByIdError =
+  GetOpenCodeSessionByIdErrors[keyof GetOpenCodeSessionByIdErrors];
+
+export type GetOpenCodeSessionByIdResponses = {
+  /**
+   * OpenCode session promise detail
+   */
+  200: OpenCodeSession;
+};
+
+export type GetOpenCodeSessionByIdResponse =
+  GetOpenCodeSessionByIdResponses[keyof GetOpenCodeSessionByIdResponses];
+
+export type ResolveOpenCodeSessionByIdData = {
+  body: OpenCodeSessionSettleRequest;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}/resolve";
+};
+
+export type ResolveOpenCodeSessionByIdErrors = {
+  /**
+   * Invalid OpenCode session settlement
+   */
+  400: ErrorResponse;
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+};
+
+export type ResolveOpenCodeSessionByIdError =
+  ResolveOpenCodeSessionByIdErrors[keyof ResolveOpenCodeSessionByIdErrors];
+
+export type ResolveOpenCodeSessionByIdResponses = {
+  /**
+   * OpenCode session promise resolved
+   */
+  204: void;
+};
+
+export type ResolveOpenCodeSessionByIdResponse =
+  ResolveOpenCodeSessionByIdResponses[keyof ResolveOpenCodeSessionByIdResponses];
+
+export type RejectOpenCodeSessionByIdData = {
+  body: OpenCodeSessionSettleRequest;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}/reject";
+};
+
+export type RejectOpenCodeSessionByIdErrors = {
+  /**
+   * Invalid OpenCode session settlement
+   */
+  400: ErrorResponse;
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+};
+
+export type RejectOpenCodeSessionByIdError =
+  RejectOpenCodeSessionByIdErrors[keyof RejectOpenCodeSessionByIdErrors];
+
+export type RejectOpenCodeSessionByIdResponses = {
+  /**
+   * OpenCode session promise rejected
+   */
+  204: void;
+};
+
+export type RejectOpenCodeSessionByIdResponse =
+  RejectOpenCodeSessionByIdResponses[keyof RejectOpenCodeSessionByIdResponses];
 
 export type ListProjectsData = {
   body?: never;

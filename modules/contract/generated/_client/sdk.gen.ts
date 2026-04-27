@@ -14,6 +14,9 @@ import type {
   CreateDimensionEvaluationErrors,
   CreateDimensionEvaluationResponses,
   CreateDimensionResponses,
+  CreateOpenCodeSessionData,
+  CreateOpenCodeSessionErrors,
+  CreateOpenCodeSessionResponses,
   CreateProjectData,
   CreateProjectErrors,
   CreateProjectResponses,
@@ -40,6 +43,9 @@ import type {
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
+  GetOpenCodeSessionByIdData,
+  GetOpenCodeSessionByIdErrors,
+  GetOpenCodeSessionByIdResponses,
   GetProjectOptimizerStatusData,
   GetProjectOptimizerStatusErrors,
   GetProjectOptimizerStatusResponses,
@@ -84,9 +90,15 @@ import type {
   PutTaskWorktreePathByIdData,
   PutTaskWorktreePathByIdErrors,
   PutTaskWorktreePathByIdResponses,
+  RejectOpenCodeSessionByIdData,
+  RejectOpenCodeSessionByIdErrors,
+  RejectOpenCodeSessionByIdResponses,
   RejectTaskByIdData,
   RejectTaskByIdErrors,
   RejectTaskByIdResponses,
+  ResolveOpenCodeSessionByIdData,
+  ResolveOpenCodeSessionByIdErrors,
+  ResolveOpenCodeSessionByIdResponses,
   ResolveTaskByIdData,
   ResolveTaskByIdErrors,
   ResolveTaskByIdResponses,
@@ -144,6 +156,77 @@ export const listOpenCodeModels = <ThrowOnError extends boolean = false>(
     ListOpenCodeModelsErrors,
     ThrowOnError
   >({ url: "/opencode/models", ...options });
+
+/**
+ * Create an AIM-controlled OpenCode session promise
+ */
+export const createOpenCodeSession = <ThrowOnError extends boolean = false>(
+  options: Options<CreateOpenCodeSessionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateOpenCodeSessionResponses,
+    CreateOpenCodeSessionErrors,
+    ThrowOnError
+  >({
+    url: "/opencode/sessions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read an AIM-controlled OpenCode session promise
+ */
+export const getOpenCodeSessionById = <ThrowOnError extends boolean = false>(
+  options: Options<GetOpenCodeSessionByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetOpenCodeSessionByIdResponses,
+    GetOpenCodeSessionByIdErrors,
+    ThrowOnError
+  >({ url: "/opencode/sessions/{sessionId}", ...options });
+
+/**
+ * Resolve an AIM-controlled OpenCode session promise
+ */
+export const resolveOpenCodeSessionById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ResolveOpenCodeSessionByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveOpenCodeSessionByIdResponses,
+    ResolveOpenCodeSessionByIdErrors,
+    ThrowOnError
+  >({
+    url: "/opencode/sessions/{sessionId}/resolve",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Reject an AIM-controlled OpenCode session promise
+ */
+export const rejectOpenCodeSessionById = <ThrowOnError extends boolean = false>(
+  options: Options<RejectOpenCodeSessionByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RejectOpenCodeSessionByIdResponses,
+    RejectOpenCodeSessionByIdErrors,
+    ThrowOnError
+  >({
+    url: "/opencode/sessions/{sessionId}/reject",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * List projects

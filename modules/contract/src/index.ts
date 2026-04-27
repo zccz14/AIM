@@ -10,6 +10,10 @@ export {
   dimensionsPath,
   healthPath,
   openApiDocument,
+  openCodeSessionByIdPath,
+  openCodeSessionRejectPath,
+  openCodeSessionResolvePath,
+  openCodeSessionsPath,
   opencodeModelsPath,
   projectByIdPath,
   projectOptimizerStatusPath,
@@ -44,6 +48,12 @@ export const patchProjectRequestSchema = schemas.PatchProjectRequest;
 export const projectListResponseSchema = schemas.ProjectListResponse;
 export const projectOptimizerStatusResponseSchema =
   schemas.ProjectOptimizerStatusResponse;
+export const openCodeSessionSchema = schemas.OpenCodeSession;
+export const openCodeSessionStateSchema = schemas.OpenCodeSessionState;
+export const createOpenCodeSessionRequestSchema =
+  schemas.CreateOpenCodeSessionRequest;
+export const openCodeSessionSettleRequestSchema =
+  schemas.OpenCodeSessionSettleRequest;
 export const taskSchema = schemas.Task;
 export const createTaskRequestSchema = schemas.CreateTaskRequest;
 export const patchTaskRequestSchema = schemas.PatchTaskRequest;
@@ -86,6 +96,14 @@ export type PatchProjectRequest = Infer<typeof patchProjectRequestSchema>;
 export type ProjectListResponse = Infer<typeof projectListResponseSchema>;
 export type ProjectOptimizerStatusResponse = Infer<
   typeof projectOptimizerStatusResponseSchema
+>;
+export type OpenCodeSession = Infer<typeof openCodeSessionSchema>;
+export type OpenCodeSessionState = Infer<typeof openCodeSessionStateSchema>;
+export type CreateOpenCodeSessionRequest = Input<
+  typeof createOpenCodeSessionRequestSchema
+>;
+export type OpenCodeSessionSettleRequest = Infer<
+  typeof openCodeSessionSettleRequestSchema
 >;
 export type Task = Infer<typeof taskSchema>;
 export type CreateTaskRequest = Input<typeof createTaskRequestSchema>;
@@ -136,6 +154,12 @@ export type PatchProjectRequestSchema = typeof patchProjectRequestSchema;
 export type ProjectListResponseSchema = typeof projectListResponseSchema;
 export type ProjectOptimizerStatusResponseSchema =
   typeof projectOptimizerStatusResponseSchema;
+export type OpenCodeSessionSchema = typeof openCodeSessionSchema;
+export type OpenCodeSessionStateSchema = typeof openCodeSessionStateSchema;
+export type CreateOpenCodeSessionRequestSchema =
+  typeof createOpenCodeSessionRequestSchema;
+export type OpenCodeSessionSettleRequestSchema =
+  typeof openCodeSessionSettleRequestSchema;
 export type TaskSchema = typeof taskSchema;
 export type CreateTaskRequestSchema = typeof createTaskRequestSchema;
 export type PatchTaskRequestSchema = typeof patchTaskRequestSchema;
@@ -182,6 +206,11 @@ export type ParsedPatchProjectRequest = PatchProjectRequest;
 export type ParsedProjectListResponse = ProjectListResponse;
 export type ParsedProjectOptimizerStatusResponse =
   ProjectOptimizerStatusResponse;
+export type ParsedOpenCodeSession = OpenCodeSession;
+export type ParsedCreateOpenCodeSessionRequest = Output<
+  typeof createOpenCodeSessionRequestSchema
+>;
+export type ParsedOpenCodeSessionSettleRequest = OpenCodeSessionSettleRequest;
 export type ParsedTask = Task;
 export type ParsedCreateTaskRequest = Output<typeof createTaskRequestSchema>;
 export type ParsedPatchTaskRequest = PatchTaskRequest;

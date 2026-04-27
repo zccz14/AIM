@@ -42,6 +42,28 @@ const ErrorResponse = z
     message: z.string().min(1),
   })
   .strict();
+const CreateOpenCodeSessionRequest = z
+  .object({
+    session_id: z.string().min(1),
+    continue_prompt: z.union([z.string(), z.null()]).optional(),
+  })
+  .strict();
+const OpenCodeSessionState = z.enum(["pending", "resolved", "rejected"]);
+const OpenCodeSession = z
+  .object({
+    session_id: z.string().min(1),
+    state: OpenCodeSessionState,
+    value: z.union([z.string(), z.null()]),
+    reason: z.union([z.string(), z.null()]),
+    continue_prompt: z.union([z.string(), z.null()]),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const OpenCodeSessionSettleRequest = z
+  .object({ value: z.string(), reason: z.string() })
+  .partial()
+  .strict();
 const CreateProjectRequest = z
   .object({
     name: z.string().min(1),
@@ -274,6 +296,10 @@ export const schemas = {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   ErrorResponse,
+  CreateOpenCodeSessionRequest,
+  OpenCodeSessionState,
+  OpenCodeSession,
+  OpenCodeSessionSettleRequest,
   CreateProjectRequest,
   Project,
   ProjectListResponse,

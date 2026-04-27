@@ -70,3 +70,13 @@ ON dimension_evaluations (project_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS dimension_evaluations_project_commit_dimension_unique
 ON dimension_evaluations (project_id, commit_sha, dimension_id);
+
+CREATE TABLE IF NOT EXISTS opencode_sessions (
+  session_id TEXT PRIMARY KEY,
+  state TEXT NOT NULL,
+  value TEXT,
+  reason TEXT,
+  continue_prompt TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

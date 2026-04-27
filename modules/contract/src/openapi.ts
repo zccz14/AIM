@@ -8,6 +8,12 @@ export const dimensionByIdPath = "/dimensions/{dimensionId}";
 export const dimensionEvaluationsPath = "/dimensions/{dimensionId}/evaluations";
 export const dimensionsPath = "/dimensions";
 export const opencodeModelsPath = "/opencode/models";
+export const openCodeSessionsPath = "/opencode/sessions";
+export const openCodeSessionByIdPath = "/opencode/sessions/{sessionId}";
+export const openCodeSessionResolvePath =
+  "/opencode/sessions/{sessionId}/resolve";
+export const openCodeSessionRejectPath =
+  "/opencode/sessions/{sessionId}/reject";
 export const projectsPath = "/projects";
 export const projectByIdPath = "/projects/{projectId}";
 export const projectOptimizerStatusPath =

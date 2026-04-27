@@ -9,6 +9,7 @@ import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
+import { registerOpenCodeSessionRoutes } from "./routes/opencode-sessions.js";
 import { registerProjectRoutes } from "./routes/projects.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
@@ -36,6 +37,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
+  registerOpenCodeSessionRoutes(app, { resourceScope });
   registerProjectRoutes(app, {
     optimizerRuntime: _options.optimizerRuntime,
     resourceScope,
