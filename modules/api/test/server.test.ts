@@ -440,6 +440,58 @@ describe("server startup", () => {
     expect(scheduler.start).not.toHaveBeenCalled();
   });
 
+  it("guards manager lane appends with README claim-to-evidence protocol", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue(createAppMock());
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    const managerLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
+      ([config]) => config.laneName === "manager_evaluation",
+    )?.[0];
+
+    expect(managerLaneConfig?.prompt).toContain(
+      "Before every dimension_evaluations append",
+    );
+    expect(managerLaneConfig?.prompt).toContain(
+      "README claim-to-evidence protocol",
+    );
+    expect(managerLaneConfig?.prompt).toMatch(
+      /aligned[\s\S]*readme_ahead[\s\S]*baseline_ahead[\s\S]*conflicted[\s\S]*ambiguous[\s\S]*prerequisite_gap/,
+    );
+    expect(managerLaneConfig?.prompt).toContain("evidence source or limit");
+    expect(managerLaneConfig?.prompt).toContain("confidence limit");
+    expect(managerLaneConfig?.prompt).toContain(
+      "Coordinator handoff implication",
+    );
+    expect(managerLaneConfig?.prompt).toContain(
+      "append dimension_evaluations only",
+    );
+    expect(managerLaneConfig?.prompt).not.toContain("POST /tasks/batch");
+    expect(managerLaneConfig?.prompt).not.toContain("manager_reports");
+  });
+
   it("defers AIM-managed workspace creation until manager and coordinator lanes scan", async () => {
     const server = {
       close: vi.fn(),

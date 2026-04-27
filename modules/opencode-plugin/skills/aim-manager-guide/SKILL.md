@@ -74,6 +74,8 @@ curl -X DELETE "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-
 
 评估记录是 append-only。`project_id` 必须与目标 Dimension 的 `project_id` 一致；`score` 是 0-100 整数，语义为 `0-20 缺失`、`21-40 初始`、`41-60 可用`、`61-80 稳定`、`81-95 优秀`、`96-100 近似完成`。填写 `evaluator_model` 时先读取目标 Project 信息，使用该 Project 配置的 `global_model_id` 或当前实际评估模型标识；不得在 skill 中嵌入固定模型值。
 
+Before every append, apply the README claim-to-evidence protocol below. Manager may append `dimension_evaluations` only; no `POST /tasks/batch`, no direct Task creation, and no `manager_reports` restoration.
+
 ```bash
 curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-id>/evaluations" \
   -H "Content-Type: application/json" \
@@ -120,6 +122,33 @@ Manager 默认不需要用户输入。开始工作时应先从环境中读取或
 - 把缺失项、可能影响和当前判断边界记录到 `confidence_and_limits`。
 - 只有当 README 目标本身不清晰，且这种不清晰会阻止稳定评估维度或迭代方向判断时，才在 `open_questions` 中给 Director 形成澄清问题。
 - 不得把环境缺失自动升级为用户问题；能用现有事实形成有边界判断时，应继续输出 Manager 评估信号。
+
+## README claim-to-evidence protocol
+
+每次准备追加 `dimension_evaluations` 前，先把影响该维度评分或方向判断的关键 README claims 映射到当前 baseline 证据。该协议不是 API schema；它是评估文本必须稳定包含的证据门禁，避免只给 generic scores。
+
+每个关键 claim 至少记录：
+
+- `readme_claim`: README 中的具体承诺或目标摘要。
+- `claim_status: aligned | readme_ahead | baseline_ahead | conflicted | ambiguous | prerequisite_gap`。
+- `evidence_source_or_limit`: 可引用来源；若证据不足，写明 evidence limit 而不是猜测。
+- `confidence_limit`: high / medium / low 及限制原因；证据不足时必须降低 confidence 或形成 Director open question。
+- `coordinator_handoff_implication`: Coordinator 后续维护 Task Pool 时应关注、等待、删除候选或不动作的方向含义。
+
+状态分类口径：
+
+- `aligned`: README claim 与 baseline 直接证据一致。
+- `readme_ahead`: README 承诺领先于 baseline，存在待补能力或体验差距。
+- `baseline_ahead`: baseline 已有能力超出或修正 README 描述，可能需要 README 收敛或 Coordinator 考虑删除过时任务候选。
+- `conflicted`: README 内部、README 与 baseline、或证据来源之间存在互相冲突的事实。
+- `ambiguous`: README 目标或证据含义不够明确，无法稳定归类为已对齐或差距。
+- `prerequisite_gap`: 评估或推进该 claim 依赖的前提不存在，例如项目未配置、入口不可用、必要凭证或环境资料缺失。
+
+最小示例：
+
+- Direct baseline evidence: README claim "提供 Dimension CRUD API"；claim_status: aligned；evidence_source_or_limit: `modules/api/test/dimension-routes.test.ts` 与当前 baseline API route；confidence_limit: high，限制为未做端到端部署验证；coordinator_handoff_implication: no_task_pool_change。
+- README ahead gap: README claim "GUI 可展示维度时间序列"；claim_status: readme_ahead；evidence_source_or_limit: README 有目标，baseline 只发现 API / 数据模型证据，未发现 GUI 时间序列入口；confidence_limit: medium，限制为未运行浏览器检查；coordinator_handoff_implication: consider_create 或 evaluate_existing_tasks。
+- Insufficient evidence: README claim "自动使用最新观测性资料评估"；claim_status: ambiguous 或 prerequisite_gap；evidence_source_or_limit: 当前环境缺少观测性资料或运行日志；confidence_limit: low，并在 `confidence_and_limits` 记录限制；若 README 目标本身不清晰，形成 Director open question；coordinator_handoff_implication: wait_for_director_clarification 或 no_task_pool_change。
 
 ## Manager 边界
 

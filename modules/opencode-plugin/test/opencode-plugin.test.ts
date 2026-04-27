@@ -728,6 +728,25 @@ describe("opencode plugin package baseline", () => {
     expect(pluginManagerGuideSkillText).not.toContain("TBD");
   });
 
+  it("documents stable manager README claim-to-evidence classifications", () => {
+    for (const requiredFragment of [
+      "README claim-to-evidence protocol",
+      "claim_status: aligned | readme_ahead | baseline_ahead | conflicted | ambiguous | prerequisite_gap",
+      "evidence_source_or_limit",
+      "confidence_limit",
+      "coordinator_handoff_implication",
+      "Direct baseline evidence",
+      "README ahead gap",
+      "Insufficient evidence",
+      "Director open question",
+      "append `dimension_evaluations` only",
+      "no `POST /tasks/batch`",
+      "no `manager_reports` restoration",
+    ]) {
+      expect(pluginManagerGuideSkillText).toContain(requiredFragment);
+    }
+  });
+
   it("documents manager evaluation signals without a standalone report resource", () => {
     for (const requiredFragment of [
       "# Manager 评估信号",
