@@ -18,7 +18,15 @@ type SchedulerTaskRepository = {
   listUnfinishedTasks(): Promise<Task[]>;
 };
 
+type ContinuationSessionRepository = {
+  createSession(input: {
+    continue_prompt: null | string;
+    session_id: string;
+  }): unknown;
+};
+
 type CreateTaskSchedulerOptions = {
+  continuationSessionRepository?: ContinuationSessionRepository;
   coordinator: TaskSessionCoordinator;
   logger?: ApiLogger;
   taskRepository: SchedulerTaskRepository;
@@ -175,6 +183,10 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         boundInRound = assignedTask.session_id === sessionId;
 
         if (boundInRound) {
+          options.continuationSessionRepository?.createSession({
+            continue_prompt: buildTaskSessionPrompt(assignedTask),
+            session_id: sessionId,
+          });
           activeSessions.set(sessionId, createdSession);
           createdSession = null;
         } else {
@@ -202,40 +214,11 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         return false;
       }
 
-      const sessionState = await options.coordinator.getSessionState(
-        sessionId,
-        latestTask,
-      );
-
-      if (boundInRound && sessionState === "idle") {
+      if (boundInRound) {
         logger.info(buildTaskLogFields("task_session_bound", latestTask));
       }
 
-      if (sessionState !== "idle") {
-        logger.info(
-          {
-            dependency_count: latestTask.dependencies.length,
-            event: "task_scheduler_task_skipped",
-            project_id: latestTask.project_id,
-            reason: "session_not_idle",
-            session_id: sessionId,
-            session_state: sessionState,
-            status: latestTask.status,
-            task_id: latestTask.task_id,
-          },
-          "Task scheduler skipped task",
-        );
-        return false;
-      }
-
-      await options.coordinator.sendContinuePrompt(
-        sessionId,
-        buildTaskSessionPrompt(latestTask),
-        latestTask,
-      );
-
-      logger.info(buildTaskLogFields("task_session_continued", latestTask));
-      return true;
+      return boundInRound;
     } catch (error) {
       if (createdSession) {
         try {
