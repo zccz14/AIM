@@ -37,7 +37,6 @@ const messages = {
     connection: "Connection",
     contractStatus: "Contract Status",
     coordinatorInput: "Coordinator Input",
-    createProject: "Create Project",
     createTask: "Create Task",
     createProject: "Create Project",
     createTaskDescription:
@@ -243,7 +242,6 @@ const messages = {
     connection: "连接",
     contractStatus: "契约状态",
     coordinatorInput: "Coordinator 输入",
-    createProject: "创建项目",
     createTask: "创建任务",
     createProject: "创建项目",
     createTaskDescription: "在同一个 Director 工作区中创建新的 AIM 任务。",
