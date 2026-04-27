@@ -474,10 +474,10 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
       return Promise.resolve(project ?? null);
     },
-    listProjects(): Promise<Project[]> {
+    listProjects(): Project[] {
       const rows = listProjectsStatement.all() as ProjectRow[];
 
-      return Promise.resolve(rows.map(mapProjectRow));
+      return rows.map(mapProjectRow);
     },
     async createProject(input: CreateProjectRequest): Promise<Project> {
       const timestamp = new Date().toISOString();

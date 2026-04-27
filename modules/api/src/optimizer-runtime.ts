@@ -46,22 +46,40 @@ export const createOptimizerRuntime = ({
   let lastEvent: OptimizerStatusResponse["last_event"] = null;
   let lastScanAt: OptimizerStatusResponse["last_scan_at"] = null;
   let stopPromise: Promise<void> | null = null;
-  const laneStates = new Map(
-    lanes.map(({ name }) => [
-      name,
-      {
-        last_error: null as null | string,
-        last_scan_at: null as null | string,
-        running: false,
-      },
-    ]),
-  );
+  const registrations = lanes.map(({ lane, name }) => ({
+    lane,
+    name,
+    state: {
+      last_error: null as null | string,
+      last_scan_at: null as null | string,
+      running: false,
+    },
+  }));
+
+  const aggregateLaneStatus = (name: OptimizerLaneName) => {
+    const statuses = registrations
+      .filter((registration) => registration.name === name)
+      .map(({ lane, state }) => lane.getStatus?.() ?? state);
+
+    return {
+      last_error:
+        statuses.find((status) => status.last_error)?.last_error ?? null,
+      last_scan_at:
+        statuses
+          .map((status) => status.last_scan_at)
+          .filter((value) => value !== null)
+          .sort()
+          .at(-1) ?? null,
+      running: statuses.some((status) => status.running),
+    };
+  };
 
   const laneStatus = () => {
-    const entries = lanes.map(({ lane, name }) => [
-      name,
-      lane.getStatus?.() ?? laneStates.get(name),
-    ]);
+    const entries = [
+      "manager_evaluation",
+      "coordinator_task_pool",
+      "developer_follow_up",
+    ].map((name) => [name, aggregateLaneStatus(name as OptimizerLaneName)]);
 
     return Object.fromEntries(entries) as NonNullable<
       OptimizerStatusResponse["lanes"]
@@ -69,15 +87,11 @@ export const createOptimizerRuntime = ({
   };
 
   const recordLaneError = (name: OptimizerLaneName, error: unknown) => {
-    const laneState = laneStates.get(name);
     const message = error instanceof Error ? error.message : String(error);
 
-    if (laneState) {
-      laneState.last_error = message;
-      laneState.running = false;
-    }
-
     logger?.error({ err: error, lane: name }, "Optimizer lane failed to start");
+
+    return message;
   };
 
   const disable = async () => {
@@ -92,13 +106,9 @@ export const createOptimizerRuntime = ({
 
     running = false;
     stopPromise = (async () => {
-      for (const { lane, name } of [...lanes].reverse()) {
+      for (const { lane, state } of [...registrations].reverse()) {
         await lane[Symbol.asyncDispose]();
-        const laneState = laneStates.get(name);
-
-        if (laneState) {
-          laneState.running = false;
-        }
+        state.running = false;
       }
     })()
       .then(() => undefined)
@@ -141,23 +151,21 @@ export const createOptimizerRuntime = ({
         return;
       }
 
-      const developerLane = lanes.find(
+      const developerLane = registrations.find(
         ({ name }) => name === "developer_follow_up",
       );
-
-      const developerLaneState = laneStates.get("developer_follow_up");
 
       try {
         await developerLane?.lane.scanOnce({ resolvedTaskId: event.taskId });
         lastScanAt = new Date().toISOString();
 
-        if (developerLaneState) {
-          developerLaneState.last_error = null;
-          developerLaneState.last_scan_at = lastScanAt;
+        if (developerLane) {
+          developerLane.state.last_error = null;
+          developerLane.state.last_scan_at = lastScanAt;
         }
       } catch (error) {
-        if (developerLaneState) {
-          developerLaneState.last_error =
+        if (developerLane) {
+          developerLane.state.last_error =
             error instanceof Error ? error.message : String(error);
         }
 
@@ -174,17 +182,14 @@ export const createOptimizerRuntime = ({
       }
 
       running = true;
-      for (const { lane, name } of lanes) {
+      for (const { lane, name, state } of registrations) {
         try {
           lane.start({ intervalMs });
-          const laneState = laneStates.get(name);
-
-          if (laneState) {
-            laneState.last_error = null;
-            laneState.running = true;
-          }
+          state.last_error = null;
+          state.running = true;
         } catch (error) {
-          recordLaneError(name, error);
+          state.last_error = recordLaneError(name, error);
+          state.running = false;
         }
       }
     },

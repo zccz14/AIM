@@ -19,9 +19,27 @@ const configuredProject = {
   name: "Main project",
   updated_at: "2026-04-26T00:00:00.000Z",
 };
+const secondConfiguredProject = {
+  created_at: "2026-04-26T00:00:01.000Z",
+  global_model_id: "gpt-5.1",
+  global_provider_id: "openai",
+  git_origin_url: "https://github.com/example/second.git",
+  id: "00000000-0000-4000-8000-000000000002",
+  name: "Second project",
+  updated_at: "2026-04-26T00:00:01.000Z",
+};
+const unconfiguredProject = {
+  created_at: "2026-04-26T00:00:02.000Z",
+  global_model_id: " ",
+  global_provider_id: "anthropic",
+  git_origin_url: "https://github.com/example/unconfigured.git",
+  id: "00000000-0000-4000-8000-000000000003",
+  name: "Unconfigured project",
+  updated_at: "2026-04-26T00:00:02.000Z",
+};
 
-const createRepositoryMock = () => ({
-  getFirstProject: () => configuredProject,
+const createRepositoryMock = (projects = [configuredProject]) => ({
+  listProjects: () => projects,
 });
 
 vi.mock("../src/agent-session-coordinator.js", () => ({
@@ -359,6 +377,151 @@ describe("server startup", () => {
       git_origin_url: configuredProject.git_origin_url,
       project_id: configuredProject.id,
     });
+  });
+
+  it("creates manager and coordinator lanes for every configured project", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([
+        configuredProject,
+        secondConfiguredProject,
+        unconfiguredProject,
+      ]),
+    );
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    });
+    mockEnsureProjectWorkspace
+      .mockResolvedValueOnce("/aim/projects/main")
+      .mockResolvedValueOnce("/aim/projects/second")
+      .mockResolvedValueOnce("/aim/projects/main")
+      .mockResolvedValueOnce("/aim/projects/second");
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    const laneConfigs = mockCreateAgentSessionLane.mock.calls.map(
+      ([config]) => config,
+    );
+
+    expect(laneConfigs.map((config) => config.laneName)).toEqual([
+      "manager_evaluation",
+      "manager_evaluation",
+      "coordinator_task_pool",
+      "coordinator_task_pool",
+    ]);
+    expect(laneConfigs.map((config) => config.providerId)).toEqual([
+      configuredProject.global_provider_id,
+      secondConfiguredProject.global_provider_id,
+      configuredProject.global_provider_id,
+      secondConfiguredProject.global_provider_id,
+    ]);
+    expect(laneConfigs.map((config) => config.modelId)).toEqual([
+      configuredProject.global_model_id,
+      secondConfiguredProject.global_model_id,
+      configuredProject.global_model_id,
+      secondConfiguredProject.global_model_id,
+    ]);
+    for (const project of [configuredProject, secondConfiguredProject]) {
+      expect(
+        laneConfigs.some(
+          (config) =>
+            config.prompt.includes(`project_id "${project.id}"`) &&
+            config.title.includes(project.id),
+        ),
+      ).toBe(true);
+    }
+
+    for (const laneConfig of laneConfigs) {
+      await laneConfig.projectDirectory();
+    }
+
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(4);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
+      git_origin_url: configuredProject.git_origin_url,
+      project_id: configuredProject.id,
+    });
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
+      git_origin_url: secondConfiguredProject.git_origin_url,
+      project_id: secondConfiguredProject.id,
+    });
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalledWith({
+      git_origin_url: unconfiguredProject.git_origin_url,
+      project_id: unconfiguredProject.id,
+    });
+  });
+
+  it("uses truthful missing-project lanes when no projects are configured", async () => {
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const server = {
+      close: vi.fn((callback?: () => void) => {
+        callback?.();
+      }),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    mockCreateApiLogger.mockReturnValue(logger);
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([unconfiguredProject]),
+    );
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+
+    const { startServer } = await import("../src/server.js");
+
+    const serverRuntime = startServer();
+    const optimizerRuntime = mockCreateApp.mock.calls[0]?.[0].optimizerRuntime;
+
+    optimizerRuntime.start();
+
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalled();
+    expect(optimizerRuntime.getStatus()).toMatchObject({
+      lanes: {
+        coordinator_task_pool: {
+          last_error:
+            "AIM optimizer lane requires at least one configured project",
+          running: false,
+        },
+        developer_follow_up: { running: true },
+        manager_evaluation: {
+          last_error:
+            "AIM optimizer lane requires at least one configured project",
+          running: false,
+        },
+      },
+      running: true,
+    });
+
+    await serverRuntime[Symbol.asyncDispose]();
   });
 
   it("instructs the coordinator lane to use concrete task batch operations instead of optimizer-loop placeholders", async () => {
