@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import {
   type CreateProjectRequest,
+  type CreateTaskBatchRequest,
   type CreateTaskRequest,
   type PatchProjectRequest,
   type PatchTaskRequest,
   type Project,
   projectSchema,
   type Task,
+  type TaskBatchResponse,
   type TaskStatus,
   taskSchema,
 } from "@aim-ai/contract";
@@ -29,6 +31,7 @@ type TaskRow = {
   project_path: string;
   result: string;
   session_id: null | string;
+  source_metadata: string;
   status: TaskStatus;
   task_id: string;
   task_spec: string;
@@ -87,6 +90,13 @@ const requiredColumns = [
   { name: "pull_request_url", notnull: 0, pk: 0, type: "TEXT" },
   { name: "dependencies", notnull: 1, pk: 0, type: "TEXT" },
   { name: "result", defaultValue: "''", notnull: 1, pk: 0, type: "TEXT" },
+  {
+    name: "source_metadata",
+    defaultValue: "'{}'",
+    notnull: 1,
+    pk: 0,
+    type: "TEXT",
+  },
   { name: "done", notnull: 1, pk: 0, type: "INTEGER" },
   { name: "status", notnull: 1, pk: 0, type: "TEXT" },
   { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
@@ -183,6 +193,7 @@ const mapTaskRow = (row: TaskRow) =>
     pull_request_url: row.pull_request_url,
     dependencies: JSON.parse(row.dependencies) as string[],
     result: row.result,
+    source_metadata: JSON.parse(row.source_metadata) as Record<string, unknown>,
     done: Boolean(row.done),
     status: row.status,
     created_at: row.created_at,
@@ -259,6 +270,20 @@ const validateTasksTableSchema = (
   }
 };
 
+const ensureTasksSourceMetadataColumn = (
+  database: ReturnType<typeof openTaskDatabase>,
+) => {
+  const rows = database
+    .prepare(`PRAGMA table_info(${tasksTableName})`)
+    .all() as TableInfoRow[];
+
+  if (!rows.some((row) => row.name === "source_metadata")) {
+    database.exec(
+      `ALTER TABLE ${tasksTableName} ADD COLUMN source_metadata TEXT NOT NULL DEFAULT '{}'`,
+    );
+  }
+};
+
 const validateProjectsTableSchema = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
@@ -295,6 +320,7 @@ const bootstrapTaskDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
   applySqliteTableSchema(database);
+  ensureTasksSourceMetadataColumn(database);
   validateProjectsTableSchema(database);
   validateTasksTableSchema(database);
   applySqliteIndexSchema(database);
@@ -320,11 +346,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       pull_request_url,
       dependencies,
       result,
+      source_metadata,
       done,
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getProjectByIdStatement = database.prepare(`
     SELECT
@@ -337,6 +364,18 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       updated_at
     FROM ${projectsTableName}
     WHERE id = ?
+  `);
+  const getProjectByPathStatement = database.prepare(`
+    SELECT
+      id,
+      name,
+      project_path,
+      global_provider_id,
+      global_model_id,
+      created_at,
+      updated_at
+    FROM ${projectsTableName}
+    WHERE project_path = ?
   `);
   const listProjectsStatement = database.prepare(`
     SELECT
@@ -388,6 +427,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.pull_request_url,
       tasks.dependencies,
       tasks.result,
+      tasks.source_metadata,
       tasks.done,
       tasks.status,
       tasks.created_at,
@@ -410,6 +450,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.pull_request_url,
       tasks.dependencies,
       tasks.result,
+      tasks.source_metadata,
       tasks.done,
       tasks.status,
       tasks.created_at,
@@ -427,6 +468,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       pull_request_url = ?,
       dependencies = ?,
       result = ?,
+      source_metadata = ?,
       done = ?,
       status = ?,
       updated_at = ?
@@ -578,6 +620,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         pull_request_url: input.pull_request_url ?? null,
         dependencies: JSON.stringify(input.dependencies ?? []),
         result: input.result ?? "",
+        source_metadata: JSON.stringify({}),
         done: Number(isDoneStatus(input.status ?? "processing")),
         status: input.status ?? "processing",
         created_at: timestamp,
@@ -596,6 +639,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.pull_request_url,
         JSON.stringify(task.dependencies),
         task.result,
+        JSON.stringify(task.source_metadata),
         Number(task.done),
         task.status,
         task.created_at,
@@ -603,6 +647,99 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       );
 
       return task;
+    },
+    async createTaskBatch(
+      input: CreateTaskBatchRequest,
+    ): Promise<TaskBatchResponse> {
+      const project = getProjectByPathStatement.get(input.project_path) as
+        | ProjectRow
+        | undefined;
+
+      if (!project) {
+        throw new Error(`Project path ${input.project_path} was not found`);
+      }
+
+      const results: TaskBatchResponse["results"] = [];
+
+      database.exec("BEGIN");
+      try {
+        for (const operation of input.operations) {
+          if (operation.type === "create") {
+            const timestamp = new Date().toISOString();
+            const task = mapTaskRow({
+              task_id: operation.task.task_id,
+              title: operation.task.title,
+              task_spec: operation.task.spec,
+              project_id: project.id,
+              project_path: project.project_path,
+              developer_provider_id: project.global_provider_id,
+              developer_model_id: project.global_model_id,
+              session_id: operation.task.session_id ?? null,
+              worktree_path: operation.task.worktree_path ?? null,
+              pull_request_url: operation.task.pull_request_url ?? null,
+              dependencies: JSON.stringify(operation.task.dependencies ?? []),
+              result: operation.task.result ?? "",
+              source_metadata: JSON.stringify(
+                operation.task.source_metadata ?? {},
+              ),
+              done: Number(isDoneStatus(operation.task.status ?? "processing")),
+              status: operation.task.status ?? "processing",
+              created_at: timestamp,
+              updated_at: timestamp,
+            });
+
+            insertTaskStatement.run(
+              task.task_id,
+              task.title,
+              task.task_spec,
+              task.project_id,
+              task.developer_provider_id,
+              task.developer_model_id,
+              task.session_id,
+              task.worktree_path,
+              task.pull_request_url,
+              JSON.stringify(task.dependencies),
+              task.result,
+              JSON.stringify(task.source_metadata),
+              Number(task.done),
+              task.status,
+              task.created_at,
+              task.updated_at,
+            );
+            results.push({ task_id: task.task_id, type: "create" });
+
+            continue;
+          }
+
+          const currentTask = getTaskByIdStatement.get(operation.task_id) as
+            | TaskRow
+            | undefined;
+
+          if (!currentTask) {
+            throw new Error(`Task ${operation.task_id} was not found`);
+          }
+
+          const task = mapTaskRow(currentTask);
+
+          if (task.project_path !== input.project_path) {
+            throw new Error("Task batch cannot cross project_path");
+          }
+
+          if (task.done || isDoneStatus(task.status)) {
+            throw new Error("Task batch cannot delete terminal tasks");
+          }
+
+          deleteTaskStatement.run(operation.task_id);
+          results.push({ task_id: operation.task_id, type: "delete" });
+        }
+
+        database.exec("COMMIT");
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      }
+
+      return { results };
     },
     getTaskById(taskId: string): Promise<null | Task> {
       const row = getTaskByIdStatement.get(taskId) as TaskRow | undefined;
@@ -653,6 +790,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             tasks.pull_request_url,
             tasks.dependencies,
             tasks.result,
+            tasks.source_metadata,
             tasks.done,
             tasks.status,
             tasks.created_at,
@@ -708,6 +846,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         updatedTask.pull_request_url,
         JSON.stringify(updatedTask.dependencies),
         updatedTask.result,
+        JSON.stringify(updatedTask.source_metadata),
         Number(updatedTask.done),
         updatedTask.status,
         updatedTask.updated_at,

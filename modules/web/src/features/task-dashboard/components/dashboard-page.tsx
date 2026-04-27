@@ -46,8 +46,6 @@ import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
 import { TaskTableSection } from "./task-table-section.js";
-import { TaskWriteBulkDetailsPage } from "./task-write-bulk-details-page.js";
-import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
 
 // English dashboard action labels remain in i18n resources: Refresh, Retry.
 
@@ -55,7 +53,6 @@ type DashboardRoute =
   | { kind: "dashboard" }
   | { dimensionId: string; kind: "dimension" }
   | { kind: "projects" }
-  | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
 
 const DASHBOARD_PATH = "/";
@@ -100,19 +97,6 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
     }
   }
 
-  const taskWriteBulkMatch = pathname.match(/^\/task-write-bulks\/([^/]+)$/);
-
-  if (taskWriteBulkMatch) {
-    const bulkId = taskWriteBulkMatch[1];
-
-    if (bulkId) {
-      return {
-        kind: "task-write-bulk",
-        bulkId: decodeURIComponent(bulkId),
-      };
-    }
-  }
-
   return { kind: "dashboard" };
 };
 
@@ -136,12 +120,6 @@ export const DashboardPage = () => {
       (task) => task.id === selectedTaskId,
     ) ??
     null;
-  const selectedTaskWriteBulkId =
-    route.kind === "task-write-bulk" ? route.bulkId : null;
-  const selectedTaskWriteBulk =
-    dashboardQuery.data?.taskWriteBulks.find(
-      (bulk) => bulk.bulk_id === selectedTaskWriteBulkId,
-    ) ?? null;
   const selectedDimension =
     route.kind === "dimension"
       ? (dashboardQuery.data?.dimensionReports.find(
@@ -152,8 +130,7 @@ export const DashboardPage = () => {
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
       dashboardQuery.data.historyTasks.length > 0 ||
-      dashboardQuery.data.dimensionReports.length > 0 ||
-      dashboardQuery.data.taskWriteBulks.length > 0);
+      dashboardQuery.data.dimensionReports.length > 0);
   const optimizerRunning = optimizerStatus?.running ?? false;
 
   useEffect(() => {
@@ -225,10 +202,6 @@ export const DashboardPage = () => {
     navigateTo(`/tasks/${encodeURIComponent(taskId)}`);
   };
 
-  const goToTaskWriteBulk = (bulkId: string) => {
-    navigateTo(`/task-write-bulks/${encodeURIComponent(bulkId)}`);
-  };
-
   const goToDimension = (dimensionId: string) => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
   };
@@ -240,9 +213,7 @@ export const DashboardPage = () => {
         ? "Project Register"
         : route.kind === "dimension"
           ? "Dimension Detail"
-          : route.kind === "task-write-bulk"
-            ? "Task Write Bulk Details"
-            : t("taskDetails");
+          : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
@@ -290,18 +261,6 @@ export const DashboardPage = () => {
           scope="Project Register"
         >
           <ProjectRegisterPage />
-        </DashboardPanelBoundary>
-      );
-    }
-
-    if (route.kind === "task-write-bulk") {
-      return (
-        <DashboardPanelBoundary
-          onRetry={handleRefresh}
-          resetKeys={[route.kind, selectedTaskWriteBulk?.bulk_id]}
-          scope="Task Write Bulk Details"
-        >
-          <TaskWriteBulkDetailsPage bulk={selectedTaskWriteBulk} />
         </DashboardPanelBoundary>
       );
     }
@@ -388,16 +347,6 @@ export const DashboardPage = () => {
                 <OverviewSection
                   dashboard={dashboardQuery.data}
                   onSelectTask={goToTask}
-                />
-              </DashboardPanelBoundary>
-              <DashboardPanelBoundary
-                onRetry={handleRefresh}
-                resetKeys={[dashboardQuery.data.taskWriteBulks]}
-                scope="Task Write Bulks"
-              >
-                <TaskWriteBulkSection
-                  bulks={dashboardQuery.data.taskWriteBulks}
-                  onSelectBulk={goToTaskWriteBulk}
                 />
               </DashboardPanelBoundary>
               <DashboardPanelBoundary
@@ -533,10 +482,6 @@ export const DashboardPage = () => {
                     {renderWorkspaceLink(
                       "#evidence-ledger",
                       t("evidenceLedger"),
-                    )}
-                    {renderWorkspaceLink(
-                      "#task-write-bulks",
-                      "Task Write Bulks",
                     )}
                     {renderWorkspaceLink(
                       "#intervention-rail",

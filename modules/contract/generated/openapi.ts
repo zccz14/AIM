@@ -747,120 +747,33 @@ export const openApiDocument = {
         },
       },
     },
-    "/task_write_bulks": {
+    "/tasks/batch": {
       post: {
-        operationId: "createTaskWriteBulk",
-        summary: "Create a coordinator task write bulk intent",
+        operationId: "createTaskBatch",
+        summary: "Apply an atomic batch of task operations",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
-                $ref: "#/components/schemas/CreateTaskWriteBulkRequest",
+                $ref: "#/components/schemas/CreateTaskBatchRequest",
               },
             },
           },
         },
-        responses: {
-          "201": {
-            description: "Created task write bulk intent",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/TaskWriteBulk",
-                },
-              },
-            },
-          },
-          "400": {
-            description: "Invalid task write bulk payload",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-          "409": {
-            description: "Task write bulk already exists",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-        },
-      },
-      get: {
-        operationId: "listTaskWriteBulks",
-        summary: "List coordinator task write bulk intents for a project",
-        parameters: [
-          {
-            $ref: "#/components/parameters/ProjectPathQueryParameter",
-          },
-        ],
         responses: {
           "200": {
-            description: "Task write bulk collection",
+            description: "Applied task batch operations",
             content: {
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/TaskWriteBulkListResponse",
+                  $ref: "#/components/schemas/TaskBatchResponse",
                 },
               },
             },
           },
           "400": {
-            description: "Invalid task write bulk filter",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/task_write_bulks/{bulkId}": {
-      get: {
-        operationId: "getTaskWriteBulkById",
-        summary: "Read a coordinator task write bulk intent",
-        parameters: [
-          {
-            $ref: "#/components/parameters/BulkIdPathParameter",
-          },
-          {
-            $ref: "#/components/parameters/ProjectPathQueryParameter",
-          },
-        ],
-        responses: {
-          "200": {
-            description: "Task write bulk detail",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/TaskWriteBulk",
-                },
-              },
-            },
-          },
-          "400": {
-            description: "Invalid task write bulk lookup",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-          "404": {
-            description: "Task write bulk not found",
+            description: "Invalid task batch payload or operation",
             content: {
               "application/json": {
                 schema: {
@@ -1369,6 +1282,7 @@ export const openApiDocument = {
           "dependencies",
           "done",
           "status",
+          "source_metadata",
           "created_at",
           "updated_at",
         ],
@@ -1404,6 +1318,10 @@ export const openApiDocument = {
           },
           result: {
             type: "string",
+          },
+          source_metadata: {
+            type: "object",
+            additionalProperties: true,
           },
           session_id: {
             type: ["string", "null"],
@@ -1517,6 +1435,141 @@ export const openApiDocument = {
           },
         },
       },
+      CreateTaskBatchTask: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_id", "title", "spec"],
+        properties: {
+          task_id: {
+            type: "string",
+            format: "uuid",
+          },
+          title: {
+            type: "string",
+            minLength: 1,
+          },
+          spec: {
+            type: "string",
+            minLength: 1,
+          },
+          dependencies: {
+            type: "array",
+            items: {
+              type: "string",
+              minLength: 1,
+            },
+          },
+          result: {
+            type: "string",
+            default: "",
+          },
+          session_id: {
+            type: ["string", "null"],
+          },
+          worktree_path: {
+            type: ["string", "null"],
+          },
+          pull_request_url: {
+            type: ["string", "null"],
+          },
+          status: {
+            type: "string",
+            enum: ["processing", "resolved", "rejected"],
+          },
+          source_metadata: {
+            type: "object",
+            additionalProperties: true,
+          },
+        },
+      },
+      CreateTaskBatchOperation: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "task"],
+        properties: {
+          type: {
+            type: "string",
+            enum: ["create"],
+          },
+          task: {
+            $ref: "#/components/schemas/CreateTaskBatchTask",
+          },
+        },
+      },
+      DeleteTaskBatchOperation: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "task_id"],
+        properties: {
+          type: {
+            type: "string",
+            enum: ["delete"],
+          },
+          task_id: {
+            type: "string",
+            format: "uuid",
+          },
+        },
+      },
+      TaskBatchOperation: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/CreateTaskBatchOperation",
+          },
+          {
+            $ref: "#/components/schemas/DeleteTaskBatchOperation",
+          },
+        ],
+        discriminator: {
+          propertyName: "type",
+        },
+      },
+      CreateTaskBatchRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["project_path", "operations"],
+        properties: {
+          project_path: {
+            type: "string",
+            minLength: 1,
+          },
+          operations: {
+            type: "array",
+            minItems: 1,
+            items: {
+              $ref: "#/components/schemas/TaskBatchOperation",
+            },
+          },
+        },
+      },
+      TaskBatchOperationResult: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "task_id"],
+        properties: {
+          type: {
+            type: "string",
+            enum: ["create", "delete"],
+          },
+          task_id: {
+            type: "string",
+            format: "uuid",
+          },
+        },
+      },
+      TaskBatchResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["results"],
+        properties: {
+          results: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/TaskBatchOperationResult",
+            },
+          },
+        },
+      },
       TaskWorktreePathRequest: {
         type: "object",
         additionalProperties: false,
@@ -1572,227 +1625,6 @@ export const openApiDocument = {
             type: "array",
             items: {
               $ref: "#/components/schemas/Task",
-            },
-          },
-        },
-      },
-      SourceMetadataEntry: {
-        type: "object",
-        additionalProperties: false,
-        required: ["key", "value"],
-        properties: {
-          key: {
-            type: "string",
-            minLength: 1,
-          },
-          value: {
-            type: "string",
-          },
-        },
-      },
-      TaskWriteBulkCreateFields: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "candidate_task_spec",
-          "project_path",
-          "dependencies",
-          "verification_route",
-        ],
-        properties: {
-          candidate_task_spec: {
-            type: "string",
-            minLength: 1,
-          },
-          project_path: {
-            type: "string",
-            minLength: 1,
-          },
-          dependencies: {
-            type: "array",
-            items: {
-              type: "string",
-              minLength: 1,
-            },
-          },
-          verification_route: {
-            type: "string",
-            minLength: 1,
-          },
-        },
-      },
-      TaskWriteBulkDeleteFields: {
-        type: "object",
-        additionalProperties: false,
-        required: ["target_task_id", "delete_reason", "replacement"],
-        properties: {
-          target_task_id: {
-            type: "string",
-            minLength: 1,
-          },
-          delete_reason: {
-            type: "string",
-            minLength: 1,
-          },
-          replacement: {
-            type: ["string", "null"],
-          },
-        },
-      },
-      TaskWriteBulkEntry: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "id",
-          "action",
-          "depends_on",
-          "reason",
-          "source",
-          "create",
-          "delete",
-        ],
-        properties: {
-          id: {
-            type: "string",
-            minLength: 1,
-          },
-          action: {
-            type: "string",
-            enum: ["Create", "Delete"],
-          },
-          depends_on: {
-            type: "array",
-            items: {
-              type: "string",
-              minLength: 1,
-            },
-          },
-          reason: {
-            type: "string",
-            minLength: 1,
-          },
-          source: {
-            type: "string",
-            minLength: 1,
-          },
-          create: {
-            oneOf: [
-              {
-                $ref: "#/components/schemas/TaskWriteBulkCreateFields",
-              },
-              {
-                type: "null",
-              },
-            ],
-          },
-          delete: {
-            oneOf: [
-              {
-                $ref: "#/components/schemas/TaskWriteBulkDeleteFields",
-              },
-              {
-                type: "null",
-              },
-            ],
-          },
-        },
-      },
-      TaskWriteBulk: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "project_path",
-          "bulk_id",
-          "content_markdown",
-          "entries",
-          "baseline_ref",
-          "source_metadata",
-          "created_at",
-          "updated_at",
-        ],
-        properties: {
-          project_path: {
-            type: "string",
-            minLength: 1,
-          },
-          bulk_id: {
-            type: "string",
-            minLength: 1,
-          },
-          content_markdown: {
-            type: "string",
-            minLength: 1,
-          },
-          entries: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/TaskWriteBulkEntry",
-            },
-          },
-          baseline_ref: {
-            type: ["string", "null"],
-          },
-          source_metadata: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/SourceMetadataEntry",
-            },
-          },
-          created_at: {
-            type: "string",
-            format: "date-time",
-            readOnly: true,
-          },
-          updated_at: {
-            type: "string",
-            format: "date-time",
-            readOnly: true,
-          },
-        },
-      },
-      CreateTaskWriteBulkRequest: {
-        type: "object",
-        additionalProperties: false,
-        required: ["project_path", "bulk_id", "content_markdown", "entries"],
-        properties: {
-          project_path: {
-            type: "string",
-            minLength: 1,
-          },
-          bulk_id: {
-            type: "string",
-            minLength: 1,
-          },
-          content_markdown: {
-            type: "string",
-            minLength: 1,
-          },
-          entries: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/TaskWriteBulkEntry",
-            },
-          },
-          baseline_ref: {
-            type: ["string", "null"],
-          },
-          source_metadata: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/SourceMetadataEntry",
-            },
-          },
-        },
-      },
-      TaskWriteBulkListResponse: {
-        type: "object",
-        additionalProperties: false,
-        required: ["items"],
-        properties: {
-          items: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/TaskWriteBulk",
             },
           },
         },

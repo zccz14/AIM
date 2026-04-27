@@ -140,7 +140,7 @@ AIM Coordinator 的输入:
 
 AIM Coordinator 的输出:
 
-- 对 Task Pool 的 Bulk Write（Create、Delete，因为 Task Spec 是不可变的）
+- 通过 `POST /tasks/batch` 对 Task Pool 执行原子的 `operations`（Create、Delete，因为 Task Spec 是不可变的）
 
 注：Task Pool 本质上是 SQLite 中的 `tasks` 表的一个过滤了已完成任务后的视图。
 

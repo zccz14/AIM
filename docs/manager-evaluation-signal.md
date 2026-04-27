@@ -10,7 +10,7 @@ Coordinator 后续维护 Task Pool 时，应从这些维度定义与评估记录
 
 - 维度定义：`POST /dimensions`、`GET /dimensions?project_path=...`、`GET /dimensions/{dimensionId}`、`PATCH /dimensions/{dimensionId}`、`DELETE /dimensions/{dimensionId}`。
 - 维度评估：`POST /dimensions/{dimensionId}/evaluations`、`GET /dimensions/{dimensionId}/evaluations`。
-- Coordinator 写入意图：当评估信号需要转为 Task Pool 维护候选时，继续使用 `docs/task-write-bulk.md` 中的 `Task Write Bulk` 审批边界。
+- Coordinator 写入意图：当评估信号需要转为 Task Pool 维护候选时，继续使用 `aim-coordinator-guide` 中的 `POST /tasks/batch` operations 审批边界。
 
 ## 必要语义
 
@@ -33,9 +33,9 @@ Manager 评估信号不得：
 - 作为独立 `manager_reports` API、SQLite 表、CLI 命令或 Web 资源存在。
 - 写成仓库 Markdown 文件并要求 Coordinator 从仓库文件读取。
 - 直接创建、删除或修改 Task。
-- 调用或要求调用 `POST /tasks`。
+- 调用或要求逐条调用 `POST /tasks`。
 - 输出已批准的 Developer Task Spec。
-- 绕过 `Task Write Bulk` 的人工审批、`aim-verify-task-spec` 校验或 `aim-create-tasks` 创建边界。
+- 绕过 `POST /tasks/batch` operations 的人工审批、`aim-verify-task-spec` 校验或原子写入边界。
 - 绕过服务端 API 直接访问 SQLite。
 
-Coordinator 可以把 Manager 评估信号转化为 `Task Write Bulk` 候选写入意图，但该转换必须继续遵守 `docs/task-write-bulk.md`：候选 `Create` / `Delete` 只有在批准后才进入后续验证与写入流程。
+Coordinator 可以把 Manager 评估信号转化为 `POST /tasks/batch` 候选写入意图，但该转换必须继续遵守 `aim-coordinator-guide`：候选 `create` / `delete` 只有在批准后才进入后续验证与原子写入流程。

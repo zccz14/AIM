@@ -311,7 +311,7 @@ describe("server startup", () => {
     expect(scheduler.start).not.toHaveBeenCalled();
   });
 
-  it("instructs the coordinator lane to use concrete Task Write Bulk intent instead of optimizer-loop placeholders", async () => {
+  it("instructs the coordinator lane to use concrete task batch operations instead of optimizer-loop placeholders", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -343,7 +343,7 @@ describe("server startup", () => {
     )?.[0];
 
     expect(coordinatorLaneConfig?.prompt).toContain(
-      "form a concrete Task Write Bulk intent",
+      "form concrete POST /tasks/batch operations",
     );
     expect(coordinatorLaneConfig?.prompt).toContain(
       "Reject or record feedback for generic optimizer-loop Tasks",
@@ -352,7 +352,7 @@ describe("server startup", () => {
       'Do not create a "Continue AIM optimizer loop"',
     );
     expect(coordinatorLaneConfig?.prompt).toContain(
-      "Do not bypass Task Write Bulk approval or independent Task Spec validation",
+      "Do not bypass POST /tasks/batch approval or independent Task Spec validation",
     );
     expect(coordinatorLaneConfig?.prompt).toMatch(
       /Developer lane[\s\S]*actionable Tasks/i,

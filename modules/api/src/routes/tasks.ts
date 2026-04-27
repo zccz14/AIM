@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 
 import {
+  createTaskBatchRequestSchema,
   createTaskRequestSchema,
   patchTaskRequestSchema,
   type TaskStatus,
@@ -15,6 +16,7 @@ import {
   taskResultRequestSchema,
   taskSpecPath,
   taskStatusSchema,
+  tasksBatchPath,
   tasksPath,
   taskWorktreePathPath,
   taskWorktreePathRequestSchema,
@@ -31,6 +33,7 @@ import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
+const tasksBatchRoutePath = tasksBatchPath;
 const taskWorktreePathRoutePath = taskWorktreePathPath.replace(
   "{taskId}",
   ":taskId",
@@ -117,6 +120,38 @@ const parseCreateTaskRequest = async (request: Request) => {
       error: buildValidationError("Invalid task payload"),
       ok: false as const,
     };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parseCreateTaskBatchRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = createTaskBatchRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid task batch payload"),
+      ok: false as const,
+    };
+  }
+
+  const taskIds = new Set<string>();
+
+  for (const operation of result.data.operations) {
+    const taskId =
+      operation.type === "create" ? operation.task.task_id : operation.task_id;
+
+    if (taskIds.has(taskId)) {
+      return {
+        error: buildValidationError(
+          "Task batch operations must not repeat task_id",
+        ),
+        ok: false as const,
+      };
+    }
+
+    taskIds.add(taskId);
   }
 
   return { data: result.data, ok: true as const };
@@ -386,6 +421,29 @@ export const registerTaskRoutes = (
     logger?.info(buildTaskLogFields("task_created", payload));
 
     return context.json(payload, 201);
+  });
+
+  app.post(tasksBatchRoutePath, async (context) => {
+    const input = await parseCreateTaskBatchRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    try {
+      const payload = await getRepository().createTaskBatch(input.data);
+
+      return context.json(payload, 200);
+    } catch (error) {
+      return context.json(
+        buildValidationError(
+          error instanceof Error
+            ? error.message
+            : "Invalid task batch operation",
+        ),
+        400,
+      );
+    }
   });
 
   app.get(taskByIdRoutePath, async (context) => {

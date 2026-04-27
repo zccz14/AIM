@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS task_write_bulks;
+
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   pull_request_url TEXT,
   dependencies TEXT NOT NULL,
   result TEXT NOT NULL DEFAULT '',
+  source_metadata TEXT NOT NULL DEFAULT '{}',
   done INTEGER NOT NULL,
   status TEXT NOT NULL,
   created_at TEXT NOT NULL,
@@ -63,16 +66,3 @@ CREATE TABLE IF NOT EXISTS dimension_evaluations (
 
 CREATE INDEX IF NOT EXISTS dimension_evaluations_project_id_index
 ON dimension_evaluations (project_id);
-
-CREATE TABLE IF NOT EXISTS task_write_bulks (
-  project_id TEXT NOT NULL,
-  bulk_id TEXT NOT NULL,
-  content_markdown TEXT NOT NULL,
-  entries TEXT NOT NULL,
-  baseline_ref TEXT,
-  source_metadata TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (project_id, bulk_id),
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);

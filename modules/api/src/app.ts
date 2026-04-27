@@ -11,7 +11,6 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerOptimizerRoutes } from "./routes/optimizer.js";
 import { registerProjectRoutes } from "./routes/projects.js";
-import { registerTaskWriteBulkRoutes } from "./routes/task-write-bulks.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
 type CreateAppOptions = {
@@ -123,7 +122,6 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOptimizerRoutes(app, optimizerRuntime);
   registerProjectRoutes(app, { resourceScope });
   registerDimensionRoutes(app, { resourceScope });
-  registerTaskWriteBulkRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,
     onTaskResolved: _options.onTaskResolved,

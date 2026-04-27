@@ -6,7 +6,6 @@ import type {
   Project,
   ProjectListResponse,
   TaskListResponse,
-  TaskWriteBulkListResponse,
 } from "@aim-ai/contract";
 
 import { createWebApiClient } from "../../../lib/api-client.js";
@@ -23,7 +22,6 @@ export type TaskDashboardResponse = {
   dimensionEvaluations: DimensionEvaluation[];
   dimensions: Dimension[];
   history: TaskListResponse;
-  taskWriteBulks: TaskWriteBulkListResponse;
 };
 
 const getProjectPaths = (responses: TaskListResponse[]) => [
@@ -42,16 +40,6 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     client.listTasks({ done: true }),
   ]);
   const projectPaths = getProjectPaths([active, history]);
-  const [taskWriteBulkResponses] = await Promise.all([
-    Promise.all(
-      projectPaths.map((projectPath) =>
-        client.listTaskWriteBulks({ project_path: projectPath }),
-      ),
-    ),
-  ]);
-  const taskWriteBulks = {
-    items: taskWriteBulkResponses.flatMap((response) => response.items),
-  } satisfies TaskWriteBulkListResponse;
   const dimensionResponses = await Promise.all(
     projectPaths.map((projectPath) =>
       client.listDimensions({ project_path: projectPath }),
@@ -72,7 +60,6 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     dimensionEvaluations,
     dimensions,
     history,
-    taskWriteBulks,
   };
 };
 
