@@ -11,9 +11,6 @@ export {
   healthPath,
   openApiDocument,
   opencodeModelsPath,
-  optimizerStartPath,
-  optimizerStatusPath,
-  optimizerStopPath,
   projectByIdPath,
   projectsPath,
   taskByIdPath,
@@ -58,7 +55,6 @@ export const taskBatchOperationResultSchema = schemas.TaskBatchOperationResult;
 export const taskBatchResponseSchema = schemas.TaskBatchResponse;
 export const opencodeModelCombinationSchema = schemas.OpenCodeModelCombination;
 export const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
-export const optimizerStatusResponseSchema = schemas.OptimizerStatusResponse;
 export const taskErrorSchema = schemas.ErrorResponse;
 export const taskStatusSchema = taskSchema.shape.status;
 export const taskErrorCodeSchema = taskErrorSchema.shape.code;
@@ -106,9 +102,6 @@ export type OpenCodeModelCombination = Infer<
   typeof opencodeModelCombinationSchema
 >;
 export type OpenCodeModelsResponse = Infer<typeof opencodeModelsResponseSchema>;
-export type OptimizerStatusResponse = Infer<
-  typeof optimizerStatusResponseSchema
->;
 export type TaskError = Infer<typeof taskErrorSchema>;
 export type TaskStatus = Infer<typeof taskStatusSchema>;
 export type TaskErrorCode = Infer<typeof taskErrorCodeSchema>;
@@ -148,8 +141,6 @@ export type TaskBatchResponseSchema = typeof taskBatchResponseSchema;
 export type OpenCodeModelCombinationSchema =
   typeof opencodeModelCombinationSchema;
 export type OpenCodeModelsResponseSchema = typeof opencodeModelsResponseSchema;
-export type OptimizerStatusResponseSchema =
-  typeof optimizerStatusResponseSchema;
 export type TaskErrorSchema = typeof taskErrorSchema;
 export type TaskStatusSchema = typeof taskStatusSchema;
 export type TaskErrorCodeSchema = typeof taskErrorCodeSchema;
@@ -189,7 +180,6 @@ export type ParsedTaskBatchOperationResult = TaskBatchOperationResult;
 export type ParsedTaskBatchResponse = TaskBatchResponse;
 export type ParsedOpenCodeModelCombination = OpenCodeModelCombination;
 export type ParsedOpenCodeModelsResponse = OpenCodeModelsResponse;
-export type ParsedOptimizerStatusResponse = OptimizerStatusResponse;
 export type ParsedTaskError = TaskError;
 
 export type { ContractClient, ContractClientOptions } from "./client.js";

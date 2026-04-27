@@ -40,8 +40,6 @@ import type {
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
-  GetOptimizerStatusData,
-  GetOptimizerStatusResponses,
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
@@ -86,10 +84,6 @@ import type {
   ResolveTaskByIdData,
   ResolveTaskByIdErrors,
   ResolveTaskByIdResponses,
-  StartOptimizerData,
-  StartOptimizerResponses,
-  StopOptimizerData,
-  StopOptimizerResponses,
 } from "./types.gen.js";
 
 export type Options<
@@ -204,42 +198,6 @@ export const patchProjectById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
-
-/**
- * Read AIM optimizer runtime status
- */
-export const getOptimizerStatus = <ThrowOnError extends boolean = false>(
-  options?: Options<GetOptimizerStatusData, ThrowOnError>,
-) =>
-  (options?.client ?? client).get<
-    GetOptimizerStatusResponses,
-    unknown,
-    ThrowOnError
-  >({ url: "/optimizer/status", ...options });
-
-/**
- * Start AIM optimizer runtime
- */
-export const startOptimizer = <ThrowOnError extends boolean = false>(
-  options?: Options<StartOptimizerData, ThrowOnError>,
-) =>
-  (options?.client ?? client).post<
-    StartOptimizerResponses,
-    unknown,
-    ThrowOnError
-  >({ url: "/optimizer/start", ...options });
-
-/**
- * Stop AIM optimizer runtime
- */
-export const stopOptimizer = <ThrowOnError extends boolean = false>(
-  options?: Options<StopOptimizerData, ThrowOnError>,
-) =>
-  (options?.client ?? client).post<
-    StopOptimizerResponses,
-    unknown,
-    ThrowOnError
-  >({ url: "/optimizer/stop", ...options });
 
 /**
  * List tasks

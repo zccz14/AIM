@@ -238,32 +238,6 @@ export type OpenCodeModelsResponse = {
   items: Array<OpenCodeModelCombination>;
 };
 
-export type OptimizerStatusResponse = {
-  enabled_triggers: Array<OptimizerTrigger>;
-  last_event: OptimizerEventStatus | null;
-  last_scan_at: string | null;
-  lanes: {
-    manager_evaluation: OptimizerLaneStatus;
-    coordinator_task_pool: OptimizerLaneStatus;
-    developer_follow_up: OptimizerLaneStatus;
-  };
-  running: boolean;
-};
-
-export type OptimizerLaneStatus = {
-  last_error: string | null;
-  last_scan_at: string | null;
-  running: boolean;
-};
-
-export type OptimizerTrigger = "task_resolved";
-
-export type OptimizerEventStatus = {
-  task_id: string;
-  triggered_scan: boolean;
-  type: OptimizerTrigger;
-};
-
 export type ErrorResponse = {
   code:
     | "TASK_NOT_FOUND"
@@ -537,57 +511,6 @@ export type PatchProjectByIdResponses = {
 
 export type PatchProjectByIdResponse =
   PatchProjectByIdResponses[keyof PatchProjectByIdResponses];
-
-export type GetOptimizerStatusData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/optimizer/status";
-};
-
-export type GetOptimizerStatusResponses = {
-  /**
-   * Optimizer runtime status
-   */
-  200: OptimizerStatusResponse;
-};
-
-export type GetOptimizerStatusResponse =
-  GetOptimizerStatusResponses[keyof GetOptimizerStatusResponses];
-
-export type StartOptimizerData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/optimizer/start";
-};
-
-export type StartOptimizerResponses = {
-  /**
-   * Optimizer runtime status after start
-   */
-  200: OptimizerStatusResponse;
-};
-
-export type StartOptimizerResponse =
-  StartOptimizerResponses[keyof StartOptimizerResponses];
-
-export type StopOptimizerData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/optimizer/stop";
-};
-
-export type StopOptimizerResponses = {
-  /**
-   * Optimizer runtime status after stop
-   */
-  200: OptimizerStatusResponse;
-};
-
-export type StopOptimizerResponse =
-  StopOptimizerResponses[keyof StopOptimizerResponses];
 
 export type ListTasksData = {
   body?: never;

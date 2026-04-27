@@ -40,18 +40,6 @@ const buildTask = ({
   updated_at: updatedAt,
 });
 
-const buildOptimizerStatus = (running: boolean) => ({
-  enabled_triggers: ["task_resolved"],
-  lanes: {
-    coordinator_task_pool: { last_error: null, last_scan_at: null, running },
-    developer_follow_up: { last_error: null, last_scan_at: null, running },
-    manager_evaluation: { last_error: null, last_scan_at: null, running },
-  },
-  last_event: null,
-  last_scan_at: null,
-  running,
-});
-
 const buildDimension = ({
   dimensionId = "dimension-readme-fit",
   evaluationMethod = "Compare visible dashboard evidence against README goal convergence.",
@@ -212,27 +200,6 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [] }),
-    });
-  });
-
-  await page.route("**/optimizer/status", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(false)),
-    });
-  });
-
-  await page.route("**/optimizer/start", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(true)),
-    });
-  });
-
-  await page.route("**/optimizer/stop", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(false)),
     });
   });
 });
@@ -501,7 +468,16 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
   ).toBeVisible();
 });
 
-test("renders the AIM brand mark and global controls", async ({ page }) => {
+test("renders the AIM brand mark and global controls without optimizer controls", async ({
+  page,
+}) => {
+  const optimizerRequests: string[] = [];
+
+  await page.route("**/optimizer/**", async (route) => {
+    optimizerRequests.push(route.request().url());
+    await route.abort();
+  });
+
   await page.goto("/");
 
   await expect(page.getByAltText("AIM icon")).toBeVisible();
@@ -522,59 +498,8 @@ test("renders the AIM brand mark and global controls", async ({ page }) => {
   ).toBeVisible();
   await expect(
     globalControls.getByRole("switch", { name: "AIM Optimizer" }),
-  ).toBeVisible();
-});
-
-test("toggles the optimizer from the global dashboard controls", async ({
-  page,
-}) => {
-  const optimizerRequests: string[] = [];
-
-  await page.route("**/optimizer/status", async (route) => {
-    optimizerRequests.push(route.request().url());
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(false)),
-    });
-  });
-  await page.route("**/optimizer/start", async (route) => {
-    optimizerRequests.push(route.request().url());
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(true)),
-    });
-  });
-  await page.route("**/optimizer/stop", async (route) => {
-    optimizerRequests.push(route.request().url());
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(buildOptimizerStatus(false)),
-    });
-  });
-
-  await page.goto("/");
-
-  const optimizerSwitch = page.getByRole("switch", { name: "AIM Optimizer" });
-
-  await expect(optimizerSwitch).toBeVisible();
-  await expect(optimizerSwitch).not.toBeChecked();
-
-  await optimizerSwitch.click();
-
-  await expect(optimizerSwitch).toBeChecked();
-
-  await optimizerSwitch.click();
-
-  await expect(optimizerSwitch).not.toBeChecked();
-  expect(
-    optimizerRequests.some((url) => url.endsWith("/optimizer/status")),
-  ).toBe(true);
-  expect(
-    optimizerRequests.some((url) => url.endsWith("/optimizer/start")),
-  ).toBe(true);
-  expect(optimizerRequests.some((url) => url.endsWith("/optimizer/stop"))).toBe(
-    true,
-  );
+  ).toHaveCount(0);
+  expect(optimizerRequests).toEqual([]);
 });
 
 test("redirects removed task write bulk and direct task creation routes", async ({

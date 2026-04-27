@@ -5,7 +5,6 @@ const mockRegisterDbRoutes = vi.fn();
 const mockRegisterDimensionRoutes = vi.fn();
 const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
-const mockRegisterOptimizerRoutes = vi.fn();
 const mockRegisterProjectRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
@@ -31,10 +30,6 @@ vi.mock("../src/routes/manager-reports.js", () => ({
 
 vi.mock("../src/routes/opencode-models.js", () => ({
   registerOpenCodeModelRoutes: mockRegisterOpenCodeModelRoutes,
-}));
-
-vi.mock("../src/routes/optimizer.js", () => ({
-  registerOptimizerRoutes: mockRegisterOptimizerRoutes,
 }));
 
 vi.mock("../src/routes/projects.js", () => ({
@@ -78,21 +73,16 @@ describe("app wiring", () => {
     );
   });
 
-  it("passes the optimizer runtime through to optimizer routes", async () => {
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({ running: false }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
+  it("passes the task resolved hook through to task routes", async () => {
+    const onTaskResolved = vi.fn();
 
     const { createApp } = await import("../src/app.js");
 
-    createApp({ optimizerRuntime });
+    createApp({ onTaskResolved });
 
-    expect(mockRegisterOptimizerRoutes).toHaveBeenCalledWith(
+    expect(mockRegisterTaskRoutes).toHaveBeenCalledWith(
       expect.anything(),
-      optimizerRuntime,
+      expect.objectContaining({ onTaskResolved }),
     );
   });
 });
