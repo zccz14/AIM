@@ -13,7 +13,7 @@ const configuredProject = {
   created_at: "2026-04-26T00:00:00.000Z",
   global_model_id: "claude-sonnet-4-5",
   global_provider_id: "anthropic",
-  id: "project-main",
+  id: "00000000-0000-4000-8000-000000000001",
   name: "Main project",
   project_path: "/repo/main",
   updated_at: "2026-04-26T00:00:00.000Z",

@@ -101,7 +101,7 @@ const buildProject = ({
   globalModelId = "claude-sonnet-4-5",
   globalProviderId = "anthropic",
   name = "Main project",
-  projectId = "project-main",
+  projectId = "00000000-0000-4000-8000-000000000010",
   projectPath = "/repo/main",
 }: {
   globalModelId?: string;
@@ -151,7 +151,7 @@ test.beforeEach(async ({ page }) => {
                   taskId: "task-main",
                 }),
                 buildTask({
-                  projectId: "project-research",
+                  projectId: "00000000-0000-4000-8000-000000000011",
                   projectPath: "/repo/research",
                   spec: "Research project task",
                   taskId: "task-research",
@@ -171,7 +171,7 @@ test.beforeEach(async ({ page }) => {
             globalModelId: "gpt-5.5",
             globalProviderId: "openai",
             name: "Research project",
-            projectId: "project-research",
+            projectId: "00000000-0000-4000-8000-000000000011",
             projectPath: "/repo/research",
           }),
         ],
@@ -279,7 +279,9 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
 
   await page.getByRole("link", { name: "Open Main project" }).click();
 
-  await expect(page).toHaveURL(/\/#\/projects\/project-main$/);
+  await expect(page).toHaveURL(
+    /\/#\/projects\/00000000-0000-4000-8000-000000000010$/,
+  );
   await expect(
     page.getByRole("heading", { name: "Project Detail" }),
   ).toBeVisible();
@@ -331,7 +333,7 @@ test("keeps project management available on the Projects page", async ({
         globalModelId: payload.global_model_id,
         globalProviderId: payload.global_provider_id,
         name: payload.name,
-        projectId: "project-created",
+        projectId: "00000000-0000-4000-8000-000000000012",
         projectPath: payload.project_path,
       });
 

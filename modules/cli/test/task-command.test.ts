@@ -13,6 +13,7 @@ const taskCommandHelperSourceUrl = new URL(
   "../src/lib/task-command.ts",
   import.meta.url,
 );
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
 
 type RecordedRequest = {
   method: string;
@@ -55,7 +56,7 @@ const startTaskServer = async () => {
     task_id: "task-1",
     title: "Write spec",
     task_spec: "write spec",
-    project_id: "project-main",
+    project_id: mainProjectId,
     project_path: "/repo/main",
     developer_provider_id: "anthropic",
     developer_model_id: "claude-sonnet-4-5",
@@ -192,7 +193,7 @@ describe("task cli command baseline", () => {
       "--task-spec",
       "write spec",
       "--project-id",
-      "project-main",
+      mainProjectId,
       "--dependency",
       "task-a",
       "--dependency",
@@ -213,7 +214,7 @@ describe("task cli command baseline", () => {
       json: {
         title: "Write spec",
         task_spec: "write spec",
-        project_id: "project-main",
+        project_id: mainProjectId,
         dependencies: ["task-a", "task-b"],
         pull_request_url: "https://example.test/pr/2",
       },
