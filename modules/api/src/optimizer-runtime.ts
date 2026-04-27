@@ -89,7 +89,10 @@ export const createOptimizerRuntime = ({
   const recordLaneError = (name: OptimizerLaneName, error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
 
-    logger?.error({ err: error, lane: name }, "Optimizer lane failed to start");
+    logger?.error(
+      { err: error, event: "optimizer_lane_start_failed", lane: name },
+      "Optimizer lane failed to start",
+    );
 
     return message;
   };
@@ -104,6 +107,10 @@ export const createOptimizerRuntime = ({
       return;
     }
 
+    logger?.info(
+      { event: "optimizer_stopping", lane_count: registrations.length },
+      "Optimizer runtime stopping",
+    );
     running = false;
     stopPromise = (async () => {
       for (const { lane, state } of [...registrations].reverse()) {
@@ -111,7 +118,12 @@ export const createOptimizerRuntime = ({
         state.running = false;
       }
     })()
-      .then(() => undefined)
+      .then(() => {
+        logger?.info(
+          { event: "optimizer_stopped", lane_count: registrations.length },
+          "Optimizer runtime stopped",
+        );
+      })
       .finally(() => {
         stopPromise = null;
       });
@@ -148,9 +160,28 @@ export const createOptimizerRuntime = ({
       };
 
       if (!shouldScan) {
+        logger?.info(
+          {
+            event: "optimizer_event_skipped",
+            reason: running ? "unsupported_event" : "not_running",
+            running,
+            task_id: event.taskId,
+            trigger: event.type,
+          },
+          "Optimizer event skipped",
+        );
         return;
       }
 
+      logger?.info(
+        {
+          event: "optimizer_event_triggered_scan",
+          lane: "developer_follow_up",
+          task_id: event.taskId,
+          trigger: event.type,
+        },
+        "Optimizer event triggered lane scan",
+      );
       const developerLane = registrations.find(
         ({ name }) => name === "developer_follow_up",
       );
@@ -178,20 +209,51 @@ export const createOptimizerRuntime = ({
 
     start() {
       if (running) {
+        logger?.warn(
+          { event: "optimizer_start_skipped", reason: "already_running" },
+          "Optimizer runtime start skipped because it is already running",
+        );
         return;
       }
 
+      logger?.info(
+        {
+          event: "optimizer_starting",
+          interval_ms: intervalMs,
+          lane_count: registrations.length,
+          lanes: registrations.map(({ name }) => name),
+        },
+        "Optimizer runtime starting",
+      );
       running = true;
+      let startedLaneCount = 0;
       for (const { lane, name, state } of registrations) {
         try {
           lane.start({ intervalMs });
           state.last_error = null;
           state.running = true;
+          startedLaneCount += 1;
+          logger?.info(
+            {
+              event: "optimizer_lane_started",
+              interval_ms: intervalMs,
+              lane: name,
+            },
+            "Optimizer lane started",
+          );
         } catch (error) {
           state.last_error = recordLaneError(name, error);
           state.running = false;
         }
       }
+      logger?.info(
+        {
+          event: "optimizer_started",
+          lane_count: registrations.length,
+          started_lane_count: startedLaneCount,
+        },
+        "Optimizer runtime started",
+      );
     },
   };
 

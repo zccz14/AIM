@@ -34,6 +34,7 @@ export const createAgentSessionLane = (
   let sleepTimer: NodeJS.Timeout | undefined;
   let wakeSleepingLoop: (() => void) | undefined;
   let session: ManagedAgentSession | null = null;
+  let nextScanAfterMs: null | number = null;
 
   const resolveProjectDirectory = () =>
     typeof options.projectDirectory === "function"
@@ -67,11 +68,29 @@ export const createAgentSessionLane = (
 
   const beginScan = () => {
     if (scanPromise) {
+      options.logger?.warn(
+        {
+          event: "optimizer_lane_scan_skipped",
+          lane: options.laneName,
+          reason: "scan_in_progress",
+          session_id: sessionId,
+        },
+        "Optimizer lane scan skipped",
+      );
       return scanPromise;
     }
 
     scanPromise = (async () => {
       const projectDirectory = await resolveProjectDirectory();
+      options.logger?.info(
+        {
+          event: "optimizer_lane_scan_started",
+          lane: options.laneName,
+          project_directory: projectDirectory,
+          session_id: sessionId,
+        },
+        "Optimizer lane scan started",
+      );
 
       if (!sessionId) {
         session = await options.coordinator.createSession(
@@ -109,11 +128,26 @@ export const createAgentSessionLane = (
       .then(() => {
         lastError = null;
         lastScanAt = new Date().toISOString();
+        options.logger?.info(
+          {
+            event: "optimizer_lane_scan_succeeded",
+            lane: options.laneName,
+            last_scan_at: lastScanAt,
+            next_scan_after_ms: nextScanAfterMs,
+            session_id: sessionId,
+          },
+          "Optimizer lane scan succeeded",
+        );
       })
       .catch((error) => {
         lastError = error instanceof Error ? error.message : String(error);
         options.logger?.error(
-          { err: error, lane: options.laneName },
+          {
+            err: error,
+            event: "optimizer_lane_scan_failed",
+            lane: options.laneName,
+            session_id: sessionId,
+          },
           "Optimizer lane failed while scanning",
         );
       });
@@ -156,6 +190,15 @@ export const createAgentSessionLane = (
 
       stopRequested = false;
       running = true;
+      nextScanAfterMs = startOptions.intervalMs;
+      options.logger?.info(
+        {
+          event: "optimizer_lane_started",
+          interval_ms: startOptions.intervalMs,
+          lane: options.laneName,
+        },
+        "Optimizer lane started",
+      );
       loopPromise = (async () => {
         while (!stopRequested) {
           await beginScan();
@@ -164,6 +207,16 @@ export const createAgentSessionLane = (
             break;
           }
 
+          options.logger?.info(
+            {
+              event: "optimizer_lane_sleeping_until_next_tick",
+              interval_ms: startOptions.intervalMs,
+              lane: options.laneName,
+              next_scan_after_ms: startOptions.intervalMs,
+              session_id: sessionId,
+            },
+            "Optimizer lane waiting for next tick",
+          );
           await sleep(startOptions.intervalMs);
         }
       })().finally(() => {
@@ -174,6 +227,7 @@ export const createAgentSessionLane = (
         wakeSleepingLoop = undefined;
         stopRequested = false;
         running = false;
+        nextScanAfterMs = null;
         loopPromise = null;
       });
     },

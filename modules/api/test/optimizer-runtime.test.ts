@@ -3,6 +3,88 @@ import { describe, expect, it, vi } from "vitest";
 import { createOptimizerRuntime } from "../src/optimizer-runtime.js";
 
 describe("optimizer runtime", () => {
+  it("logs optimizer lifecycle and skipped duplicate starts with lane counts", async () => {
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const managerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+    };
+    const developerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+    };
+    const runtime = createOptimizerRuntime({
+      intervalMs: 5_000,
+      lanes: [
+        { lane: managerLane, name: "manager_evaluation" },
+        { lane: developerLane, name: "developer_follow_up" },
+      ],
+      logger,
+    });
+
+    runtime.start();
+    runtime.start();
+    await runtime.disable();
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "optimizer_starting",
+        interval_ms: 5_000,
+        lane_count: 2,
+        lanes: ["manager_evaluation", "developer_follow_up"],
+      }),
+      "Optimizer runtime starting",
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "optimizer_started",
+        lane_count: 2,
+        started_lane_count: 2,
+      }),
+      "Optimizer runtime started",
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "optimizer_start_skipped" }),
+      "Optimizer runtime start skipped because it is already running",
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "optimizer_stopped", lane_count: 2 }),
+      "Optimizer runtime stopped",
+    );
+  });
+
+  it("logs skipped optimizer events with trigger and running context", async () => {
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const runtime = createOptimizerRuntime({
+      intervalMs: 5_000,
+      lanes: [],
+      logger,
+    });
+
+    await runtime.handleEvent({ taskId: "task-1", type: "task_resolved" });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "optimizer_event_skipped",
+        reason: "not_running",
+        running: false,
+        task_id: "task-1",
+        trigger: "task_resolved",
+      }),
+      "Optimizer event skipped",
+    );
+  });
+
   it("does not expose public lifecycle stop or dispose methods", () => {
     const runtime = createOptimizerRuntime({ intervalMs: 5_000, lanes: [] });
 
