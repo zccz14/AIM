@@ -871,7 +871,7 @@ describe("opencode plugin package baseline", () => {
       "PR-backed 在途工作",
       "默认保留并进入 `evaluate_existing_tasks` / follow-up 路径",
       "不得只因新 baseline、Manager 新分数或更优描述就删除、重复创建或替换",
-      "每个 `create` operation 必须先取得独立 Task Spec validation 结论",
+      "每个 `create` operation 必须先经过最小 Coordinator Task Spec validation entrypoint",
       "`source_metadata.task_spec_validation`",
       "validation_source",
       "validated_at",
@@ -881,6 +881,11 @@ describe("opencode plugin package baseline", () => {
       "validation 失败或 `waiting_assumptions` 的候选 `create` 不得进入 `POST /tasks/batch`",
       "delete-only batch 不要求 Task Spec validation",
       "不得把泛化 optimizer-loop placeholder 当作 validation evidence",
+      "`pass` / `waiting_assumptions` / `failed`",
+      "`conclusion = pass`",
+      "`blocking_assumptions`",
+      "`failure_reason`",
+      "不能替代这类 planning evidence",
     ]) {
       expect(pluginCoordinatorGuideSkillText).toContain(requiredFragment);
     }

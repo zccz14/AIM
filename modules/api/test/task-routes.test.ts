@@ -86,6 +86,20 @@ const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const buildPassingCoordinatorSourceMetadata = (
+  dimensionId = "33333333-3333-4333-8333-333333333333",
+  dimensionEvaluationId = "44444444-4444-4444-8444-444444444444",
+) => ({
+  dimension_evaluation_id: dimensionEvaluationId,
+  dimension_id: dimensionId,
+  task_spec_validation: {
+    conclusion: "pass",
+    conclusion_summary: "Task Spec validation passed",
+    dimension_evaluation_id: dimensionEvaluationId,
+    validation_session_id: `validation-${dimensionEvaluationId}`,
+    validation_source: "aim-verify-task-spec",
+  },
+});
 
 let previousProjectRoot: string | undefined;
 
@@ -582,6 +596,8 @@ describe("task routes", () => {
               status: "processing",
               source_metadata: {
                 coordinator_session_id: "session-1",
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
                 task_spec_validation: {
                   conclusion_summary:
                     "aim-verify-task-spec returned pass for the source gap",
@@ -634,6 +650,170 @@ describe("task routes", () => {
     ).toMatchObject({ status: 404 });
   });
 
+  it("normalizes passing Task Spec validation evidence before persisting batch creates", async () => {
+    await useProjectRoot("normalizes-task-spec-validation-evidence");
+
+    const app = createTaskRouteApp();
+    const taskId = "11111111-1111-4111-8111-111111111111";
+    const validationSessionId = "validation-session-normalized";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Create with validation evidence",
+              spec: "validated task spec",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+                task_spec_validation: {
+                  conclusion_summary: "Task Spec validation passed",
+                  dimension_evaluation_id:
+                    "44444444-4444-4444-8444-444444444444",
+                  validation_session_id: validationSessionId,
+                  validation_source: "aim-verify-task-spec",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const createdTaskResponse = await app.request(resolveTaskByIdPath(taskId));
+    expect(createdTaskResponse.status).toBe(200);
+    await expect(createdTaskResponse.json()).resolves.toMatchObject({
+      source_metadata: {
+        dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+        dimension_id: "33333333-3333-4333-8333-333333333333",
+        task_spec_validation: {
+          conclusion: "pass",
+          conclusion_summary: "Task Spec validation passed",
+          dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+          validation_session_id: validationSessionId,
+          validation_source: "aim-verify-task-spec",
+        },
+      },
+    });
+  });
+
+  it.each([
+    [
+      "waiting_assumptions",
+      { blocking_assumptions: ["Director must confirm the source gap"] },
+      "waiting_assumptions Task Spec validation cannot enter POST /tasks/batch: Director must confirm the source gap",
+    ],
+    [
+      "failed",
+      { failure_reason: "Task Spec no longer matches origin/main" },
+      "failed Task Spec validation cannot enter POST /tasks/batch: Task Spec no longer matches origin/main",
+    ],
+  ])("blocks %s Task Spec validation before batch writes", async (conclusion, details, message) => {
+    await useProjectRoot(`blocks-${conclusion}-validation`);
+
+    const app = createTaskRouteApp();
+    const taskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Blocked create",
+              spec: "must not be persisted",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+                task_spec_validation: {
+                  conclusion,
+                  conclusion_summary: "Task Spec validation did not pass",
+                  dimension_evaluation_id:
+                    "44444444-4444-4444-8444-444444444444",
+                  validation_session_id: "validation-session-blocked",
+                  validation_source: "aim-verify-task-spec",
+                  ...details,
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message,
+    });
+    expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("does not treat Task Spec validation source gap as Task Pool planning evidence", async () => {
+    await useProjectRoot("validation-gap-does-not-replace-planning-evidence");
+
+    const app = createTaskRouteApp();
+    const taskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Missing planning evidence",
+              spec: "validation evidence alone is not planning evidence",
+              source_metadata: {
+                task_spec_validation: {
+                  conclusion: "pass",
+                  conclusion_summary: "Task Spec validation passed",
+                  dimension_evaluation_id:
+                    "44444444-4444-4444-8444-444444444444",
+                  validation_session_id: "validation-session-only",
+                  validation_source: "aim-verify-task-spec",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message:
+        "Task batch create requires top-level dimension_id and dimension_evaluation_id planning evidence separate from task_spec_validation",
+    });
+    expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
   it("rolls back POST /tasks/batch when any operation fails", async () => {
     await useProjectRoot("rolls-back-task-batch");
 
@@ -655,7 +835,7 @@ describe("task routes", () => {
               task_id: newTaskId,
               title: "Created from batch",
               spec: "write batch route",
-              source_metadata: {},
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
           {
@@ -693,10 +873,7 @@ describe("task routes", () => {
               task_id: duplicateTaskId,
               title: "Close evaluation gap",
               spec: "first plan",
-              source_metadata: {
-                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
-                dimension_id: "33333333-3333-4333-8333-333333333333",
-              },
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
           {
@@ -705,10 +882,7 @@ describe("task routes", () => {
               task_id: otherDuplicateTaskId,
               title: "Close evaluation gap",
               spec: "second plan",
-              source_metadata: {
-                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
-                dimension_id: "33333333-3333-4333-8333-333333333333",
-              },
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
         ],
@@ -750,10 +924,7 @@ describe("task routes", () => {
               task_id: existingTaskId,
               title: "Close evaluation gap",
               spec: "existing plan",
-              source_metadata: {
-                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
-                dimension_id: "33333333-3333-4333-8333-333333333333",
-              },
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
         ],
@@ -776,10 +947,7 @@ describe("task routes", () => {
               task_id: duplicateTaskId,
               title: "Close evaluation gap",
               spec: "duplicate plan",
-              source_metadata: {
-                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
-                dimension_id: "33333333-3333-4333-8333-333333333333",
-              },
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
           {
@@ -788,10 +956,10 @@ describe("task routes", () => {
               task_id: unrelatedTaskId,
               title: "Independent task",
               spec: "must not persist",
-              source_metadata: {
-                dimension_evaluation_id: "77777777-7777-4777-8777-777777777777",
-                dimension_id: "66666666-6666-4666-8666-666666666666",
-              },
+              source_metadata: buildPassingCoordinatorSourceMetadata(
+                "66666666-6666-4666-8666-666666666666",
+                "77777777-7777-4777-8777-777777777777",
+              ),
             },
           },
         ],
@@ -836,7 +1004,7 @@ describe("task routes", () => {
               task_id: newTaskId,
               title: "Valid create",
               spec: "must roll back",
-              source_metadata: {},
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
             },
           },
           {
