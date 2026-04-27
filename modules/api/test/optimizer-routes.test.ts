@@ -263,4 +263,53 @@ describe("optimizer routes", () => {
       blocker_summary: null,
     });
   });
+
+  it("summarizes optimizer lane errors with redacted recovery context", async () => {
+    await useProjectRoot("enabled-lane-error-project");
+
+    const optimizerRuntime = {
+      getStatus: vi.fn().mockReturnValue({
+        enabled_triggers: ["task_resolved"],
+        lanes: {
+          coordinator_task_pool: {
+            last_error: null,
+            last_scan_at: null,
+            running: true,
+          },
+          developer_follow_up: {
+            last_error:
+              "gh failed with token ghp_1234567890abcdefghijklmnopqrstuvwxyz and stack at internal.js:1",
+            last_scan_at: "2026-04-27T10:00:00.000Z",
+            running: true,
+          },
+          manager_evaluation: {
+            last_error: null,
+            last_scan_at: null,
+            running: true,
+          },
+        },
+        last_event: null,
+        last_scan_at: "2026-04-27T10:00:00.000Z",
+        running: true,
+      }),
+      handleEvent: vi.fn(),
+      start: vi.fn(),
+      disable: vi.fn().mockResolvedValue(undefined),
+    };
+    const app = createApp({ optimizerRuntime });
+    const project = await createProject(app, true);
+
+    const response = await app.request(
+      `/projects/${project.id}/optimizer/status`,
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+
+    expect(payload.blocker_summary).toContain("developer_follow_up");
+    expect(payload.blocker_summary).toContain("Check optimizer logs");
+    expect(payload.blocker_summary).toContain("[REDACTED]");
+    expect(payload.blocker_summary).not.toContain("ghp_1234567890");
+    expect(payload.blocker_summary).not.toContain("internal.js:1");
+  });
 });

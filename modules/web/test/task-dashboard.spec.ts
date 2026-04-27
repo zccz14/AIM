@@ -295,7 +295,8 @@ test("shows project optimizer config and runtime observability separately", asyn
           type: "task_resolved",
         },
         recent_scan_at: "2026-04-27T10:00:00.000Z",
-        blocker_summary: "Optimizer runtime inactive",
+        blocker_summary:
+          "Optimizer lane developer_follow_up error: gh failed with token [REDACTED]. Check optimizer logs and fix the lane blocker before expecting new scans.",
       }),
     });
   });
@@ -317,9 +318,9 @@ test("shows project optimizer config and runtime observability separately", asyn
   await expect(
     optimizerRegion.getByText("2026-04-27T10:00:00.000Z"),
   ).toBeVisible();
-  await expect(
-    optimizerRegion.getByText("Optimizer runtime inactive"),
-  ).toBeVisible();
+  await expect(optimizerRegion.getByText("Check optimizer logs")).toBeVisible();
+  await expect(optimizerRegion.getByText("[REDACTED]")).toBeVisible();
+  await expect(optimizerRegion.getByText("ghp_1234567890")).toHaveCount(0);
 });
 
 test("summarizes when the main target gap is already covered by unfinished tasks", async ({
