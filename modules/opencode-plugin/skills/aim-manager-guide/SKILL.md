@@ -72,7 +72,7 @@ curl -X DELETE "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-
 
 ### 追加 Dimension Evaluation
 
-评估记录是 append-only。`project_id` 必须与目标 Dimension 的 `project_id` 一致；`score` 是 0-100 整数，语义为 `0-20 缺失`、`21-40 初始`、`41-60 可用`、`61-80 稳定`、`81-95 优秀`、`96-100 近似完成`。
+评估记录是 append-only。`project_id` 必须与目标 Dimension 的 `project_id` 一致；`score` 是 0-100 整数，语义为 `0-20 缺失`、`21-40 初始`、`41-60 可用`、`61-80 稳定`、`81-95 优秀`、`96-100 近似完成`。填写 `evaluator_model` 时先读取目标 Project 信息，使用该 Project 配置的 `global_model_id` 或当前实际评估模型标识；不得在 skill 中嵌入固定模型值。
 
 ```bash
 curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-id>/evaluations" \
@@ -80,7 +80,7 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-id
   --data '{
     "project_id": "00000000-0000-4000-8000-000000000001",
     "commit_sha": "abc1234",
-    "evaluator_model": "openai/gpt-5.5",
+    "evaluator_model": "<project.global_model_id>",
     "score": 72,
     "evaluation": "核心 API 已可用，README 中 GUI 可观测性仍有部分缺口；证据来自 README、modules/contract OpenAPI 与当前 baseline 检查。"
   }'
