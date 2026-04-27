@@ -63,9 +63,9 @@ export const ProjectDetailPage = ({
     optimizerStatus?.optimizer_enabled ?? project.optimizer_enabled;
   const runtimeLabel = optimizerStatus
     ? optimizerStatus.runtime_active
-      ? "Runtime active"
-      : "Runtime inactive"
-    : "Runtime unknown";
+      ? t("projectOptimizerRuntimeActive")
+      : t("projectOptimizerRuntimeInactive")
+    : t("projectOptimizerRuntimeUnknown");
   const recentEventText = optimizerStatus?.recent_event
     ? `${optimizerStatus.recent_event.type} (${optimizerStatus.recent_event.task_id})`
     : t("none");
@@ -103,24 +103,29 @@ export const ProjectDetailPage = ({
         </CardContent>
       </Card>
 
-      <section aria-label="Project optimizer runtime" className={pageStack}>
+      <section
+        aria-label={t("projectOptimizerRuntimeRegion")}
+        className={pageStack}
+      >
         <div>
-          <p className={eyebrow}>Optimizer</p>
-          <h2 className={sectionTitle}>Project Optimizer Runtime</h2>
+          <p className={eyebrow}>{t("optimizer")}</p>
+          <h2 className={sectionTitle}>{t("projectOptimizerRuntimeTitle")}</h2>
           <p className={sectionCopy}>
-            Project config and runtime activity are reported separately.
+            {t("projectOptimizerRuntimeDescription")}
           </p>
         </div>
         <Card>
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className={panelStack}>
-              <p className={eyebrow}>Config</p>
+              <p className={eyebrow}>{t("projectOptimizerConfig")}</p>
               <Badge variant={configEnabled ? "default" : "secondary"}>
-                {configEnabled ? "Config enabled" : "Config disabled"}
+                {configEnabled
+                  ? t("projectOptimizerConfigEnabled")
+                  : t("projectOptimizerConfigDisabled")}
               </Badge>
             </div>
             <div className={panelStack}>
-              <p className={eyebrow}>Runtime</p>
+              <p className={eyebrow}>{t("projectOptimizerRuntime")}</p>
               <Badge
                 variant={
                   optimizerStatus?.runtime_active ? "default" : "outline"
@@ -130,21 +135,21 @@ export const ProjectDetailPage = ({
               </Badge>
             </div>
             <div className={panelStack}>
-              <p className={eyebrow}>Triggers</p>
+              <p className={eyebrow}>{t("projectOptimizerTriggers")}</p>
               <strong>
                 {optimizerStatus?.enabled_triggers.join(", ") || t("none")}
               </strong>
             </div>
             <div className={panelStack}>
-              <p className={eyebrow}>Recent event</p>
+              <p className={eyebrow}>{t("projectOptimizerRecentEvent")}</p>
               <strong>{recentEventText}</strong>
             </div>
             <div className={panelStack}>
-              <p className={eyebrow}>Recent scan</p>
+              <p className={eyebrow}>{t("projectOptimizerRecentScan")}</p>
               <strong>{optimizerStatus?.recent_scan_at ?? t("none")}</strong>
             </div>
             <div className={panelStack}>
-              <p className={eyebrow}>Blocker</p>
+              <p className={eyebrow}>{t("projectOptimizerBlocker")}</p>
               <strong>{optimizerStatus?.blocker_summary ?? t("none")}</strong>
             </div>
           </CardContent>
