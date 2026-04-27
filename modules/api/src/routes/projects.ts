@@ -33,6 +33,11 @@ const buildValidationError = (message: string) =>
     message,
   });
 
+const redactSensitiveErrorDetail = (message: string) =>
+  message
+    .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]")
+    .replace(/\s+and stack\s+at\s+[^\s.]+(?:\.\w+)?:\d+/gi, "");
+
 const parseCreateProjectRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
   const result = createProjectRequestSchema.safeParse(payload);
@@ -84,10 +89,17 @@ const getOptimizerBlockerSummary = ({
     return "Optimizer runtime inactive";
   }
 
-  return (
-    Object.values(runtimeStatus.lanes).find((lane) => lane.last_error)
-      ?.last_error ?? null
+  const blockedLane = Object.entries(runtimeStatus.lanes).find(
+    ([, lane]) => lane.last_error,
   );
+
+  if (!blockedLane) {
+    return null;
+  }
+
+  const [laneName, lane] = blockedLane;
+
+  return `Optimizer lane ${laneName} error: ${redactSensitiveErrorDetail(lane.last_error ?? "unknown error")}. Check optimizer logs and fix the lane blocker before expecting new scans.`;
 };
 
 export const registerProjectRoutes = (

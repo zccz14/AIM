@@ -21,6 +21,8 @@ const ghOpenPullRequestOutput = JSON.stringify({
   mergedAt: null,
   state: "OPEN",
 });
+const sensitiveGhFailureMessage =
+  "gh failed with token ghp_1234567890abcdefghijklmnopqrstuvwxyz and stack at internal.js:1";
 const ghFailedChecksPullRequestOutput = JSON.stringify({
   autoMergeRequest: null,
   mergeable: "MERGEABLE",
@@ -74,7 +76,7 @@ const mockGhFailure = () => {
       _options: unknown,
       callback: (error: Error) => void,
     ) => {
-      callback(new Error("gh failed"));
+      callback(new Error(sensitiveGhFailureMessage));
     },
   );
 };
@@ -765,6 +767,55 @@ describe("task routes", () => {
     expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
       status: 404,
     });
+  });
+
+  it("redacts sensitive validation details while keeping POST /tasks/batch recovery actionable", async () => {
+    await useProjectRoot("redacts-batch-validation-details");
+
+    const app = createTaskRouteApp();
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: "11111111-1111-4111-8111-111111111111",
+              title: "Blocked create",
+              spec: "must not be persisted",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+                task_spec_validation: {
+                  conclusion: "failed",
+                  conclusion_summary: "Task Spec validation failed",
+                  dimension_evaluation_id:
+                    "44444444-4444-4444-8444-444444444444",
+                  failure_reason:
+                    "GitHub token ghp_1234567890abcdefghijklmnopqrstuvwxyz leaked in validation output",
+                  validation_session_id: "validation-session-blocked",
+                  validation_source: "aim-verify-task-spec",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("POST /tasks/batch");
+    expect(payload.message).toContain("task_spec_validation");
+    expect(payload.message).toContain("Fix the validation evidence");
+    expect(payload.message).toContain("[REDACTED]");
+    expect(payload.message).not.toContain("ghp_1234567890");
   });
 
   it("does not treat Task Spec validation source gap as Task Pool planning evidence", async () => {
@@ -2000,6 +2051,10 @@ describe("task routes", () => {
     );
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
     expect(payload.message).toContain("Could not confirm");
+    expect(payload.message).toContain("pull_request_url");
+    expect(payload.message).toContain("Verify the PR exists");
+    expect(payload.message).toContain("[REDACTED]");
+    expect(payload.message).not.toContain("ghp_1234567890");
   });
 
   it("logs task_resolved with a truncated result preview after repository success", async () => {

@@ -58,6 +58,11 @@ const taskSpecRoutePath = taskSpecPath.replace("{taskId}", ":taskId");
 const taskResolveRoutePath = taskResolvePath.replace("{taskId}", ":taskId");
 const taskRejectRoutePath = taskRejectPath.replace("{taskId}", ":taskId");
 
+const redactSensitiveErrorDetail = (message: string) =>
+  message
+    .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]")
+    .replace(/\s+and stack\s+at\s+[^\s.]+(?:\.\w+)?:\d+/gi, "");
+
 const buildNotFoundError = (taskId: string) =>
   taskErrorSchema.parse({
     code: "TASK_NOT_FOUND",
@@ -270,13 +275,20 @@ const normalizeTaskSpecValidation = (
 
 const buildBlockedValidationMessage = (message: string, detail: unknown) => {
   if (typeof detail === "string" && detail.trim().length > 0) {
-    return `${message}: ${detail}`;
+    const normalizedDetail = detail.trim();
+    const redactedDetail = redactSensitiveErrorDetail(normalizedDetail);
+
+    if (redactedDetail !== normalizedDetail) {
+      return `${message}: ${redactedDetail}. Check source_metadata.task_spec_validation and Fix the validation evidence before retrying POST /tasks/batch.`;
+    }
+
+    return `${message}: ${normalizedDetail}`;
   }
 
   if (Array.isArray(detail)) {
     const details = detail
       .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
+      .map((item) => redactSensitiveErrorDetail(item.trim()))
       .filter(Boolean);
 
     if (details.length > 0) {
@@ -573,9 +585,14 @@ const verifyPullRequestMerged = async (pullRequestUrl: string) => {
   let stdout: string;
   try {
     stdout = await getPullRequestMergedOutput(pullRequestUrl);
-  } catch {
+  } catch (error) {
+    const detail =
+      error instanceof Error
+        ? ` gh error: ${redactSensitiveErrorDetail(error.message)}.`
+        : "";
+
     return buildValidationError(
-      "Could not confirm pull_request_url is merged with gh. Make sure GitHub CLI is installed, authenticated, and the PR exists.",
+      `Could not confirm pull_request_url is merged with gh.${detail} Verify the PR exists, confirm GitHub CLI authentication and repository access, then retry resolve.`,
     );
   }
 
