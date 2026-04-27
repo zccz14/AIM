@@ -7,7 +7,11 @@ import {
   CardTitle,
 } from "../../../components/ui/card.js";
 import { useI18n } from "../../../lib/i18n.js";
-import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
+import type {
+  DashboardDimensionReportItem,
+  DashboardTask,
+  TaskDashboardViewModel,
+} from "../model/task-dashboard-view-model.js";
 import {
   cardHeader,
   detailSurface,
@@ -22,6 +26,81 @@ import {
 } from "./dashboard-styles.js";
 
 const formatCount = (count: number, label: string) => `${count} ${label}`;
+
+const normalizeGapText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getCoverageTokens = (value: string) =>
+  normalizeGapText(value)
+    .split(" ")
+    .filter(
+      (token) =>
+        token.length >= 4 &&
+        ![
+          "dashboard",
+          "director",
+          "current",
+          "dimension",
+          "missing",
+          "visible",
+        ].includes(token),
+    );
+
+const findMainGap = (reports: DashboardDimensionReportItem[]) =>
+  reports
+    .filter((report) => report.latestEvaluation !== null)
+    .sort((left, right) => {
+      const scoreDiff =
+        (left.latestEvaluation?.score ?? 100) -
+        (right.latestEvaluation?.score ?? 100);
+
+      return scoreDiff === 0
+        ? (right.latestEvaluation?.created_at ?? "").localeCompare(
+            left.latestEvaluation?.created_at ?? "",
+          )
+        : scoreDiff;
+    })[0];
+
+const hasUnfinishedCoverage = (
+  mainGap: DashboardDimensionReportItem | undefined,
+  tasks: DashboardTask[],
+) => {
+  if (!mainGap?.latestEvaluation) {
+    return false;
+  }
+
+  const gapTokens = getCoverageTokens(
+    `${mainGap.dimension.name} ${mainGap.dimension.goal} ${mainGap.latestEvaluation.evaluation}`,
+  );
+
+  if (gapTokens.length === 0) {
+    return false;
+  }
+
+  return tasks.some((task) => {
+    const taskText = normalizeGapText(`${task.title} ${task.taskSpec}`);
+
+    return gapTokens.some((token) => taskText.includes(token));
+  });
+};
+
+const hasRejectedCoverageRisk = (tasks: DashboardTask[]) =>
+  tasks.some((task) => {
+    const feedback = normalizeGapText(
+      `${task.title} ${task.taskSpec} ${task.result}`,
+    );
+
+    return (
+      feedback.includes("stale") ||
+      feedback.includes("duplicate") ||
+      feedback.includes("overlap") ||
+      feedback.includes("self overlap")
+    );
+  });
 
 export const ProjectDetailPage = ({
   dashboard,
@@ -55,9 +134,23 @@ export const ProjectDetailPage = ({
   const dependencyLinkedTasks = activeTasks.filter(
     (task) => task.dependencies.length > 0,
   );
+  const rejectedTasks = completedTasks.filter(
+    (task) => task.dashboardStatus === "rejected",
+  );
   const dimensions = dashboard.dimensionReports.filter(
     (report) => report.dimension.project_id === project.id,
   );
+  const mainGap = findMainGap(dimensions);
+  const isCoveredByUnfinishedTasks = hasUnfinishedCoverage(
+    mainGap,
+    activeTasks,
+  );
+  const rejectedCoverageRisk = hasRejectedCoverageRisk(rejectedTasks);
+  const recommendedAction = rejectedCoverageRisk
+    ? t("targetGapReplan")
+    : isCoveredByUnfinishedTasks
+      ? t("targetGapWaitDeveloper")
+      : t("targetGapReplan");
   const optimizerStatus = dashboard.projectOptimizerStatuses[project.id];
   const configEnabled =
     optimizerStatus?.optimizer_enabled ?? project.optimizer_enabled;
@@ -102,6 +195,73 @@ export const ProjectDetailPage = ({
           </div>
         </CardContent>
       </Card>
+
+      <section aria-label={t("targetGapCockpitRegion")} className={pageStack}>
+        <div>
+          <p className={eyebrow}>{t("goalFit")}</p>
+          <h2 className={sectionTitle}>{t("targetGapCockpit")}</h2>
+          <p className={sectionCopy}>{t("targetGapCockpitDescription")}</p>
+        </div>
+        <Card>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <div className={panelStack}>
+              <p className={eyebrow}>{t("targetGapMain")}</p>
+              {mainGap?.latestEvaluation ? (
+                <>
+                  <strong>{mainGap.dimension.name}</strong>
+                  <p className={sectionCopy}>
+                    {mainGap.latestEvaluation.evaluation}
+                  </p>
+                  <Badge variant="outline">
+                    {mainGap.latestEvaluation.score}/100
+                  </Badge>
+                  <a
+                    className="font-medium underline-offset-4 hover:underline"
+                    href={`#/dimensions/${encodeURIComponent(mainGap.dimension.id)}`}
+                  >
+                    {`${t("targetGapReviewPath")} ${mainGap.dimension.name} gap path`}
+                  </a>
+                </>
+              ) : (
+                <p className={sectionCopy}>{t("targetGapNoEvaluation")}</p>
+              )}
+            </div>
+            <div className={panelStack}>
+              <p className={eyebrow}>{t("targetGapCoverageStatus")}</p>
+              <Badge
+                variant={isCoveredByUnfinishedTasks ? "default" : "outline"}
+              >
+                {isCoveredByUnfinishedTasks
+                  ? t("targetGapCovered")
+                  : t("targetGapMissingCoverage")}
+              </Badge>
+              <p className={sectionCopy}>
+                {`${activeTasks.length} unfinished task${activeTasks.length === 1 ? "" : "s"}`}
+              </p>
+            </div>
+            <div className={panelStack}>
+              <p className={eyebrow}>{t("targetGapRejectedRisk")}</p>
+              <Badge
+                variant={rejectedCoverageRisk ? "destructive" : "secondary"}
+              >
+                {rejectedCoverageRisk
+                  ? t("targetGapRejectedRiskDetected")
+                  : t("targetGapRejectedRiskClear")}
+              </Badge>
+              <p className={sectionCopy}>
+                {formatCount(rejectedTasks.length, t("completedTaskSingular"))}
+              </p>
+            </div>
+            <div className={panelStack}>
+              <p className={eyebrow}>{t("targetGapAction")}</p>
+              <strong>{recommendedAction}</strong>
+              <p className={sectionCopy}>
+                {optimizerStatus?.blocker_summary ?? runtimeLabel}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       <section
         aria-label={t("projectOptimizerRuntimeRegion")}

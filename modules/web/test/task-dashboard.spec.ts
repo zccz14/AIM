@@ -320,6 +320,128 @@ test("shows project optimizer config and runtime observability separately", asyn
   ).toBeVisible();
 });
 
+test("summarizes when the main target gap is already covered by unfinished tasks", async ({
+  page,
+}) => {
+  await page.route("**/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? []
+            : [
+                buildTask({
+                  spec: "Add explicit accessibility gap path to the Director dashboard",
+                  taskId: "task-accessibility-gap",
+                }),
+              ],
+      }),
+    });
+  });
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({
+            evaluation:
+              "Accessibility gap path is missing from the Director dashboard.",
+            score: 43,
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const cockpit = page.getByRole("region", { name: "Target-gap cockpit" });
+
+  await expect(cockpit).toBeVisible();
+  await expect(cockpit.getByText("Main current gap")).toBeVisible();
+  await expect(
+    cockpit.getByText(
+      "Accessibility gap path is missing from the Director dashboard.",
+    ),
+  ).toBeVisible();
+  await expect(cockpit.getByText("Covered by unfinished tasks")).toBeVisible();
+  await expect(cockpit.getByText("Wait for Developer")).toBeVisible();
+});
+
+test("warns Director when rejected feedback indicates stale or duplicate coverage risk", async ({
+  page,
+}) => {
+  await page.route("**/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? [
+                buildTask({
+                  done: true,
+                  result:
+                    "Rejected: stale spec and duplicate coverage overlaps the active task.",
+                  spec: "Rejected duplicate dashboard gap task",
+                  status: "rejected",
+                  taskId: "task-rejected-duplicate",
+                }),
+              ]
+            : [
+                buildTask({
+                  spec: "Improve dashboard gap coverage",
+                  taskId: "task-gap-coverage",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const cockpit = page.getByRole("region", { name: "Target-gap cockpit" });
+
+  await expect(cockpit.getByText("Rejected feedback risk")).toBeVisible();
+  await expect(
+    cockpit.getByText("Stale or duplicate coverage risk"),
+  ).toBeVisible();
+  await expect(cockpit.getByText("Ask Coordinator to replan")).toBeVisible();
+});
+
+test("exposes the visible dimension evaluation path for the current gap", async ({
+  page,
+}) => {
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({
+            evaluation:
+              "Planning gap path is visible but has no decision summary yet.",
+            score: 38,
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const cockpit = page.getByRole("region", { name: "Target-gap cockpit" });
+
+  await expect(cockpit.getByText("README Fit", { exact: true })).toBeVisible();
+  await expect(cockpit.getByText("38/100", { exact: true })).toBeVisible();
+  await expect(
+    cockpit.getByRole("link", { name: "Review README Fit gap path" }),
+  ).toHaveAttribute("href", "#/dimensions/dimension-readme-fit");
+});
+
 test("keeps project management available on the Projects page", async ({
   page,
 }) => {
