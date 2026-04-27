@@ -502,7 +502,7 @@ describe("task cli command baseline", () => {
       "--title",
       "Write spec",
       "--project-id",
-      "project-main",
+      mainProjectId,
     ]);
 
     expect(result.exitCode).toBe(1);
