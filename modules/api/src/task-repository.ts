@@ -80,7 +80,6 @@ const requiredColumns = [
   { name: "title", notnull: 1, pk: 0, type: "TEXT" },
   { name: "task_spec", notnull: 1, pk: 0, type: "TEXT" },
   { name: "project_id", notnull: 1, pk: 0, type: "TEXT" },
-  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
   { name: "developer_provider_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "developer_model_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "session_id", notnull: 0, pk: 0, type: "TEXT" },
@@ -260,51 +259,6 @@ const validateTasksTableSchema = (
   }
 };
 
-const migrateLegacyTasksSchema = (
-  database: ReturnType<typeof openTaskDatabase>,
-) => {
-  const rows = database
-    .prepare(`PRAGMA table_info(${tasksTableName})`)
-    .all() as TableInfoRow[];
-
-  if (rows.length === 0 || rows.some((row) => row.name === "project_id")) {
-    return;
-  }
-
-  const columnNames = new Set(rows.map((row) => row.name));
-
-  if (
-    !columnNames.has("project_path") ||
-    !columnNames.has("developer_provider_id") ||
-    !columnNames.has("developer_model_id")
-  ) {
-    return;
-  }
-
-  database.exec(`
-    INSERT OR IGNORE INTO ${projectsTableName} (
-      id,
-      name,
-      project_path,
-      global_provider_id,
-      global_model_id,
-      created_at,
-      updated_at
-    )
-    SELECT DISTINCT
-      project_path,
-      project_path,
-      project_path,
-      developer_provider_id,
-      developer_model_id,
-      created_at,
-      updated_at
-    FROM ${tasksTableName}
-  `);
-  database.exec(`ALTER TABLE ${tasksTableName} ADD COLUMN project_id TEXT`);
-  database.exec(`UPDATE ${tasksTableName} SET project_id = project_path`);
-};
-
 const validateProjectsTableSchema = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
@@ -341,7 +295,6 @@ const bootstrapTaskDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
   applySqliteTableSchema(database);
-  migrateLegacyTasksSchema(database);
   validateProjectsTableSchema(database);
   validateTasksTableSchema(database);
   applySqliteIndexSchema(database);
@@ -360,7 +313,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       title,
       task_spec,
       project_id,
-      project_path,
       developer_provider_id,
       developer_model_id,
       session_id,
@@ -372,7 +324,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getProjectByIdStatement = database.prepare(`
     SELECT
@@ -424,45 +376,47 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   );
   const listTasksStatement = database.prepare(`
     SELECT
-      task_id,
-      title,
-      task_spec,
-      project_id,
-      project_path,
-      developer_provider_id,
-      developer_model_id,
-      session_id,
-      worktree_path,
-      pull_request_url,
-      dependencies,
-      result,
-      done,
-      status,
-      created_at,
-      updated_at
-    FROM ${tasksTableName}
-    ORDER BY created_at ASC, rowid ASC
+      tasks.task_id,
+      tasks.title,
+      tasks.task_spec,
+      tasks.project_id,
+      projects.project_path AS project_path,
+      tasks.developer_provider_id,
+      tasks.developer_model_id,
+      tasks.session_id,
+      tasks.worktree_path,
+      tasks.pull_request_url,
+      tasks.dependencies,
+      tasks.result,
+      tasks.done,
+      tasks.status,
+      tasks.created_at,
+      tasks.updated_at
+    FROM ${tasksTableName} AS tasks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    ORDER BY tasks.created_at ASC, tasks.rowid ASC
   `);
   const getTaskByIdStatement = database.prepare(`
     SELECT
-      task_id,
-      title,
-      task_spec,
-      project_id,
-      project_path,
-      developer_provider_id,
-      developer_model_id,
-      session_id,
-      worktree_path,
-      pull_request_url,
-      dependencies,
-      result,
-      done,
-      status,
-      created_at,
-      updated_at
-    FROM ${tasksTableName}
-    WHERE task_id = ?
+      tasks.task_id,
+      tasks.title,
+      tasks.task_spec,
+      tasks.project_id,
+      projects.project_path AS project_path,
+      tasks.developer_provider_id,
+      tasks.developer_model_id,
+      tasks.session_id,
+      tasks.worktree_path,
+      tasks.pull_request_url,
+      tasks.dependencies,
+      tasks.result,
+      tasks.done,
+      tasks.status,
+      tasks.created_at,
+      tasks.updated_at
+    FROM ${tasksTableName} AS tasks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    WHERE tasks.task_id = ?
   `);
   const updateTaskStatement = database.prepare(`
     UPDATE ${tasksTableName}
@@ -635,7 +589,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.title,
         task.task_spec,
         task.project_id,
-        task.project_path,
         task.developer_provider_id,
         task.developer_model_id,
         task.session_id,
@@ -688,25 +641,26 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const rows = database
         .prepare(`
           SELECT
-            task_id,
-            title,
-            task_spec,
-            project_id,
-            project_path,
-            developer_provider_id,
-            developer_model_id,
-            session_id,
-            worktree_path,
-            pull_request_url,
-            dependencies,
-            result,
-            done,
-            status,
-            created_at,
-            updated_at
-          FROM ${tasksTableName}
+            tasks.task_id,
+            tasks.title,
+            tasks.task_spec,
+            tasks.project_id,
+            projects.project_path AS project_path,
+            tasks.developer_provider_id,
+            tasks.developer_model_id,
+            tasks.session_id,
+            tasks.worktree_path,
+            tasks.pull_request_url,
+            tasks.dependencies,
+            tasks.result,
+            tasks.done,
+            tasks.status,
+            tasks.created_at,
+            tasks.updated_at
+          FROM ${tasksTableName} AS tasks
+          INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
           WHERE ${whereClauses.join(" AND ")}
-          ORDER BY created_at ASC, rowid ASC
+          ORDER BY tasks.created_at ASC, tasks.rowid ASC
         `)
         .all(...parameters) as TaskRow[];
 

@@ -16,6 +16,7 @@ type TaskWriteBulkRow = {
   content_markdown: string;
   created_at: string;
   entries: string;
+  project_id: string;
   project_path: string;
   source_metadata: string;
   updated_at: string;
@@ -34,9 +35,10 @@ type TaskWriteBulkRepositoryOptions = {
 };
 
 const taskWriteBulksTableName = "task_write_bulks";
+const projectsTableName = "projects";
 
 const requiredColumns = [
-  { name: "project_path", notnull: 1, pk: 1, type: "TEXT" },
+  { name: "project_id", notnull: 1, pk: 1, type: "TEXT" },
   { name: "bulk_id", notnull: 1, pk: 2, type: "TEXT" },
   { name: "content_markdown", notnull: 1, pk: 0, type: "TEXT" },
   { name: "entries", notnull: 1, pk: 0, type: "TEXT" },
@@ -122,7 +124,7 @@ export const createTaskWriteBulkRepository = (
   const asyncDisposeDatabase = createTaskDatabaseAsyncDispose(database);
   const insertTaskWriteBulkStatement = database.prepare(`
     INSERT INTO ${taskWriteBulksTableName} (
-      project_path,
+      project_id,
       bulk_id,
       content_markdown,
       entries,
@@ -134,30 +136,38 @@ export const createTaskWriteBulkRepository = (
   `);
   const getTaskWriteBulkStatement = database.prepare(`
     SELECT
-      project_path,
-      bulk_id,
-      content_markdown,
-      entries,
-      baseline_ref,
-      source_metadata,
-      created_at,
-      updated_at
-    FROM ${taskWriteBulksTableName}
-    WHERE project_path = ? AND bulk_id = ?
+      projects.project_path AS project_path,
+      bulks.project_id,
+      bulks.bulk_id,
+      bulks.content_markdown,
+      bulks.entries,
+      bulks.baseline_ref,
+      bulks.source_metadata,
+      bulks.created_at,
+      bulks.updated_at
+    FROM ${taskWriteBulksTableName} AS bulks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = bulks.project_id
+    WHERE projects.project_path = ? AND bulks.bulk_id = ?
   `);
   const listTaskWriteBulksStatement = database.prepare(`
     SELECT
-      project_path,
-      bulk_id,
-      content_markdown,
-      entries,
-      baseline_ref,
-      source_metadata,
-      created_at,
-      updated_at
-    FROM ${taskWriteBulksTableName}
-    WHERE project_path = ?
-    ORDER BY created_at ASC, rowid ASC
+      projects.project_path AS project_path,
+      bulks.project_id,
+      bulks.bulk_id,
+      bulks.content_markdown,
+      bulks.entries,
+      bulks.baseline_ref,
+      bulks.source_metadata,
+      bulks.created_at,
+      bulks.updated_at
+    FROM ${taskWriteBulksTableName} AS bulks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = bulks.project_id
+    WHERE projects.project_path = ?
+    ORDER BY bulks.created_at ASC, bulks.rowid ASC
+  `);
+  const ensureProjectStatement = database.prepare(`
+    INSERT OR IGNORE INTO ${projectsTableName} (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
+    VALUES (?, ?, ?, '', '', ?, ?)
   `);
 
   return {
@@ -166,6 +176,14 @@ export const createTaskWriteBulkRepository = (
       input: CreateTaskWriteBulkRequest,
     ): Promise<null | TaskWriteBulk> {
       const timestamp = new Date().toISOString();
+      const projectId = input.project_path;
+      ensureProjectStatement.run(
+        projectId,
+        projectId,
+        input.project_path,
+        timestamp,
+        timestamp,
+      );
       const taskWriteBulk = taskWriteBulkSchema.parse({
         project_path: input.project_path,
         bulk_id: input.bulk_id,
@@ -179,7 +197,7 @@ export const createTaskWriteBulkRepository = (
 
       try {
         insertTaskWriteBulkStatement.run(
-          taskWriteBulk.project_path,
+          projectId,
           taskWriteBulk.bulk_id,
           taskWriteBulk.content_markdown,
           JSON.stringify(taskWriteBulk.entries),

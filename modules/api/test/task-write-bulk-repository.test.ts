@@ -80,7 +80,7 @@ describe("task write bulk repository", () => {
     database.close();
 
     expect(columns.map((column) => column.name)).toEqual([
-      "project_path",
+      "project_id",
       "bulk_id",
       "content_markdown",
       "entries",
@@ -90,7 +90,7 @@ describe("task write bulk repository", () => {
       "updated_at",
     ]);
     expect(
-      columns.find((column) => column.name === "project_path"),
+      columns.find((column) => column.name === "project_id"),
     ).toMatchObject({
       notnull: 1,
       pk: 1,

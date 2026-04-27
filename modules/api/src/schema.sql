@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   title TEXT NOT NULL,
   task_spec TEXT NOT NULL,
   project_id TEXT NOT NULL,
-  project_path TEXT NOT NULL,
   developer_provider_id TEXT NOT NULL,
   developer_model_id TEXT NOT NULL,
   session_id TEXT,
@@ -24,8 +23,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   done INTEGER NOT NULL,
   status TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS tasks_project_id_index
+ON tasks (project_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS tasks_unfinished_session_id_unique
 ON tasks (session_id)
@@ -33,28 +36,36 @@ WHERE done = 0 AND session_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS dimensions (
   id TEXT NOT NULL PRIMARY KEY,
-  project_path TEXT NOT NULL,
+  project_id TEXT NOT NULL,
   name TEXT NOT NULL,
   goal TEXT NOT NULL,
   evaluation_method TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS dimensions_project_id_index
+ON dimensions (project_id);
 
 CREATE TABLE IF NOT EXISTS dimension_evaluations (
   id TEXT NOT NULL PRIMARY KEY,
   dimension_id TEXT NOT NULL,
-  project_path TEXT NOT NULL,
+  project_id TEXT NOT NULL,
   commit_sha TEXT NOT NULL,
   evaluator_model TEXT NOT NULL,
   score INTEGER NOT NULL,
   evaluation TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (dimension_id) REFERENCES dimensions(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS dimension_evaluations_project_id_index
+ON dimension_evaluations (project_id);
+
 CREATE TABLE IF NOT EXISTS task_write_bulks (
-  project_path TEXT NOT NULL,
+  project_id TEXT NOT NULL,
   bulk_id TEXT NOT NULL,
   content_markdown TEXT NOT NULL,
   entries TEXT NOT NULL,
@@ -62,5 +73,6 @@ CREATE TABLE IF NOT EXISTS task_write_bulks (
   source_metadata TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  PRIMARY KEY (project_path, bulk_id)
+  PRIMARY KEY (project_id, bulk_id),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
