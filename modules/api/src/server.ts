@@ -24,7 +24,9 @@ const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
 Maintain AIM evaluation dimensions and evaluations by reading the latest origin/main baseline, README goals, current dimensions, evaluations, Task Pool, and rejected Tasks through AIM API Server.
 
-Write results back through AIM API Server only: create or update dimensions/evaluations using the available AIM API contracts. Do not create Developer Tasks from this Manager lane.`;
+Before every dimension_evaluations append, apply the README claim-to-evidence protocol: classify key README claims as aligned, readme_ahead, baseline_ahead, conflicted, ambiguous, or prerequisite_gap; include an evidence source or limit, confidence limit, and Coordinator handoff implication for each claim that materially affects the dimension.
+
+Write results back through AIM API Server only: create or update dimensions/evaluations using the available AIM API contracts; append dimension_evaluations only for Manager findings. Do not create Developer Tasks from this Manager lane.`;
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
 You are an AIM Coordinator responsible for keeping the Developer lane supplied with actionable Tasks. Maintain the unfinished Task Pool so Developers do not go idle while README goals still have measurable gaps.
