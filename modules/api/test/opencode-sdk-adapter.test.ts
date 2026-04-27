@@ -76,11 +76,13 @@ describe("opencode sdk adapter", () => {
   });
 
   it("creates a session and sends the initial task prompt through the SDK", async () => {
+    const abort = vi.fn().mockResolvedValue({});
     const create = vi.fn().mockResolvedValue({ data: { id: "session-1" } });
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
+        abort,
         create,
         promptAsync,
         status: vi.fn(),
@@ -92,16 +94,17 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(
-      adapter.createSession(
-        createTask({
-          developer_model_id: "gpt-5.5",
-          developer_provider_id: "openai",
-        }),
-      ),
-    ).resolves.toEqual({
+    const session = await adapter.createSession(
+      createTask({
+        developer_model_id: "gpt-5.5",
+        developer_provider_id: "openai",
+      }),
+    );
+
+    expect(session).toMatchObject({
       id: "session-1",
     });
+    expect(session[Symbol.asyncDispose]).toEqual(expect.any(Function));
     expect(mockCreateOpencodeClient).toHaveBeenCalledWith({
       baseUrl: config.baseUrl,
     });
@@ -151,6 +154,14 @@ describe("opencode sdk adapter", () => {
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).not.toContain(
       "task_spec_file:",
     );
+
+    await session[Symbol.asyncDispose]();
+
+    expect(abort).toHaveBeenCalledWith({
+      path: { id: "session-1" },
+      query: { directory: "/repo" },
+      throwOnError: true,
+    });
   });
 
   it("reads session messages and returns idle for an explicitly completed assistant message", async () => {

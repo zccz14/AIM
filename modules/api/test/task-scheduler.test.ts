@@ -8,7 +8,10 @@ import { buildTaskSessionPrompt } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
 
 const createCoordinator = () => ({
-  createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+  createSession: vi.fn().mockResolvedValue({
+    [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    sessionId: "session-1",
+  }),
   getSessionState: vi.fn().mockResolvedValue("idle"),
   sendContinuePrompt: vi.fn().mockResolvedValue(undefined),
 });
@@ -207,6 +210,32 @@ describe("task scheduler", () => {
       developer_model_id: "claude-sonnet-4-5",
       developer_provider_id: "anthropic",
     });
+  });
+
+  it("releases created sessions when the scheduler is disposed", async () => {
+    const initialTask = createTask();
+    const boundTask = createTask({ session_id: "session-1" });
+    const disposeSession = vi.fn().mockResolvedValue(undefined);
+    const coordinator = createCoordinator();
+    coordinator.createSession.mockResolvedValue({
+      [Symbol.asyncDispose]: disposeSession,
+      sessionId: "session-1",
+    });
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(disposeSession).not.toHaveBeenCalled();
+
+    await scheduler[Symbol.asyncDispose]();
+
+    expect(disposeSession).toHaveBeenCalledOnce();
   });
 
   it("skips a task whose bound session is running", async () => {
@@ -452,7 +481,10 @@ describe("task scheduler", () => {
     const coordinator = createCoordinator();
     coordinator.createSession.mockImplementation(async (task) => {
       events.push(`create:${task.task_id}`);
-      return { sessionId: `new-${task.task_id}` };
+      return {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: `new-${task.task_id}`,
+      };
     });
     coordinator.getSessionState.mockImplementation(async (sessionId) => {
       events.push(`state:${sessionId}`);
@@ -582,7 +614,10 @@ describe("task scheduler", () => {
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
-    coordinator.createSession.mockResolvedValue({ sessionId: "new-session" });
+    coordinator.createSession.mockResolvedValue({
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "new-session",
+    });
     const scheduler = createTaskScheduler({
       coordinator,
       logger,

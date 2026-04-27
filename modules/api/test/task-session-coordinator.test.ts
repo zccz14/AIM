@@ -6,6 +6,11 @@ import {
   type TaskSessionCoordinatorConfig,
 } from "../src/task-session-coordinator.js";
 
+const createAdapterSession = (id = "session-1") => ({
+  [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+  id,
+});
+
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
   developer_model_id: "claude-sonnet-4-5",
@@ -38,20 +43,35 @@ describe("task session coordinator", () => {
     ).toThrow("Task session coordinator requires a non-empty baseUrl");
   });
 
-  it("returns only the injected session id shape", async () => {
+  it("returns a disposable session with the injected session id", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn().mockResolvedValue({ id: "session-1" }),
+      createSession: vi.fn().mockResolvedValue(createAdapterSession()),
       getSessionState: vi.fn(),
       sendPrompt: vi.fn(),
     });
 
-    await expect(coordinator.createSession(createTask())).resolves.toEqual({
-      sessionId: "session-1",
+    const session = await coordinator.createSession(createTask());
+
+    expect(session).toMatchObject({ sessionId: "session-1" });
+    expect(session[Symbol.asyncDispose]).toEqual(expect.any(Function));
+  });
+
+  it("releases the adapter session when the returned coordinator session is disposed", async () => {
+    const adapterSession = createAdapterSession();
+    const coordinator = createTaskSessionCoordinator(config, {
+      createSession: vi.fn().mockResolvedValue(adapterSession),
+      getSessionState: vi.fn(),
+      sendPrompt: vi.fn(),
     });
+
+    const session = await coordinator.createSession(createTask());
+    await session[Symbol.asyncDispose]();
+
+    expect(adapterSession[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("passes the selected developer provider and model from the task to the adapter", async () => {
-    const createSession = vi.fn().mockResolvedValue({ id: "session-1" });
+    const createSession = vi.fn().mockResolvedValue(createAdapterSession());
     const coordinator = createTaskSessionCoordinator(config, {
       createSession,
       getSessionState: vi.fn(),

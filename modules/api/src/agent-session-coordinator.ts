@@ -14,7 +14,9 @@ export type AgentSessionInput = {
 };
 
 export type AgentSessionCoordinator = {
-  createSession(input: AgentSessionInput): Promise<{ sessionId: string }>;
+  createSession(
+    input: AgentSessionInput,
+  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; sessionId: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,
@@ -37,7 +39,16 @@ export const createAgentSessionCoordinator = (
 
       await this.sendPrompt(session.data.id, input);
 
-      return { sessionId: session.data.id };
+      return {
+        async [Symbol.asyncDispose]() {
+          await client.session.abort({
+            path: { id: session.data.id },
+            query: { directory: input.projectPath },
+            throwOnError: true,
+          });
+        },
+        sessionId: session.data.id,
+      };
     },
     async getSessionState(sessionId, projectPath) {
       const response = await client.session.messages({

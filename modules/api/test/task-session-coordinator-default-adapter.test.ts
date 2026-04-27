@@ -29,7 +29,10 @@ describe("task session coordinator default adapter", () => {
   });
 
   it("uses the SDK adapter by default when one is not injected", async () => {
-    const createSession = vi.fn().mockResolvedValue({ id: "session-1" });
+    const createSession = vi.fn().mockResolvedValue({
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      id: "session-1",
+    });
     const getSessionState = vi.fn().mockResolvedValue("running");
 
     mockCreateOpenCodeSdkAdapter.mockReturnValue({
@@ -47,21 +50,22 @@ describe("task session coordinator default adapter", () => {
       providerId: "anthropic",
     });
 
-    await expect(
-      coordinator.createSession({
-        created_at: "2026-04-20T00:00:00.000Z",
-        dependencies: [],
-        done: false,
-        project_path: "/repo",
-        pull_request_url: null,
-        session_id: null,
-        status: "processing",
-        task_id: "task-1",
-        task_spec: "Implement the OpenCode SDK coordinator.",
-        updated_at: "2026-04-20T00:00:00.000Z",
-        worktree_path: "/repo/.worktrees/task-1",
-      }),
-    ).resolves.toEqual({ sessionId: "session-1" });
+    const session = await coordinator.createSession({
+      created_at: "2026-04-20T00:00:00.000Z",
+      dependencies: [],
+      done: false,
+      project_path: "/repo",
+      pull_request_url: null,
+      session_id: null,
+      status: "processing",
+      task_id: "task-1",
+      task_spec: "Implement the OpenCode SDK coordinator.",
+      updated_at: "2026-04-20T00:00:00.000Z",
+      worktree_path: "/repo/.worktrees/task-1",
+    });
+
+    expect(session).toMatchObject({ sessionId: "session-1" });
+    expect(session[Symbol.asyncDispose]).toEqual(expect.any(Function));
 
     expect(mockCreateOpenCodeSdkAdapter).toHaveBeenCalledWith({
       baseUrl: "http://127.0.0.1:54321",

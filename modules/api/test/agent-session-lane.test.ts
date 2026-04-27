@@ -2,10 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAgentSessionLane } from "../src/agent-session-lane.js";
 
+const createSession = (sessionId = "session-1") => ({
+  [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+  sessionId,
+});
+
 const createLane = (overrides = {}) =>
   createAgentSessionLane({
     coordinator: {
-      createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+      createSession: vi.fn().mockResolvedValue(createSession()),
       getSessionState: vi.fn().mockResolvedValue("idle"),
       sendPrompt: vi.fn().mockResolvedValue(undefined),
     },
@@ -34,7 +39,7 @@ describe("agent session lane", () => {
   it("stops a sleeping lane loop when an await using scope exits", async () => {
     vi.useFakeTimers();
     const coordinator = {
-      createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+      createSession: vi.fn().mockResolvedValue(createSession()),
       getSessionState: vi.fn().mockResolvedValue("idle"),
       sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
@@ -58,7 +63,7 @@ describe("agent session lane", () => {
   it("allows repeated lane async disposal without restarting stop behavior", async () => {
     vi.useFakeTimers();
     const coordinator = {
-      createSession: vi.fn().mockResolvedValue({ sessionId: "session-1" }),
+      createSession: vi.fn().mockResolvedValue(createSession()),
       getSessionState: vi.fn().mockResolvedValue("idle"),
       sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
@@ -77,6 +82,24 @@ describe("agent session lane", () => {
     expect(coordinator.sendPrompt).not.toHaveBeenCalled();
   });
 
+  it("releases the created agent session when the lane is disposed", async () => {
+    const session = createSession();
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(session),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({ coordinator });
+
+    await lane.scanOnce();
+
+    expect(session[Symbol.asyncDispose]).not.toHaveBeenCalled();
+
+    await lane[Symbol.asyncDispose]();
+
+    expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
   it("exposes scan errors and successful scan timestamps for optimizer status", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
@@ -90,7 +113,7 @@ describe("agent session lane", () => {
         createSession: vi
           .fn()
           .mockRejectedValueOnce(new Error("manager session failed"))
-          .mockResolvedValueOnce({ sessionId: "session-1" }),
+          .mockResolvedValueOnce(createSession()),
         getSessionState: vi.fn().mockResolvedValue("idle"),
         sendPrompt: vi.fn().mockResolvedValue(undefined),
       },

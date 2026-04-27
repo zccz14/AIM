@@ -17,6 +17,10 @@ type StartOptions = {
   intervalMs: number;
 };
 
+type ManagedAgentSession = Awaited<
+  ReturnType<AgentSessionCoordinator["createSession"]>
+>;
+
 export const createAgentSessionLane = (
   options: CreateAgentSessionLaneOptions,
 ) => {
@@ -29,6 +33,7 @@ export const createAgentSessionLane = (
   let stopRequested = false;
   let sleepTimer: NodeJS.Timeout | undefined;
   let wakeSleepingLoop: (() => void) | undefined;
+  let session: ManagedAgentSession | null = null;
 
   const input = () => ({
     modelId: options.modelId,
@@ -62,7 +67,7 @@ export const createAgentSessionLane = (
 
     scanPromise = (async () => {
       if (!sessionId) {
-        const session = await options.coordinator.createSession(input());
+        session = await options.coordinator.createSession(input());
         sessionId = session.sessionId;
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
@@ -106,7 +111,19 @@ export const createAgentSessionLane = (
     stopRequested = true;
     wakeSleepingLoop?.();
 
-    return loopPromise ?? Promise.resolve();
+    return Promise.all(
+      [loopPromise, scanPromise].filter((promise): promise is Promise<void> =>
+        Boolean(promise),
+      ),
+    ).then(() => undefined);
+  };
+
+  const disposeSession = async () => {
+    const sessionToDispose = session;
+
+    session = null;
+    sessionId = null;
+    await sessionToDispose?.[Symbol.asyncDispose]();
   };
 
   return {
@@ -149,7 +166,8 @@ export const createAgentSessionLane = (
       });
     },
     async [Symbol.asyncDispose]() {
-      await shutdown();
+      await Promise.all([shutdown(), disposeSession()]);
+      await disposeSession();
     },
   };
 };
