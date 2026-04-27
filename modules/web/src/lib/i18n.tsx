@@ -39,6 +39,8 @@ const messages = {
       "Shape a focused brief before it enters the task pool.",
     creatingTask: "Creating Task...",
     dashboardError: "Dashboard Error",
+    dashboardSimpleDescription:
+      "Multi-project observability and global settings stay at the top level. Project task pressure and dimension fit stay visible without history or write-intent noise.",
     dashboardStatus: "Dashboard Status",
     decisionObservability: "Decision Observability",
     evidenceLedgerDescription:
@@ -53,7 +55,7 @@ const messages = {
     evidenceLedgerLower: "Evidence ledger",
     filterTasks: "Filter Tasks",
     flowSummary:
-      "A disciplined review surface for reading goal alignment, task pool pressure, rejected feedback, dependency risk, and the next human intervention.",
+      "Multi-project observability and global settings. Project-scoped task pressure and dimension fit stay simple.",
     goalStateReview: "Goal State Review",
     goalStateReviewDescription:
       "Current task pool, completed history, flow pressure, and rejected feedback are presented as one planning surface.",
@@ -129,6 +131,8 @@ const messages = {
     createTaskFormTitle: "先形成聚焦简报，再进入任务池。",
     creatingTask: "正在创建任务...",
     dashboardError: "仪表盘错误",
+    dashboardSimpleDescription:
+      "顶层只保留多项目可观测性和全局设置。项目任务压力与 Dimension 匹配度保持可见，不混入历史或写入意图噪声。",
     dashboardStatus: "仪表盘状态",
     decisionObservability: "决策可观测性",
     evidenceLedgerDescription:
@@ -143,7 +147,7 @@ const messages = {
     evidenceLedgerLower: "证据台账",
     filterTasks: "筛选任务",
     flowSummary:
-      "用于阅读目标对齐、任务池压力、拒绝反馈、依赖风险和下一处人工介入点的严谨复核界面。",
+      "多项目可观测性与全局设置。项目内任务压力和 Dimension 匹配度保持简洁。",
     goalStateReview: "目标态复核",
     goalStateReviewDescription:
       "当前任务池、完成历史、流动压力和拒绝反馈作为一个规划界面呈现。",

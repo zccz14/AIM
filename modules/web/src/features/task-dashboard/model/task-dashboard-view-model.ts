@@ -1,4 +1,4 @@
-import type { Dimension, DimensionEvaluation } from "@aim-ai/contract";
+import type { Dimension, DimensionEvaluation, Project } from "@aim-ai/contract";
 
 export type DashboardStatus = "processing" | "resolved" | "rejected";
 
@@ -7,6 +7,7 @@ export type DashboardTask = {
   title: string;
   taskSpec: string;
   result: string;
+  projectId: string;
   projectPath: string;
   contractStatus: string;
   dashboardStatus: DashboardStatus;
@@ -29,9 +30,9 @@ export type DashboardClosureCue = {
 };
 
 export type DashboardSummaryCard = {
-  key: "pool" | "processing" | "historyResolved" | "historyRejected";
+  key: "projects" | "dimensions" | "active" | "completed";
   label: string;
-  value: number;
+  value: string;
 };
 
 export type DashboardMetricItem = {
@@ -73,6 +74,7 @@ export type DashboardDimensionReportItem = {
 };
 
 export type TaskDashboardViewModel = {
+  projects: Project[];
   dimensionReports: DashboardDimensionReportItem[];
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];
