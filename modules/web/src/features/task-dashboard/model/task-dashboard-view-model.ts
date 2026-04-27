@@ -1,4 +1,9 @@
-import type { Dimension, DimensionEvaluation, Project } from "@aim-ai/contract";
+import type {
+  Dimension,
+  DimensionEvaluation,
+  Project,
+  ProjectOptimizerStatusResponse,
+} from "@aim-ai/contract";
 
 export type DashboardStatus = "processing" | "resolved" | "rejected";
 
@@ -75,6 +80,7 @@ export type DashboardDimensionReportItem = {
 
 export type TaskDashboardViewModel = {
   projects: Project[];
+  projectOptimizerStatuses: Record<string, ProjectOptimizerStatusResponse>;
   dimensionReports: DashboardDimensionReportItem[];
   tasks: DashboardTask[];
   historyTasks: DashboardTask[];

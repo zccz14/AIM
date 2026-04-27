@@ -40,6 +40,9 @@ import type {
   GetHealthData,
   GetHealthErrors,
   GetHealthResponses,
+  GetProjectOptimizerStatusData,
+  GetProjectOptimizerStatusErrors,
+  GetProjectOptimizerStatusResponses,
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
@@ -198,6 +201,18 @@ export const patchProjectById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Read project optimizer runtime status
+ */
+export const getProjectOptimizerStatus = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectOptimizerStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectOptimizerStatusResponses,
+    GetProjectOptimizerStatusErrors,
+    ThrowOnError
+  >({ url: "/projects/{projectId}/optimizer/status", ...options });
 
 /**
  * List tasks

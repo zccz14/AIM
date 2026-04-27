@@ -6,6 +6,7 @@ import {
   deleteProjectById,
   deleteTaskById,
   getHealth,
+  getProjectOptimizerStatus,
   getTaskById,
   listOpenCodeModels,
   listProjects,
@@ -30,6 +31,8 @@ import type {
   ErrorResponse,
   GetHealthError,
   GetHealthResponse,
+  GetProjectOptimizerStatusError,
+  GetProjectOptimizerStatusResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
   HealthError,
@@ -45,6 +48,7 @@ import type {
   PatchTaskRequest,
   Project,
   ProjectListResponse,
+  ProjectOptimizerStatusResponse,
   RejectTaskByIdError,
   ResolveTaskByIdError,
   Task,
@@ -92,6 +96,9 @@ export type ContractClient = {
     projectId: string,
     input: PatchProjectRequest,
   ): Promise<Project>;
+  getProjectOptimizerStatus(
+    projectId: string,
+  ): Promise<ProjectOptimizerStatusResponse>;
   deleteProjectById(projectId: string): Promise<void>;
   createTaskBatch(input: CreateTaskBatchRequest): Promise<TaskBatchResponse>;
   createTask(input: CreateTaskRequest): Promise<Task>;
@@ -108,6 +115,8 @@ const healthResponseSchema = schemas.HealthResponse;
 const healthErrorSchema = schemas.HealthError;
 const projectSchema = schemas.Project;
 const projectListResponseSchema = schemas.ProjectListResponse;
+const projectOptimizerStatusResponseSchema =
+  schemas.ProjectOptimizerStatusResponse;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskBatchResponseSchema = schemas.TaskBatchResponse;
@@ -283,6 +292,31 @@ export const createContractClient = ({
       return projectSchema.parse(
         result.data satisfies PatchProjectByIdResponse,
       ) satisfies Project;
+    },
+
+    async getProjectOptimizerStatus(projectId) {
+      const result = await getProjectOptimizerStatus({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies GetProjectOptimizerStatusError,
+          ),
+        );
+      }
+
+      return projectOptimizerStatusResponseSchema.parse(
+        result.data satisfies GetProjectOptimizerStatusResponse,
+      ) satisfies ProjectOptimizerStatusResponse;
     },
 
     async deleteProjectById(projectId) {

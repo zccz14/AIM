@@ -332,6 +332,8 @@ describe("contract package baseline", () => {
       "patchTaskRequestSchema",
       "projectByIdPath",
       "projectListResponseSchema",
+      "projectOptimizerStatusPath",
+      "projectOptimizerStatusResponseSchema",
       "projectSchema",
       "projectsPath",
       "taskBatchOperationResultSchema",
@@ -399,6 +401,11 @@ describe("contract package baseline", () => {
       contractModule.openApiDocument.paths[contractModule.projectByIdPath],
     ).toBeDefined();
     expect(
+      contractModule.openApiDocument.paths[
+        contractModule.projectOptimizerStatusPath
+      ],
+    ).toBeDefined();
+    expect(
       contractModule.openApiDocument.paths[contractModule.tasksPath],
     ).toBeDefined();
     expect(
@@ -458,6 +465,39 @@ describe("contract package baseline", () => {
     ).toEqual({
       code: "UNAVAILABLE",
       message: "offline",
+    });
+  });
+
+  it("exports the project-scoped optimizer status contract", () => {
+    expect(contractModule.projectOptimizerStatusPath).toBe(
+      "/projects/{projectId}/optimizer/status",
+    );
+    expect(
+      contractModule.projectOptimizerStatusResponseSchema.parse({
+        project_id: mainProjectId,
+        optimizer_enabled: true,
+        runtime_active: true,
+        enabled_triggers: ["task_resolved"],
+        recent_event: {
+          task_id: "task-1",
+          triggered_scan: true,
+          type: "task_resolved",
+        },
+        recent_scan_at: "2026-04-27T10:00:00.000Z",
+        blocker_summary: null,
+      }),
+    ).toEqual({
+      project_id: mainProjectId,
+      optimizer_enabled: true,
+      runtime_active: true,
+      enabled_triggers: ["task_resolved"],
+      recent_event: {
+        task_id: "task-1",
+        triggered_scan: true,
+        type: "task_resolved",
+      },
+      recent_scan_at: "2026-04-27T10:00:00.000Z",
+      blocker_summary: null,
     });
   });
 

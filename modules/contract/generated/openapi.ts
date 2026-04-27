@@ -226,6 +226,39 @@ export const openApiDocument = {
         },
       },
     },
+    "/projects/{projectId}/optimizer/status": {
+      get: {
+        operationId: "getProjectOptimizerStatus",
+        summary: "Read project optimizer runtime status",
+        parameters: [
+          {
+            $ref: "#/components/parameters/ProjectIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Project optimizer runtime status",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ProjectOptimizerStatusResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Project not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/tasks": {
       post: {
         operationId: "createTask",
@@ -1217,6 +1250,79 @@ export const openApiDocument = {
             items: {
               $ref: "#/components/schemas/Project",
             },
+          },
+        },
+      },
+      OptimizerTriggerSource: {
+        type: "string",
+        enum: ["task_resolved"],
+      },
+      ProjectOptimizerRecentEvent: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_id", "triggered_scan", "type"],
+        properties: {
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+          triggered_scan: {
+            type: "boolean",
+          },
+          type: {
+            $ref: "#/components/schemas/OptimizerTriggerSource",
+          },
+        },
+      },
+      ProjectOptimizerStatusResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "project_id",
+          "optimizer_enabled",
+          "runtime_active",
+          "enabled_triggers",
+          "recent_event",
+          "recent_scan_at",
+          "blocker_summary",
+        ],
+        properties: {
+          project_id: {
+            type: "string",
+            format: "uuid",
+          },
+          optimizer_enabled: {
+            type: "boolean",
+            description: "Persisted project configuration flag.",
+          },
+          runtime_active: {
+            type: "boolean",
+            description:
+              "True only when project config is enabled and the optimizer runtime is running.",
+          },
+          enabled_triggers: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/OptimizerTriggerSource",
+            },
+          },
+          recent_event: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/ProjectOptimizerRecentEvent",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          recent_scan_at: {
+            type: ["string", "null"],
+            format: "date-time",
+          },
+          blocker_summary: {
+            type: ["string", "null"],
+            minLength: 1,
           },
         },
       },

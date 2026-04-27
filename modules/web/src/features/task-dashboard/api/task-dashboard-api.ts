@@ -4,6 +4,7 @@ import type {
   OpenCodeModelsResponse,
   Project,
   ProjectListResponse,
+  ProjectOptimizerStatusResponse,
   TaskListResponse,
 } from "@aim-ai/contract";
 
@@ -22,6 +23,7 @@ export type TaskDashboardResponse = {
   dimensionEvaluations: DimensionEvaluation[];
   dimensions: Dimension[];
   history: TaskListResponse;
+  projectOptimizerStatuses: Record<string, ProjectOptimizerStatusResponse>;
   projects: ProjectListResponse;
 };
 
@@ -56,12 +58,25 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const dimensionEvaluations = dimensionEvaluationResponses.flatMap(
     (response) => response.items,
   );
+  const projectOptimizerStatusResults = await Promise.allSettled(
+    projects.items.map((project) =>
+      client.getProjectOptimizerStatus(project.id),
+    ),
+  );
+  const projectOptimizerStatuses = Object.fromEntries(
+    projectOptimizerStatusResults.flatMap((result) =>
+      result.status === "fulfilled"
+        ? [[result.value.project_id, result.value]]
+        : [],
+    ),
+  );
 
   return {
     active,
     dimensionEvaluations,
     dimensions,
     history,
+    projectOptimizerStatuses,
     projects,
   };
 };
