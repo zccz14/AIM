@@ -37,7 +37,7 @@ describe("optimizer routes", () => {
         .mockReturnValueOnce(createStatus(false)),
       handleEvent: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
+      disable: vi.fn().mockResolvedValue(undefined),
     };
     const app = createApp({ optimizerRuntime });
 
@@ -59,6 +59,7 @@ describe("optimizer routes", () => {
 
     expect(stopResponse.status).toBe(200);
     await expect(stopResponse.json()).resolves.toEqual(createStatus(false));
-    expect(optimizerRuntime.stop).toHaveBeenCalledTimes(1);
+    expect(optimizerRuntime.disable).toHaveBeenCalledTimes(1);
+    expect("stop" in optimizerRuntime).toBe(false);
   });
 });

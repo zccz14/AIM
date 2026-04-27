@@ -3,21 +3,62 @@ import { describe, expect, it, vi } from "vitest";
 import { createOptimizerRuntime } from "../src/optimizer-runtime.js";
 
 describe("optimizer runtime", () => {
-  it("starts and stops three optimizer lanes while exposing per-lane status", async () => {
+  it("does not expose public lifecycle stop or dispose methods", () => {
+    const runtime = createOptimizerRuntime({ intervalMs: 5_000, lanes: [] });
+
+    expect("stop" in runtime).toBe(false);
+    expect("dispose" in runtime).toBe(false);
+    expect(runtime[Symbol.asyncDispose]).toEqual(expect.any(Function));
+  });
+
+  it("cleans up async-disposable optimizer lanes without requiring lane stop methods", async () => {
+    const disposeOrder: string[] = [];
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        disposeOrder.push("manager_evaluation");
+      }),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
-    const coordinatorLane = {
-      scanOnce: vi.fn().mockResolvedValue(undefined),
-      start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const developerLane = {
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        disposeOrder.push("developer_follow_up");
+      }),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const runtime = createOptimizerRuntime({
+      intervalMs: 5_000,
+      lanes: [
+        { lane: managerLane, name: "manager_evaluation" },
+        { lane: developerLane, name: "developer_follow_up" },
+      ],
+    });
+
+    runtime.start();
+    await runtime[Symbol.asyncDispose]();
+
+    expect(disposeOrder).toEqual(["developer_follow_up", "manager_evaluation"]);
+    expect(runtime.getStatus()).toMatchObject({ running: false });
+    expect(managerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(developerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("starts and disables three optimizer lanes while exposing per-lane status", async () => {
+    const managerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+    };
+    const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
+    };
+    const developerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn().mockResolvedValue(undefined),
+      start: vi.fn(),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,
@@ -51,11 +92,11 @@ describe("optimizer runtime", () => {
       running: true,
     });
 
-    await runtime.stop();
+    await runtime.disable();
 
-    expect(managerLane.stop).toHaveBeenCalledOnce();
-    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
-    expect(developerLane.stop).toHaveBeenCalledOnce();
+    expect(managerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(developerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(runtime.getStatus()).toMatchObject({
       lanes: {
         coordinator_task_pool: { running: false },
@@ -73,16 +114,16 @@ describe("optimizer runtime", () => {
       warn: vi.fn(),
     };
     const failingLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(() => {
         throw new Error("manager unavailable");
       }),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const healthyLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,
@@ -115,11 +156,11 @@ describe("optimizer runtime", () => {
     );
   });
 
-  it("starts and stops the scheduler idempotently while exposing running status", async () => {
+  it("starts and disables the scheduler idempotently while exposing running status", async () => {
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,
@@ -145,35 +186,35 @@ describe("optimizer runtime", () => {
     expect(scheduler.start).toHaveBeenCalledOnce();
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
 
-    await runtime.stop();
-    await runtime.stop();
+    await runtime.disable();
+    await runtime.disable();
 
     expect(runtime.getStatus()).toMatchObject({ running: false });
-    expect(scheduler.stop).toHaveBeenCalledOnce();
+    expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("supports await using cleanup for optimizer lanes in reverse registration order", async () => {
-    const stopOrder: string[] = [];
+    const disposeOrder: string[] = [];
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockImplementation(async () => {
+        disposeOrder.push("manager_evaluation");
+      }),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockImplementation(async () => {
-        stopOrder.push("manager_evaluation");
-      }),
     };
     const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockImplementation(async () => {
+        disposeOrder.push("coordinator_task_pool");
+      }),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockImplementation(async () => {
-        stopOrder.push("coordinator_task_pool");
-      }),
     };
     const developerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockImplementation(async () => {
+        disposeOrder.push("developer_follow_up");
+      }),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockImplementation(async () => {
-        stopOrder.push("developer_follow_up");
-      }),
     };
 
     await (async () => {
@@ -190,21 +231,21 @@ describe("optimizer runtime", () => {
       expect(runtime.getStatus()).toMatchObject({ running: true });
     })();
 
-    expect(stopOrder).toEqual([
+    expect(disposeOrder).toEqual([
       "developer_follow_up",
       "coordinator_task_pool",
       "manager_evaluation",
     ]);
-    expect(managerLane.stop).toHaveBeenCalledOnce();
-    expect(coordinatorLane.stop).toHaveBeenCalledOnce();
-    expect(developerLane.stop).toHaveBeenCalledOnce();
+    expect(managerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(developerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("keeps optimizer async disposal idempotent", async () => {
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,
@@ -219,7 +260,7 @@ describe("optimizer runtime", () => {
     })();
 
     expect(runtime.getStatus()).toMatchObject({ running: false });
-    expect(scheduler.stop).toHaveBeenCalledOnce();
+    expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("records task-resolved events but only advances scheduler scans while running", async () => {
@@ -227,9 +268,9 @@ describe("optimizer runtime", () => {
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
 
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,
@@ -268,7 +309,7 @@ describe("optimizer runtime", () => {
       running: true,
     });
 
-    await runtime.stop();
+    await runtime.disable();
     await runtime.handleEvent({ taskId: "task-3", type: "task_resolved" });
 
     expect(scheduler.scanOnce).toHaveBeenCalledOnce();
@@ -291,9 +332,9 @@ describe("optimizer runtime", () => {
       warn: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn().mockRejectedValue(new Error("developer lane offline")),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const runtime = createOptimizerRuntime({
       intervalMs: 5_000,

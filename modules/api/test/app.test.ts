@@ -81,8 +81,9 @@ describe("app wiring", () => {
   it("passes the optimizer runtime through to optimizer routes", async () => {
     const optimizerRuntime = {
       getStatus: vi.fn().mockReturnValue({ running: false }),
+      handleEvent: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
+      disable: vi.fn().mockResolvedValue(undefined),
     };
 
     const { createApp } = await import("../src/app.js");

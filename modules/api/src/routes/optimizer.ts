@@ -24,7 +24,7 @@ export const registerOptimizerRoutes = (
   });
 
   app.post(optimizerStopPath, async (context) => {
-    await runtime.stop();
+    await runtime.disable();
 
     return context.json(statusPayload(), 200);
   });

@@ -102,6 +102,13 @@ export const createAgentSessionLane = (
       });
   };
 
+  const shutdown = () => {
+    stopRequested = true;
+    wakeSleepingLoop?.();
+
+    return loopPromise ?? Promise.resolve();
+  };
+
   return {
     getStatus() {
       return {
@@ -141,14 +148,8 @@ export const createAgentSessionLane = (
         loopPromise = null;
       });
     },
-    stop() {
-      stopRequested = true;
-      wakeSleepingLoop?.();
-
-      return loopPromise ?? Promise.resolve();
-    },
     async [Symbol.asyncDispose]() {
-      await this.stop();
+      await shutdown();
     },
   };
 };

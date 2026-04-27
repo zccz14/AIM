@@ -656,8 +656,22 @@ describe("task scheduler", () => {
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
 
-    await scheduler.stop();
+    await scheduler[Symbol.asyncDispose]();
     vi.useRealTimers();
+  });
+
+  it("does not expose a public stop lifecycle method", () => {
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    expect("stop" in scheduler).toBe(false);
+    expect("dispose" in scheduler).toBe(false);
+    expect(scheduler[Symbol.asyncDispose]).toEqual(expect.any(Function));
   });
 
   it("does not create a second loop while a started scan is still in flight", async () => {
@@ -687,11 +701,11 @@ describe("task scheduler", () => {
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
 
     resolveList?.();
-    await scheduler.stop();
+    await scheduler[Symbol.asyncDispose]();
     vi.useRealTimers();
   });
 
-  it("waits for an in-flight scan to finish before stop resolves", async () => {
+  it("waits for an in-flight scan to finish before async disposal resolves", async () => {
     vi.useFakeTimers();
     const task = createTask({ session_id: "session-1" });
     let resolveList: (() => void) | undefined;
@@ -714,7 +728,7 @@ describe("task scheduler", () => {
     scheduler.start({ intervalMs: 1_000 });
 
     let stopped = false;
-    const stopPromise = scheduler.stop().then(() => {
+    const stopPromise = scheduler[Symbol.asyncDispose]().then(() => {
       stopped = true;
     });
 
@@ -743,7 +757,7 @@ describe("task scheduler", () => {
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
 
-    await scheduler.stop();
+    await scheduler[Symbol.asyncDispose]();
     await vi.advanceTimersByTimeAsync(5_000);
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(1);
@@ -783,7 +797,7 @@ describe("task scheduler", () => {
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
     expect(logger.info).not.toHaveBeenCalled();
-    await scheduler.stop();
+    await scheduler[Symbol.asyncDispose]();
     vi.useRealTimers();
   });
 

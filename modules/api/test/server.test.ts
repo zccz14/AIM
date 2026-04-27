@@ -72,9 +72,9 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -84,9 +84,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -109,9 +109,9 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -121,9 +121,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -141,8 +141,8 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -152,9 +152,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -175,8 +175,8 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApiLogger.mockReturnValue(logger);
@@ -187,9 +187,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -205,7 +205,7 @@ describe("server startup", () => {
           getStatus: expect.any(Function),
           handleEvent: expect.any(Function),
           start: expect.any(Function),
-          stop: expect.any(Function),
+          disable: expect.any(Function),
         }),
       }),
     );
@@ -225,19 +225,19 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
     const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApiLogger.mockReturnValue(logger);
@@ -263,7 +263,7 @@ describe("server startup", () => {
           getStatus: expect.any(Function),
           handleEvent: expect.any(Function),
           start: expect.any(Function),
-          stop: expect.any(Function),
+          disable: expect.any(Function),
         }),
       }),
     );
@@ -278,9 +278,9 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -290,9 +290,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -317,9 +317,9 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -329,9 +329,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -392,19 +392,19 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -424,9 +424,9 @@ describe("server startup", () => {
     })();
 
     expect(close).toHaveBeenCalledOnce();
-    expect(managerLane.stop).not.toHaveBeenCalled();
-    expect(coordinatorLane.stop).not.toHaveBeenCalled();
-    expect(scheduler.stop).not.toHaveBeenCalled();
+    expect(managerLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(coordinatorLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(scheduler[Symbol.asyncDispose]).not.toHaveBeenCalled();
   });
 
   it("disposes the app resource during await using server cleanup", async () => {
@@ -442,9 +442,9 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
 
     mockCreateApp.mockReturnValue(app);
@@ -454,9 +454,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     });
 
     const { startServer } = await import("../src/server.js");
@@ -468,7 +468,7 @@ describe("server startup", () => {
     expect(app[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("releases server-owned resources after closing traffic and stopping optimizer lanes", async () => {
+  it("releases server-owned resources after closing traffic without disabling optimizer lanes twice", async () => {
     const cleanupOrder: string[] = [];
     const close = vi.fn((callback?: () => void) => {
       cleanupOrder.push("server:close");
@@ -485,25 +485,25 @@ describe("server startup", () => {
       }),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        cleanupOrder.push("scheduler:dispose");
+      }),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(async () => {
-        cleanupOrder.push("scheduler:stop");
-      }),
     };
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        cleanupOrder.push("manager:dispose");
+      }),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(async () => {
-        cleanupOrder.push("manager:stop");
-      }),
     };
     const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn(async () => {
+        cleanupOrder.push("coordinator:dispose");
+      }),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(async () => {
-        cleanupOrder.push("coordinator:stop");
-      }),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -550,19 +550,19 @@ describe("server startup", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const managerLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
     const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -582,9 +582,9 @@ describe("server startup", () => {
     await runtime[Symbol.asyncDispose]();
 
     expect(close).toHaveBeenCalledOnce();
-    expect(scheduler.stop).not.toHaveBeenCalled();
-    expect(managerLane.stop).not.toHaveBeenCalled();
-    expect(coordinatorLane.stop).not.toHaveBeenCalled();
+    expect(scheduler[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(managerLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(coordinatorLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
@@ -602,9 +602,9 @@ describe("server startup", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     };
 
     mockCreateApp.mockReturnValue({ fetch: vi.fn() });
@@ -614,9 +614,9 @@ describe("server startup", () => {
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn().mockResolvedValue(undefined),
     });
 
     const { startServer } = await import("../src/server.js");
