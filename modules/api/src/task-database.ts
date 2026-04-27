@@ -17,7 +17,11 @@ export const openTaskDatabase = (projectRoot?: string) => {
 
   mkdirSync(resolvedProjectRoot, { recursive: true });
 
-  return new DatabaseSync(databasePath);
+  const database = new DatabaseSync(databasePath);
+
+  database.exec("PRAGMA foreign_keys = ON");
+
+  return database;
 };
 
 export const createTaskDatabaseAsyncDispose = (

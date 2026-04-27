@@ -206,7 +206,7 @@ describe("task repository", () => {
       .get("project-main");
     const persistedTask = database
       .prepare(
-        "SELECT project_id, project_path, developer_provider_id, developer_model_id FROM tasks WHERE project_id = ?",
+        "SELECT project_id, developer_provider_id, developer_model_id FROM tasks WHERE project_id = ?",
       )
       .get("project-main");
     database.close();
@@ -236,8 +236,68 @@ describe("task repository", () => {
       developer_model_id: "claude-sonnet-4-5",
       developer_provider_id: "anthropic",
       project_id: "project-main",
+    });
+  });
+
+  it("persists task project identity as a project_id foreign key and resolves project_path from projects", async () => {
+    const projectRoot = await createProjectRoot("task-project-id-foreign-key");
+    const repository = createTaskRepository({ projectRoot });
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare(
+        `INSERT INTO projects (
+          id,
+          name,
+          project_path,
+          global_provider_id,
+          global_model_id,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "project-main",
+        "Main project",
+        "/repo/project-main",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+
+    const task = await repository.createTask({
+      project_id: "project-main",
+      status: "processing",
+      task_spec: "store only the project identity on the task row",
+      title: "Project scoped task",
+    });
+    const taskColumns = database.prepare("PRAGMA table_info(tasks)").all();
+    const taskForeignKeys = database
+      .prepare("PRAGMA foreign_key_list(tasks)")
+      .all();
+    const persistedTask = database
+      .prepare("SELECT project_id FROM tasks WHERE task_id = ?")
+      .get(task.task_id);
+    database.close();
+
+    expect(task).toMatchObject({
+      project_id: "project-main",
       project_path: "/repo/project-main",
     });
+    expect(
+      taskColumns.map((column) => (column as TableInfoRow).name),
+    ).not.toContain("project_path");
+    expect(taskForeignKeys).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "project_id",
+          table: "projects",
+          to: "id",
+        }),
+      ]),
+    );
+    expect(persistedTask).toEqual({ project_id: "project-main" });
   });
 
   it("creates and persists required task title and developer model columns", async () => {
@@ -863,7 +923,7 @@ describe("task repository", () => {
     );
   });
 
-  it("rejects a broader partial session index predicate", async () => {
+  it("rebuilds a legacy project_path task table with a broader session index predicate", async () => {
     const projectRoot = await createProjectRoot(
       "rejects-broader-session-index-predicate",
     );
@@ -898,9 +958,9 @@ describe("task repository", () => {
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
-    expect(() => createTaskRepository()).toThrowError(
-      /tasks schema is incompatible/i,
-    );
+    const repository = createTaskRepository();
+
+    await expect(repository.listTasks()).resolves.toEqual([]);
   });
 
   it("creates a partial unique index for unfinished non-null sessions", async () => {

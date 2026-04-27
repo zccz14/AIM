@@ -22,6 +22,7 @@ type DimensionRow = {
   goal: string;
   id: string;
   name: string;
+  project_id: string;
   project_path: string;
   updated_at: string;
 };
@@ -33,6 +34,7 @@ type DimensionEvaluationRow = {
   evaluation: string;
   evaluator_model: string;
   id: string;
+  project_id: string;
   project_path: string;
   score: number;
 };
@@ -50,10 +52,11 @@ type DimensionRepositoryOptions = {
 
 const dimensionsTableName = "dimensions";
 const dimensionEvaluationsTableName = "dimension_evaluations";
+const projectsTableName = "projects";
 
 const dimensionColumns = [
   { name: "id", notnull: 1, pk: 1, type: "TEXT" },
-  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "project_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "name", notnull: 1, pk: 0, type: "TEXT" },
   { name: "goal", notnull: 1, pk: 0, type: "TEXT" },
   { name: "evaluation_method", notnull: 1, pk: 0, type: "TEXT" },
@@ -64,7 +67,7 @@ const dimensionColumns = [
 const dimensionEvaluationColumns = [
   { name: "id", notnull: 1, pk: 1, type: "TEXT" },
   { name: "dimension_id", notnull: 1, pk: 0, type: "TEXT" },
-  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "project_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "commit_sha", notnull: 1, pk: 0, type: "TEXT" },
   { name: "evaluator_model", notnull: 1, pk: 0, type: "TEXT" },
   { name: "score", notnull: 1, pk: 0, type: "INTEGER" },
@@ -184,7 +187,7 @@ export const createDimensionRepository = (
   const insertDimensionStatement = database.prepare(`
     INSERT INTO ${dimensionsTableName} (
       id,
-      project_path,
+      project_id,
       name,
       goal,
       evaluation_method,
@@ -193,15 +196,17 @@ export const createDimensionRepository = (
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const getDimensionStatement = database.prepare(`
-    SELECT id, project_path, name, goal, evaluation_method, created_at, updated_at
-    FROM ${dimensionsTableName}
-    WHERE id = ?
+    SELECT dimensions.id, dimensions.project_id, projects.project_path AS project_path, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
+    FROM ${dimensionsTableName} AS dimensions
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = dimensions.project_id
+    WHERE dimensions.id = ?
   `);
   const listDimensionsStatement = database.prepare(`
-    SELECT id, project_path, name, goal, evaluation_method, created_at, updated_at
-    FROM ${dimensionsTableName}
-    WHERE project_path = ?
-    ORDER BY created_at ASC, rowid ASC
+    SELECT dimensions.id, dimensions.project_id, projects.project_path AS project_path, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
+    FROM ${dimensionsTableName} AS dimensions
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = dimensions.project_id
+    WHERE projects.project_path = ?
+    ORDER BY dimensions.created_at ASC, dimensions.rowid ASC
   `);
   const patchDimensionStatement = database.prepare(`
     UPDATE ${dimensionsTableName}
@@ -216,7 +221,7 @@ export const createDimensionRepository = (
     INSERT INTO ${dimensionEvaluationsTableName} (
       id,
       dimension_id,
-      project_path,
+      project_id,
       commit_sha,
       evaluator_model,
       score,
@@ -225,16 +230,29 @@ export const createDimensionRepository = (
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const listDimensionEvaluationsStatement = database.prepare(`
-    SELECT id, dimension_id, project_path, commit_sha, evaluator_model, score, evaluation, created_at
-    FROM ${dimensionEvaluationsTableName}
-    WHERE dimension_id = ?
-    ORDER BY created_at ASC, rowid ASC
+    SELECT evaluations.id, evaluations.dimension_id, evaluations.project_id, projects.project_path AS project_path, evaluations.commit_sha, evaluations.evaluator_model, evaluations.score, evaluations.evaluation, evaluations.created_at
+    FROM ${dimensionEvaluationsTableName} AS evaluations
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = evaluations.project_id
+    WHERE evaluations.dimension_id = ?
+    ORDER BY evaluations.created_at ASC, evaluations.rowid ASC
+  `);
+  const ensureProjectStatement = database.prepare(`
+    INSERT OR IGNORE INTO ${projectsTableName} (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
+    VALUES (?, ?, ?, '', '', ?, ?)
   `);
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
     createDimension(input: CreateDimensionRequest): Promise<Dimension> {
       const timestamp = new Date().toISOString();
+      const projectId = input.project_path;
+      ensureProjectStatement.run(
+        projectId,
+        projectId,
+        input.project_path,
+        timestamp,
+        timestamp,
+      );
       const dimension = dimensionSchema.parse({
         id: randomUUID(),
         project_path: input.project_path,
@@ -247,7 +265,7 @@ export const createDimensionRepository = (
 
       insertDimensionStatement.run(
         dimension.id,
-        dimension.project_path,
+        projectId,
         dimension.name,
         dimension.goal,
         dimension.evaluation_method,
@@ -327,7 +345,7 @@ export const createDimensionRepository = (
       insertDimensionEvaluationStatement.run(
         dimensionEvaluation.id,
         dimensionEvaluation.dimension_id,
-        dimensionEvaluation.project_path,
+        dimension.project_id,
         dimensionEvaluation.commit_sha,
         dimensionEvaluation.evaluator_model,
         dimensionEvaluation.score,

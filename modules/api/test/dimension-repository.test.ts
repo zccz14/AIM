@@ -68,7 +68,7 @@ describe("dimension repository", () => {
 
     expect(dimensionColumns.map((column) => column.name)).toEqual([
       "id",
-      "project_path",
+      "project_id",
       "name",
       "goal",
       "evaluation_method",
@@ -78,7 +78,7 @@ describe("dimension repository", () => {
     expect(evaluationColumns.map((column) => column.name)).toEqual([
       "id",
       "dimension_id",
-      "project_path",
+      "project_id",
       "commit_sha",
       "evaluator_model",
       "score",
