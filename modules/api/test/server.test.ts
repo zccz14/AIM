@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockServe = vi.fn();
 const mockCreateApp = vi.fn();
 const mockCreateApiLogger = vi.fn();
+const mockCreateDimensionRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
@@ -56,6 +57,11 @@ const createRepositoryMock = (projects = [configuredProject]) => ({
   listProjects: () => projects,
 });
 
+const createDimensionRepositoryMock = () => ({
+  [Symbol.asyncDispose]: vi.fn(),
+  listUnevaluatedDimensionIds: vi.fn(),
+});
+
 vi.mock("../src/agent-session-coordinator.js", () => ({
   createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
 }));
@@ -76,6 +82,10 @@ vi.mock("../src/logger.js", () => ({
   createApiLogger: mockCreateApiLogger,
 }));
 
+vi.mock("../src/dimension-repository.js", () => ({
+  createDimensionRepository: mockCreateDimensionRepository,
+}));
+
 vi.mock("../src/task-repository.js", () => ({
   createTaskRepository: mockCreateTaskRepository,
 }));
@@ -93,12 +103,18 @@ vi.mock("../src/project-workspace.js", () => ({
 }));
 
 describe("server startup", () => {
+  beforeEach(() => {
+    mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
+    mockCreateDimensionRepository.mockReturnValue(
+      createDimensionRepositoryMock(),
+    );
+  });
+
   afterEach(() => {
     delete process.env.OPENCODE_BASE_URL;
     delete process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS;
     vi.resetModules();
     vi.clearAllMocks();
-    mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
   });
 
   it("uses the standard async disposable stack for api resource ownership", async () => {

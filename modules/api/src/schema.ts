@@ -22,6 +22,9 @@ const execSchemaStatements = (
   }
 };
 
+const dimensionEvaluationUniqueIndexName =
+  "dimension_evaluations_project_commit_dimension_unique";
+
 type TableInfoRow = { name: string };
 
 type ProjectIdentityRow = {
@@ -70,6 +73,35 @@ const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
       .prepare("UPDATE projects SET id = ? WHERE id = ?")
       .run(nextProjectId, project.id);
   }
+};
+
+const deleteDuplicateDimensionEvaluations = (database: DatabaseSync) => {
+  const columns = tableColumns(database, "dimension_evaluations");
+
+  if (
+    !columns.has("project_id") ||
+    !columns.has("commit_sha") ||
+    !columns.has("dimension_id")
+  ) {
+    return;
+  }
+
+  database.exec(`
+    DELETE FROM dimension_evaluations
+    WHERE rowid NOT IN (
+      SELECT MIN(rowid)
+      FROM dimension_evaluations
+      GROUP BY project_id, commit_sha, dimension_id
+    )
+  `);
+};
+
+const applyDimensionEvaluationUniqueIndex = (database: DatabaseSync) => {
+  deleteDuplicateDimensionEvaluations(database);
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ${dimensionEvaluationUniqueIndexName}
+    ON dimension_evaluations (project_id, commit_sha, dimension_id)
+  `);
 };
 
 export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
@@ -227,8 +259,12 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
 };
 
 export const applySqliteSchema = (database: DatabaseSync) => {
-  execSchemaStatements(database, () => true);
+  execSchemaStatements(
+    database,
+    (statement) => !statement.includes(dimensionEvaluationUniqueIndexName),
+  );
   migrateSqliteProjectPathSchema(database);
+  applyDimensionEvaluationUniqueIndex(database);
 };
 
 export const applySqliteTableSchema = (database: DatabaseSync) => {
@@ -240,7 +276,11 @@ export const applySqliteTableSchema = (database: DatabaseSync) => {
 
 export const applySqliteIndexSchema = (database: DatabaseSync) => {
   database.exec("DROP INDEX IF EXISTS tasks_unfinished_session_id_unique;");
-  execSchemaStatements(database, (statement) =>
-    /^CREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(statement),
+  execSchemaStatements(
+    database,
+    (statement) =>
+      /^CREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(statement) &&
+      !statement.includes(dimensionEvaluationUniqueIndexName),
   );
+  applyDimensionEvaluationUniqueIndex(database);
 };

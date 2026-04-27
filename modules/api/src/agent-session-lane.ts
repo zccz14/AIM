@@ -7,7 +7,18 @@ type CreateAgentSessionLaneOptions = {
   laneName: Exclude<OptimizerLaneName, "developer_follow_up">;
   logger?: ApiLogger;
   modelId: string;
+  prepareScanInput?: (
+    input: AgentSessionLaneInput,
+  ) => Promise<AgentSessionLaneInput | null>;
   projectDirectory: string | (() => Promise<string>);
+  prompt: string;
+  providerId: string;
+  title: string;
+};
+
+export type AgentSessionLaneInput = {
+  modelId: string;
+  projectDirectory: string;
   prompt: string;
   providerId: string;
   title: string;
@@ -41,7 +52,7 @@ export const createAgentSessionLane = (
       ? options.projectDirectory()
       : Promise.resolve(options.projectDirectory);
 
-  const input = (projectDirectory: string) => ({
+  const input = (projectDirectory: string): AgentSessionLaneInput => ({
     modelId: options.modelId,
     projectDirectory,
     prompt: options.prompt,
@@ -92,10 +103,26 @@ export const createAgentSessionLane = (
         "Optimizer lane scan started",
       );
 
-      if (!sessionId) {
-        session = await options.coordinator.createSession(
-          input(projectDirectory),
+      const scanInput = await (options.prepareScanInput?.(
+        input(projectDirectory),
+      ) ?? Promise.resolve(input(projectDirectory)));
+
+      if (!scanInput) {
+        options.logger?.info(
+          {
+            event: "optimizer_lane_scan_skipped",
+            lane: options.laneName,
+            project_directory: projectDirectory,
+            reason: "no_scan_input",
+            session_id: sessionId,
+          },
+          "Optimizer lane scan skipped",
         );
+        return;
+      }
+
+      if (!sessionId) {
+        session = await options.coordinator.createSession(scanInput);
         sessionId = session.sessionId;
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
@@ -107,14 +134,11 @@ export const createAgentSessionLane = (
 
       const state = await options.coordinator.getSessionState(
         sessionId,
-        projectDirectory,
+        scanInput.projectDirectory,
       );
 
       if (state === "idle") {
-        await options.coordinator.sendPrompt(
-          sessionId,
-          input(projectDirectory),
-        );
+        await options.coordinator.sendPrompt(sessionId, scanInput);
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
           "Optimizer lane session continued",
