@@ -156,6 +156,40 @@ describe("optimizer runtime", () => {
     );
   });
 
+  it("aggregates duplicate project lane statuses under compatible lane names", () => {
+    const managerLaneA = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const managerLaneB = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn(),
+      start: vi.fn(() => {
+        throw new Error("project b unavailable");
+      }),
+    };
+    const runtime = createOptimizerRuntime({
+      intervalMs: 5_000,
+      lanes: [
+        { lane: managerLaneA, name: "manager_evaluation" },
+        { lane: managerLaneB, name: "manager_evaluation" },
+      ],
+    });
+
+    runtime.start();
+
+    expect(runtime.getStatus()).toMatchObject({
+      lanes: {
+        manager_evaluation: {
+          last_error: "project b unavailable",
+          running: true,
+        },
+      },
+      running: true,
+    });
+  });
+
   it("starts and disables the scheduler idempotently while exposing running status", async () => {
     const scheduler = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),

@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-
+import type { Project } from "@aim-ai/contract";
 import { serve } from "@hono/node-server";
 
 import { createAgentSessionCoordinator } from "./agent-session-coordinator.js";
@@ -49,6 +49,14 @@ const createMissingProjectLane = () => ({
     );
   },
 });
+const isConfiguredProject = (project: Project) =>
+  Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
+const createProjectScopedPrompt = (
+  prompt: string,
+  project: Project,
+) => `${prompt}
+
+Project scope: project_id "${project.id}". Only act on this configured Project and its workspace; do not infer or use an implicit first project.`;
 const parsedSessionIdleFallbackTimeoutMs = Number.parseInt(
   process.env.OPENCODE_SESSION_IDLE_FALLBACK_TIMEOUT_MS ?? "",
   10,
@@ -117,56 +125,67 @@ export const startServer = () => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(taskRepository);
-  const project = taskRepository.getFirstProject();
+  const configuredProjects = taskRepository
+    .listProjects()
+    .filter(isConfiguredProject);
   const scheduler = createTaskScheduler({
     coordinator: createTaskSessionCoordinator(coordinatorConfig),
     logger,
     taskRepository,
   });
   const agentCoordinator = createAgentSessionCoordinator(coordinatorConfig);
-  const configuredProject =
-    project?.global_provider_id.trim() && project.global_model_id.trim()
-      ? project
-      : null;
-  const managerLane = configuredProject
-    ? createAgentSessionLane({
-        coordinator: agentCoordinator,
-        laneName: "manager_evaluation",
-        logger,
-        modelId: configuredProject.global_model_id,
-        projectDirectory: () =>
-          ensureProjectWorkspace({
-            git_origin_url: configuredProject.git_origin_url,
-            project_id: configuredProject.id,
+  const managerLanes =
+    configuredProjects.length > 0
+      ? configuredProjects.map((project) =>
+          createAgentSessionLane({
+            coordinator: agentCoordinator,
+            laneName: "manager_evaluation",
+            logger,
+            modelId: project.global_model_id,
+            projectDirectory: () =>
+              ensureProjectWorkspace({
+                git_origin_url: project.git_origin_url,
+                project_id: project.id,
+              }),
+            prompt: createProjectScopedPrompt(managerPrompt, project),
+            providerId: project.global_provider_id,
+            title: `AIM Manager evaluation lane (${project.id})`,
           }),
-        prompt: managerPrompt,
-        providerId: configuredProject.global_provider_id,
-        title: "AIM Manager evaluation lane",
-      })
-    : createMissingProjectLane();
-  const coordinatorLane = configuredProject
-    ? createAgentSessionLane({
-        coordinator: agentCoordinator,
-        laneName: "coordinator_task_pool",
-        logger,
-        modelId: configuredProject.global_model_id,
-        projectDirectory: () =>
-          ensureProjectWorkspace({
-            git_origin_url: configuredProject.git_origin_url,
-            project_id: configuredProject.id,
+        )
+      : [createMissingProjectLane()];
+  const coordinatorLanes =
+    configuredProjects.length > 0
+      ? configuredProjects.map((project) =>
+          createAgentSessionLane({
+            coordinator: agentCoordinator,
+            laneName: "coordinator_task_pool",
+            logger,
+            modelId: project.global_model_id,
+            projectDirectory: () =>
+              ensureProjectWorkspace({
+                git_origin_url: project.git_origin_url,
+                project_id: project.id,
+              }),
+            prompt: createProjectScopedPrompt(coordinatorPrompt, project),
+            providerId: project.global_provider_id,
+            title: `AIM Coordinator task-pool lane (${project.id})`,
           }),
-        prompt: coordinatorPrompt,
-        providerId: configuredProject.global_provider_id,
-        title: "AIM Coordinator task-pool lane",
-      })
-    : createMissingProjectLane();
+        )
+      : [createMissingProjectLane()];
+  const optimizerLanes = [
+    ...managerLanes.map((lane) => ({
+      lane,
+      name: "manager_evaluation" as const,
+    })),
+    ...coordinatorLanes.map((lane) => ({
+      lane,
+      name: "coordinator_task_pool" as const,
+    })),
+    { lane: scheduler, name: "developer_follow_up" as const },
+  ];
   const optimizerRuntime = createOptimizerRuntime({
     intervalMs: schedulerIntervalMs,
-    lanes: [
-      { lane: managerLane, name: "manager_evaluation" },
-      { lane: coordinatorLane, name: "coordinator_task_pool" },
-      { lane: scheduler, name: "developer_follow_up" },
-    ],
+    lanes: optimizerLanes,
     logger,
   });
   scope.use(optimizerRuntime);
