@@ -18,6 +18,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "../../../components/ui/input-group.js";
+import { useI18n } from "../../../lib/i18n.js";
 import {
   readServerBaseUrl,
   saveServerBaseUrl,
@@ -29,17 +30,16 @@ export const ServerBaseUrlForm = ({
 }: {
   onSave?: () => Promise<unknown> | unknown;
 }) => {
+  const { t } = useI18n();
   const [value, setValue] = useState(() => readServerBaseUrl());
   const [savedValue, setSavedValue] = useState<string | null>(null);
 
   return (
     <Card>
       <CardHeader className={cardHeader}>
-        <p className={eyebrow}>Connection</p>
-        <CardTitle className={sectionTitle}>Server Base URL</CardTitle>
-        <CardDescription>
-          Point AIM Navigator at the API instance you want to inspect.
-        </CardDescription>
+        <p className={eyebrow}>{t("connection")}</p>
+        <CardTitle className={sectionTitle}>{t("serverBaseUrl")}</CardTitle>
+        <CardDescription>{t("pointAimNavigator")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Field>
@@ -61,12 +61,14 @@ export const ServerBaseUrlForm = ({
                 }}
                 variant="secondary"
               >
-                Save
+                {t("save")}
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
           {savedValue ? (
-            <FieldDescription>Saved: {savedValue}</FieldDescription>
+            <FieldDescription>
+              {t("saved")}: {savedValue}
+            </FieldDescription>
           ) : null}
         </Field>
       </CardContent>

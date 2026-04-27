@@ -11,6 +11,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "../../../components/ui/empty.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
 import {
   eyebrow,
@@ -23,25 +24,26 @@ import {
 
 const formatDateLabel = (value: string) => value.slice(0, 16).replace("T", " ");
 
-const scoreTrendChartConfig = {
-  score: {
-    label: "Score",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 export const DimensionDetailsPage = ({
   report,
 }: {
   report: DashboardDimensionReportItem | null;
 }) => {
+  const { t } = useI18n();
+  const scoreTrendChartConfig = {
+    score: {
+      label: t("score"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
   if (!report) {
     return (
       <Empty className="state-card border">
         <EmptyHeader>
-          <EmptyTitle>Dimension not found.</EmptyTitle>
+          <EmptyTitle>{t("dimensionNotFound")}</EmptyTitle>
           <EmptyDescription>
-            Return to the cockpit and select an available dimension report.
+            {t("dimensionUnavailableDescription")}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -51,38 +53,40 @@ export const DimensionDetailsPage = ({
   const scoreTrendData = report.evaluations.map((evaluation) => ({
     ...evaluation,
     date: formatDateLabel(evaluation.created_at),
-    scoreLabel: `Score ${evaluation.score}`,
+    scoreLabel: `${t("score")} ${evaluation.score}`,
   }));
 
   return (
     <section className={pageStack}>
       <div>
-        <p className={eyebrow}>Dimension Detail</p>
+        <p className={eyebrow}>{t("dimensionDetail")}</p>
         <h2 className={pageTitle}>{report.dimension.name}</h2>
       </div>
       <p className={sectionCopy}>{report.dimension.goal}</p>
-      <p className={tableMeta}>Method: {report.dimension.evaluation_method}</p>
+      <p className={tableMeta}>
+        {t("method")}: {report.dimension.evaluation_method}
+      </p>
 
       {report.evaluations.length === 0 ? (
         <Empty className="state-card border">
           <EmptyHeader>
-            <EmptyTitle>No dimension evaluation recorded yet.</EmptyTitle>
+            <EmptyTitle>{t("noDimensionEvaluation")}</EmptyTitle>
             <EmptyDescription>
-              The score trend will appear after AIM records evaluation evidence.
+              {t("dimensionEvaluationDescription")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <figure
-          aria-label={`${report.dimension.name} score trend`}
+          aria-label={`${report.dimension.name} ${t("dimensionScoreTrend")}`}
           className="m-0 grid gap-3 border bg-card p-4"
         >
           <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className={sectionTitle}>Score Trend</span>
-            <span className={tableMeta}>Time on X axis, score on Y axis</span>
+            <span className={sectionTitle}>{t("scoreTrend")}</span>
+            <span className={tableMeta}>{t("scoreTrendDescription")}</span>
           </figcaption>
           <p className="m-0 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Score
+            {t("score")}
           </p>
           <ChartContainer
             className="h-[260px] w-full"
@@ -90,7 +94,7 @@ export const DimensionDetailsPage = ({
           >
             <LineChart
               accessibilityLayer
-              aria-label={`${report.dimension.name} score trend chart`}
+              aria-label={`${report.dimension.name} ${t("dimensionScoreTrendChart")}`}
               data={scoreTrendData}
               margin={{ left: 8, right: 12 }}
             >
@@ -112,7 +116,7 @@ export const DimensionDetailsPage = ({
                 content={
                   <ChartTooltipContent
                     labelFormatter={(_, payload) =>
-                      payload[0]?.payload.date ?? "Evaluation"
+                      payload[0]?.payload.date ?? t("evaluationSignals")
                     }
                   />
                 }
@@ -127,7 +131,7 @@ export const DimensionDetailsPage = ({
             </LineChart>
           </ChartContainer>
           <p className="m-0 text-center text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Time
+            {t("time")}
           </p>
           <div className="grid gap-2 text-xs/relaxed text-muted-foreground">
             {scoreTrendData.map((evaluation) => (

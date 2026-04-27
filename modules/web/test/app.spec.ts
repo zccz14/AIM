@@ -219,7 +219,7 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(htmlSource).toContain('rel="icon"');
   expect(htmlSource).toContain('href="/favicon.svg"');
 
-  expect(appShellSource).toContain('alt="AIM icon"');
+  expect(appShellSource).toContain('alt={t("aimIcon")}');
   expect(appShellSource).toContain('src="/aim-icon.svg"');
   expect(appShellSource).toContain("AIM");
 
@@ -287,12 +287,12 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
 
   expect(dashboardPageSource).toContain("const handleRefresh = async () =>");
   expect(dashboardPageSource).toContain("disabled={dashboardQuery.isFetching}");
-  expect(dashboardPageSource).toContain("Refresh");
+  expect(dashboardPageSource).toContain('t("refresh")');
   expect(dashboardPageSource).toContain("onClick={() => void handleRefresh()}");
   expect(dashboardPageSource).toContain(
     "<ServerBaseUrlForm onSave={handleRefresh} />",
   );
-  expect(dashboardPageSource).toContain("Retry");
+  expect(dashboardPageSource).toContain('t("retry")');
   expect(dashboardPageSource).not.toContain(
     "onClick={() => void dashboardQuery.refetch()}",
   );
@@ -330,7 +330,7 @@ test("shares branded dashboard shell tokens across overview and project detail",
   expect(dashboardPageSource).toContain("ThemeToggle");
   expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
   expect(overviewSource).toContain("grid gap-3 sm:grid-cols-2 xl:grid-cols-4");
-  expect(overviewSource).toContain("Project Health");
-  expect(projectDetailSource).toContain("Project Dimensions");
-  expect(projectDetailSource).toContain("Dependency Pressure");
+  expect(overviewSource).toContain('t("projectHealth")');
+  expect(projectDetailSource).toContain('t("projectDimensions")');
+  expect(projectDetailSource).toContain('t("dependencyPressure")');
 });

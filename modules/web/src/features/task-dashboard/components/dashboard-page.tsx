@@ -46,8 +46,6 @@ import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
 
-// English dashboard action labels remain in i18n resources: Refresh, Retry.
-
 type DashboardRoute =
   | { kind: "dashboard" }
   | { dimensionId: string; kind: "dimension" }
@@ -221,13 +219,13 @@ export const DashboardPage = () => {
 
   const headerTitle =
     route.kind === "dashboard"
-      ? "Dashboard"
+      ? t("dashboard")
       : route.kind === "projects"
-        ? "Project Register"
+        ? t("projectRegister")
         : route.kind === "project"
-          ? "Project Detail"
+          ? t("projectDetail")
           : route.kind === "dimension"
-            ? "Dimension Detail"
+            ? t("dimensionDetail")
             : t("taskDetails");
 
   const renderContent = () => {
@@ -236,7 +234,7 @@ export const DashboardPage = () => {
         <DashboardPanelBoundary
           onRetry={handleRefresh}
           resetKeys={[route.kind, selectedTask?.id]}
-          scope="Task Details"
+          scope={t("taskDetails")}
         >
           <TaskDetailsPage task={selectedTask} />
         </DashboardPanelBoundary>
@@ -248,7 +246,7 @@ export const DashboardPage = () => {
         <DashboardPanelBoundary
           onRetry={handleRefresh}
           resetKeys={[route.kind]}
-          scope="Project Register"
+          scope={t("projectRegister")}
         >
           <ProjectRegisterPage />
         </DashboardPanelBoundary>
@@ -260,7 +258,7 @@ export const DashboardPage = () => {
         <DashboardPanelBoundary
           onRetry={handleRefresh}
           resetKeys={[route.kind, route.projectId, dashboardQuery.data]}
-          scope="Project Detail"
+          scope={t("projectDetail")}
         >
           <ProjectDetailPage
             dashboard={dashboardQuery.data}
@@ -275,7 +273,7 @@ export const DashboardPage = () => {
         <DashboardPanelBoundary
           onRetry={handleRefresh}
           resetKeys={[route.kind, selectedDimension?.dimension.id]}
-          scope="Dimension Detail"
+          scope={t("dimensionDetail")}
         >
           <DimensionDetailsPage report={selectedDimension} />
         </DashboardPanelBoundary>
@@ -290,7 +288,7 @@ export const DashboardPage = () => {
           <Card className="state-card">
             <CardContent className="flex items-center gap-3">
               <LoaderCircle
-                aria-label="Loading task dashboard"
+                aria-label={t("loadingTaskDashboard")}
                 className="animate-spin"
                 data-icon="inline-start"
               />
@@ -324,9 +322,7 @@ export const DashboardPage = () => {
           <Empty className="state-card border">
             <EmptyHeader>
               <EmptyTitle>{t("noActiveDashboardData")}</EmptyTitle>
-              <EmptyDescription>
-                Refresh the configured server to collect convergence evidence.
-              </EmptyDescription>
+              <EmptyDescription>{t("refreshForEvidence")}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : null}
@@ -336,14 +332,14 @@ export const DashboardPage = () => {
             <DashboardPanelBoundary
               onRetry={handleRefresh}
               resetKeys={[dashboardQuery.data]}
-              scope="Dashboard Overview"
+              scope={t("dashboardOverview")}
             >
               <OverviewSection dashboard={dashboardQuery.data} />
             </DashboardPanelBoundary>
             <DashboardPanelBoundary
               onRetry={handleRefresh}
               resetKeys={[dashboardQuery.data.dimensionReports]}
-              scope="AIM Dimension Report"
+              scope={t("aimDimensionReport")}
             >
               <AimDimensionReportSection
                 dimensionReports={dashboardQuery.data.dimensionReports}
@@ -377,8 +373,8 @@ export const DashboardPage = () => {
     </Button>
   );
   const optimizerStatusTitle = optimizerStatus
-    ? `Triggers: ${optimizerStatus.enabled_triggers.join(", ") || "none"}; last event: ${optimizerStatus.last_event?.type ?? "none"}`
-    : "Optimizer status not loaded";
+    ? `${t("triggers")}: ${optimizerStatus.enabled_triggers.join(", ") || t("none")}; ${t("lastEvent")}: ${optimizerStatus.last_event?.type ?? t("none")}`
+    : t("optimizerStatusNotLoaded");
 
   return (
     <div className="min-h-screen p-4 md:p-5">
@@ -392,7 +388,7 @@ export const DashboardPage = () => {
               <div className={panelStack}>
                 <div className="flex items-center justify-between gap-4">
                   <img
-                    alt="AIM icon"
+                    alt={t("aimIcon")}
                     className="size-10 border bg-card p-2"
                     src="/aim-icon.svg"
                   />
@@ -402,7 +398,10 @@ export const DashboardPage = () => {
                   </div>
                 </div>
               </div>
-              <fieldset aria-label="Global controls" className={actionGroup}>
+              <fieldset
+                aria-label={t("globalControls")}
+                className={actionGroup}
+              >
                 <LanguageToggle />
                 <ThemeToggle />
                 <div
@@ -410,12 +409,12 @@ export const DashboardPage = () => {
                   title={optimizerStatusTitle}
                 >
                   <Switch
-                    aria-label="AIM Optimizer"
+                    aria-label={t("aimOptimizer")}
                     checked={optimizerRunning}
                     disabled={isOptimizerChanging}
                     onCheckedChange={() => void handleOptimizerToggle()}
                   />
-                  <span>AIM Optimizer</span>
+                  <span>{t("aimOptimizer")}</span>
                 </div>
                 <Button
                   disabled={dashboardQuery.isFetching}
@@ -454,21 +453,24 @@ export const DashboardPage = () => {
                     aria-label={t("directorWorkspace")}
                     className="mt-1 flex flex-wrap gap-2"
                   >
-                    {renderWorkspaceLink("#/projects", "Projects")}
-                    {renderWorkspaceLink("#aim-dimension-report", "Dimensions")}
+                    {renderWorkspaceLink("#/projects", t("projects"))}
+                    {renderWorkspaceLink(
+                      "#aim-dimension-report",
+                      t("dimensions"),
+                    )}
                   </nav>
                 ) : null}
-                <nav aria-label="AIM sections" className={actionGroup}>
+                <nav aria-label={t("aimSections")} className={actionGroup}>
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
-                    "Dashboard",
+                    t("dashboard"),
                     goToDashboard,
                   )}
                   {renderNavAction(
                     route.kind === "projects" || route.kind === "project",
                     false,
-                    "Projects",
+                    t("projects"),
                     goToProjects,
                   )}
                 </nav>

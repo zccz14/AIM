@@ -33,6 +33,7 @@ import {
 import { Input } from "../../../components/ui/input.js";
 import { Skeleton } from "../../../components/ui/skeleton.js";
 import { Switch } from "../../../components/ui/switch.js";
+import { useI18n } from "../../../lib/i18n.js";
 import {
   createProject,
   deleteProject,
@@ -66,10 +67,11 @@ const toFormInput = (project: Project): ProjectFormInput => ({
   optimizerEnabled: project.optimizer_enabled,
 });
 
-const getErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : "Project request failed";
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export const ProjectRegisterPage = () => {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [form, setForm] = useState<ProjectFormInput>(emptyForm);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -105,7 +107,7 @@ export const ProjectRegisterPage = () => {
       })
       .catch((error: unknown) => {
         if (isActive) {
-          setErrorMessage(getErrorMessage(error));
+          setErrorMessage(getErrorMessage(error, t("projectRequestFailed")));
         }
       })
       .finally(() => {
@@ -117,7 +119,7 @@ export const ProjectRegisterPage = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [t]);
 
   const resetForm = () => {
     setEditingProjectId(null);
@@ -148,7 +150,7 @@ export const ProjectRegisterPage = () => {
       });
       resetForm();
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t("projectRequestFailed")));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,20 +171,17 @@ export const ProjectRegisterPage = () => {
         resetForm();
       }
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, t("projectRequestFailed")));
     }
   };
 
   return (
     <section className={pageStack}>
-      <p className={sectionCopy}>
-        Project CRUD keeps task intake anchored to explicit repositories and
-        global model defaults before autonomous work starts.
-      </p>
+      <p className={sectionCopy}>{t("projectCrudDescription")}</p>
 
       {errorMessage ? (
         <Alert variant="destructive">
-          <AlertTitle>Project request blocked</AlertTitle>
+          <AlertTitle>{t("projectRequestBlocked")}</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       ) : null}
@@ -190,11 +189,8 @@ export const ProjectRegisterPage = () => {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Card className={detailSurface}>
           <CardHeader>
-            <CardTitle>Projects</CardTitle>
-            <CardDescription>
-              Review known workspaces, paths, and global Developer model
-              routing.
-            </CardDescription>
+            <CardTitle>{t("projects")}</CardTitle>
+            <CardDescription>{t("projectHealthDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -206,10 +202,9 @@ export const ProjectRegisterPage = () => {
             ) : projects.length === 0 ? (
               <Empty className="border">
                 <EmptyHeader>
-                  <EmptyTitle>No Projects Yet</EmptyTitle>
+                  <EmptyTitle>{t("noProjectsYet")}</EmptyTitle>
                   <EmptyDescription>
-                    Create the first project so tasks can use a stable path and
-                    global model configuration.
+                    {t("noProjectsYetDescription")}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
@@ -218,12 +213,20 @@ export const ProjectRegisterPage = () => {
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="border-b text-muted-foreground">
-                      <th className="py-2 pr-3 font-medium">Project</th>
-                      <th className="py-2 pr-3 font-medium">Git Origin URL</th>
-                      <th className="py-2 pr-3 font-medium">Global Model</th>
-                      <th className="py-2 pr-3 font-medium">Optimizer</th>
+                      <th className="py-2 pr-3 font-medium">
+                        {t("projectSingular")}
+                      </th>
+                      <th className="py-2 pr-3 font-medium">
+                        {t("gitOriginUrl")}
+                      </th>
+                      <th className="py-2 pr-3 font-medium">
+                        {t("globalModel")}
+                      </th>
+                      <th className="py-2 pr-3 font-medium">
+                        {t("optimizer")}
+                      </th>
                       <th className="py-2 pr-0 text-right font-medium">
-                        Actions
+                        {t("globalControls")}
                       </th>
                     </tr>
                   </thead>
@@ -251,7 +254,9 @@ export const ProjectRegisterPage = () => {
                               project.optimizer_enabled ? "default" : "outline"
                             }
                           >
-                            {project.optimizer_enabled ? "Enabled" : "Disabled"}
+                            {project.optimizer_enabled
+                              ? t("enabled")
+                              : t("disabled")}
                           </Badge>
                         </td>
                         <td className="py-3 pr-0">
@@ -260,12 +265,12 @@ export const ProjectRegisterPage = () => {
                               <a
                                 href={`#/projects/${encodeURIComponent(project.id)}`}
                               >
-                                Open
+                                {t("open")}
                                 <span className="sr-only"> {project.name}</span>
                               </a>
                             </Button>
                             <Button
-                              aria-label={`Edit ${project.name}`}
+                              aria-label={`${t("edit")} ${project.name}`}
                               onClick={() => {
                                 setEditingProjectId(project.id);
                                 setForm(toFormInput(project));
@@ -274,16 +279,16 @@ export const ProjectRegisterPage = () => {
                               variant="outline"
                             >
                               <Pencil data-icon="inline-start" />
-                              Edit
+                              {t("edit")}
                             </Button>
                             <Button
-                              aria-label={`Delete ${project.name}`}
+                              aria-label={`${t("delete")} ${project.name}`}
                               onClick={() => void handleDelete(project)}
                               size="sm"
                               variant="outline"
                             >
                               <Trash2 data-icon="inline-start" />
-                              Delete
+                              {t("delete")}
                             </Button>
                           </div>
                         </td>
@@ -307,22 +312,23 @@ export const ProjectRegisterPage = () => {
             >
               <CardHeader className="px-0">
                 <CardTitle>
-                  {editingProject ? "Edit Project" : "Create Project"}
+                  {editingProject ? t("editProject") : t("createProject")}
                 </CardTitle>
                 <CardDescription>
-                  Store the Git origin URL and global model pair used by task
-                  creation.
+                  {t("noProjectsYetDescription")}
                 </CardDescription>
                 {editingProject ? (
                   <CardAction>
-                    <Badge variant="outline">Editing</Badge>
+                    <Badge variant="outline">{t("editing")}</Badge>
                   </CardAction>
                 ) : null}
               </CardHeader>
 
               <FieldGroup>
                 <Field data-disabled={isSubmitting}>
-                  <FieldLabel htmlFor="project-name">Project Name</FieldLabel>
+                  <FieldLabel htmlFor="project-name">
+                    {t("projectName")}
+                  </FieldLabel>
                   <Input
                     disabled={isSubmitting}
                     id="project-name"
@@ -339,7 +345,7 @@ export const ProjectRegisterPage = () => {
                 </Field>
                 <Field data-disabled={isSubmitting}>
                   <FieldLabel htmlFor="git-origin-url">
-                    Git Origin URL
+                    {t("gitOriginUrl")}
                   </FieldLabel>
                   <Input
                     disabled={isSubmitting}
@@ -355,12 +361,12 @@ export const ProjectRegisterPage = () => {
                     value={form.gitOriginUrl}
                   />
                   <FieldDescription>
-                    Use the repository origin URL that identifies this project.
+                    {t("useGitOriginUrlDescription")}
                   </FieldDescription>
                 </Field>
                 <Field data-disabled={isSubmitting}>
                   <FieldLabel htmlFor="global-provider">
-                    Global Provider
+                    {t("globalProvider")}
                   </FieldLabel>
                   <Input
                     disabled={isSubmitting}
@@ -377,7 +383,9 @@ export const ProjectRegisterPage = () => {
                   />
                 </Field>
                 <Field data-disabled={isSubmitting}>
-                  <FieldLabel htmlFor="global-model">Global Model</FieldLabel>
+                  <FieldLabel htmlFor="global-model">
+                    {t("globalModel")}
+                  </FieldLabel>
                   <Input
                     disabled={isSubmitting}
                     id="global-model"
@@ -394,7 +402,7 @@ export const ProjectRegisterPage = () => {
                 </Field>
                 <Field data-disabled={isSubmitting}>
                   <FieldLabel htmlFor="optimizer-enabled">
-                    Project Optimizer
+                    {t("projectOptimizer")}
                   </FieldLabel>
                   <div className="flex items-center gap-2">
                     <Switch
@@ -409,22 +417,18 @@ export const ProjectRegisterPage = () => {
                       }}
                     />
                     <span className="text-xs text-muted-foreground">
-                      {form.optimizerEnabled ? "Enabled" : "Disabled"}
+                      {form.optimizerEnabled ? t("enabled") : t("disabled")}
                     </span>
                   </div>
                   <FieldDescription>
-                    Persist whether this project should start AIM optimizer
-                    lanes.
+                    {t("projectOptimizerDescription")}
                   </FieldDescription>
                 </Field>
               </FieldGroup>
 
               <CardFooter className="px-0 pb-0">
                 <div className="flex w-full flex-wrap items-start justify-between gap-3">
-                  <Muted>
-                    Project changes update the register, not existing task
-                    history.
-                  </Muted>
+                  <Muted>{t("projectChangesDescription")}</Muted>
                   <div className={actions}>
                     {editingProject ? (
                       <Button
@@ -433,14 +437,14 @@ export const ProjectRegisterPage = () => {
                         type="button"
                         variant="outline"
                       >
-                        Cancel
+                        {t("cancel")}
                       </Button>
                     ) : null}
                     <Button disabled={!canSubmit || isSubmitting} type="submit">
                       {isSubmitting ? (
                         <LoaderCircle data-icon="inline-start" />
                       ) : null}
-                      {editingProject ? "Save Project" : "Create Project"}
+                      {editingProject ? t("saveProject") : t("createProject")}
                     </Button>
                   </div>
                 </div>
