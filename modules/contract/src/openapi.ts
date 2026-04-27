@@ -10,6 +10,8 @@ export const dimensionsPath = "/dimensions";
 export const opencodeModelsPath = "/opencode/models";
 export const projectsPath = "/projects";
 export const projectByIdPath = "/projects/{projectId}";
+export const projectOptimizerStatusPath =
+  "/projects/{projectId}/optimizer/status";
 export const tasksPath = "/tasks";
 export const tasksBatchPath = "/tasks/batch";
 export const taskByIdPath = "/tasks/{taskId}";

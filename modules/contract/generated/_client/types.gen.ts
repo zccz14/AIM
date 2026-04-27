@@ -57,6 +57,30 @@ export type ProjectListResponse = {
   items: Array<Project>;
 };
 
+export type OptimizerTriggerSource = "task_resolved";
+
+export type ProjectOptimizerRecentEvent = {
+  task_id: string;
+  triggered_scan: boolean;
+  type: OptimizerTriggerSource;
+};
+
+export type ProjectOptimizerStatusResponse = {
+  project_id: string;
+  /**
+   * Persisted project configuration flag.
+   */
+  optimizer_enabled: boolean;
+  /**
+   * True only when project config is enabled and the optimizer runtime is running.
+   */
+  runtime_active: boolean;
+  enabled_triggers: Array<OptimizerTriggerSource>;
+  recent_event: ProjectOptimizerRecentEvent | null;
+  recent_scan_at: string | null;
+  blocker_summary: string | null;
+};
+
 export type Task = {
   readonly task_id: string;
   task_spec: string;
@@ -511,6 +535,35 @@ export type PatchProjectByIdResponses = {
 
 export type PatchProjectByIdResponse =
   PatchProjectByIdResponses[keyof PatchProjectByIdResponses];
+
+export type GetProjectOptimizerStatusData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/optimizer/status";
+};
+
+export type GetProjectOptimizerStatusErrors = {
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetProjectOptimizerStatusError =
+  GetProjectOptimizerStatusErrors[keyof GetProjectOptimizerStatusErrors];
+
+export type GetProjectOptimizerStatusResponses = {
+  /**
+   * Project optimizer runtime status
+   */
+  200: ProjectOptimizerStatusResponse;
+};
+
+export type GetProjectOptimizerStatusResponse =
+  GetProjectOptimizerStatusResponses[keyof GetProjectOptimizerStatusResponses];
 
 export type ListTasksData = {
   body?: never;

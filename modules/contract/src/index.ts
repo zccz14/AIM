@@ -12,6 +12,7 @@ export {
   openApiDocument,
   opencodeModelsPath,
   projectByIdPath,
+  projectOptimizerStatusPath,
   projectsPath,
   taskByIdPath,
   taskDependenciesPath,
@@ -40,6 +41,8 @@ export const projectSchema = schemas.Project;
 export const createProjectRequestSchema = schemas.CreateProjectRequest;
 export const patchProjectRequestSchema = schemas.PatchProjectRequest;
 export const projectListResponseSchema = schemas.ProjectListResponse;
+export const projectOptimizerStatusResponseSchema =
+  schemas.ProjectOptimizerStatusResponse;
 export const taskSchema = schemas.Task;
 export const createTaskRequestSchema = schemas.CreateTaskRequest;
 export const patchTaskRequestSchema = schemas.PatchTaskRequest;
@@ -78,6 +81,9 @@ export type Project = Infer<typeof projectSchema>;
 export type CreateProjectRequest = Input<typeof createProjectRequestSchema>;
 export type PatchProjectRequest = Infer<typeof patchProjectRequestSchema>;
 export type ProjectListResponse = Infer<typeof projectListResponseSchema>;
+export type ProjectOptimizerStatusResponse = Infer<
+  typeof projectOptimizerStatusResponseSchema
+>;
 export type Task = Infer<typeof taskSchema>;
 export type CreateTaskRequest = Input<typeof createTaskRequestSchema>;
 export type PatchTaskRequest = Infer<typeof patchTaskRequestSchema>;
@@ -122,6 +128,8 @@ export type ProjectSchema = typeof projectSchema;
 export type CreateProjectRequestSchema = typeof createProjectRequestSchema;
 export type PatchProjectRequestSchema = typeof patchProjectRequestSchema;
 export type ProjectListResponseSchema = typeof projectListResponseSchema;
+export type ProjectOptimizerStatusResponseSchema =
+  typeof projectOptimizerStatusResponseSchema;
 export type TaskSchema = typeof taskSchema;
 export type CreateTaskRequestSchema = typeof createTaskRequestSchema;
 export type PatchTaskRequestSchema = typeof patchTaskRequestSchema;
@@ -164,6 +172,8 @@ export type ParsedCreateProjectRequest = Output<
 >;
 export type ParsedPatchProjectRequest = PatchProjectRequest;
 export type ParsedProjectListResponse = ProjectListResponse;
+export type ParsedProjectOptimizerStatusResponse =
+  ProjectOptimizerStatusResponse;
 export type ParsedTask = Task;
 export type ParsedCreateTaskRequest = Output<typeof createTaskRequestSchema>;
 export type ParsedPatchTaskRequest = PatchTaskRequest;

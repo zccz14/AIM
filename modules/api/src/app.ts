@@ -71,7 +71,10 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerProjectRoutes(app, { resourceScope });
+  registerProjectRoutes(app, {
+    optimizerRuntime: _options.optimizerRuntime,
+    resourceScope,
+  });
   registerDimensionRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,

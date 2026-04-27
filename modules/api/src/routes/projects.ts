@@ -2,14 +2,21 @@ import {
   createProjectRequestSchema,
   patchProjectRequestSchema,
   projectByIdPath,
+  projectOptimizerStatusPath,
+  projectOptimizerStatusResponseSchema,
   projectsPath,
   taskErrorSchema,
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import type { OptimizerRuntime } from "../optimizer-runtime.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const projectByIdRoutePath = projectByIdPath.replace(
+  "{projectId}",
+  ":projectId",
+);
+const projectOptimizerStatusRoutePath = projectOptimizerStatusPath.replace(
   "{projectId}",
   ":projectId",
 );
@@ -58,9 +65,31 @@ const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
 
 type RegisterProjectRoutesOptions = {
+  optimizerRuntime?: OptimizerRuntime;
   resourceScope?: {
     use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
   };
+};
+
+const getOptimizerBlockerSummary = ({
+  optimizerEnabled,
+  runtimeStatus,
+}: {
+  optimizerEnabled: boolean;
+  runtimeStatus: ReturnType<OptimizerRuntime["getStatus"]> | null;
+}) => {
+  if (!optimizerEnabled) {
+    return "Optimizer disabled for project";
+  }
+
+  if (!runtimeStatus?.running) {
+    return "Optimizer runtime inactive";
+  }
+
+  return (
+    Object.values(runtimeStatus.lanes).find((lane) => lane.last_error)
+      ?.last_error ?? null
+  );
 };
 
 export const registerProjectRoutes = (
@@ -117,6 +146,34 @@ export const registerProjectRoutes = (
     }
 
     return context.json(project, 200);
+  });
+
+  app.get(projectOptimizerStatusRoutePath, async (context) => {
+    const projectId = requireProjectId(context.req.param("projectId"));
+    const project = await getRepository().getProjectById(projectId);
+
+    if (!project) {
+      return context.json(buildNotFoundError(projectId), 404);
+    }
+
+    const optimizerEnabled = Boolean(project.optimizer_enabled);
+    const runtimeStatus = options.optimizerRuntime?.getStatus() ?? null;
+    const response = projectOptimizerStatusResponseSchema.parse({
+      project_id: projectId,
+      optimizer_enabled: optimizerEnabled,
+      runtime_active: optimizerEnabled && Boolean(runtimeStatus?.running),
+      enabled_triggers: optimizerEnabled
+        ? (runtimeStatus?.enabled_triggers ?? [])
+        : [],
+      recent_event: runtimeStatus?.last_event ?? null,
+      recent_scan_at: runtimeStatus?.last_scan_at ?? null,
+      blocker_summary: getOptimizerBlockerSummary({
+        optimizerEnabled,
+        runtimeStatus,
+      }),
+    });
+
+    return context.json(response, 200);
   });
 
   app.delete(projectByIdRoutePath, async (context) => {

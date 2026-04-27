@@ -268,6 +268,58 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
   await expect(page.getByText("Research Fit")).toHaveCount(0);
 });
 
+test("shows project optimizer config and runtime observability separately", async ({
+  page,
+}) => {
+  await page.route("**/projects**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [buildProject({ optimizerEnabled: true })],
+      }),
+    });
+  });
+  await page.route("**/projects/*/optimizer/status", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        project_id: "00000000-0000-4000-8000-000000000010",
+        optimizer_enabled: true,
+        runtime_active: false,
+        enabled_triggers: ["task_resolved"],
+        recent_event: {
+          task_id: "task-resolved",
+          triggered_scan: false,
+          type: "task_resolved",
+        },
+        recent_scan_at: "2026-04-27T10:00:00.000Z",
+        blocker_summary: "Optimizer runtime inactive",
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const optimizerRegion = page.getByRole("region", {
+    name: "Project optimizer runtime",
+  });
+
+  await expect(optimizerRegion).toBeVisible();
+  await expect(optimizerRegion.getByText("Config enabled")).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("Runtime inactive", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("task_resolved", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("2026-04-27T10:00:00.000Z"),
+  ).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("Optimizer runtime inactive"),
+  ).toBeVisible();
+});
+
 test("keeps project management available on the Projects page", async ({
   page,
 }) => {

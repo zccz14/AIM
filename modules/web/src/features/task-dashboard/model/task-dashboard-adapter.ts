@@ -256,6 +256,7 @@ export const adaptTaskDashboard = (
   return {
     dimensionReports,
     historyTasks,
+    projectOptimizerStatuses: response.projectOptimizerStatuses,
     projects: response.projects.items,
     rejectedFeedbackSignals,
     tasks,

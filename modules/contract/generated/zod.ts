@@ -74,6 +74,25 @@ const PatchProjectRequest = z
   })
   .partial()
   .strict();
+const OptimizerTriggerSource = z.literal("task_resolved");
+const ProjectOptimizerRecentEvent = z
+  .object({
+    task_id: z.string().min(1),
+    triggered_scan: z.boolean(),
+    type: OptimizerTriggerSource,
+  })
+  .strict();
+const ProjectOptimizerStatusResponse = z
+  .object({
+    project_id: z.string().uuid(),
+    optimizer_enabled: z.boolean(),
+    runtime_active: z.boolean(),
+    enabled_triggers: z.array(OptimizerTriggerSource),
+    recent_event: z.union([ProjectOptimizerRecentEvent, z.null()]),
+    recent_scan_at: z.union([z.string(), z.null()]),
+    blocker_summary: z.union([z.string(), z.null()]),
+  })
+  .strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -237,6 +256,9 @@ export const schemas = {
   Project,
   ProjectListResponse,
   PatchProjectRequest,
+  OptimizerTriggerSource,
+  ProjectOptimizerRecentEvent,
+  ProjectOptimizerStatusResponse,
   CreateTaskRequest,
   Task,
   TaskListResponse,
