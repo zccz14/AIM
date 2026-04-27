@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const buildTask = ({
   dependencies = [],
   done = false,
-  projectId = "project-main",
+  projectId = "00000000-0000-4000-8000-000000000001",
   projectPath = "/repo/main",
   result = "",
   spec,
