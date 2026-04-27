@@ -67,3 +67,6 @@ CREATE TABLE IF NOT EXISTS dimension_evaluations (
 
 CREATE INDEX IF NOT EXISTS dimension_evaluations_project_id_index
 ON dimension_evaluations (project_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS dimension_evaluations_project_commit_dimension_unique
+ON dimension_evaluations (project_id, commit_sha, dimension_id);

@@ -231,6 +231,16 @@ export const createDimensionRepository = (
     WHERE evaluations.dimension_id = ?
     ORDER BY evaluations.created_at ASC, evaluations.rowid ASC
   `);
+  const listUnevaluatedDimensionIdsStatement = database.prepare(`
+    SELECT dimensions.id
+    FROM ${dimensionsTableName} AS dimensions
+    LEFT JOIN ${dimensionEvaluationsTableName} AS evaluations
+      ON evaluations.project_id = dimensions.project_id
+      AND evaluations.dimension_id = dimensions.id
+      AND evaluations.commit_sha = ?
+    WHERE dimensions.project_id = ? AND evaluations.id IS NULL
+    ORDER BY dimensions.created_at ASC, dimensions.rowid ASC
+  `);
   const getProjectByIdStatement = database.prepare(`
     SELECT id
     FROM ${projectsTableName}
@@ -312,7 +322,7 @@ export const createDimensionRepository = (
 
       return Promise.resolve(result.changes > 0);
     },
-    createDimensionEvaluation(
+    async createDimensionEvaluation(
       dimensionId: string,
       input: CreateDimensionEvaluationRequest,
     ): Promise<null | DimensionEvaluation> {
@@ -321,7 +331,7 @@ export const createDimensionRepository = (
         | undefined;
 
       if (!dimension || dimension.project_id !== input.project_id) {
-        return Promise.resolve(null);
+        return null;
       }
 
       const timestamp = new Date().toISOString();
@@ -347,7 +357,7 @@ export const createDimensionRepository = (
         dimensionEvaluation.created_at,
       );
 
-      return Promise.resolve(dimensionEvaluation);
+      return dimensionEvaluation;
     },
     listDimensionEvaluations(
       dimensionId: string,
@@ -357,6 +367,17 @@ export const createDimensionRepository = (
       ) as DimensionEvaluationRow[];
 
       return Promise.resolve(rows.map(mapDimensionEvaluationRow));
+    },
+    listUnevaluatedDimensionIds(
+      projectId: string,
+      commitSha: string,
+    ): Promise<string[]> {
+      const rows = listUnevaluatedDimensionIdsStatement.all(
+        commitSha,
+        projectId,
+      ) as Array<{ id: string }>;
+
+      return Promise.resolve(rows.map((row) => row.id));
     },
   };
 };

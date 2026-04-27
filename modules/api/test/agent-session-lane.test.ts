@@ -210,6 +210,74 @@ describe("agent session lane", () => {
     );
   });
 
+  it("skips OpenCode interaction when scan input preparation returns null", async () => {
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      coordinator,
+      prepareScanInput: vi.fn().mockResolvedValue(null),
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+  });
+
+  it("uses prepared scan input when creating and continuing an OpenCode session", async () => {
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      coordinator,
+      prepareScanInput: vi
+        .fn()
+        .mockResolvedValueOnce({
+          modelId: "claude-sonnet-4-5",
+          projectDirectory: "/repo",
+          prompt:
+            'FOLLOW the aim-manager-guide SKILL. Evaluate only dimension_id values: "dimension-api", "dimension-docs".',
+          providerId: "anthropic",
+          title: "AIM Manager evaluation lane",
+        })
+        .mockResolvedValueOnce({
+          modelId: "claude-sonnet-4-5",
+          projectDirectory: "/repo",
+          prompt:
+            'FOLLOW the aim-manager-guide SKILL. Evaluate only dimension_id values: "dimension-docs".',
+          providerId: "anthropic",
+          title: "AIM Manager evaluation lane",
+        }),
+    });
+
+    await lane.scanOnce();
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining('"dimension-api", "dimension-docs"'),
+      }),
+    );
+    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        prompt: expect.stringContaining('"dimension-docs"'),
+      }),
+    );
+    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        prompt: expect.not.stringContaining("dimension-api"),
+      }),
+    );
+  });
+
   it("exposes scan errors and successful scan timestamps for optimizer status", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));

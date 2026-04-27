@@ -244,6 +244,153 @@ describe("dimension repository", () => {
     ).resolves.toEqual([]);
   });
 
+  it("lists only dimensions without an evaluation for the requested baseline commit", async () => {
+    const projectRoot = await createProjectRoot("unevaluated-dimensions");
+    const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
+    const evaluatedDimension =
+      await repository.createDimension(createDimensionInput);
+    const unevaluatedDimension = await repository.createDimension({
+      ...createDimensionInput,
+      name: "Task Throughput",
+    });
+
+    await repository.createDimensionEvaluation(evaluatedDimension.id, {
+      ...createEvaluationInput,
+      commit_sha: "abc1234",
+    });
+    await repository.createDimensionEvaluation(unevaluatedDimension.id, {
+      ...createEvaluationInput,
+      commit_sha: "older-baseline",
+    });
+
+    await expect(
+      repository.listUnevaluatedDimensionIds(mainProjectId, "abc1234"),
+    ).resolves.toEqual([unevaluatedDimension.id]);
+  });
+
+  it("rejects duplicate evaluations for the same project, baseline commit, and dimension", async () => {
+    const projectRoot = await createProjectRoot("duplicate-evaluation");
+    const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
+    const dimension = await repository.createDimension(createDimensionInput);
+
+    await repository.createDimensionEvaluation(
+      dimension.id,
+      createEvaluationInput,
+    );
+
+    await expect(
+      repository.createDimensionEvaluation(dimension.id, {
+        ...createEvaluationInput,
+        score: 99,
+        evaluation: "Duplicate for same dimension and commit.",
+      }),
+    ).rejects.toThrow(/UNIQUE|constraint/i);
+  });
+
+  it("deletes conflicting duplicate evaluations when applying the uniqueness migration", async () => {
+    const projectRoot = await createProjectRoot("dedupe-migration");
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        git_origin_url TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        optimizer_enabled INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE dimensions (
+        id TEXT NOT NULL PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        goal TEXT NOT NULL,
+        evaluation_method TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE dimension_evaluations (
+        id TEXT NOT NULL PRIMARY KEY,
+        dimension_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        commit_sha TEXT NOT NULL,
+        evaluator_model TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        evaluation TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    database
+      .prepare(
+        "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        mainProjectId,
+        "Main project",
+        "https://github.com/example/main.git",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database
+      .prepare(
+        "INSERT INTO dimensions (id, project_id, name, goal, evaluation_method, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        "dimension-1",
+        mainProjectId,
+        "API Fit",
+        "Keep API aligned.",
+        "Review API behavior.",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    for (const id of ["evaluation-1", "evaluation-2"]) {
+      database
+        .prepare(
+          "INSERT INTO dimension_evaluations (id, dimension_id, project_id, commit_sha, evaluator_model, score, evaluation, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          id,
+          "dimension-1",
+          mainProjectId,
+          "abc1234",
+          "anthropic/claude-sonnet-4-5",
+          81,
+          id,
+          `2026-04-26T00:00:0${id.endsWith("1") ? "1" : "2"}.000Z`,
+        );
+    }
+    database.close();
+
+    const repository = createDimensionRepository({ projectRoot });
+    const migratedDatabase = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const evaluations = migratedDatabase
+      .prepare(
+        "SELECT id FROM dimension_evaluations WHERE project_id = ? AND commit_sha = ? AND dimension_id = ? ORDER BY id ASC",
+      )
+      .all(mainProjectId, "abc1234", "dimension-1");
+    const uniqueIndexes = migratedDatabase
+      .prepare("PRAGMA index_list(dimension_evaluations)")
+      .all()
+      .filter(
+        (row) =>
+          (row as { name: string; unique: 0 | 1 }).name ===
+            "dimension_evaluations_project_commit_dimension_unique" &&
+          (row as { name: string; unique: 0 | 1 }).unique === 1,
+      );
+    migratedDatabase.close();
+    await repository[Symbol.asyncDispose]();
+
+    expect(evaluations).toEqual([{ id: "evaluation-1" }]);
+    expect(uniqueIndexes).toHaveLength(1);
+  });
+
   it("rejects evaluations for missing dimensions", async () => {
     const projectRoot = await createProjectRoot("missing-dimension");
     const repository = createDimensionRepository({ projectRoot });
