@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import type { ApiLogger } from "./api-logger.js";
 import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
 import type { OptimizerEvent, OptimizerRuntime } from "./optimizer-runtime.js";
+import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
@@ -115,6 +116,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   app.use("*", cors({ origin: "*" }));
 
   registerHealthRoute(app);
+  registerDbRoutes(app);
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });

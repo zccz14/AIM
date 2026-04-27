@@ -372,6 +372,23 @@ export type BulkIdPathParameter = string;
 
 export type DimensionIdPathParameter = string;
 
+export type GetDbSqliteData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/db/sqlite";
+};
+
+export type GetDbSqliteResponses = {
+  /**
+   * AIM SQLite database file
+   */
+  200: Blob | File;
+};
+
+export type GetDbSqliteResponse =
+  GetDbSqliteResponses[keyof GetDbSqliteResponses];
+
 export type GetHealthData = {
   body?: never;
   path?: never;

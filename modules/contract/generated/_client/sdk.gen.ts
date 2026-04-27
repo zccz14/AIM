@@ -32,6 +32,8 @@ import type {
   DeleteTaskByIdData,
   DeleteTaskByIdErrors,
   DeleteTaskByIdResponses,
+  GetDbSqliteData,
+  GetDbSqliteResponses,
   GetDimensionByIdData,
   GetDimensionByIdErrors,
   GetDimensionByIdResponses,
@@ -113,6 +115,17 @@ export type Options<
    */
   meta?: Record<string, unknown>;
 };
+
+/**
+ * Download the current AIM SQLite database file
+ */
+export const getDbSqlite = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDbSqliteData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetDbSqliteResponses, unknown, ThrowOnError>({
+    url: "/db/sqlite",
+    ...options,
+  });
 
 /**
  * Read service health status

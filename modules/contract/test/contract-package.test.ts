@@ -317,6 +317,7 @@ describe("contract package baseline", () => {
       "createProjectRequestSchema",
       "createTaskRequestSchema",
       "createTaskWriteBulkRequestSchema",
+      "dbSqlitePath",
       "dimensionByIdPath",
       "dimensionEvaluationListResponseSchema",
       "dimensionEvaluationSchema",
@@ -367,6 +368,9 @@ describe("contract package baseline", () => {
       "taskWriteBulksPath",
       "tasksPath",
     ]);
+    expect(
+      contractModule.openApiDocument.paths[contractModule.dbSqlitePath],
+    ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.healthPath],
     ).toBeDefined();

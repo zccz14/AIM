@@ -105,6 +105,22 @@ describe("api package baseline", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
 
     const payload = await response.json();
+    const dbSqlitePathItem = payload.paths[contractModule.dbSqlitePath] as
+      | {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: {
+                  "application/vnd.sqlite3"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
     const tasksPathItem = payload.paths[contractModule.tasksPath] as
       | {
           get?: {
@@ -156,6 +172,14 @@ describe("api package baseline", () => {
 
     expect(payload.openapi).toBe(contractModule.openApiDocument.openapi);
     expect(payload.info).toEqual(contractModule.openApiDocument.info);
+    expect(
+      dbSqlitePathItem?.get?.responses?.["200"]?.content?.[
+        "application/vnd.sqlite3"
+      ]?.schema,
+    ).toEqual({
+      format: "binary",
+      type: "string",
+    });
     expect(payload.paths[contractModule.healthPath]).toBeDefined();
     expect(tasksPathItem?.get?.responses?.["200"]).toBeDefined();
     expect(tasksPathItem?.post?.responses?.["201"]).toBeDefined();
