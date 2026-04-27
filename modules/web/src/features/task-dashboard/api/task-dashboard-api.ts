@@ -15,6 +15,7 @@ export type ProjectFormInput = {
   gitOriginUrl: string;
   globalProviderId: string;
   globalModelId: string;
+  optimizerEnabled: boolean;
 };
 
 export type TaskDashboardResponse = {
@@ -80,6 +81,7 @@ export const createProject = async (
   return client.createProject({
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
+    optimizer_enabled: input.optimizerEnabled,
     name: input.name,
     git_origin_url: input.gitOriginUrl,
   });
@@ -94,6 +96,7 @@ export const updateProject = async (
   return client.patchProjectById(projectId, {
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
+    optimizer_enabled: input.optimizerEnabled,
     name: input.name,
     git_origin_url: input.gitOriginUrl,
   });

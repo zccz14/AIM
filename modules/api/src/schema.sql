@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS projects (
   git_origin_url TEXT NOT NULL UNIQUE,
   global_provider_id TEXT NOT NULL,
   global_model_id TEXT NOT NULL,
+  optimizer_enabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

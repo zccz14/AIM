@@ -714,6 +714,7 @@ components:
         - git_origin_url
         - global_provider_id
         - global_model_id
+        - optimizer_enabled
         - created_at
         - updated_at
       properties:
@@ -733,6 +734,8 @@ components:
         global_model_id:
           type: string
           minLength: 1
+        optimizer_enabled:
+          type: boolean
         created_at:
           type: string
           format: date-time
@@ -762,6 +765,8 @@ components:
         global_model_id:
           type: string
           minLength: 1
+        optimizer_enabled:
+          type: boolean
     PatchProjectRequest:
       type: object
       additionalProperties: false
@@ -778,6 +783,8 @@ components:
         global_model_id:
           type: string
           minLength: 1
+        optimizer_enabled:
+          type: boolean
     ProjectListResponse:
       type: object
       additionalProperties: false

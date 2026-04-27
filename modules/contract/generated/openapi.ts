@@ -1164,6 +1164,7 @@ export const openApiDocument = {
           "git_origin_url",
           "global_provider_id",
           "global_model_id",
+          "optimizer_enabled",
           "created_at",
           "updated_at",
         ],
@@ -1188,6 +1189,9 @@ export const openApiDocument = {
           global_model_id: {
             type: "string",
             minLength: 1,
+          },
+          optimizer_enabled: {
+            type: "boolean",
           },
           created_at: {
             type: "string",
@@ -1227,6 +1231,9 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
+          optimizer_enabled: {
+            type: "boolean",
+          },
         },
       },
       PatchProjectRequest: {
@@ -1248,6 +1255,9 @@ export const openApiDocument = {
           global_model_id: {
             type: "string",
             minLength: 1,
+          },
+          optimizer_enabled: {
+            type: "boolean",
           },
         },
       },

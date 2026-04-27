@@ -47,6 +47,7 @@ type ProjectRow = {
   git_origin_url: string;
   id: string;
   name: string;
+  optimizer_enabled: number;
   updated_at: string;
 };
 
@@ -109,6 +110,7 @@ const requiredProjectColumns = [
   { name: "git_origin_url", notnull: 1, pk: 0, type: "TEXT" },
   { name: "global_provider_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "global_model_id", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "optimizer_enabled", notnull: 1, pk: 0, type: "INTEGER" },
   { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
   { name: "updated_at", notnull: 1, pk: 0, type: "TEXT" },
 ] as const;
@@ -201,6 +203,7 @@ const mapProjectRow = (row: ProjectRow) =>
     git_origin_url: row.git_origin_url,
     global_provider_id: row.global_provider_id,
     global_model_id: row.global_model_id,
+    optimizer_enabled: Boolean(row.optimizer_enabled),
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
@@ -354,6 +357,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       git_origin_url,
       global_provider_id,
       global_model_id,
+      optimizer_enabled,
       created_at,
       updated_at
     FROM ${projectsTableName}
@@ -366,6 +370,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       git_origin_url,
       global_provider_id,
       global_model_id,
+      optimizer_enabled,
       created_at,
       updated_at
     FROM ${projectsTableName}
@@ -378,9 +383,10 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       git_origin_url,
       global_provider_id,
       global_model_id,
+      optimizer_enabled,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateProjectStatement = database.prepare(`
     UPDATE ${projectsTableName}
@@ -389,6 +395,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       git_origin_url = ?,
       global_provider_id = ?,
       global_model_id = ?,
+      optimizer_enabled = ?,
       updated_at = ?
     WHERE id = ?
   `);
@@ -487,6 +494,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         git_origin_url: input.git_origin_url,
         global_provider_id: input.global_provider_id,
         global_model_id: input.global_model_id,
+        optimizer_enabled: Number(input.optimizer_enabled ?? false),
         created_at: timestamp,
         updated_at: timestamp,
       });
@@ -497,6 +505,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         project.git_origin_url,
         project.global_provider_id,
         project.global_model_id,
+        Number(project.optimizer_enabled),
         project.created_at,
         project.updated_at,
       );
@@ -519,6 +528,9 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         ...currentProject,
         ...patch,
         id: currentProject.id,
+        optimizer_enabled: Number(
+          patch.optimizer_enabled ?? Boolean(currentProject.optimizer_enabled),
+        ),
         updated_at: new Date().toISOString(),
       });
 
@@ -527,6 +539,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         updatedProject.git_origin_url,
         updatedProject.global_provider_id,
         updatedProject.global_model_id,
+        Number(updatedProject.optimizer_enabled),
         updatedProject.updated_at,
         projectId,
       );
@@ -541,7 +554,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     getFirstProject(): null | ProjectRow {
       const project = database
         .prepare(
-          `SELECT id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at FROM ${projectsTableName} ORDER BY created_at ASC, id ASC LIMIT 1`,
+          `SELECT id, name, git_origin_url, global_provider_id, global_model_id, optimizer_enabled, created_at, updated_at FROM ${projectsTableName} ORDER BY created_at ASC, id ASC LIMIT 1`,
         )
         .get() as ProjectRow | undefined;
 

@@ -48,6 +48,7 @@ const CreateProjectRequest = z
     git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
+    optimizer_enabled: z.boolean().optional(),
   })
   .strict();
 const Project = z
@@ -57,6 +58,7 @@ const Project = z
     git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
+    optimizer_enabled: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
@@ -68,6 +70,7 @@ const PatchProjectRequest = z
     git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
+    optimizer_enabled: z.boolean(),
   })
   .partial()
   .strict();

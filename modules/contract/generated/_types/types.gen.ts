@@ -32,6 +32,7 @@ export type Project = {
   git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
+  optimizer_enabled: boolean;
   readonly created_at: string;
   readonly updated_at: string;
 };
@@ -41,6 +42,7 @@ export type CreateProjectRequest = {
   git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
+  optimizer_enabled?: boolean;
 };
 
 export type PatchProjectRequest = {
@@ -48,6 +50,7 @@ export type PatchProjectRequest = {
   git_origin_url?: string;
   global_provider_id?: string;
   global_model_id?: string;
+  optimizer_enabled?: boolean;
 };
 
 export type ProjectListResponse = {
@@ -287,6 +290,7 @@ export type ProjectWritable = {
   git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
+  optimizer_enabled: boolean;
 };
 
 export type ProjectListResponseWritable = {

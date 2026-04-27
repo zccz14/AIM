@@ -88,13 +88,14 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
           git_origin_url TEXT NOT NULL UNIQUE,
           global_provider_id TEXT NOT NULL,
           global_model_id TEXT NOT NULL,
+          optimizer_enabled INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         )
       `);
       database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at)
-        SELECT id, name, project_path, global_provider_id, global_model_id, created_at, updated_at
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, optimizer_enabled, created_at, updated_at)
+        SELECT id, name, project_path, global_provider_id, global_model_id, 0, created_at, updated_at
         FROM projects_legacy_project_path
       `);
       database.exec("DROP TABLE projects_legacy_project_path");
@@ -210,6 +211,13 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     }
 
     database.exec("DROP TABLE IF EXISTS task_write_bulks");
+
+    const projectColumns = tableColumns(database, "projects");
+    if (!projectColumns.has("optimizer_enabled")) {
+      database.exec(
+        "ALTER TABLE projects ADD COLUMN optimizer_enabled INTEGER NOT NULL DEFAULT 0",
+      );
+    }
 
     rewriteProjectIdsToUuids(database);
   } finally {

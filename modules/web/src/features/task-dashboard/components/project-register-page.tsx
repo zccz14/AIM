@@ -32,6 +32,7 @@ import {
 } from "../../../components/ui/field.js";
 import { Input } from "../../../components/ui/input.js";
 import { Skeleton } from "../../../components/ui/skeleton.js";
+import { Switch } from "../../../components/ui/switch.js";
 import {
   createProject,
   deleteProject,
@@ -54,6 +55,7 @@ const emptyForm = {
   globalProviderId: "",
   name: "",
   gitOriginUrl: "",
+  optimizerEnabled: false,
 };
 
 const toFormInput = (project: Project): ProjectFormInput => ({
@@ -61,6 +63,7 @@ const toFormInput = (project: Project): ProjectFormInput => ({
   globalProviderId: project.global_provider_id,
   name: project.name,
   gitOriginUrl: project.git_origin_url,
+  optimizerEnabled: project.optimizer_enabled,
 });
 
 const getErrorMessage = (error: unknown) =>
@@ -78,8 +81,14 @@ export const ProjectRegisterPage = () => {
     globalProviderId: form.globalProviderId.trim(),
     name: form.name.trim(),
     gitOriginUrl: form.gitOriginUrl.trim(),
+    optimizerEnabled: form.optimizerEnabled,
   };
-  const canSubmit = Object.values(trimmedForm).every(Boolean);
+  const canSubmit = [
+    trimmedForm.globalModelId,
+    trimmedForm.globalProviderId,
+    trimmedForm.name,
+    trimmedForm.gitOriginUrl,
+  ].every(Boolean);
   const editingProject = projects.find(
     (project) => project.id === editingProjectId,
   );
@@ -212,6 +221,7 @@ export const ProjectRegisterPage = () => {
                       <th className="py-2 pr-3 font-medium">Project</th>
                       <th className="py-2 pr-3 font-medium">Git Origin URL</th>
                       <th className="py-2 pr-3 font-medium">Global Model</th>
+                      <th className="py-2 pr-3 font-medium">Optimizer</th>
                       <th className="py-2 pr-0 text-right font-medium">
                         Actions
                       </th>
@@ -233,6 +243,15 @@ export const ProjectRegisterPage = () => {
                           <Badge variant="secondary">
                             {project.global_provider_id} /{" "}
                             {project.global_model_id}
+                          </Badge>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <Badge
+                            variant={
+                              project.optimizer_enabled ? "default" : "outline"
+                            }
+                          >
+                            {project.optimizer_enabled ? "Enabled" : "Disabled"}
                           </Badge>
                         </td>
                         <td className="py-3 pr-0">
@@ -372,6 +391,31 @@ export const ProjectRegisterPage = () => {
                     }}
                     value={form.globalModelId}
                   />
+                </Field>
+                <Field data-disabled={isSubmitting}>
+                  <FieldLabel htmlFor="optimizer-enabled">
+                    Project Optimizer
+                  </FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={form.optimizerEnabled}
+                      disabled={isSubmitting}
+                      id="optimizer-enabled"
+                      onCheckedChange={(checked) => {
+                        setForm((currentForm) => ({
+                          ...currentForm,
+                          optimizerEnabled: checked,
+                        }));
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {form.optimizerEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <FieldDescription>
+                    Persist whether this project should start AIM optimizer
+                    lanes.
+                  </FieldDescription>
                 </Field>
               </FieldGroup>
 

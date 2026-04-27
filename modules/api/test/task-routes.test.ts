@@ -202,6 +202,7 @@ describe("task routes", () => {
       global_provider_id: "anthropic",
       name: "Main project",
       git_origin_url: "https://github.com/example/main.git",
+      optimizer_enabled: false,
     });
     expect(createdProject.id).toMatch(uuidPattern);
     expect(createdProject.id).not.toBe(createdProject.git_origin_url);
@@ -222,6 +223,7 @@ describe("task routes", () => {
         global_model_id: "gpt-5.5",
         global_provider_id: "openai",
         name: "Renamed project",
+        optimizer_enabled: true,
       }),
     });
 
@@ -232,6 +234,7 @@ describe("task routes", () => {
       id: createdProject.id,
       name: "Renamed project",
       git_origin_url: "https://github.com/example/main.git",
+      optimizer_enabled: true,
     });
 
     const deleteResponse = await app.request(`/projects/${createdProject.id}`, {
