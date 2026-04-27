@@ -1,6 +1,5 @@
 import type { OptimizerStatusResponse } from "@aim-ai/contract";
-import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, LoaderCircle, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -23,22 +22,13 @@ import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
 import { cn } from "../../../lib/utils.js";
 import {
-  getOpenCodeModels,
   getOptimizerStatus,
   startOptimizer,
   stopOptimizer,
 } from "../api/task-dashboard-api.js";
-import { adaptDashboardTask } from "../model/task-dashboard-adapter.js";
-import type { DashboardTask } from "../model/task-dashboard-view-model.js";
-import {
-  getTaskCreateErrorMessage,
-  getTaskDashboardErrorMessage,
-  taskDashboardQueryOptions,
-} from "../queries.js";
-import { useTaskCreateMutation } from "../use-task-create-mutation.js";
+import { getTaskDashboardErrorMessage } from "../queries.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
-import { CreateTaskForm } from "./create-task-form.js";
 import { DashboardPanelBoundary } from "./dashboard-error-boundary.js";
 import {
   actionGroup,
@@ -59,18 +49,17 @@ import { TaskTableSection } from "./task-table-section.js";
 import { TaskWriteBulkDetailsPage } from "./task-write-bulk-details-page.js";
 import { TaskWriteBulkSection } from "./task-write-bulk-section.js";
 
-// English dashboard action labels remain in i18n resources: Create Task, Refresh, Retry.
+// English dashboard action labels remain in i18n resources: Refresh, Retry.
 
 type DashboardRoute =
   | { kind: "dashboard" }
-  | { kind: "create" }
   | { dimensionId: string; kind: "dimension" }
   | { kind: "projects" }
   | { kind: "task-write-bulk"; bulkId: string }
   | { kind: "task"; taskId: string };
 
 const DASHBOARD_PATH = "/";
-const CREATE_TASK_PATH = "/tasks/new";
+const BLOCKED_CREATE_TASK_PATH = "/tasks/new";
 const PROJECTS_PATH = "/projects";
 
 const getCurrentPath = () => {
@@ -80,8 +69,8 @@ const getCurrentPath = () => {
 };
 
 const getDashboardRoute = (pathname: string): DashboardRoute => {
-  if (pathname === CREATE_TASK_PATH) {
-    return { kind: "create" };
+  if (pathname === BLOCKED_CREATE_TASK_PATH) {
+    return { kind: "dashboard" };
   }
 
   if (pathname === PROJECTS_PATH) {
@@ -134,18 +123,11 @@ const navigateTo = (pathname: string) => {
 
 export const DashboardPage = () => {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
   const dashboardQuery = useTaskDashboardQuery();
-  const createTaskMutation = useTaskCreateMutation();
   const [pathname, setPathname] = useState(getCurrentPath);
-  const [models, setModels] = useState<
-    Awaited<ReturnType<typeof getOpenCodeModels>>["items"]
-  >([]);
   const [optimizerStatus, setOptimizerStatus] =
     useState<OptimizerStatusResponse | null>(null);
   const [isOptimizerChanging, setIsOptimizerChanging] = useState(false);
-  const [selectedTaskFallback, setSelectedTaskFallback] =
-    useState<DashboardTask | null>(null);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
   const selectedTaskId = route.kind === "task" ? route.taskId : null;
   const selectedTask =
@@ -153,7 +135,7 @@ export const DashboardPage = () => {
     dashboardQuery.data?.historyTasks.find(
       (task) => task.id === selectedTaskId,
     ) ??
-    (selectedTaskId === selectedTaskFallback?.id ? selectedTaskFallback : null);
+    null;
   const selectedTaskWriteBulkId =
     route.kind === "task-write-bulk" ? route.bulkId : null;
   const selectedTaskWriteBulk =
@@ -183,6 +165,12 @@ export const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
+    if (pathname === BLOCKED_CREATE_TASK_PATH) {
+      navigateTo(DASHBOARD_PATH);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
     let isActive = true;
 
     void getOptimizerStatus()
@@ -197,30 +185,6 @@ export const DashboardPage = () => {
       isActive = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (route.kind !== "create") {
-      return;
-    }
-
-    let isActive = true;
-
-    void getOpenCodeModels()
-      .then((response) => {
-        if (isActive) {
-          setModels(response.items);
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setModels([]);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [route.kind]);
 
   const handleRefresh = async () => {
     const [, status] = await Promise.all([
@@ -250,17 +214,10 @@ export const DashboardPage = () => {
   };
 
   const goToDashboard = () => {
-    createTaskMutation.reset();
     navigateTo(DASHBOARD_PATH);
   };
 
-  const goToCreateTask = () => {
-    createTaskMutation.reset();
-    navigateTo(CREATE_TASK_PATH);
-  };
-
   const goToProjects = () => {
-    createTaskMutation.reset();
     navigateTo(PROJECTS_PATH);
   };
 
@@ -276,49 +233,16 @@ export const DashboardPage = () => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
   };
 
-  const handleCreateTask = async (input: {
-    title: string;
-    projectPath: string;
-    taskSpec: string;
-    developerProviderId: string;
-    developerModelId: string;
-  }) => {
-    createTaskMutation.reset();
-
-    try {
-      const createdTask = await createTaskMutation.mutateAsync(input);
-      const createdDashboardTaskFallback = adaptDashboardTask(createdTask);
-
-      setSelectedTaskFallback(createdDashboardTaskFallback);
-
-      const refreshedDashboard = await queryClient
-        .fetchQuery(taskDashboardQueryOptions)
-        .catch(() => null);
-      const createdDashboardTask = refreshedDashboard?.tasks.find(
-        (task) => task.id === createdTask.task_id,
-      );
-
-      setSelectedTaskFallback(
-        createdDashboardTask ?? createdDashboardTaskFallback,
-      );
-      goToTask(createdDashboardTask?.id ?? createdDashboardTaskFallback.id);
-    } catch {
-      return;
-    }
-  };
-
   const headerTitle =
     route.kind === "dashboard"
       ? t("baselineConvergenceCockpit")
-      : route.kind === "create"
-        ? t("createTask")
-        : route.kind === "projects"
-          ? "Project Register"
-          : route.kind === "dimension"
-            ? "Dimension Detail"
-            : route.kind === "task-write-bulk"
-              ? "Task Write Bulk Details"
-              : t("taskDetails");
+      : route.kind === "projects"
+        ? "Project Register"
+        : route.kind === "dimension"
+          ? "Dimension Detail"
+          : route.kind === "task-write-bulk"
+            ? "Task Write Bulk Details"
+            : t("taskDetails");
 
   const renderDirectorRail = () => (
     <aside
@@ -342,39 +266,10 @@ export const DashboardPage = () => {
         <li>{t("rejectedFeedback")}</li>
         <li>{t("taskIntakeLower")}</li>
       </ul>
-      <Button onClick={goToCreateTask} variant="outline">
-        <Plus data-icon="inline-start" />
-        {t("taskIntakeLower")}
-      </Button>
     </aside>
   );
 
   const renderContent = () => {
-    if (route.kind === "create") {
-      return (
-        <DashboardPanelBoundary
-          onRetry={handleRefresh}
-          resetKeys={[route.kind, models]}
-          scope="Task Intake"
-        >
-          <section className={pageStack}>
-            <p className={sectionCopy}>{t("createTaskDescription")}</p>
-            <CreateTaskForm
-              errorMessage={
-                createTaskMutation.isError
-                  ? getTaskCreateErrorMessage(createTaskMutation.error)
-                  : null
-              }
-              isSubmitting={createTaskMutation.isPending}
-              models={models}
-              onCancel={goToDashboard}
-              onSubmit={handleCreateTask}
-            />
-          </section>
-        </DashboardPanelBoundary>
-      );
-    }
-
     if (route.kind === "task") {
       return (
         <DashboardPanelBoundary
@@ -466,8 +361,7 @@ export const DashboardPage = () => {
             <EmptyHeader>
               <EmptyTitle>{t("noActiveDashboardData")}</EmptyTitle>
               <EmptyDescription>
-                Refresh the configured server or create a task intake to begin
-                collecting convergence evidence.
+                Refresh the configured server to collect convergence evidence.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -591,21 +485,19 @@ export const DashboardPage = () => {
                   />
                   <span>AIM Optimizer</span>
                 </div>
-                {route.kind !== "create" ? (
-                  <Button
-                    disabled={dashboardQuery.isFetching}
-                    onClick={() => void handleRefresh()}
-                    size="sm"
-                    variant="outline"
-                  >
-                    <RefreshCw data-icon="inline-start" />
-                    {t("refresh")}
-                  </Button>
-                ) : null}
+                <Button
+                  disabled={dashboardQuery.isFetching}
+                  onClick={() => void handleRefresh()}
+                  size="sm"
+                  variant="outline"
+                >
+                  <RefreshCw data-icon="inline-start" />
+                  {t("refresh")}
+                </Button>
                 {route.kind !== "dashboard"
                   ? renderNavAction(
                       false,
-                      createTaskMutation.isPending,
+                      false,
                       t("backToDashboard"),
                       goToDashboard,
                     )
@@ -671,22 +563,7 @@ export const DashboardPage = () => {
                     "Projects",
                     goToProjects,
                   )}
-                  {renderNavAction(
-                    route.kind === "create",
-                    false,
-                    t("taskIntake"),
-                    goToCreateTask,
-                  )}
                 </nav>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-3">
-                {route.kind === "dashboard" ? (
-                  <Button onClick={goToCreateTask}>
-                    <Plus data-icon="inline-start" />
-                    {t("createTask")}
-                  </Button>
-                ) : null}
               </div>
             </div>
           </div>

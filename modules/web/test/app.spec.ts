@@ -86,7 +86,6 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
       "overview-section.tsx",
       "task-table-section.tsx",
       "server-base-url-form.tsx",
-      "create-task-form.tsx",
       "task-details-page.tsx",
       "task-status-badge.tsx",
     ].map((fileName) =>
@@ -102,7 +101,6 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
   expect(combinedPageSource).toContain("components/ui/field.js");
   expect(combinedPageSource).toContain("components/ui/input.js");
   expect(combinedPageSource).toContain("components/ui/select.js");
-  expect(combinedPageSource).toContain("components/ui/textarea.js");
   expect(combinedPageSource).not.toContain('className="field-input"');
   expect(combinedPageSource).not.toContain('className="surface-card');
   expect(combinedPageSource).not.toContain('className="aim-field"');
@@ -136,14 +134,10 @@ test("boots the dashboard app with branded theme providers instead of Mantine", 
   expect(packageSource).toContain('"react": "^19.2.0"');
 });
 
-test("keeps task details and create flow free of direct Mantine component imports", async () => {
+test("keeps task details free of direct Mantine component imports", async () => {
   const { readFile } = await import("node:fs/promises");
   const taskDetailsSource = await readFile(
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-details-page.tsx`,
-    "utf8",
-  );
-  const createTaskFormSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-form.tsx`,
     "utf8",
   );
   const taskStatusBadgeSource = await readFile(
@@ -152,7 +146,6 @@ test("keeps task details and create flow free of direct Mantine component import
   );
 
   expect(taskDetailsSource).not.toContain("@mantine/core");
-  expect(createTaskFormSource).not.toContain("@mantine/core");
   expect(taskStatusBadgeSource).not.toContain("@mantine/core");
 });
 
@@ -245,29 +238,20 @@ test("wires the shared AIM icon assets into web and README entry points", async 
   expect(publicFaviconSource).toBe(faviconSource);
 });
 
-test("keeps task creation inside the dashboard shell", async () => {
+test("keeps direct task creation out of the dashboard shell", async () => {
   const { readFile } = await import("node:fs/promises");
   const dashboardPageSource = await readFile(
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
     "utf8",
   );
-  const createTaskFormSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/create-task-form.tsx`,
-    "utf8",
-  );
 
-  expect(dashboardPageSource).toContain("Create Task");
-  expect(dashboardPageSource).toContain("<CreateTaskForm");
-  expect(dashboardPageSource).toContain('kind: "create"');
+  expect(dashboardPageSource).not.toContain("<CreateTaskForm");
+  expect(dashboardPageSource).not.toContain('kind: "create"');
+  expect(dashboardPageSource).not.toContain("useTaskCreateMutation");
   expect(dashboardPageSource).not.toContain("react-router");
-  expect(createTaskFormSource).toContain('htmlFor="create-task-spec"');
-  expect(createTaskFormSource).toContain("<span>Task Spec</span>");
-  expect(createTaskFormSource).toContain('htmlFor="create-task-project-path"');
-  expect(createTaskFormSource).toContain("<span>Project Path</span>");
-  expect(createTaskFormSource).not.toContain('label="Title"');
 });
 
-test("routes task creation through feature-local api and mutation helpers", async () => {
+test("keeps dashboard reads behind feature-local api helpers", async () => {
   const { readFile } = await import("node:fs/promises");
   const dashboardPageSource = await readFile(
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/dashboard-page.tsx`,
@@ -281,26 +265,17 @@ test("routes task creation through feature-local api and mutation helpers", asyn
     `${process.cwd()}/modules/web/src/lib/api-client.ts`,
     "utf8",
   );
-  const mutationSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/use-task-create-mutation.ts`,
-    "utf8",
-  );
 
-  expect(dashboardPageSource).toContain("useTaskCreateMutation");
+  expect(dashboardPageSource).not.toContain("useTaskCreateMutation");
   expect(dashboardPageSource).not.toContain('fetch("/tasks"');
-  expect(apiSource).toContain("createTaskFromDashboard");
   expect(apiSource).not.toContain("createContractClient");
   expect(apiSource).not.toContain("readServerBaseUrl");
   expect(apiSource).not.toContain("resolveContractUrl");
-  expect(apiSource).toContain("project_id: input.projectPath");
-  expect(mutationSource).toContain("taskSpec: string");
-  expect(mutationSource).toContain("projectPath: string");
   expect(apiClientSource).toContain('request.headers.get("content-type")');
   expect(apiClientSource).toContain("request.body");
   expect(apiClientSource).not.toContain(
     "body: request.body === null ? undefined : await request.text()",
   );
-  expect(mutationSource).toContain("useMutation");
 });
 
 test("keeps dashboard refresh actions behind a shared handler", async () => {

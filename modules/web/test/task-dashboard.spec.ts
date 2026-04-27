@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const buildTask = ({
   dependencies = [],
@@ -58,11 +58,6 @@ const buildOptimizerStatus = (running: boolean) => ({
   last_scan_at: null,
   running,
 });
-
-const selectDeveloperModel = async (page: Page, modelName: string) => {
-  await page.getByRole("combobox", { name: "Developer Model" }).click();
-  await page.getByRole("option", { name: modelName }).click();
-};
 
 const buildTaskWriteBulk = () => ({
   project_path: "/repo/dashboard",
@@ -709,7 +704,7 @@ test("presents a cohesive Director cockpit with convergence, evidence, and inter
   ).toBeVisible();
   await expect(
     page.getByRole("button", { exact: true, name: "Task intake" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 test("manages projects with list, create, edit, and delete actions", async ({
@@ -1241,48 +1236,44 @@ test("toggles task details AIM panel colors with the app theme", async ({
   await expect.poll(readDetailsStyles).not.toEqual(darkStyles);
 });
 
-test("toggles create task AIM form colors with the app theme", async ({
+test("does not expose direct task creation controls in the director GUI", async ({
   page,
 }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  let createRequestCount = 0;
 
-  const readCreateStyles = async () =>
-    page.evaluate(() => {
-      const surface = document.querySelector('[data-slot="card"]');
-      const input = document.querySelector("#create-task-project-path");
-      const select = document.querySelector("#create-task-developer-model");
-      const helper = Array.from(document.querySelectorAll("p")).find((node) =>
-        node.textContent?.includes(
-          "Task intake keeps the existing API contract",
-        ),
-      );
+  await page.route("**/tasks**", async (route) => {
+    if (route.request().method() === "POST") {
+      createRequestCount += 1;
+    }
 
-      if (!surface || !input || !select || !helper) {
-        throw new Error("Expected create task theme elements to render");
-      }
-
-      return {
-        helperColor: getComputedStyle(helper).color,
-        htmlBackground: getComputedStyle(document.documentElement)
-          .getPropertyValue("--background")
-          .trim(),
-        inputBackground: getComputedStyle(input).backgroundColor,
-        inputColor: getComputedStyle(input).color,
-        selectBackground: getComputedStyle(select).backgroundColor,
-        surfaceColor: getComputedStyle(surface).color,
-      };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildTask({
+            spec: "Existing task",
+            taskId: "task-existing",
+          }),
+        ],
+      }),
     });
+  });
 
-  const darkStyles = await readCreateStyles();
+  await page.goto("/");
 
-  await page.getByRole("button", { name: "Switch to light theme" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("button", { name: /^Create Task$/ })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("button", { name: "Task Intake" })).toHaveCount(
+    0,
+  );
 
-  await expect
-    .poll(async () => (await readCreateStyles()).htmlBackground)
-    .not.toBe(darkStyles.htmlBackground);
+  await page.goto("/#/tasks/new");
+
+  await expect(page).toHaveURL(/\/#\/$/);
+  await expect(page.getByLabel("Task Spec")).toHaveCount(0);
+  await expect(page.getByLabel("Project Path")).toHaveCount(0);
+  await expect.poll(() => createRequestCount).toBe(0);
 });
 
 test("renders the task table with core columns", async ({ page }) => {
@@ -1527,348 +1518,6 @@ test("keeps dashboard panels usable when a report panel fails to render and retr
   ).toBeVisible();
   await expect(page.getByText("Restored Direction")).toBeVisible();
   await expect(page.getByText("Panel unavailable")).toHaveCount(0);
-});
-
-test("opens and closes the create task page from the dashboard header", async ({
-  page,
-}) => {
-  await page.goto("/");
-
-  const headerCreateTaskButton = page.getByRole("button", {
-    name: "Create Task",
-  });
-
-  await headerCreateTaskButton.click();
-
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-  await expect(
-    page.getByRole("heading", { name: "Create Task" }),
-  ).toBeVisible();
-  await expect(page.getByLabel("Task Spec")).toBeVisible();
-  await expect(page.getByLabel("Project Path")).toBeVisible();
-
-  await page.getByLabel("Task Spec").fill("Draft task spec");
-  await expect(
-    page.getByRole("button", { name: "Create Task" }),
-  ).toBeDisabled();
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page).toHaveURL(/\/#\/$/);
-
-  await headerCreateTaskButton.click();
-  await expect(page.getByLabel("Task Spec")).toHaveValue("");
-  await expect(page.getByLabel("Project Path")).toHaveValue("");
-});
-
-test("submits title, task_spec, project_path, and selected developer model to the task API", async ({
-  page,
-}) => {
-  let createRequestBodyText: null | string = null;
-
-  await page.route("**/tasks**", async (route) => {
-    if (route.request().method() === "POST") {
-      createRequestBodyText = route.request().postData();
-
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify(
-          buildTask({
-            spec: "Ship create flow",
-            taskId: "task-created",
-          }),
-        ),
-      });
-      return;
-    }
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ items: [] }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-  await page.getByLabel("Title").fill("Ship create flow");
-  await page.getByLabel("Task Spec").fill("Ship create flow");
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await selectDeveloperModel(page, "OpenAI / GPT 5.5");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect
-    .poll(() => createRequestBodyText)
-    .toEqual(
-      JSON.stringify({
-        title: "Ship create flow",
-        task_spec: "Ship create flow",
-        project_id: "/repo/dashboard",
-      }),
-    );
-});
-
-test("uses a saved developer model preference only when it is still available", async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    window.localStorage.setItem(
-      "aim.createTaskDeveloperModel",
-      JSON.stringify({ providerId: "openai", modelId: "gpt-5.5" }),
-    );
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(
-    page.getByRole("combobox", { name: "Developer Model" }),
-  ).toContainText("OpenAI / GPT 5.5");
-});
-
-test("shows a local create error when the task API rejects the request", async ({
-  page,
-}) => {
-  let finishCreateRequest: null | (() => Promise<void>) = null;
-
-  await page.route("**/tasks**", async (route) => {
-    if (route.request().method() === "POST") {
-      await new Promise<void>((resolve) => {
-        finishCreateRequest = async () => {
-          await route.fulfill({
-            status: 422,
-            contentType: "application/json",
-            body: JSON.stringify({
-              code: "TASK_VALIDATION_ERROR",
-              message: "task_spec cannot be blank",
-            }),
-          });
-          resolve();
-        };
-      });
-      return;
-    }
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ items: [] }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-  await page.getByLabel("Title").fill("Ship create flow");
-  await page.getByLabel("Task Spec").fill("Ship create flow");
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Back to Dashboard" }),
-  ).toBeDisabled();
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-
-  await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-
-  await page.mouse.click(8, 8);
-  await expect(page).toHaveURL(/\/#\/tasks\/new$/);
-
-  if (finishCreateRequest === null) {
-    throw new Error("Expected the create request to be pending");
-  }
-
-  await finishCreateRequest();
-
-  await expect(
-    page.getByText("Task creation failed: task_spec cannot be blank"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Create Task" }),
-  ).toBeVisible();
-});
-
-test("brands the create flow with guidance and a dedicated feedback panel", async ({
-  page,
-}) => {
-  await page.route("**/tasks**", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 422,
-        contentType: "application/json",
-        body: JSON.stringify({
-          code: "TASK_VALIDATION_ERROR",
-          message: "task_spec cannot be blank",
-        }),
-      });
-      return;
-    }
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ items: [] }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(page.getByText("Task Brief")).toBeVisible();
-  await expect(page.getByText("Workspace Target")).toBeVisible();
-  await expect(page.getByText("Submission Checklist")).toBeVisible();
-
-  await page.getByLabel("Title").fill("Ship create flow");
-  await page.getByLabel("Task Spec").fill("Ship create flow");
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(page.getByText("Request Blocked")).toBeVisible();
-  await expect(
-    page.getByText("Task creation failed: task_spec cannot be blank"),
-  ).toBeVisible();
-});
-
-test("navigates from create page to task details after refresh", async ({
-  page,
-}) => {
-  let listRequestCount = 0;
-
-  await page.route("**/tasks**", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify(
-          buildTask({
-            spec: "Create release checklist\n- draft notes\n- notify team",
-            taskId: "task-created",
-          }),
-        ),
-      });
-      return;
-    }
-
-    listRequestCount += 1;
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        items:
-          listRequestCount === 1
-            ? [
-                buildTask({
-                  spec: "Existing task",
-                  taskId: "task-existing",
-                }),
-              ]
-            : [
-                buildTask({
-                  spec: "Existing task",
-                  taskId: "task-existing",
-                }),
-                buildTask({
-                  spec: "Create release checklist\n- draft notes\n- notify team",
-                  taskId: "task-created",
-                }),
-              ],
-      }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-  await page.getByLabel("Title").fill("Create release checklist");
-  await page
-    .getByLabel("Task Spec")
-    .fill("Create release checklist\n- draft notes\n- notify team");
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(page).toHaveURL(/\/#\/tasks\/task-created$/);
-  await expect(page.getByText("Task ID: task-created")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Create release checklist" }),
-  ).toBeVisible();
-  await expect(page.getByText("Task Spec", { exact: true })).toBeVisible();
-  await expect(page.getByText("draft notes")).toBeVisible();
-  await expect(page.getByText("notify team")).toBeVisible();
-  await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
-  await page.getByRole("button", { name: "Back to Dashboard" }).click();
-  await expect(
-    page.getByRole("row", { name: /Create release checklist/i }),
-  ).toBeVisible();
-  await expect.poll(() => listRequestCount).toBe(4);
-});
-
-test("opens created task details from the create response when the dashboard refresh fails", async ({
-  page,
-}) => {
-  let listRequestCount = 0;
-
-  await page.route("**/tasks**", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify(
-          buildTask({
-            spec: "Fallback task title\n- still visible after refresh failure",
-            taskId: "task-created",
-          }),
-        ),
-      });
-      return;
-    }
-
-    listRequestCount += 1;
-
-    if (listRequestCount === 1) {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          items: [
-            buildTask({
-              spec: "Existing task",
-              taskId: "task-existing",
-            }),
-          ],
-        }),
-      });
-      return;
-    }
-
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({
-        code: "TASK_VALIDATION_ERROR",
-        message: "refresh unavailable",
-      }),
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Create Task" }).click();
-  await page.getByLabel("Title").fill("Fallback task title");
-  await page
-    .getByLabel("Task Spec")
-    .fill("Fallback task title\n- still visible after refresh failure");
-  await page.getByLabel("Project Path").fill("/repo/dashboard");
-  await page.getByRole("button", { name: "Create Task" }).click();
-
-  await expect(page).toHaveURL(/\/#\/tasks\/task-created$/);
-  await expect(page.getByText("Task ID: task-created")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Fallback task title" }),
-  ).toBeVisible();
-  await expect(page.getByText("Task Spec", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("still visible after refresh failure"),
-  ).toBeVisible();
-  await expect(page.getByText("Project Path: /repo/dashboard")).toBeVisible();
-  await expect.poll(() => listRequestCount).toBe(4);
 });
 
 test("uses the first task_spec line as the task title while keeping the full body in details", async ({
