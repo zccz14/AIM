@@ -9,7 +9,7 @@ description: Coordinator decision entry for AIM Task Pool maintenance; form an a
 
 这个 skill 是 AIM Coordinator 维护 Task Pool 时的决策入口。Coordinator 的产物不是泛化分析报告，也不是直接执行开发工作，而是一个等待用户批准的 `POST /tasks/batch` operations 计划。Manager 评估信号的产品语义见 `docs/manager-evaluation-signal.md`。
 
-`POST /tasks/batch` operations 用来对同一个 `project_path` 的 Task Pool 做原子写入。每一项只能是 `create` 或 `delete`；用户批准后，一次性提交到服务端，任一 operation 失败则整体回滚。
+`POST /tasks/batch` operations 用来对同一个 `project_id` 的 Task Pool 做原子写入。每一项只能是 `create` 或 `delete`；用户批准后，一次性提交到服务端，任一 operation 失败则整体回滚。
 
 ## 何时使用
 
@@ -58,7 +58,7 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 
 ## Batch 规则
 
-- 顶层必须包含唯一 `project_path`，不得跨 project 原子写入。
+- 顶层必须包含唯一 `project_id`，不得跨 project 原子写入。
 - `operations` 按数组顺序执行。
 - 同一 batch 内禁止重复 `task_id`，避免顺序依赖。
 - `create.task.task_id` 必须是调用方传入的 UUID。

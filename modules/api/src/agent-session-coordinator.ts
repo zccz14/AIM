@@ -7,7 +7,7 @@ import type {
 
 export type AgentSessionInput = {
   modelId: string;
-  projectPath: string;
+  projectDirectory: string;
   prompt: string;
   providerId: string;
   title: string;
@@ -19,7 +19,7 @@ export type AgentSessionCoordinator = {
   ): Promise<AsyncDisposable & { sessionId: string }>;
   getSessionState(
     sessionId: string,
-    projectPath: string,
+    projectDirectory: string,
   ): Promise<TaskSessionState>;
   sendPrompt(sessionId: string, input: AgentSessionInput): Promise<void>;
 };
@@ -33,7 +33,7 @@ export const createAgentSessionCoordinator = (
     async createSession(input) {
       const session = await client.session.create({
         body: { title: input.title },
-        query: { directory: input.projectPath },
+        query: { directory: input.projectDirectory },
         throwOnError: true,
       });
 
@@ -43,17 +43,17 @@ export const createAgentSessionCoordinator = (
         async [Symbol.asyncDispose]() {
           await client.session.abort({
             path: { id: session.data.id },
-            query: { directory: input.projectPath },
+            query: { directory: input.projectDirectory },
             throwOnError: true,
           });
         },
         sessionId: session.data.id,
       };
     },
-    async getSessionState(sessionId, projectPath) {
+    async getSessionState(sessionId, projectDirectory) {
       const response = await client.session.messages({
         path: { id: sessionId },
-        query: { directory: projectPath },
+        query: { directory: projectDirectory },
         throwOnError: true,
       });
 

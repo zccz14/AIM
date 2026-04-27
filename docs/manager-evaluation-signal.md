@@ -8,7 +8,7 @@ Coordinator 后续维护 Task Pool 时，应从这些维度定义与评估记录
 
 ## 可观察入口
 
-- 维度定义：`POST /dimensions`、`GET /dimensions?project_path=...`、`GET /dimensions/{dimensionId}`、`PATCH /dimensions/{dimensionId}`、`DELETE /dimensions/{dimensionId}`。
+- 维度定义：`POST /dimensions`、`GET /dimensions?project_id=...`、`GET /dimensions/{dimensionId}`、`PATCH /dimensions/{dimensionId}`、`DELETE /dimensions/{dimensionId}`。
 - 维度评估：`POST /dimensions/{dimensionId}/evaluations`、`GET /dimensions/{dimensionId}/evaluations`。
 - Coordinator 写入意图：当评估信号需要转为 Task Pool 维护候选时，继续使用 `aim-coordinator-guide` 中的 `POST /tasks/batch` operations 审批边界。
 

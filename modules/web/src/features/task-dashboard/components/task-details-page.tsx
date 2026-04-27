@@ -25,7 +25,7 @@ import {
 import { TaskStatusBadge } from "./task-status-badge.js";
 
 const metadataRows = (task: DashboardTask) => [
-  { label: "Project Path", value: task.projectPath },
+  { label: "Project ID", value: task.projectId },
   { label: "Task ID", value: task.id },
   { label: "Contract Status", value: task.contractStatus },
   { label: "Dashboard Status", value: task.dashboardStatus },

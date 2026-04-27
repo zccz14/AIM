@@ -7,7 +7,7 @@ import { createAgentSessionLane } from "./agent-session-lane.js";
 import { createApp } from "./app.js";
 import { createApiLogger } from "./logger.js";
 import { createOptimizerRuntime } from "./optimizer-runtime.js";
-import { resolveProjectWorkspacePath } from "./project-workspace.js";
+import { ensureProjectWorkspace } from "./project-workspace.js";
 import { createTaskRepository } from "./task-repository.js";
 import { createTaskScheduler } from "./task-scheduler.js";
 import {
@@ -134,7 +134,11 @@ export const startServer = () => {
         laneName: "manager_evaluation",
         logger,
         modelId: configuredProject.global_model_id,
-        projectPath: resolveProjectWorkspacePath(configuredProject.id),
+        projectDirectory: () =>
+          ensureProjectWorkspace({
+            git_origin_url: configuredProject.git_origin_url,
+            project_id: configuredProject.id,
+          }),
         prompt: managerPrompt,
         providerId: configuredProject.global_provider_id,
         title: "AIM Manager evaluation lane",
@@ -146,7 +150,11 @@ export const startServer = () => {
         laneName: "coordinator_task_pool",
         logger,
         modelId: configuredProject.global_model_id,
-        projectPath: resolveProjectWorkspacePath(configuredProject.id),
+        projectDirectory: () =>
+          ensureProjectWorkspace({
+            git_origin_url: configuredProject.git_origin_url,
+            project_id: configuredProject.id,
+          }),
         prompt: coordinatorPrompt,
         providerId: configuredProject.global_provider_id,
         title: "AIM Coordinator task-pool lane",

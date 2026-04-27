@@ -35,7 +35,7 @@ describe("agent session coordinator", () => {
 
     const session = await coordinator.createSession({
       modelId: "gpt-5.5",
-      projectPath: "/repo",
+      projectDirectory: "/repo",
       prompt: "FOLLOW the aim-manager-guide SKILL.",
       providerId: "openai",
       title: "AIM Manager evaluation lane",

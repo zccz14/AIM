@@ -705,6 +705,7 @@ describe("opencode plugin package baseline", () => {
       "readme_target_summary",
       "dimensions",
       "dimension_evaluations",
+      "project_id",
       "baseline_facts",
       "差距分析",
       "iteration_direction",
@@ -733,6 +734,7 @@ describe("opencode plugin package baseline", () => {
       "不是一等持久化资源",
       "`dimensions` 保存评估维度定义",
       "`dimension_evaluations` 保存每次针对维度的评分",
+      "GET /dimensions?project_id=...",
       "不是读取、创建或引用独立的 `manager_reports` 资源",
       "baseline_ref",
       "dimensions",
@@ -808,6 +810,7 @@ describe("opencode plugin package baseline", () => {
       "name: aim-coordinator-guide",
       "Coordinator decision entry",
       "POST /tasks/batch",
+      "project_id",
       "Create",
       "Delete",
       "rejected Task",
@@ -841,12 +844,12 @@ describe("opencode plugin package baseline", () => {
       /POST \$\{SERVER_BASE_URL:-http:\/\/localhost:8192\}\/tasks/,
     );
     expect(pluginCreateTasksSkillText).toContain("`task_spec`");
-    expect(pluginCreateTasksSkillText).toContain("`project_path`");
+    expect(pluginCreateTasksSkillText).toContain("`project_id`");
     expect(pluginCreateTasksSkillText).toContain("`title`");
     expect(pluginCreateTasksSkillText).toContain("`developer_provider_id`");
     expect(pluginCreateTasksSkillText).toContain("`developer_model_id`");
     expect(pluginCreateTasksSkillText).toContain(
-      "`title`、`task_spec`、`project_path`、`developer_provider_id` 和 `developer_model_id` 是创建必需字段。",
+      "`title`、`task_spec`、`project_id`、`developer_provider_id` 和 `developer_model_id` 是创建必需字段。",
     );
     expect(pluginCreateTasksSkillText).toContain("`dependencies` 只是软提示");
     expect(pluginCreateTasksSkillText).toContain(
@@ -855,7 +858,7 @@ describe("opencode plugin package baseline", () => {
     expect(pluginCreateTasksSkillText).toContain(
       "如果用户要求修改候选，回到访谈或起草步骤，重新形成候选并再次经过独立校验。",
     );
-    expect(pluginCreateTasksSkillText).toContain("不要猜 `project_path`");
+    expect(pluginCreateTasksSkillText).toContain("不要猜 `project_id`");
     expect(pluginCreateTasksSkillText).toContain(
       "不用它替代调度器决定顺序、优先级或编排。",
     );

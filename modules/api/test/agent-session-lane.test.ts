@@ -16,7 +16,7 @@ const createLane = (overrides = {}) =>
     },
     laneName: "manager_evaluation",
     modelId: "claude-sonnet-4-5",
-    projectPath: "/repo",
+    projectDirectory: "/repo",
     prompt: "FOLLOW the aim-manager-guide SKILL.",
     providerId: "anthropic",
     title: "AIM Manager evaluation lane",
@@ -98,6 +98,38 @@ describe("agent session lane", () => {
     await lane[Symbol.asyncDispose]();
 
     expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("resolves the project directory before creating or continuing a lane session", async () => {
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const resolveProjectDirectory = vi
+      .fn()
+      .mockResolvedValueOnce("/repo/first")
+      .mockResolvedValueOnce("/repo/current");
+    const lane = createLane({
+      coordinator,
+      projectDirectory: resolveProjectDirectory,
+    });
+
+    await lane.scanOnce();
+    await lane.scanOnce();
+
+    expect(resolveProjectDirectory).toHaveBeenCalledTimes(2);
+    expect(coordinator.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ projectDirectory: "/repo/first" }),
+    );
+    expect(coordinator.getSessionState).toHaveBeenCalledWith(
+      "session-1",
+      "/repo/current",
+    );
+    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({ projectDirectory: "/repo/current" }),
+    );
   });
 
   it("exposes scan errors and successful scan timestamps for optimizer status", async () => {

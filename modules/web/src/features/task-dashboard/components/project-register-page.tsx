@@ -291,7 +291,7 @@ export const ProjectRegisterPage = () => {
                   {editingProject ? "Edit Project" : "Create Project"}
                 </CardTitle>
                 <CardDescription>
-                  Store the project path and global model pair used by task
+                  Store the Git origin URL and global model pair used by task
                   creation.
                 </CardDescription>
                 {editingProject ? (

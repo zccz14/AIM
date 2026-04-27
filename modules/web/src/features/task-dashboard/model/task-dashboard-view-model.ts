@@ -8,7 +8,7 @@ export type DashboardTask = {
   taskSpec: string;
   result: string;
   projectId: string;
-  projectPath: string;
+  projectCoordinate: string;
   contractStatus: string;
   dashboardStatus: DashboardStatus;
   sessionId: string | null;
@@ -56,7 +56,7 @@ export type DashboardRejectedFeedbackSignal = {
   coordinates: string[];
   sampleTasks: Pick<
     DashboardTask,
-    "id" | "title" | "projectPath" | "updatedAt"
+    "id" | "title" | "projectCoordinate" | "updatedAt"
   >[];
 };
 

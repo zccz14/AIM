@@ -45,10 +45,10 @@ export const ProjectDetailPage = ({
   }
 
   const activeTasks = dashboard.tasks.filter(
-    (task) => task.projectId === project.id || task.projectPath === project.id,
+    (task) => task.projectId === project.id,
   );
   const completedTasks = dashboard.historyTasks.filter(
-    (task) => task.projectId === project.id || task.projectPath === project.id,
+    (task) => task.projectId === project.id,
   );
   const dependencyLinkedTasks = activeTasks.filter(
     (task) => task.dependencies.length > 0,
@@ -93,7 +93,7 @@ export const ProjectDetailPage = ({
           <p className={eyebrow}>Dimensions</p>
           <h2 className={sectionTitle}>Project Dimensions</h2>
           <p className={sectionCopy}>
-            Dimension fit is scoped to this project path only.
+            Dimension fit is scoped to this project ID only.
           </p>
         </div>
         <Card>
