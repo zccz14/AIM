@@ -1,5 +1,10 @@
-import type { OptimizerStatusResponse } from "@aim-ai/contract";
 import type { ApiLogger } from "./api-logger.js";
+
+type OptimizerLaneStatus = {
+  last_error: null | string;
+  last_scan_at: null | string;
+  running: boolean;
+};
 
 type OptimizerLaneScheduler = AsyncDisposable & {
   getStatus?(): {
@@ -26,9 +31,21 @@ export type OptimizerEvent = {
   type: "task_resolved";
 };
 
+type OptimizerStatus = {
+  enabled_triggers: OptimizerEvent["type"][];
+  last_event: null | {
+    task_id: string;
+    triggered_scan: boolean;
+    type: OptimizerEvent["type"];
+  };
+  last_scan_at: null | string;
+  lanes: Record<OptimizerLaneName, OptimizerLaneStatus>;
+  running: boolean;
+};
+
 export type OptimizerRuntime = AsyncDisposable & {
   disable(): Promise<void>;
-  getStatus(): OptimizerStatusResponse;
+  getStatus(): OptimizerStatus;
   handleEvent(event: OptimizerEvent): Promise<void>;
   start(): void;
 };
@@ -43,8 +60,8 @@ export const createOptimizerRuntime = ({
   logger?: ApiLogger;
 }): OptimizerRuntime => {
   let running = false;
-  let lastEvent: OptimizerStatusResponse["last_event"] = null;
-  let lastScanAt: OptimizerStatusResponse["last_scan_at"] = null;
+  let lastEvent: OptimizerStatus["last_event"] = null;
+  let lastScanAt: OptimizerStatus["last_scan_at"] = null;
   let stopPromise: Promise<void> | null = null;
   const registrations = lanes.map(({ lane, name }) => ({
     lane,
@@ -81,9 +98,7 @@ export const createOptimizerRuntime = ({
       "developer_follow_up",
     ].map((name) => [name, aggregateLaneStatus(name as OptimizerLaneName)]);
 
-    return Object.fromEntries(entries) as NonNullable<
-      OptimizerStatusResponse["lanes"]
-    >;
+    return Object.fromEntries(entries) as OptimizerStatus["lanes"];
   };
 
   const recordLaneError = (name: OptimizerLaneName, error: unknown) => {

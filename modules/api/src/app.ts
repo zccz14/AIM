@@ -9,7 +9,6 @@ import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
-import { registerOptimizerRoutes } from "./routes/optimizer.js";
 import { registerProjectRoutes } from "./routes/projects.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
@@ -57,56 +56,9 @@ const createAsyncResourceScope = () => {
   };
 };
 
-const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
-  let running = false;
-
-  return {
-    [Symbol.asyncDispose]: () => {
-      running = false;
-
-      return Promise.resolve();
-    },
-    disable: () => {
-      running = false;
-
-      return Promise.resolve();
-    },
-    getStatus: () => ({
-      enabled_triggers: ["task_resolved"],
-      last_event: null,
-      last_scan_at: null,
-      lanes: {
-        coordinator_task_pool: {
-          last_error: null,
-          last_scan_at: null,
-          running,
-        },
-        developer_follow_up: {
-          last_error: null,
-          last_scan_at: null,
-          running,
-        },
-        manager_evaluation: {
-          last_error: null,
-          last_scan_at: null,
-          running,
-        },
-      },
-      running,
-    }),
-    handleEvent: () => Promise.resolve(),
-    start: () => {
-      running = true;
-    },
-  };
-};
-
 export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   const app = new Hono() as AppResource;
   const resourceScope = createAsyncResourceScope();
-  const optimizerRuntime =
-    _options.optimizerRuntime ??
-    resourceScope.use(createInactiveOptimizerRuntime());
 
   app[Symbol.asyncDispose] = async () => {
     await resourceScope[Symbol.asyncDispose]();
@@ -119,7 +71,6 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerOptimizerRoutes(app, optimizerRuntime);
   registerProjectRoutes(app, { resourceScope });
   registerDimensionRoutes(app, { resourceScope });
   registerTaskRoutes(app, {

@@ -130,20 +130,12 @@ type _generatedClientExportsTaskCrud = Assert<
     HasExport<GeneratedClientModule, "resolveTaskById"> &
     HasExport<GeneratedClientModule, "rejectTaskById">
 >;
-type _generatedClientExportsOptimizerControl = Assert<
-  HasExport<GeneratedClientModule, "getOptimizerStatus"> &
-    HasExport<GeneratedClientModule, "startOptimizer"> &
-    HasExport<GeneratedClientModule, "stopOptimizer">
->;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
     HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
     HasExport<GeneratedTypesModule, "TaskResultRequest"> &
     HasExport<GeneratedTypesModule, "TaskListResponse">
->;
-type _generatedTypesExportOptimizerControl = Assert<
-  HasExport<GeneratedTypesModule, "OptimizerStatusResponse">
 >;
 
 const assertBuiltEntry = async () => {
@@ -335,10 +327,6 @@ describe("contract package baseline", () => {
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
-      "optimizerStartPath",
-      "optimizerStatusPath",
-      "optimizerStatusResponseSchema",
-      "optimizerStopPath",
       "patchDimensionRequestSchema",
       "patchProjectRequestSchema",
       "patchTaskRequestSchema",
@@ -388,15 +376,22 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[contractModule.opencodeModelsPath],
     ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[contractModule.optimizerStatusPath],
-    ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[contractModule.optimizerStartPath],
-    ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[contractModule.optimizerStopPath],
-    ).toBeDefined();
+    expect(contractModule).not.toHaveProperty("optimizerStatusPath");
+    expect(contractModule).not.toHaveProperty("optimizerStartPath");
+    expect(contractModule).not.toHaveProperty("optimizerStopPath");
+    expect(contractModule).not.toHaveProperty("optimizerStatusResponseSchema");
+    expect(generatedClientModule).not.toHaveProperty("getOptimizerStatus");
+    expect(generatedClientModule).not.toHaveProperty("startOptimizer");
+    expect(generatedClientModule).not.toHaveProperty("stopOptimizer");
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/optimizer/status",
+    );
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/optimizer/start",
+    );
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/optimizer/stop",
+    );
     expect(
       contractModule.openApiDocument.paths[contractModule.projectsPath],
     ).toBeDefined();
@@ -492,67 +487,6 @@ describe("contract package baseline", () => {
     expect(
       contractModule.taskErrorCodeSchema.parse("OPENCODE_MODELS_UNAVAILABLE"),
     ).toBe("OPENCODE_MODELS_UNAVAILABLE");
-  });
-
-  it("exports optimizer control schemas from the built package boundary", () => {
-    expect(contractModule.optimizerStatusPath).toBe("/optimizer/status");
-    expect(contractModule.optimizerStartPath).toBe("/optimizer/start");
-    expect(contractModule.optimizerStopPath).toBe("/optimizer/stop");
-    expect(
-      contractModule.optimizerStatusResponseSchema.parse({
-        enabled_triggers: ["task_resolved"],
-        last_event: {
-          task_id: "task-1",
-          triggered_scan: true,
-          type: "task_resolved",
-        },
-        last_scan_at: "2026-04-26T12:00:00.000Z",
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-          developer_follow_up: {
-            last_error: null,
-            last_scan_at: "2026-04-26T12:00:00.000Z",
-            running: true,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-        },
-        running: true,
-      }),
-    ).toEqual({
-      enabled_triggers: ["task_resolved"],
-      last_event: {
-        task_id: "task-1",
-        triggered_scan: true,
-        type: "task_resolved",
-      },
-      last_scan_at: "2026-04-26T12:00:00.000Z",
-      lanes: {
-        coordinator_task_pool: {
-          last_error: null,
-          last_scan_at: null,
-          running: true,
-        },
-        developer_follow_up: {
-          last_error: null,
-          last_scan_at: "2026-04-26T12:00:00.000Z",
-          running: true,
-        },
-        manager_evaluation: {
-          last_error: null,
-          last_scan_at: null,
-          running: true,
-        },
-      },
-      running: true,
-    });
   });
 
   it("exports task paths and task schemas from the built package boundary", () => {
