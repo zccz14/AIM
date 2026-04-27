@@ -383,6 +383,9 @@ test("keeps project management available on the Projects page", async ({
     page.getByRole("heading", { name: "Project Register" }),
   ).toBeVisible();
   await expect(page.getByRole("row", { name: /Main project/ })).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Git Origin URL" }),
+  ).toBeVisible();
 
   await page.getByLabel("Project Name").fill("Created project");
   await page

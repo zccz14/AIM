@@ -210,7 +210,7 @@ export const ProjectRegisterPage = () => {
                   <thead>
                     <tr className="border-b text-muted-foreground">
                       <th className="py-2 pr-3 font-medium">Project</th>
-                      <th className="py-2 pr-3 font-medium">Path</th>
+                      <th className="py-2 pr-3 font-medium">Git Origin URL</th>
                       <th className="py-2 pr-3 font-medium">Global Model</th>
                       <th className="py-2 pr-0 text-right font-medium">
                         Actions
