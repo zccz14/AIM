@@ -9,9 +9,7 @@ import type {
 } from "./task-session-coordinator.js";
 
 export type OpenCodeSdkAdapter = {
-  createSession(
-    task: Task,
-  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; id: string }>;
+  createSession(task: Task): Promise<AsyncDisposable & { id: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,
