@@ -43,7 +43,7 @@ const tableColumns = (database: DatabaseSync, tableName: string) =>
 const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
   const projectColumns = tableColumns(database, "projects");
 
-  if (!projectColumns.has("id") || !projectColumns.has("project_path")) {
+  if (!projectColumns.has("id")) {
     return;
   }
 
@@ -74,7 +74,32 @@ const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
 
 export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
   database.exec("PRAGMA foreign_keys = OFF;");
+  database.exec("PRAGMA legacy_alter_table = ON;");
   try {
+    const initialProjectColumns = tableColumns(database, "projects");
+    if (initialProjectColumns.has("project_path")) {
+      database.exec(
+        "ALTER TABLE projects RENAME TO projects_legacy_project_path",
+      );
+      database.exec(`
+        CREATE TABLE projects (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          git_origin_url TEXT NOT NULL UNIQUE,
+          global_provider_id TEXT NOT NULL,
+          global_model_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+      database.exec(`
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at)
+        SELECT id, name, project_path, global_provider_id, global_model_id, created_at, updated_at
+        FROM projects_legacy_project_path
+      `);
+      database.exec("DROP TABLE projects_legacy_project_path");
+    }
+
     const taskColumns = tableColumns(database, "tasks");
     if (
       taskColumns.has("project_path") &&
@@ -85,7 +110,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
         ? "COALESCE(project_id, project_path)"
         : "project_path";
       database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at)
         SELECT DISTINCT project_path, project_path, project_path, developer_provider_id, developer_model_id, created_at, updated_at
         FROM tasks
         WHERE project_path IS NOT NULL
@@ -123,7 +148,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     const dimensionColumns = tableColumns(database, "dimensions");
     if (dimensionColumns.has("project_path")) {
       database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at)
         SELECT DISTINCT project_path, project_path, project_path, '', '', created_at, updated_at
         FROM dimensions
         WHERE project_path IS NOT NULL
@@ -154,7 +179,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     const evaluationColumns = tableColumns(database, "dimension_evaluations");
     if (evaluationColumns.has("project_path")) {
       database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at)
         SELECT DISTINCT project_path, project_path, project_path, '', '', created_at, created_at
         FROM dimension_evaluations
         WHERE project_path IS NOT NULL
@@ -188,6 +213,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
 
     rewriteProjectIdsToUuids(database);
   } finally {
+    database.exec("PRAGMA legacy_alter_table = OFF;");
     database.exec("PRAGMA foreign_keys = ON;");
   }
 };
@@ -205,6 +231,7 @@ export const applySqliteTableSchema = (database: DatabaseSync) => {
 };
 
 export const applySqliteIndexSchema = (database: DatabaseSync) => {
+  database.exec("DROP INDEX IF EXISTS tasks_unfinished_session_id_unique;");
   execSchemaStatements(database, (statement) =>
     /^CREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(statement),
   );

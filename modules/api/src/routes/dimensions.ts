@@ -35,15 +35,15 @@ const buildValidationError = (message: string) =>
 const requireDimensionId = (dimensionId: string | undefined) =>
   dimensionId ?? "dimension-unknown";
 
-const parseProjectPath = (request: Request) => {
+const parseProjectId = (request: Request) => {
   const { searchParams } = new URL(request.url);
-  const projectPath = searchParams.get("project_path");
+  const projectId = searchParams.get("project_id");
 
-  if (!projectPath) {
-    return buildValidationError("project_path query parameter is required");
+  if (!projectId) {
+    return buildValidationError("project_id query parameter is required");
   }
 
-  return projectPath;
+  return projectId;
 };
 
 const parseCreateDimensionRequest = async (request: Request) => {
@@ -122,13 +122,13 @@ export const registerDimensionRoutes = (
   });
 
   app.get(dimensionsPath, async (context) => {
-    const projectPath = parseProjectPath(context.req.raw);
+    const projectId = parseProjectId(context.req.raw);
 
-    if (typeof projectPath !== "string") {
-      return context.json(projectPath, 400);
+    if (typeof projectId !== "string") {
+      return context.json(projectId, 400);
     }
 
-    const dimensions = await getRepository().listDimensions(projectPath);
+    const dimensions = await getRepository().listDimensions(projectId);
 
     return context.json({ items: dimensions }, 200);
   });
@@ -205,10 +205,10 @@ export const registerDimensionRoutes = (
       return context.json(buildNotFoundError(dimensionId), 404);
     }
 
-    if (dimension.project_path !== parsedRequest.data.project_path) {
+    if (dimension.project_id !== parsedRequest.data.project_id) {
       return context.json(
         buildValidationError(
-          "dimension evaluation project_path must match dimension",
+          "dimension evaluation project_id must match dimension",
         ),
         400,
       );

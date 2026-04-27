@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 const buildTask = ({
   dependencies = [],
   done = false,
-  projectId = "00000000-0000-4000-8000-000000000001",
-  projectPath = "/repo/main",
+  gitOriginUrl = "https://github.com/example/main.git",
+  projectId = "00000000-0000-4000-8000-000000000010",
   result = "",
   spec,
   status = "processing",
@@ -13,8 +13,8 @@ const buildTask = ({
 }: {
   dependencies?: string[];
   done?: boolean;
+  gitOriginUrl?: string;
   projectId?: string;
-  projectPath?: string;
   result?: string;
   spec: string;
   status?: string;
@@ -25,7 +25,7 @@ const buildTask = ({
   title: spec.split("\n", 1)[0] ?? spec,
   task_spec: spec,
   project_id: projectId,
-  project_path: projectPath,
+  git_origin_url: gitOriginUrl,
   developer_provider_id: "anthropic",
   developer_model_id: "claude-sonnet-4-5",
   session_id: null,
@@ -57,16 +57,16 @@ const buildDimension = ({
   evaluationMethod = "Compare visible dashboard evidence against README goal convergence.",
   goal = "Dashboard keeps AIM Director focused on baseline convergence.",
   name = "README Fit",
-  projectPath = "/repo/main",
+  projectId = "00000000-0000-4000-8000-000000000010",
 }: {
   dimensionId?: string;
   evaluationMethod?: string;
   goal?: string;
   name?: string;
-  projectPath?: string;
+  projectId?: string;
 } = {}) => ({
   id: dimensionId,
-  project_path: projectPath,
+  project_id: projectId,
   name,
   goal,
   evaluation_method: evaluationMethod,
@@ -89,7 +89,7 @@ const buildDimensionEvaluation = ({
 } = {}) => ({
   id: evaluationId,
   dimension_id: dimensionId,
-  project_path: "/repo/main",
+  project_id: "00000000-0000-4000-8000-000000000010",
   commit_sha: "abc1234",
   evaluator_model: "gpt-5.5",
   score,
@@ -98,21 +98,21 @@ const buildDimensionEvaluation = ({
 });
 
 const buildProject = ({
+  gitOriginUrl = "https://github.com/example/main.git",
   globalModelId = "claude-sonnet-4-5",
   globalProviderId = "anthropic",
   name = "Main project",
   projectId = "00000000-0000-4000-8000-000000000010",
-  projectPath = "/repo/main",
 }: {
+  gitOriginUrl?: string;
   globalModelId?: string;
   globalProviderId?: string;
   name?: string;
   projectId?: string;
-  projectPath?: string;
 } = {}) => ({
   id: projectId,
   name,
-  project_path: projectPath,
+  git_origin_url: gitOriginUrl,
   global_provider_id: globalProviderId,
   global_model_id: globalModelId,
   created_at: "2026-04-26T00:00:00.000Z",
@@ -136,7 +136,6 @@ test.beforeEach(async ({ page }) => {
             ? [
                 buildTask({
                   done: true,
-                  projectPath: "/repo/main",
                   result: "Merged and verified.",
                   spec: "Completed project task",
                   status: "resolved",
@@ -146,13 +145,12 @@ test.beforeEach(async ({ page }) => {
             : [
                 buildTask({
                   dependencies: ["task-resolved"],
-                  projectPath: "/repo/main",
                   spec: "Active main task",
                   taskId: "task-main",
                 }),
                 buildTask({
+                  gitOriginUrl: "https://github.com/example/research.git",
                   projectId: "00000000-0000-4000-8000-000000000011",
-                  projectPath: "/repo/research",
                   spec: "Research project task",
                   taskId: "task-research",
                 }),
@@ -170,9 +168,9 @@ test.beforeEach(async ({ page }) => {
           buildProject({
             globalModelId: "gpt-5.5",
             globalProviderId: "openai",
+            gitOriginUrl: "https://github.com/example/research.git",
             name: "Research project",
             projectId: "00000000-0000-4000-8000-000000000011",
-            projectPath: "/repo/research",
           }),
         ],
       }),
@@ -180,19 +178,18 @@ test.beforeEach(async ({ page }) => {
   });
 
   await page.route("**/dimensions**", async (route) => {
-    const projectPath = new URL(route.request().url()).searchParams.get(
-      "project_path",
+    const projectId = new URL(route.request().url()).searchParams.get(
+      "project_id",
     );
     const dimensions = [
       buildDimension(),
       buildDimension({
         dimensionId: "dimension-research-fit",
         name: "Research Fit",
-        projectPath: "/repo/research",
+        projectId: "00000000-0000-4000-8000-000000000011",
       }),
     ].filter(
-      (dimension) =>
-        projectPath === null || dimension.project_path === projectPath,
+      (dimension) => projectId === null || dimension.project_id === projectId,
     );
 
     await route.fulfill({
@@ -256,7 +253,7 @@ test("renders a simplified top-level dashboard for projects and dimensions", asy
   await expect(
     page.getByRole("region", { name: "AIM Dimension report" }),
   ).toBeVisible();
-  await expect(page.getByText("2 project paths")).toBeVisible();
+  await expect(page.getByText("2 projects")).toBeVisible();
   await expect(page.getByText("2 dimensions")).toBeVisible();
 
   for (const removedLabel of [
@@ -286,7 +283,9 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
     page.getByRole("heading", { name: "Project Detail" }),
   ).toBeVisible();
   await expect(page.getByText("Main project", { exact: true })).toBeVisible();
-  await expect(page.getByText("/repo/main")).toBeVisible();
+  await expect(
+    page.getByText("https://github.com/example/main.git"),
+  ).toBeVisible();
   await expect(page.getByText("1 active task")).toBeVisible();
   await expect(page.getByText("1 completed task")).toBeVisible();
   await expect(page.getByText("1 dependency-linked task")).toBeVisible();
@@ -324,17 +323,17 @@ test("keeps project management available on the Projects page", async ({
 
     if (request.method() === "POST") {
       const payload = JSON.parse(request.postData() ?? "{}") as {
+        git_origin_url: string;
         global_model_id: string;
         global_provider_id: string;
         name: string;
-        project_path: string;
       };
       const createdProject = buildProject({
+        gitOriginUrl: payload.git_origin_url,
         globalModelId: payload.global_model_id,
         globalProviderId: payload.global_provider_id,
         name: payload.name,
         projectId: "00000000-0000-4000-8000-000000000012",
-        projectPath: payload.project_path,
       });
 
       projects = [...projects, createdProject];
@@ -348,10 +347,10 @@ test("keeps project management available on the Projects page", async ({
 
     if (request.method() === "PATCH") {
       const payload = JSON.parse(request.postData() ?? "{}") as {
+        git_origin_url?: string;
         global_model_id?: string;
         global_provider_id?: string;
         name?: string;
-        project_path?: string;
       };
       const updatedProject = {
         ...projects.find((project) => project.id === projectId),
@@ -386,7 +385,9 @@ test("keeps project management available on the Projects page", async ({
   await expect(page.getByRole("row", { name: /Main project/ })).toBeVisible();
 
   await page.getByLabel("Project Name").fill("Created project");
-  await page.getByLabel("Project Path").fill("/repo/created");
+  await page
+    .getByLabel("Git Origin URL")
+    .fill("https://github.com/example/created.git");
   await page.getByLabel("Global Provider").fill("anthropic");
   await page.getByLabel("Global Model").fill("claude-sonnet-4-5");
   await page.getByRole("button", { name: "Create Project" }).click();

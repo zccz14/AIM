@@ -110,9 +110,7 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     done?: boolean;
     session_id?: string;
   }): Promise<TaskListResponse>;
-  listDimensions(query: {
-    project_path: string;
-  }): Promise<DimensionListResponse>;
+  listDimensions(query: { project_id: string }): Promise<DimensionListResponse>;
   listDimensionEvaluations(
     dimensionId: string,
   ): Promise<DimensionEvaluationListResponse>;
@@ -142,9 +140,9 @@ const buildTaskListPath = (query?: {
   return queryString.length === 0 ? tasksPath : `${tasksPath}?${queryString}`;
 };
 
-const buildDimensionListPath = (query: { project_path: string }) => {
+const buildDimensionListPath = (query: { project_id: string }) => {
   const searchParams = new URLSearchParams({
-    project_path: query.project_path,
+    project_id: query.project_id,
   });
 
   return `${dimensionsPath}?${searchParams.toString()}`;

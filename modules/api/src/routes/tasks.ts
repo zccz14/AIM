@@ -101,21 +101,6 @@ const parseCreateTaskRequest = async (request: Request) => {
   const result = createTaskRequestSchema.safeParse(payload);
 
   if (!result.success) {
-    if (
-      payload !== null &&
-      typeof payload === "object" &&
-      typeof (payload as { developer_model_id?: unknown })
-        .developer_model_id === "string" &&
-      typeof (payload as { developer_provider_id?: unknown })
-        .developer_provider_id === "string" &&
-      typeof (payload as { project_path?: unknown }).project_path ===
-        "string" &&
-      typeof (payload as { task_spec?: unknown }).task_spec === "string" &&
-      typeof (payload as { title?: unknown }).title === "string"
-    ) {
-      return { data: payload as never, ok: true as const };
-    }
-
     return {
       error: buildValidationError("Invalid task payload"),
       ok: false as const,
@@ -159,17 +144,6 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
 
 const parsePatchTaskRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
-
-  if (
-    payload !== null &&
-    typeof payload === "object" &&
-    Object.hasOwn(payload, "project_path")
-  ) {
-    return {
-      error: buildValidationError("Invalid task patch"),
-      ok: false as const,
-    };
-  }
 
   const result = patchTaskRequestSchema.safeParse(payload);
 
@@ -341,12 +315,7 @@ export const registerTaskRoutes = (
     }
 
     let models: Awaited<ReturnType<OpenCodeSdkAdapter["listSupportedModels"]>>;
-    const legacyInput = input.data as typeof input.data & {
-      developer_model_id?: string;
-      developer_provider_id?: string;
-      project_path?: string;
-    };
-    const projectId = legacyInput.project_id ?? legacyInput.project_path;
+    const projectId = input.data.project_id;
 
     try {
       models = await getOpenCodeModelsAdapter().listSupportedModels();
@@ -359,35 +328,8 @@ export const registerTaskRoutes = (
       : null;
 
     if (!project) {
-      if (
-        legacyInput.project_path &&
-        legacyInput.developer_provider_id &&
-        legacyInput.developer_model_id
-      ) {
-        const matchingLegacyModel = models.items.find(
-          (model) =>
-            model.provider_id === legacyInput.developer_provider_id &&
-            model.model_id === legacyInput.developer_model_id,
-        );
-
-        if (!matchingLegacyModel) {
-          return context.json(
-            buildValidationError(
-              `Requested developer_provider_id "${legacyInput.developer_provider_id}" with developer_model_id "${legacyInput.developer_model_id}" is not available. Use GET /opencode/models to choose a supported provider/model combination.`,
-            ),
-            400,
-          );
-        }
-
-        const payload = await getRepository().createTask(input.data);
-
-        logger?.info(buildTaskLogFields("task_created", payload));
-
-        return context.json(payload, 201);
-      }
-
       return context.json(
-        buildValidationError(`Project ${projectId ?? ""} was not found`),
+        buildValidationError(`Project ${projectId} was not found`),
         400,
       );
     }

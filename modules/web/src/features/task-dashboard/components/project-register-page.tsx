@@ -53,14 +53,14 @@ const emptyForm = {
   globalModelId: "",
   globalProviderId: "",
   name: "",
-  projectPath: "",
+  gitOriginUrl: "",
 };
 
 const toFormInput = (project: Project): ProjectFormInput => ({
   globalModelId: project.global_model_id,
   globalProviderId: project.global_provider_id,
   name: project.name,
-  projectPath: project.project_path,
+  gitOriginUrl: project.git_origin_url,
 });
 
 const getErrorMessage = (error: unknown) =>
@@ -77,7 +77,7 @@ export const ProjectRegisterPage = () => {
     globalModelId: form.globalModelId.trim(),
     globalProviderId: form.globalProviderId.trim(),
     name: form.name.trim(),
-    projectPath: form.projectPath.trim(),
+    gitOriginUrl: form.gitOriginUrl.trim(),
   };
   const canSubmit = Object.values(trimmedForm).every(Boolean);
   const editingProject = projects.find(
@@ -228,7 +228,7 @@ export const ProjectRegisterPage = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 pr-3">{project.project_path}</td>
+                        <td className="py-3 pr-3">{project.git_origin_url}</td>
                         <td className="py-3 pr-3">
                           <Badge variant="secondary">
                             {project.global_provider_id} /{" "}
@@ -319,7 +319,7 @@ export const ProjectRegisterPage = () => {
                   />
                 </Field>
                 <Field data-disabled={isSubmitting}>
-                  <FieldLabel htmlFor="project-path">Project Path</FieldLabel>
+                  <FieldLabel htmlFor="project-path">Git Origin URL</FieldLabel>
                   <Input
                     disabled={isSubmitting}
                     id="project-path"
@@ -328,13 +328,13 @@ export const ProjectRegisterPage = () => {
 
                       setForm((currentForm) => ({
                         ...currentForm,
-                        projectPath: value,
+                        gitOriginUrl: value,
                       }));
                     }}
-                    value={form.projectPath}
+                    value={form.gitOriginUrl}
                   />
                   <FieldDescription>
-                    Use the absolute repository path that AIM should operate on.
+                    Use the repository origin URL that identifies this project.
                   </FieldDescription>
                 </Field>
                 <Field data-disabled={isSubmitting}>

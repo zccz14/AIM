@@ -15,19 +15,13 @@ type TaskSessionRecord = AsyncDisposable & {
 
 type TaskSessionCoordinatorAdapter = {
   createSession(task: Task): Promise<TaskSessionRecord>;
-  getSessionState(
-    sessionId: string,
-    projectPath: string,
-  ): Promise<TaskSessionState>;
+  getSessionState(sessionId: string, task: Task): Promise<TaskSessionState>;
   sendPrompt(sessionId: string, prompt: string, task: Task): Promise<unknown>;
 };
 
 export type TaskSessionCoordinator = {
   createSession(task: Task): Promise<AsyncDisposable & { sessionId: string }>;
-  getSessionState(
-    sessionId: string,
-    projectPath: string,
-  ): Promise<TaskSessionState>;
+  getSessionState(sessionId: string, task: Task): Promise<TaskSessionState>;
   sendContinuePrompt(
     sessionId: string,
     prompt: string,
@@ -70,9 +64,9 @@ export const createTaskSessionCoordinator = (
         throw actionError("createSession", error);
       }
     },
-    async getSessionState(sessionId, projectPath) {
+    async getSessionState(sessionId, task) {
       try {
-        return await coordinatorAdapter.getSessionState(sessionId, projectPath);
+        return await coordinatorAdapter.getSessionState(sessionId, task);
       } catch (error) {
         throw actionError("getSessionState", error);
       }

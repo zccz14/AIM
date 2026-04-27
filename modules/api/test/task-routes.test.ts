@@ -79,26 +79,34 @@ const resolveTaskResolvePath = (taskId: string) =>
 const resolveTaskRejectPath = (taskId: string) =>
   contractModule.taskRejectPath.replace("{taskId}", taskId);
 
-const createProject = async (
-  app: ReturnType<typeof createTaskRouteApp>,
-  projectPath: string,
-) => {
-  const response = await app.request(contractModule.projectsPath, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      global_model_id: "claude-sonnet-4-5",
-      global_provider_id: "anthropic",
-      name: "Main project",
-      project_path: projectPath,
-    }),
-  });
+const insertProject = (projectRoot: string, projectId = mainProjectId) => {
+  const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
-  expect(response.status).toBe(201);
-
-  return response.json();
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      git_origin_url TEXT NOT NULL UNIQUE,
+      global_provider_id TEXT NOT NULL,
+      global_model_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  database
+    .prepare(
+      "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .run(
+      projectId,
+      `Project ${projectId}`,
+      `https://github.com/example/${projectId}.git`,
+      "anthropic",
+      "claude-sonnet-4-5",
+      "2026-04-26T00:00:00.000Z",
+      "2026-04-26T00:00:00.000Z",
+    );
+  database.close();
 };
 
 const createSupportedOpenCodeModelsAdapter = () => ({
@@ -122,7 +130,10 @@ const createTaskRouteApp = (
     ...options,
   });
 
-const useProjectRoot = async (name: string) => {
+const useProjectRoot = async (
+  name: string,
+  options = { seedProject: true },
+) => {
   previousProjectRoot = process.env.AIM_PROJECT_ROOT;
 
   const projectRoot = join(routesTempRoot, name);
@@ -131,6 +142,10 @@ const useProjectRoot = async (name: string) => {
   await mkdir(projectRoot, { recursive: true });
 
   process.env.AIM_PROJECT_ROOT = projectRoot;
+
+  if (options.seedProject) {
+    insertProject(projectRoot);
+  }
 
   return projectRoot;
 };
@@ -160,7 +175,9 @@ afterEach(async () => {
 
 describe("task routes", () => {
   it("supports project CRUD through API routes", async () => {
-    await useProjectRoot("supports-project-crud-routes");
+    await useProjectRoot("supports-project-crud-routes", {
+      seedProject: false,
+    });
 
     const app = createTaskRouteApp();
     const createResponse = await app.request("/projects", {
@@ -172,7 +189,7 @@ describe("task routes", () => {
         global_model_id: "claude-sonnet-4-5",
         global_provider_id: "anthropic",
         name: "Main project",
-        project_path: "/repo/main",
+        git_origin_url: "https://github.com/example/main.git",
       }),
     });
 
@@ -184,10 +201,10 @@ describe("task routes", () => {
       global_model_id: "claude-sonnet-4-5",
       global_provider_id: "anthropic",
       name: "Main project",
-      project_path: "/repo/main",
+      git_origin_url: "https://github.com/example/main.git",
     });
     expect(createdProject.id).toMatch(uuidPattern);
-    expect(createdProject.id).not.toBe(createdProject.project_path);
+    expect(createdProject.id).not.toBe(createdProject.git_origin_url);
 
     const listResponse = await app.request("/projects");
 
@@ -214,7 +231,7 @@ describe("task routes", () => {
       global_provider_id: "openai",
       id: createdProject.id,
       name: "Renamed project",
-      project_path: "/repo/main",
+      git_origin_url: "https://github.com/example/main.git",
     });
 
     const deleteResponse = await app.request(`/projects/${createdProject.id}`, {
@@ -228,7 +245,7 @@ describe("task routes", () => {
     await expect(emptyListResponse.json()).resolves.toEqual({ items: [] });
   });
 
-  it("rejects POST /tasks when project_path is missing", async () => {
+  it("rejects POST /tasks when project_id is missing", async () => {
     await useProjectRoot("rejects-missing-project-path");
 
     const app = createTaskRouteApp();
@@ -281,7 +298,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        project_path: "/repo/main",
+        project_id: mainProjectId,
         task_spec: "write sqlite-backed route tests",
       }),
     });
@@ -303,9 +320,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
-        project_path: "/repo/main",
+        project_id: mainProjectId,
         task_spec: "write sqlite-backed route tests",
         title: "SQLite route tests",
       }),
@@ -316,21 +331,21 @@ describe("task routes", () => {
     const createdTask = await createResponse.json();
 
     expect(createdTask).toMatchObject({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
       title: "SQLite route tests",
     });
   });
 
   it("creates tasks from project_id using the project's global provider and model", async () => {
-    const projectRoot = await useProjectRoot("creates-task-from-project-id");
+    const projectRoot = await useProjectRoot("creates-task-from-project-id", {
+      seedProject: false,
+    });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
     database.exec(`
       CREATE TABLE projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        project_path TEXT NOT NULL UNIQUE,
+        git_origin_url TEXT NOT NULL UNIQUE,
         global_provider_id TEXT NOT NULL,
         global_model_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -342,7 +357,7 @@ describe("task routes", () => {
         `INSERT INTO projects (
           id,
           name,
-          project_path,
+          git_origin_url,
           global_provider_id,
           global_model_id,
           created_at,
@@ -352,7 +367,7 @@ describe("task routes", () => {
       .run(
         mainProjectId,
         "Main project",
-        "/repo/main",
+        "https://github.com/example/main.git",
         "anthropic",
         "claude-sonnet-4-5",
         "2026-04-26T00:00:00.000Z",
@@ -378,16 +393,16 @@ describe("task routes", () => {
     const createdTask = await response.json();
 
     expect(createdTask).toMatchObject({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
       project_id: mainProjectId,
-      project_path: "/repo/main",
+      git_origin_url: "https://github.com/example/main.git",
       title: "SQLite route tests",
     });
   });
 
-  it("rejects POST /tasks when the developer provider and model combination is unavailable", async () => {
-    await useProjectRoot("rejects-unavailable-developer-model-combo");
+  it("rejects POST /tasks when the project provider and model combination is unavailable", async () => {
+    await useProjectRoot("rejects-unavailable-developer-model-combo", {
+      seedProject: false,
+    });
 
     const app = createTaskRouteApp({
       openCodeModelsAdapter: {
@@ -403,15 +418,26 @@ describe("task routes", () => {
         }),
       },
     });
+    const projectResponse = await app.request(contractModule.projectsPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        git_origin_url: "https://github.com/example/unsupported.git",
+        global_model_id: "gpt-5",
+        global_provider_id: "openai",
+        name: "Unsupported project",
+      }),
+    });
+    const project = await projectResponse.json();
     const response = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "gpt-5",
-        developer_provider_id: "anthropic",
-        project_path: "/repo/main",
+        project_id: project.id,
         task_spec: "write sqlite-backed route tests",
         title: "SQLite route tests",
       }),
@@ -422,8 +448,8 @@ describe("task routes", () => {
     const payload = await response.json();
 
     expect(payload.code).toBe("TASK_VALIDATION_ERROR");
-    expect(payload.message).toContain("developer_provider_id");
-    expect(payload.message).toContain("developer_model_id");
+    expect(payload.message).toContain("global_provider_id");
+    expect(payload.message).toContain("global_model_id");
     expect(payload.message).toContain("/opencode/models");
   });
 
@@ -431,18 +457,15 @@ describe("task routes", () => {
     await useProjectRoot("persists-create-and-read");
 
     const app = createTaskRouteApp();
-    const projectPath = "/repo/main";
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "write sqlite-backed route tests",
-        project_path: projectPath,
+        project_id: mainProjectId,
         session_id: "session-1",
         dependencies: ["task-0"],
         status: "processing",
@@ -455,7 +478,7 @@ describe("task routes", () => {
 
     expect(contractModule.taskSchema.safeParse(createdTask).success).toBe(true);
     expect(createdTask.task_spec).toBe("write sqlite-backed route tests");
-    expect(createdTask.project_path).toBe(projectPath);
+    expect(createdTask.project_id).toBe(mainProjectId);
     expect(createdTask.session_id).toBe("session-1");
     expect(createdTask.dependencies).toEqual(["task-0"]);
     expect(createdTask.done).toBe(false);
@@ -490,7 +513,7 @@ describe("task routes", () => {
     await useProjectRoot("creates-task-batch");
 
     const app = createTaskRouteApp();
-    const project = await createProject(app, "/repo/main");
+    const project = { id: mainProjectId };
     const existingTaskResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -511,7 +534,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        project_path: "/repo/main",
+        project_id: project.id,
         operations: [
           {
             type: "create",
@@ -545,7 +568,7 @@ describe("task routes", () => {
 
     expect(createdTaskResponse.status).toBe(200);
     await expect(createdTaskResponse.json()).resolves.toMatchObject({
-      project_path: "/repo/main",
+      project_id: project.id,
       source_metadata: { coordinator_session_id: "session-1" },
       task_id: newTaskId,
       title: "Created from batch",
@@ -559,7 +582,7 @@ describe("task routes", () => {
     await useProjectRoot("rolls-back-task-batch");
 
     const app = createTaskRouteApp();
-    await createProject(app, "/repo/main");
+    const project = { id: mainProjectId };
     const newTaskId = "11111111-1111-4111-8111-111111111111";
 
     const response = await app.request(contractModule.tasksBatchPath, {
@@ -568,7 +591,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        project_path: "/repo/main",
+        project_id: project.id,
         operations: [
           {
             type: "create",
@@ -597,7 +620,7 @@ describe("task routes", () => {
     await useProjectRoot("rejects-invalid-task-batch");
 
     const app = createTaskRouteApp();
-    const project = await createProject(app, "/repo/main");
+    const project = { id: mainProjectId };
     const resolvedResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -619,7 +642,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        project_path: "/repo/main",
+        project_id: project.id,
         operations: [
           {
             type: "create",
@@ -645,7 +668,7 @@ describe("task routes", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          project_path: "/repo/main",
+          project_id: project.id,
           operations: [
             {
               type: "delete",
@@ -676,11 +699,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: taskSpec,
-        project_path: "/repo/task-spec",
+        project_id: mainProjectId,
       }),
     });
 
@@ -726,10 +747,8 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
-        project_path: "/repo/main",
+        project_id: mainProjectId,
         session_id: "session-1",
         status: "processing",
         task_spec: "write sqlite-backed route tests",
@@ -742,7 +761,7 @@ describe("task routes", () => {
 
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_created",
-      project_path: "/repo/main",
+      project_id: mainProjectId,
       session_id: "session-1",
       status: "processing",
       task_id: createdTask.task_id,
@@ -762,11 +781,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "stays on app root",
-        project_path: "/repo/app-root",
+        project_id: mainProjectId,
       }),
     });
 
@@ -790,11 +807,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "keep running",
-        project_path: "/repo/session-a/running",
+        project_id: mainProjectId,
         session_id: "session-a",
         status: "processing",
       }),
@@ -805,11 +820,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "already done",
-        project_path: "/repo/session-a/done",
+        project_id: mainProjectId,
         session_id: "session-a",
         status: "rejected",
       }),
@@ -820,11 +833,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "different session",
-        project_path: "/repo/session-b/running",
+        project_id: mainProjectId,
         session_id: "session-b",
         status: "processing",
       }),
@@ -900,11 +911,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "before patch",
-        project_path: "/repo/patch-target",
+        project_id: mainProjectId,
         session_id: "session-7",
         dependencies: ["task-a"],
         status: "processing",
@@ -937,7 +946,7 @@ describe("task routes", () => {
     expect(contractModule.taskSchema.safeParse(patchedTask).success).toBe(true);
     expect(patchedTask.task_id).toBe(createdTask.task_id);
     expect(patchedTask.task_spec).toBe("after patch");
-    expect(patchedTask.project_path).toBe("/repo/patch-target");
+    expect(patchedTask.project_id).toBe(mainProjectId);
     expect(patchedTask.session_id).toBe("session-7");
     expect(patchedTask.dependencies).toEqual(["task-a"]);
     expect(patchedTask.pull_request_url).toBe("https://example.test/pr/7");
@@ -956,18 +965,15 @@ describe("task routes", () => {
     await useProjectRoot("patches-nullable-fields");
 
     const app = createTaskRouteApp();
-    const projectPath = "/repo/null-fields";
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "clear patch fields",
-        project_path: projectPath,
+        project_id: mainProjectId,
         session_id: "session-9",
         worktree_path: "/tmp/worktree",
         pull_request_url: "https://example.test/pr/9",
@@ -997,7 +1003,7 @@ describe("task routes", () => {
     const patchedTask = await patchResponse.json();
 
     expect(patchedTask.session_id).toBeNull();
-    expect(patchedTask.project_path).toBe(projectPath);
+    expect(patchedTask.project_id).toBe(mainProjectId);
     expect(patchedTask.worktree_path).toBeNull();
     expect(patchedTask.pull_request_url).toBeNull();
   });
@@ -1012,11 +1018,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "record worktree path",
-        project_path: "/repo/worktree-field",
+        project_id: mainProjectId,
         dependencies: ["task-a"],
         pull_request_url: "https://example.test/pr/1",
         status: "processing",
@@ -1060,11 +1064,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "record pull request url",
-        project_path: "/repo/pr-field",
+        project_id: mainProjectId,
         worktree_path: "/repo/.worktrees/task-2",
       }),
     });
@@ -1106,11 +1108,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "record dependencies",
-        project_path: "/repo/dependencies-field",
+        project_id: mainProjectId,
         dependencies: ["task-old"],
       }),
     });
@@ -1170,11 +1170,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1251,11 +1249,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1302,11 +1298,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         status: "processing",
       }),
     });
@@ -1351,11 +1345,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1400,11 +1392,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1450,10 +1440,8 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         session_id: "session-7",
         task_spec: "resolve me",
@@ -1481,7 +1469,7 @@ describe("task routes", () => {
     expect(resolveResponse.status).toBe(204);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_resolved",
-      project_path: "/repo/resolve-target",
+      project_id: mainProjectId,
       result_preview: longResult.slice(0, 200),
       session_id: "session-7",
       status: "resolved",
@@ -1502,11 +1490,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1555,11 +1541,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve me",
-        project_path: "/repo/resolve-target",
+        project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         status: "processing",
       }),
@@ -1600,11 +1584,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "reject me",
-        project_path: "/repo/reject-target",
+        project_id: mainProjectId,
         status: "processing",
       }),
     });
@@ -1652,10 +1634,8 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
-        project_path: "/repo/reject-target",
+        project_id: mainProjectId,
         session_id: "session-8",
         task_spec: "reject me",
         status: "processing",
@@ -1682,7 +1662,7 @@ describe("task routes", () => {
     expect(rejectResponse.status).toBe(204);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_rejected",
-      project_path: "/repo/reject-target",
+      project_id: mainProjectId,
       result_preview: longResult.slice(0, 200),
       session_id: "session-8",
       status: "rejected",
@@ -1701,11 +1681,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "reject me",
-        project_path: "/repo/reject-target",
+        project_id: mainProjectId,
         status: "processing",
       }),
     });
@@ -1730,7 +1708,7 @@ describe("task routes", () => {
     expect(onTaskResolved).not.toHaveBeenCalled();
   });
 
-  it("rejects PATCH /tasks/{id} when project_path is present", async () => {
+  it("rejects PATCH /tasks/{id} when project_id is present", async () => {
     await useProjectRoot("rejects-project-path-patch");
 
     const app = createTaskRouteApp();
@@ -1740,11 +1718,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "patch validation target",
-        project_path: "/repo/original",
+        project_id: mainProjectId,
       }),
     });
 
@@ -1759,7 +1735,7 @@ describe("task routes", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          project_path: "/repo/other",
+          project_id: mainProjectId,
         }),
       },
     );
@@ -1784,11 +1760,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "delete me",
-        project_path: "/repo/delete-me",
+        project_id: mainProjectId,
       }),
     });
 
@@ -1871,11 +1845,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "patch validation target",
-        project_path: "/repo/invalid-patch",
+        project_id: mainProjectId,
       }),
     });
 
@@ -1915,11 +1887,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "resolve validation target",
-        project_path: "/repo/invalid-resolve",
+        project_id: mainProjectId,
       }),
     });
 
@@ -1965,11 +1935,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "reject validation target",
-        project_path: "/repo/invalid-reject",
+        project_id: mainProjectId,
       }),
     });
 
@@ -2016,11 +1984,9 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
         title: "Test task",
         task_spec: "reject validation target",
-        project_path: "/repo/invalid-reject",
+        project_id: mainProjectId,
       }),
     });
 

@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS task_write_bulks;
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  project_path TEXT NOT NULL UNIQUE,
+  git_origin_url TEXT NOT NULL UNIQUE,
   global_provider_id TEXT NOT NULL,
   global_model_id TEXT NOT NULL,
   created_at TEXT NOT NULL,

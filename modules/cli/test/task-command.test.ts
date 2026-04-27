@@ -57,7 +57,7 @@ const startTaskServer = async () => {
     title: "Write spec",
     task_spec: "write spec",
     project_id: mainProjectId,
-    project_path: "/repo/main",
+    git_origin_url: "https://github.com/example/main.git",
     developer_provider_id: "anthropic",
     developer_model_id: "claude-sonnet-4-5",
     session_id: "session-1",

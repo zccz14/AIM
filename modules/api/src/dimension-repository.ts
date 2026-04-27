@@ -23,7 +23,6 @@ type DimensionRow = {
   id: string;
   name: string;
   project_id: string;
-  project_path: string;
   updated_at: string;
 };
 
@@ -35,7 +34,6 @@ type DimensionEvaluationRow = {
   evaluator_model: string;
   id: string;
   project_id: string;
-  project_path: string;
   score: number;
 };
 
@@ -98,7 +96,7 @@ const buildSchemaError = () => new Error("dimensions schema is incompatible");
 const mapDimensionRow = (row: DimensionRow) =>
   dimensionSchema.parse({
     id: row.id,
-    project_path: row.project_path,
+    project_id: row.project_id,
     name: row.name,
     goal: row.goal,
     evaluation_method: row.evaluation_method,
@@ -110,7 +108,7 @@ const mapDimensionEvaluationRow = (row: DimensionEvaluationRow) =>
   dimensionEvaluationSchema.parse({
     id: row.id,
     dimension_id: row.dimension_id,
-    project_path: row.project_path,
+    project_id: row.project_id,
     commit_sha: row.commit_sha,
     evaluator_model: row.evaluator_model,
     score: row.score,
@@ -196,16 +194,14 @@ export const createDimensionRepository = (
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const getDimensionStatement = database.prepare(`
-    SELECT dimensions.id, dimensions.project_id, projects.project_path AS project_path, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
+    SELECT dimensions.id, dimensions.project_id, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
     FROM ${dimensionsTableName} AS dimensions
-    INNER JOIN ${projectsTableName} AS projects ON projects.id = dimensions.project_id
     WHERE dimensions.id = ?
   `);
   const listDimensionsStatement = database.prepare(`
-    SELECT dimensions.id, dimensions.project_id, projects.project_path AS project_path, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
+    SELECT dimensions.id, dimensions.project_id, dimensions.name, dimensions.goal, dimensions.evaluation_method, dimensions.created_at, dimensions.updated_at
     FROM ${dimensionsTableName} AS dimensions
-    INNER JOIN ${projectsTableName} AS projects ON projects.id = dimensions.project_id
-    WHERE projects.project_path = ?
+    WHERE dimensions.project_id = ?
     ORDER BY dimensions.created_at ASC, dimensions.rowid ASC
   `);
   const patchDimensionStatement = database.prepare(`
@@ -230,40 +226,30 @@ export const createDimensionRepository = (
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const listDimensionEvaluationsStatement = database.prepare(`
-    SELECT evaluations.id, evaluations.dimension_id, evaluations.project_id, projects.project_path AS project_path, evaluations.commit_sha, evaluations.evaluator_model, evaluations.score, evaluations.evaluation, evaluations.created_at
+    SELECT evaluations.id, evaluations.dimension_id, evaluations.project_id, evaluations.commit_sha, evaluations.evaluator_model, evaluations.score, evaluations.evaluation, evaluations.created_at
     FROM ${dimensionEvaluationsTableName} AS evaluations
-    INNER JOIN ${projectsTableName} AS projects ON projects.id = evaluations.project_id
     WHERE evaluations.dimension_id = ?
     ORDER BY evaluations.created_at ASC, evaluations.rowid ASC
   `);
-  const ensureProjectStatement = database.prepare(`
-    INSERT OR IGNORE INTO ${projectsTableName} (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
-    VALUES (?, ?, ?, '', '', ?, ?)
-  `);
-  const getProjectByPathStatement = database.prepare(`
+  const getProjectByIdStatement = database.prepare(`
     SELECT id
     FROM ${projectsTableName}
-    WHERE project_path = ?
+    WHERE id = ?
   `);
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
     createDimension(input: CreateDimensionRequest): Promise<Dimension> {
       const timestamp = new Date().toISOString();
-      const existingProject = getProjectByPathStatement.get(
-        input.project_path,
-      ) as { id: string } | undefined;
-      const projectId = existingProject?.id ?? randomUUID();
-      ensureProjectStatement.run(
-        projectId,
-        input.project_path,
-        input.project_path,
-        timestamp,
-        timestamp,
-      );
+      const existingProject = getProjectByIdStatement.get(input.project_id) as
+        | { id: string }
+        | undefined;
+      if (!existingProject) {
+        throw new Error(`Project ${input.project_id} was not found`);
+      }
       const dimension = dimensionSchema.parse({
         id: randomUUID(),
-        project_path: input.project_path,
+        project_id: input.project_id,
         name: input.name,
         goal: input.goal,
         evaluation_method: input.evaluation_method,
@@ -273,7 +259,7 @@ export const createDimensionRepository = (
 
       insertDimensionStatement.run(
         dimension.id,
-        projectId,
+        input.project_id,
         dimension.name,
         dimension.goal,
         dimension.evaluation_method,
@@ -290,8 +276,8 @@ export const createDimensionRepository = (
 
       return Promise.resolve(row ? mapDimensionRow(row) : null);
     },
-    listDimensions(projectPath: string): Promise<Dimension[]> {
-      const rows = listDimensionsStatement.all(projectPath) as DimensionRow[];
+    listDimensions(projectId: string): Promise<Dimension[]> {
+      const rows = listDimensionsStatement.all(projectId) as DimensionRow[];
 
       return Promise.resolve(rows.map(mapDimensionRow));
     },
@@ -334,7 +320,7 @@ export const createDimensionRepository = (
         | DimensionRow
         | undefined;
 
-      if (!dimension || dimension.project_path !== input.project_path) {
+      if (!dimension || dimension.project_id !== input.project_id) {
         return Promise.resolve(null);
       }
 
@@ -342,7 +328,7 @@ export const createDimensionRepository = (
       const dimensionEvaluation = dimensionEvaluationSchema.parse({
         id: randomUUID(),
         dimension_id: dimensionId,
-        project_path: input.project_path,
+        project_id: input.project_id,
         commit_sha: input.commit_sha,
         evaluator_model: input.evaluator_model,
         score: input.score,

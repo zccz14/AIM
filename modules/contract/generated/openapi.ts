@@ -827,7 +827,7 @@ export const openApiDocument = {
         summary: "List dimensions for a project",
         parameters: [
           {
-            $ref: "#/components/parameters/ProjectPathQueryParameter",
+            $ref: "#/components/parameters/ProjectIdQueryParameter",
           },
         ],
         responses: {
@@ -1099,8 +1099,8 @@ export const openApiDocument = {
           minLength: 1,
         },
       },
-      ProjectPathQueryParameter: {
-        name: "project_path",
+      ProjectIdQueryParameter: {
+        name: "project_id",
         in: "query",
         required: true,
         schema: {
@@ -1161,7 +1161,7 @@ export const openApiDocument = {
         required: [
           "id",
           "name",
-          "project_path",
+          "git_origin_url",
           "global_provider_id",
           "global_model_id",
           "created_at",
@@ -1177,7 +1177,7 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
-          project_path: {
+          git_origin_url: {
             type: "string",
             minLength: 1,
           },
@@ -1206,7 +1206,7 @@ export const openApiDocument = {
         additionalProperties: false,
         required: [
           "name",
-          "project_path",
+          "git_origin_url",
           "global_provider_id",
           "global_model_id",
         ],
@@ -1215,7 +1215,7 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
-          project_path: {
+          git_origin_url: {
             type: "string",
             minLength: 1,
           },
@@ -1237,7 +1237,7 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
-          project_path: {
+          git_origin_url: {
             type: "string",
             minLength: 1,
           },
@@ -1272,7 +1272,7 @@ export const openApiDocument = {
           "title",
           "task_spec",
           "project_id",
-          "project_path",
+          "git_origin_url",
           "developer_provider_id",
           "developer_model_id",
           "result",
@@ -1304,7 +1304,7 @@ export const openApiDocument = {
             type: "string",
             format: "uuid",
           },
-          project_path: {
+          git_origin_url: {
             type: "string",
             minLength: 1,
           },
@@ -1527,11 +1527,11 @@ export const openApiDocument = {
       CreateTaskBatchRequest: {
         type: "object",
         additionalProperties: false,
-        required: ["project_path", "operations"],
+        required: ["project_id", "operations"],
         properties: {
-          project_path: {
+          project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           operations: {
             type: "array",
@@ -1634,7 +1634,7 @@ export const openApiDocument = {
         additionalProperties: false,
         required: [
           "id",
-          "project_path",
+          "project_id",
           "name",
           "goal",
           "evaluation_method",
@@ -1647,9 +1647,9 @@ export const openApiDocument = {
             minLength: 1,
             readOnly: true,
           },
-          project_path: {
+          project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           name: {
             type: "string",
@@ -1678,11 +1678,11 @@ export const openApiDocument = {
       CreateDimensionRequest: {
         type: "object",
         additionalProperties: false,
-        required: ["project_path", "name", "goal", "evaluation_method"],
+        required: ["project_id", "name", "goal", "evaluation_method"],
         properties: {
-          project_path: {
+          project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           name: {
             type: "string",
@@ -1737,7 +1737,7 @@ export const openApiDocument = {
         required: [
           "id",
           "dimension_id",
-          "project_path",
+          "project_id",
           "commit_sha",
           "evaluator_model",
           "score",
@@ -1755,9 +1755,9 @@ export const openApiDocument = {
             minLength: 1,
             readOnly: true,
           },
-          project_path: {
+          project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           commit_sha: {
             type: "string",
@@ -1789,16 +1789,16 @@ export const openApiDocument = {
         type: "object",
         additionalProperties: false,
         required: [
-          "project_path",
+          "project_id",
           "commit_sha",
           "evaluator_model",
           "score",
           "evaluation",
         ],
         properties: {
-          project_path: {
+          project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           commit_sha: {
             type: "string",

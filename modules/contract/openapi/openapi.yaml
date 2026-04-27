@@ -489,7 +489,7 @@ paths:
       operationId: listDimensions
       summary: List dimensions for a project
       parameters:
-        - $ref: "#/components/parameters/ProjectPathQueryParameter"
+        - $ref: "#/components/parameters/ProjectIdQueryParameter"
       responses:
         "200":
           description: Dimension collection
@@ -658,8 +658,8 @@ components:
       schema:
         type: string
         minLength: 1
-    ProjectPathQueryParameter:
-      name: project_path
+    ProjectIdQueryParameter:
+      name: project_id
       in: query
       required: true
       schema:
@@ -711,7 +711,7 @@ components:
       required:
         - id
         - name
-        - project_path
+        - git_origin_url
         - global_provider_id
         - global_model_id
         - created_at
@@ -724,7 +724,7 @@ components:
         name:
           type: string
           minLength: 1
-        project_path:
+        git_origin_url:
           type: string
           minLength: 1
         global_provider_id:
@@ -746,14 +746,14 @@ components:
       additionalProperties: false
       required:
         - name
-        - project_path
+        - git_origin_url
         - global_provider_id
         - global_model_id
       properties:
         name:
           type: string
           minLength: 1
-        project_path:
+        git_origin_url:
           type: string
           minLength: 1
         global_provider_id:
@@ -769,7 +769,7 @@ components:
         name:
           type: string
           minLength: 1
-        project_path:
+        git_origin_url:
           type: string
           minLength: 1
         global_provider_id:
@@ -796,7 +796,7 @@ components:
         - title
         - task_spec
         - project_id
-        - project_path
+        - git_origin_url
         - developer_provider_id
         - developer_model_id
         - result
@@ -823,7 +823,7 @@ components:
         project_id:
           type: string
           format: uuid
-        project_path:
+        git_origin_url:
           type: string
           minLength: 1
         developer_provider_id:
@@ -1029,12 +1029,12 @@ components:
       type: object
       additionalProperties: false
       required:
-        - project_path
+        - project_id
         - operations
       properties:
-        project_path:
+        project_id:
           type: string
-          minLength: 1
+          format: uuid
         operations:
           type: array
           minItems: 1
@@ -1121,7 +1121,7 @@ components:
       additionalProperties: false
       required:
         - id
-        - project_path
+        - project_id
         - name
         - goal
         - evaluation_method
@@ -1132,9 +1132,9 @@ components:
           type: string
           minLength: 1
           readOnly: true
-        project_path:
+        project_id:
           type: string
-          minLength: 1
+          format: uuid
         name:
           type: string
           minLength: 1
@@ -1156,14 +1156,14 @@ components:
       type: object
       additionalProperties: false
       required:
-        - project_path
+        - project_id
         - name
         - goal
         - evaluation_method
       properties:
-        project_path:
+        project_id:
           type: string
-          minLength: 1
+          format: uuid
         name:
           type: string
           minLength: 1
@@ -1203,7 +1203,7 @@ components:
       required:
         - id
         - dimension_id
-        - project_path
+        - project_id
         - commit_sha
         - evaluator_model
         - score
@@ -1218,9 +1218,9 @@ components:
           type: string
           minLength: 1
           readOnly: true
-        project_path:
+        project_id:
           type: string
-          minLength: 1
+          format: uuid
         commit_sha:
           type: string
           minLength: 1
@@ -1243,15 +1243,15 @@ components:
       type: object
       additionalProperties: false
       required:
-        - project_path
+        - project_id
         - commit_sha
         - evaluator_model
         - score
         - evaluation
       properties:
-        project_path:
+        project_id:
           type: string
-          minLength: 1
+          format: uuid
         commit_sha:
           type: string
           minLength: 1

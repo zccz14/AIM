@@ -24,7 +24,8 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
-  project_path: join(tempRoot, overrides.task_id ?? "task-1"),
+  git_origin_url: `https://github.com/example/${overrides.task_id ?? "task-1"}.git`,
+  project_id: "00000000-0000-4000-8000-000000000001",
   pull_request_url: null,
   session_id: null,
   status: "processing",
@@ -116,7 +117,7 @@ describe("task scheduler", () => {
 
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_bound",
-      project_path: boundTask.project_path,
+      project_id: boundTask.project_id,
       session_id: "session-1",
       status: "processing",
       task_id: boundTask.task_id,
@@ -147,7 +148,7 @@ describe("task scheduler", () => {
 
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
-      project_path: task.project_path,
+      project_id: task.project_id,
       session_id: "session-1",
       status: "processing",
       task_id: task.task_id,
@@ -199,7 +200,7 @@ describe("task scheduler", () => {
     );
     expect(coordinator.getSessionState).toHaveBeenCalledWith(
       "session-1",
-      initialTask.project_path,
+      boundTask,
     );
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
     expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
@@ -352,7 +353,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     await expect(
-      rm(join(task.project_path, ".aim"), {
+      rm(join(tempRoot, task.task_id, ".aim"), {
         force: false,
         recursive: true,
       }),
@@ -401,7 +402,7 @@ describe("task scheduler", () => {
     expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
-      project_path: secondTask.project_path,
+      project_id: secondTask.project_id,
       session_id: secondTask.session_id,
       status: secondTask.status,
       task_id: secondTask.task_id,
@@ -631,7 +632,7 @@ describe("task scheduler", () => {
 
     expect(coordinator.getSessionState).toHaveBeenCalledWith(
       "existing-session",
-      latestSnapshot.project_path,
+      latestSnapshot,
     );
     expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
       "existing-session",
@@ -641,7 +642,7 @@ describe("task scheduler", () => {
     expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
-      project_path: latestSnapshot.project_path,
+      project_id: latestSnapshot.project_id,
       session_id: "existing-session",
       status: latestSnapshot.status,
       task_id: latestSnapshot.task_id,
@@ -862,7 +863,7 @@ describe("task scheduler", () => {
   it("continue prompt contains task metadata and API-based spec lookup instructions", () => {
     const prompt = buildTaskSessionPrompt(
       createTask({
-        project_path: "/repo",
+        git_origin_url: "https://github.com/example/repo.git",
         pull_request_url: "https://example.test/pr/123",
         session_id: "session-1",
         status: "processing",
@@ -899,7 +900,7 @@ describe("task scheduler", () => {
   it("start prompt requires fetching the task spec over the API before starting work", () => {
     const prompt = buildTaskSessionPrompt(
       createTask({
-        project_path: "/repo",
+        git_origin_url: "https://github.com/example/repo.git",
         session_id: "session-1",
         worktree_path: "/repo/.worktrees/task-1",
       }),
