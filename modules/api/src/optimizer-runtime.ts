@@ -2,6 +2,7 @@ import type { OptimizerStatusResponse } from "@aim-ai/contract";
 import type { ApiLogger } from "./api-logger.js";
 
 type OptimizerLaneScheduler = {
+  [Symbol.asyncDispose](): Promise<void>;
   getStatus?(): {
     last_error: null | string;
     last_scan_at: null | string;
@@ -9,7 +10,6 @@ type OptimizerLaneScheduler = {
   };
   scanOnce(context?: { resolvedTaskId?: string }): Promise<void> | void;
   start(options: { intervalMs: number }): void;
-  stop(): Promise<void>;
 };
 
 export type OptimizerLaneName =
@@ -29,10 +29,10 @@ export type OptimizerEvent = {
 
 export type OptimizerRuntime = {
   [Symbol.asyncDispose](): Promise<void>;
+  disable(): Promise<void>;
   getStatus(): OptimizerStatusResponse;
   handleEvent(event: OptimizerEvent): Promise<void>;
   start(): void;
-  stop(): Promise<void>;
 };
 
 export const createOptimizerRuntime = ({
@@ -82,9 +82,42 @@ export const createOptimizerRuntime = ({
     logger?.error({ err: error, lane: name }, "Optimizer lane failed to start");
   };
 
+  const disable = async () => {
+    if (stopPromise) {
+      await stopPromise;
+      return;
+    }
+
+    if (!running) {
+      return;
+    }
+
+    running = false;
+    stopPromise = (async () => {
+      for (const { lane, name } of [...lanes].reverse()) {
+        await lane[Symbol.asyncDispose]();
+        const laneState = laneStates.get(name);
+
+        if (laneState) {
+          laneState.running = false;
+        }
+      }
+    })()
+      .then(() => undefined)
+      .finally(() => {
+        stopPromise = null;
+      });
+
+    await stopPromise;
+  };
+
   const runtime: OptimizerRuntime = {
     async [Symbol.asyncDispose]() {
-      await runtime.stop();
+      await disable();
+    },
+
+    async disable() {
+      await disable();
     },
 
     getStatus() {
@@ -156,35 +189,6 @@ export const createOptimizerRuntime = ({
           recordLaneError(name, error);
         }
       }
-    },
-
-    async stop() {
-      if (stopPromise) {
-        await stopPromise;
-        return;
-      }
-
-      if (!running) {
-        return;
-      }
-
-      running = false;
-      stopPromise = (async () => {
-        for (const { lane, name } of [...lanes].reverse()) {
-          await lane.stop();
-          const laneState = laneStates.get(name);
-
-          if (laneState) {
-            laneState.running = false;
-          }
-        }
-      })()
-        .then(() => undefined)
-        .finally(() => {
-          stopPromise = null;
-        });
-
-      await stopPromise;
     },
   };
 

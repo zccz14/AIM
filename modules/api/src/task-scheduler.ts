@@ -213,6 +213,13 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     return scanPromise;
   };
 
+  const shutdown = () => {
+    stopRequested = true;
+    wakeSleepingLoop?.();
+
+    return loopPromise ?? Promise.resolve();
+  };
+
   return {
     scanOnce(context?: SchedulerScanContext) {
       return beginScan(context);
@@ -243,14 +250,8 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         loopPromise = null;
       });
     },
-    stop() {
-      stopRequested = true;
-      wakeSleepingLoop?.();
-
-      return loopPromise ?? Promise.resolve();
-    },
     async [Symbol.asyncDispose]() {
-      await this.stop();
+      await shutdown();
     },
   };
 };

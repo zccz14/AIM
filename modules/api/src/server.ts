@@ -30,6 +30,9 @@ Reject or record feedback for generic optimizer-loop Tasks that ask Developers t
 
 Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks.`;
 const createMissingProjectLane = () => ({
+  [Symbol.asyncDispose]() {
+    return Promise.resolve();
+  },
   scanOnce() {
     throw new Error(
       "AIM optimizer lane requires at least one configured project",
@@ -39,9 +42,6 @@ const createMissingProjectLane = () => ({
     throw new Error(
       "AIM optimizer lane requires at least one configured project",
     );
-  },
-  stop() {
-    return Promise.resolve();
   },
 });
 const parsedSessionIdleFallbackTimeoutMs = Number.parseInt(

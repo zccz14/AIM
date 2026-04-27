@@ -66,6 +66,11 @@ const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
 
       return Promise.resolve();
     },
+    disable: () => {
+      running = false;
+
+      return Promise.resolve();
+    },
     getStatus: () => ({
       enabled_triggers: ["task_resolved"],
       last_event: null,
@@ -92,11 +97,6 @@ const createInactiveOptimizerRuntime = (): OptimizerRuntime => {
     handleEvent: () => Promise.resolve(),
     start: () => {
       running = true;
-    },
-    stop: () => {
-      running = false;
-
-      return Promise.resolve();
     },
   };
 };

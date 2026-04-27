@@ -23,6 +23,14 @@ afterEach(() => {
 });
 
 describe("agent session lane", () => {
+  it("does not expose a public stop lifecycle method", () => {
+    const lane = createLane();
+
+    expect("stop" in lane).toBe(false);
+    expect("dispose" in lane).toBe(false);
+    expect(lane[Symbol.asyncDispose]).toEqual(expect.any(Function));
+  });
+
   it("stops a sleeping lane loop when an await using scope exits", async () => {
     vi.useFakeTimers();
     const coordinator = {
