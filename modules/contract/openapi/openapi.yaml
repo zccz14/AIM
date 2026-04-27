@@ -719,7 +719,7 @@ components:
       properties:
         id:
           type: string
-          minLength: 1
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -822,7 +822,7 @@ components:
           minLength: 1
         project_id:
           type: string
-          minLength: 1
+          format: uuid
         project_path:
           type: string
           minLength: 1
@@ -887,7 +887,7 @@ components:
           minLength: 1
         project_id:
           type: string
-          minLength: 1
+          format: uuid
         dependencies:
           type: array
           items:

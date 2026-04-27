@@ -569,15 +569,23 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const timestamp = new Date().toISOString();
       const taskId = randomUUID();
       const legacyInput = input as LegacyCreateTaskRequest;
-      const projectId = legacyInput.project_id ?? legacyInput.project_path;
+      const projectId = legacyInput.project_id;
 
-      if (!projectId) {
+      if (!projectId && !legacyInput.project_path) {
         throw new Error("Task requires project_id");
       }
 
-      let project = getProjectByIdStatement.get(projectId) as
-        | ProjectRow
-        | undefined;
+      let project = projectId
+        ? (getProjectByIdStatement.get(projectId) as ProjectRow | undefined)
+        : undefined;
+
+      if (!project) {
+        project = legacyInput.project_path
+          ? (getProjectByPathStatement.get(legacyInput.project_path) as
+              | ProjectRow
+              | undefined)
+          : undefined;
+      }
 
       if (!project) {
         if (
@@ -585,33 +593,37 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
           !legacyInput.developer_provider_id ||
           !legacyInput.developer_model_id
         ) {
-          throw new Error(`Project ${projectId} was not found`);
+          throw new Error(
+            `Project ${projectId ?? legacyInput.project_path} was not found`,
+          );
         }
 
+        const newProjectId = randomUUID();
+
         insertProjectStatement.run(
-          projectId,
-          projectId,
+          newProjectId,
+          legacyInput.project_path,
           legacyInput.project_path,
           legacyInput.developer_provider_id,
           legacyInput.developer_model_id,
           timestamp,
           timestamp,
         );
-        project = getProjectByIdStatement.get(projectId) as ProjectRow;
+        project = getProjectByIdStatement.get(newProjectId) as ProjectRow;
       }
 
       if (
         !project.global_provider_id.trim() ||
         !project.global_model_id.trim()
       ) {
-        throw buildProjectConfigurationError(projectId);
+        throw buildProjectConfigurationError(project.id);
       }
 
       const task = mapTaskRow({
         task_id: taskId,
         title: input.title,
         task_spec: input.task_spec,
-        project_id: projectId,
+        project_id: project.id,
         project_path: project.project_path,
         developer_provider_id: project.global_provider_id,
         developer_model_id: project.global_model_id,
