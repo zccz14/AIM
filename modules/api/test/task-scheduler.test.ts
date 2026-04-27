@@ -613,6 +613,69 @@ describe("task scheduler", () => {
     ]);
   });
 
+  it("continues later idle session tasks before starting earlier unassigned tasks", async () => {
+    const unassignedTask = createTask({ task_id: "task-unassigned" });
+    const existingSessionTask = createTask({
+      session_id: "session-existing",
+      task_id: "task-existing",
+    });
+    const assignedTask = createTask({
+      session_id: "session-new",
+      task_id: "task-unassigned",
+    });
+    const events: string[] = [];
+    const coordinator = createCoordinator();
+    coordinator.createSession.mockImplementation(async (task) => {
+      events.push(`create:${task.task_id}`);
+      return {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: "session-new",
+      };
+    });
+    coordinator.getSessionState.mockImplementation(async (sessionId) => {
+      events.push(`state:${sessionId}`);
+      return "idle";
+    });
+    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
+      events.push(`send:${sessionId}`);
+    });
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(async (taskId) => {
+          events.push(`assign:${taskId}`);
+          return assignedTask;
+        }),
+        listUnfinishedTasks: vi
+          .fn()
+          .mockResolvedValue([unassignedTask, existingSessionTask]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(events).toEqual([
+      "state:session-existing",
+      "send:session-existing",
+      "create:task-unassigned",
+      "assign:task-unassigned",
+      "state:session-new",
+      "send:session-new",
+    ]);
+    expect(coordinator.sendContinuePrompt).toHaveBeenNthCalledWith(
+      1,
+      "session-existing",
+      buildTaskSessionPrompt(existingSessionTask),
+      existingSessionTask,
+    );
+    expect(coordinator.sendContinuePrompt).toHaveBeenNthCalledWith(
+      2,
+      "session-new",
+      buildTaskSessionPrompt(assignedTask),
+      assignedTask,
+    );
+  });
+
   it("orders dependency hints within session priority groups after a resolved task", async () => {
     const firstTask = createTask({
       dependencies: ["task-other", "task-extra"],
