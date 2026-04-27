@@ -21,7 +21,7 @@ import {
   tableMeta,
 } from "./dashboard-styles.js";
 
-const formatDateLabel = (value: string) => value.slice(0, 10);
+const formatDateLabel = (value: string) => value.slice(0, 16).replace("T", " ");
 
 const scoreTrendChartConfig = {
   score: {
@@ -95,7 +95,12 @@ export const DimensionDetailsPage = ({
               margin={{ left: 8, right: 12 }}
             >
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="date" tickLine={false} tickMargin={8} />
+              <XAxis
+                dataKey="date"
+                interval={0}
+                tickLine={false}
+                tickMargin={8}
+              />
               <YAxis
                 allowDecimals={false}
                 dataKey="score"

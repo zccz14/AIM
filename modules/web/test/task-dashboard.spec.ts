@@ -502,14 +502,14 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
       score: 48,
     }),
     buildDimensionEvaluation({
-      createdAt: "2026-04-21T10:15:00.000Z",
+      createdAt: "2026-04-20T10:15:00.000Z",
       dimensionId: dimension.id,
       evaluation: "Goal fit improves once dimensions appear before tasks.",
       evaluationId: "evaluation-readme-fit-2",
       score: 74,
     }),
     buildDimensionEvaluation({
-      createdAt: "2026-04-22T11:20:00.000Z",
+      createdAt: "2026-04-20T11:20:00.000Z",
       dimensionId: dimension.id,
       evaluation:
         "Strong convergence evidence, missing one explicit intervention path.",
@@ -544,9 +544,15 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
   await expect(trend).toBeVisible();
   await expect(trend.getByText("Time", { exact: true })).toBeVisible();
   await expect(trend.getByText("Score", { exact: true })).toBeVisible();
-  await expect(trend.getByText("2026-04-20", { exact: true })).toBeVisible();
-  await expect(trend.getByText("2026-04-21", { exact: true })).toBeVisible();
-  await expect(trend.getByText("2026-04-22", { exact: true })).toBeVisible();
+  await expect(
+    trend.getByText("2026-04-20 09:10", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    trend.getByText("2026-04-20 10:15", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    trend.getByText("2026-04-20 11:20", { exact: true }),
+  ).toBeVisible();
   await expect(trend.getByText("0", { exact: true })).toBeVisible();
   await expect(trend.getByText("100", { exact: true })).toBeVisible();
   await expect(
