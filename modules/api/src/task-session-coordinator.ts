@@ -10,6 +10,7 @@ export type TaskSessionCoordinatorConfig = {
 };
 
 type TaskSessionRecord = {
+  [Symbol.asyncDispose](): Promise<void>;
   id: string;
 };
 
@@ -23,7 +24,9 @@ type TaskSessionCoordinatorAdapter = {
 };
 
 export type TaskSessionCoordinator = {
-  createSession(task: Task): Promise<{ sessionId: string }>;
+  createSession(
+    task: Task,
+  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; sessionId: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,
@@ -60,7 +63,12 @@ export const createTaskSessionCoordinator = (
       try {
         const session = await coordinatorAdapter.createSession(task);
 
-        return { sessionId: session.id };
+        return {
+          async [Symbol.asyncDispose]() {
+            await session[Symbol.asyncDispose]();
+          },
+          sessionId: session.id,
+        };
       } catch (error) {
         throw actionError("createSession", error);
       }

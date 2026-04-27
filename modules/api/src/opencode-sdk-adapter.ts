@@ -9,7 +9,9 @@ import type {
 } from "./task-session-coordinator.js";
 
 export type OpenCodeSdkAdapter = {
-  createSession(task: Task): Promise<{ id: string }>;
+  createSession(
+    task: Task,
+  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; id: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,
@@ -47,7 +49,16 @@ export const createOpenCodeSdkAdapter = (
         throwOnError: true,
       });
 
-      return { id: session.data.id };
+      return {
+        async [Symbol.asyncDispose]() {
+          await client.session.abort({
+            path: { id: session.data.id },
+            query: { directory: task.project_path },
+            throwOnError: true,
+          });
+        },
+        id: session.data.id,
+      };
     },
     async getSessionState(sessionId, projectPath) {
       const response = await client.session.messages({

@@ -24,6 +24,10 @@ type CreateTaskSchedulerOptions = {
   taskRepository: SchedulerTaskRepository;
 };
 
+type ManagedTaskSession = Awaited<
+  ReturnType<TaskSessionCoordinator["createSession"]>
+>;
+
 type StartOptions = {
   intervalMs: number;
 };
@@ -105,6 +109,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
   let stopRequested = false;
   let sleepTimer: NodeJS.Timeout | undefined;
   let wakeSleepingLoop: (() => void) | undefined;
+  const activeSessions = new Map<string, ManagedTaskSession>();
 
   const logScanFailure = (error: unknown) => {
     logger.error(
@@ -133,13 +138,15 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     });
 
   const runTask = async (task: Task) => {
+    let createdSession: ManagedTaskSession | null = null;
+
     try {
       let latestTask = task;
       let boundInRound = false;
 
       if (!latestTask.session_id) {
-        const { sessionId } =
-          await options.coordinator.createSession(latestTask);
+        createdSession = await options.coordinator.createSession(latestTask);
+        const { sessionId } = createdSession;
         const assignedTask =
           await options.taskRepository.assignSessionIfUnassigned(
             latestTask.task_id,
@@ -147,11 +154,21 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
           );
 
         if (!assignedTask?.session_id) {
+          await createdSession[Symbol.asyncDispose]();
+          createdSession = null;
           return;
         }
 
         latestTask = assignedTask;
         boundInRound = assignedTask.session_id === sessionId;
+
+        if (boundInRound) {
+          activeSessions.set(sessionId, createdSession);
+          createdSession = null;
+        } else {
+          await createdSession[Symbol.asyncDispose]();
+          createdSession = null;
+        }
       }
 
       const sessionId = latestTask.session_id;
@@ -181,6 +198,15 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
 
       logger.info(buildTaskLogFields("task_session_continued", latestTask));
     } catch (error) {
+      if (createdSession) {
+        await createdSession[Symbol.asyncDispose]().catch((disposeError) => {
+          logger.error(
+            { err: disposeError, taskId: task.task_id },
+            `Task scheduler failed while releasing task session ${task.task_id}`,
+          );
+        });
+      }
+
       logger.error(
         {
           err: error,
@@ -217,7 +243,20 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     stopRequested = true;
     wakeSleepingLoop?.();
 
-    return loopPromise ?? Promise.resolve();
+    return Promise.all(
+      [loopPromise, scanPromise].filter((promise): promise is Promise<void> =>
+        Boolean(promise),
+      ),
+    ).then(() => undefined);
+  };
+
+  const disposeActiveSessions = async () => {
+    const sessions = [...activeSessions.values()];
+
+    activeSessions.clear();
+    await Promise.all(
+      sessions.map((session) => session[Symbol.asyncDispose]()),
+    );
   };
 
   return {
@@ -251,7 +290,8 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       });
     },
     async [Symbol.asyncDispose]() {
-      await shutdown();
+      await Promise.all([shutdown(), disposeActiveSessions()]);
+      await disposeActiveSessions();
     },
   };
 };
