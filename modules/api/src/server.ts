@@ -8,6 +8,7 @@ import { createApp } from "./app.js";
 import { createDimensionRepository } from "./dimension-repository.js";
 import { createApiLogger } from "./logger.js";
 import { prepareManagerLaneScanInput } from "./manager-lane-targets.js";
+import { createOpenCodeSessionRepository } from "./opencode-session-repository.js";
 import { createOptimizerRuntime } from "./optimizer-runtime.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import { createTaskRepository } from "./task-repository.js";
@@ -93,6 +94,10 @@ export const startServer = (): AsyncDisposable => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(taskRepository);
+  const openCodeSessionRepository = createOpenCodeSessionRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
+  });
+  scope.use(openCodeSessionRepository);
   const dimensionRepository = createDimensionRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
@@ -101,6 +106,7 @@ export const startServer = (): AsyncDisposable => {
     .listProjects()
     .filter(isConfiguredProject);
   const scheduler = createTaskScheduler({
+    continuationSessionRepository: openCodeSessionRepository,
     coordinator: createTaskSessionCoordinator(coordinatorConfig),
     logger,
     taskRepository,

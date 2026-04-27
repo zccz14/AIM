@@ -16,6 +16,10 @@ const createCoordinator = () => ({
   sendContinuePrompt: vi.fn().mockResolvedValue(undefined),
 });
 
+const createOpenCodeSessionRepository = () => ({
+  createSession: vi.fn(),
+});
+
 const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-scheduler");
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
@@ -95,7 +99,7 @@ describe("task scheduler", () => {
     vi.useRealTimers();
   });
 
-  it("logs why a task is skipped with task and project context", async () => {
+  it("does not poll a task that already has a session", async () => {
     const task = createTask({
       dependencies: ["task-dependency"],
       session_id: "session-1",
@@ -107,7 +111,6 @@ describe("task scheduler", () => {
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
       coordinator,
       logger,
@@ -119,17 +122,10 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(logger.info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dependency_count: 1,
-        event: "task_scheduler_task_skipped",
-        project_id: task.project_id,
-        reason: "session_not_idle",
-        session_id: "session-1",
-        session_state: "running",
-        status: "processing",
-        task_id: task.task_id,
-      }),
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_scheduler_task_skipped" }),
       "Task scheduler skipped task",
     );
   });
@@ -215,7 +211,7 @@ describe("task scheduler", () => {
     });
   });
 
-  it("logs task_session_continued only after continue prompt succeeds", async () => {
+  it("does not log task_session_continued for existing sessions", async () => {
     const task = createTask({
       session_id: "session-1",
       status: "processing",
@@ -237,13 +233,10 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(logger.info).toHaveBeenCalledWith({
-      event: "task_session_continued",
-      project_id: task.project_id,
-      session_id: "session-1",
-      status: "processing",
-      task_id: task.task_id,
-    });
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_session_continued" }),
+    );
   });
 
   it("does not log task_session_bound when assignment does not return a bound snapshot", async () => {
@@ -271,9 +264,10 @@ describe("task scheduler", () => {
     );
   });
 
-  it("creates and binds a session for an unbound unfinished task, then continues if idle", async () => {
+  it("creates and binds a session for an unbound unfinished task, then registers the pending OpenCode continuation", async () => {
     const initialTask = createTask();
     const boundTask = createTask({ session_id: "session-1" });
+    const openCodeSessionRepository = createOpenCodeSessionRepository();
     const repository = {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
       listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
@@ -281,6 +275,7 @@ describe("task scheduler", () => {
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
       coordinator,
+      continuationSessionRepository: openCodeSessionRepository,
       taskRepository: repository,
     });
 
@@ -291,19 +286,29 @@ describe("task scheduler", () => {
       initialTask.task_id,
       "session-1",
     );
-    expect(coordinator.getSessionState).toHaveBeenCalledWith(
-      "session-1",
-      boundTask,
-    );
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).toContain(
-      initialTask.task_id,
-    );
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[2]).toMatchObject({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
+    expect(openCodeSessionRepository.createSession).toHaveBeenCalledWith({
+      continue_prompt: buildTaskSessionPrompt(boundTask),
+      session_id: "session-1",
     });
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+  });
+
+  it("leaves existing task sessions to the OpenCode plugin idle continuation flow", async () => {
+    const task = createTask({ session_id: "session-1" });
+    const coordinator = createCoordinator();
+    const scheduler = createTaskScheduler({
+      coordinator,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("releases created sessions when the scheduler is disposed", async () => {
@@ -351,7 +356,7 @@ describe("task scheduler", () => {
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
-  it("sends one continue prompt to an idle session", async () => {
+  it("does not send continue prompts to existing sessions", async () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
@@ -364,18 +369,8 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
-      "session-1",
-      expect.stringContaining(
-        `Read the task spec by GET /tasks/${task.task_id}/spec.`,
-      ),
-      task,
-    );
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[0]).toBe("session-1");
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
-      "task_spec_file:",
-    );
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("does not send continue prompts across rounds while session state stays running", async () => {
@@ -393,7 +388,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
@@ -414,18 +409,8 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).toHaveBeenCalledTimes(2);
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledTimes(1);
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
-      "session-1",
-      expect.stringContaining(
-        `Read the task spec by GET /tasks/${task.task_id}/spec.`,
-      ),
-      task,
-    );
-    expect(coordinator.sendContinuePrompt.mock.calls[0]?.[1]).not.toContain(
-      "task_spec_file:",
-    );
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("does not write a task spec markdown file before continuing an idle session even when worktree_path is set", async () => {
@@ -462,17 +447,12 @@ describe("task scheduler", () => {
       task_id: "task-2",
       session_id: "session-2",
     });
-    const sendContinuePrompt = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("session unavailable"))
-      .mockResolvedValueOnce(undefined);
     const logger = {
       error: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
     };
     const coordinator = createCoordinator();
-    coordinator.sendContinuePrompt = sendContinuePrompt;
     const scheduler = createTaskScheduler({
       coordinator,
       logger,
@@ -483,22 +463,9 @@ describe("task scheduler", () => {
     });
 
     await expect(scheduler.scanOnce()).resolves.toBeUndefined();
-    expect(sendContinuePrompt).toHaveBeenCalledTimes(2);
-    expect(logger.error).toHaveBeenCalledTimes(1);
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: expect.any(Error),
-        taskId: firstTask.task_id,
-      }),
-      expect.stringContaining(firstTask.task_id),
-    );
-    expect(logger.info).toHaveBeenCalledWith({
-      event: "task_session_continued",
-      project_id: secondTask.project_id,
-      session_id: secondTask.session_id,
-      status: secondTask.status,
-      task_id: secondTask.task_id,
-    });
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it("processes tasks sequentially within one scan", async () => {
@@ -517,21 +484,6 @@ describe("task scheduler", () => {
       events.push(`state:${sessionId}`);
       return "idle";
     });
-    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
-      events.push(`send:start:${sessionId}`);
-
-      if (sessionId === "session-1") {
-        await new Promise<void>((resolve) => {
-          releaseFirstSend = () => {
-            events.push(`send:end:${sessionId}`);
-            resolve();
-          };
-        });
-        return;
-      }
-
-      events.push(`send:end:${sessionId}`);
-    });
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -542,21 +494,10 @@ describe("task scheduler", () => {
 
     const scanPromise = scheduler.scanOnce();
 
-    await vi.waitFor(() => {
-      expect(events).toEqual(["state:session-1", "send:start:session-1"]);
-    });
-
     releaseFirstSend?.();
     await scanPromise;
 
-    expect(events).toEqual([
-      "state:session-1",
-      "send:start:session-1",
-      "send:end:session-1",
-      "state:session-2",
-      "send:start:session-2",
-      "send:end:session-2",
-    ]);
+    expect(events).toEqual([]);
   });
 
   it("prioritizes tasks with existing sessions while preserving stable order", async () => {
@@ -602,10 +543,6 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(events).toEqual([
-      "state:session-2",
-      "send:session-2",
-      "state:session-4",
-      "send:session-4",
       "create:task-1",
       "assign:task-1",
       "create:task-3",
@@ -655,25 +592,10 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(events).toEqual([
-      "state:session-existing",
-      "send:session-existing",
       "create:task-unassigned",
       "assign:task-unassigned",
-      "state:session-new",
-      "send:session-new",
     ]);
-    expect(coordinator.sendContinuePrompt).toHaveBeenNthCalledWith(
-      1,
-      "session-existing",
-      buildTaskSessionPrompt(existingSessionTask),
-      existingSessionTask,
-    );
-    expect(coordinator.sendContinuePrompt).toHaveBeenNthCalledWith(
-      2,
-      "session-new",
-      buildTaskSessionPrompt(assignedTask),
-      assignedTask,
-    );
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("orders dependency hints within session priority groups after a resolved task", async () => {
@@ -732,8 +654,6 @@ describe("task scheduler", () => {
     await scheduler.scanOnce({ resolvedTaskId: "task-resolved" });
 
     expect(events).toEqual([
-      "state:session-2",
-      "state:session-1",
       "assign:task-3",
       "assign:task-5",
       "assign:task-4",
@@ -785,22 +705,11 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).toHaveBeenCalledWith(
-      "existing-session",
-      latestSnapshot,
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_session_continued" }),
     );
-    expect(coordinator.sendContinuePrompt).toHaveBeenCalledWith(
-      "existing-session",
-      expect.stringContaining(latestSnapshot.task_id),
-      latestSnapshot,
-    );
-    expect(logger.info).toHaveBeenCalledWith({
-      event: "task_session_continued",
-      project_id: latestSnapshot.project_id,
-      session_id: "existing-session",
-      status: latestSnapshot.status,
-      task_id: latestSnapshot.task_id,
-    });
   });
 
   it("does not continue a task that finished before the assignment snapshot returned", async () => {
