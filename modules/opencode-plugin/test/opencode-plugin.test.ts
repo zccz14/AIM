@@ -25,10 +25,6 @@ const pluginCoordinatorGuideSkillUrl = new URL(
   "../skills/aim-coordinator-guide/SKILL.md",
   import.meta.url,
 );
-const taskWriteBulkDocUrl = new URL(
-  "../../../docs/task-write-bulk.md",
-  import.meta.url,
-);
 const managerEvaluationSignalDocUrl = new URL(
   "../../../docs/manager-evaluation-signal.md",
   import.meta.url,
@@ -83,7 +79,6 @@ let pluginSource: string;
 let pluginDeveloperGuideSkillText: string;
 let pluginCreateTasksSkillText: string;
 let pluginCoordinatorGuideSkillText: string;
-let taskWriteBulkDocText: string;
 let managerEvaluationSignalDocText: string;
 let pluginSetupGithubRepoSkillText: string;
 let pluginEvaluateReadmeSkillText: string;
@@ -172,7 +167,6 @@ beforeAll(async () => {
     pluginCoordinatorGuideSkillUrl,
     "utf8",
   );
-  taskWriteBulkDocText = await readFile(taskWriteBulkDocUrl, "utf8");
   managerEvaluationSignalDocText = await readFile(
     managerEvaluationSignalDocUrl,
     "utf8",
@@ -399,7 +393,7 @@ describe("opencode plugin package baseline", () => {
 
   it("documents aim-coordinator-guide as packaged documentation only", () => {
     expect(pluginSkillsReadme).toContain("aim-coordinator-guide");
-    expect(pluginSkillsReadme).toContain("Task Write Bulk");
+    expect(pluginSkillsReadme).toContain("POST /tasks/batch");
     expect(pluginSkillsReadme).toContain("Coordinator decision entry");
 
     expect(pluginReadme).toContain("aim-coordinator-guide");
@@ -522,7 +516,7 @@ describe("opencode plugin package baseline", () => {
 
     expect(usingAimSkillText).toContain("aim-coordinator-guide");
     expect(usingAimSkillText).toContain("Coordinator Task Pool maintenance");
-    expect(usingAimSkillText).toContain("Task Write Bulk");
+    expect(usingAimSkillText).toContain("POST /tasks/batch");
     expect(usingAimSkillText).toContain("rejected Task feedback");
   });
 
@@ -744,7 +738,7 @@ describe("opencode plugin package baseline", () => {
       "dimensions",
       "dimension_evaluations",
       "差距分析",
-      "docs/task-write-bulk.md",
+      "POST /tasks/batch",
       "不能替代 Coordinator 审批或 Task 写入流程",
       "作为独立 `manager_reports` API、SQLite 表、CLI 命令或 Web 资源存在",
       "POST /tasks",
@@ -809,20 +803,18 @@ describe("opencode plugin package baseline", () => {
     expect(pluginDeveloperGuideSkillText).not.toContain("TBD");
   });
 
-  it("documents coordinator guide task write bulk rules", () => {
+  it("documents coordinator guide task batch rules", () => {
     for (const requiredFragment of [
       "name: aim-coordinator-guide",
       "Coordinator decision entry",
-      "Task Write Bulk",
+      "POST /tasks/batch",
       "Create",
       "Delete",
       "rejected Task",
       "aim-verify-task-spec",
       "aim-create-tasks",
-      "`docs/task-write-bulk.md`",
-      "不是服务端 API schema、SQLite schema 或后台自动执行协议",
       "Director",
-      "不得直接调用 `POST /tasks`",
+      "不得直接调用 `POST /tasks` 逐条写入",
       "不得创建澄清类 Developer Task",
     ]) {
       expect(pluginCoordinatorGuideSkillText).toContain(requiredFragment);
@@ -830,27 +822,6 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginCoordinatorGuideSkillText).not.toContain("TODO");
     expect(pluginCoordinatorGuideSkillText).not.toContain("TBD");
-  });
-
-  it("publishes a standalone task write bulk contract for verification", () => {
-    for (const requiredFragment of [
-      "# Task Write Bulk 输出契约",
-      "人工阅读与审批",
-      "不是服务端 API schema、不是 SQLite schema、不是后台自动执行协议",
-      "`action`：只能是 `Create` 或 `Delete`",
-      "`candidate_task_spec`：完整五段式候选 Task Spec",
-      "`target_task_id`：要删除的未完成 Task",
-      "按 `depends_on` 的拓扑顺序执行",
-      "先经 `aim-verify-task-spec` 独立校验",
-      "使用 `aim-create-tasks` 创建 AIM Task",
-      "禁止由 Coordinator 直接调用 `POST /tasks`",
-      "禁止删除已完成、已 resolved 或 `done = 1` 的历史 Task",
-    ]) {
-      expect(taskWriteBulkDocText).toContain(requiredFragment);
-    }
-
-    expect(taskWriteBulkDocText).not.toContain("TODO");
-    expect(taskWriteBulkDocText).not.toContain("TBD");
   });
 
   it("documents task creation interview, approval, and boundary rules", () => {

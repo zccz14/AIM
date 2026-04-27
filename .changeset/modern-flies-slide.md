@@ -2,4 +2,4 @@
 "@aim-ai/api": patch
 ---
 
-Harden the Coordinator lane prompt to require concrete Task Write Bulk intent instead of generic optimizer-loop placeholder Tasks.
+Harden the Coordinator lane prompt to require concrete `POST /tasks/batch` operations instead of generic optimizer-loop placeholder Tasks.

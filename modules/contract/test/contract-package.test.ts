@@ -315,8 +315,8 @@ describe("contract package baseline", () => {
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
       "createProjectRequestSchema",
+      "createTaskBatchRequestSchema",
       "createTaskRequestSchema",
-      "createTaskWriteBulkRequestSchema",
       "dbSqlitePath",
       "dimensionByIdPath",
       "dimensionEvaluationListResponseSchema",
@@ -345,6 +345,9 @@ describe("contract package baseline", () => {
       "projectListResponseSchema",
       "projectSchema",
       "projectsPath",
+      "taskBatchOperationResultSchema",
+      "taskBatchOperationSchema",
+      "taskBatchResponseSchema",
       "taskByIdPath",
       "taskDependenciesPath",
       "taskDependenciesRequestSchema",
@@ -361,11 +364,7 @@ describe("contract package baseline", () => {
       "taskStatusSchema",
       "taskWorktreePathPath",
       "taskWorktreePathRequestSchema",
-      "taskWriteBulkByIdPath",
-      "taskWriteBulkEntrySchema",
-      "taskWriteBulkListResponseSchema",
-      "taskWriteBulkSchema",
-      "taskWriteBulksPath",
+      "tasksBatchPath",
       "tasksPath",
     ]);
     expect(
@@ -436,13 +435,14 @@ describe("contract package baseline", () => {
       "/manager_reports/{reportId}",
     );
     expect(
-      contractModule.openApiDocument.paths[contractModule.taskWriteBulksPath],
+      contractModule.openApiDocument.paths[contractModule.tasksBatchPath],
     ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[
-        contractModule.taskWriteBulkByIdPath
-      ],
-    ).toBeDefined();
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/task_write_bulks",
+    );
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/task_write_bulks/{bulkId}",
+    );
   });
 
   it("exports health schemas from the built package boundary", () => {
@@ -609,6 +609,7 @@ describe("contract package baseline", () => {
         title: "Ship contract",
         project_path: "/repo",
         result: "complete",
+        source_metadata: {},
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -635,6 +636,7 @@ describe("contract package baseline", () => {
             title: "Ship contract",
             project_path: "/repo",
             result: "complete",
+            source_metadata: {},
             session_id: null,
             worktree_path: null,
             pull_request_url: null,
@@ -663,6 +665,7 @@ describe("contract package baseline", () => {
         task_spec: "Ship contract",
         project_id: "project-main",
         project_path: "/repo",
+        source_metadata: {},
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -992,6 +995,120 @@ describe("contract package baseline", () => {
     });
   });
 
+  it("publishes atomic task batch operations without task write bulk contracts", () => {
+    const tasksBatchPathItem = contractModule.openApiDocument.paths[
+      contractModule.tasksBatchPath
+    ] as
+      | {
+          post?: {
+            operationId?: string;
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
+
+    expect(contractModule.tasksBatchPath).toBe("/tasks/batch");
+    expect(tasksBatchPathItem?.post?.operationId).toBe("createTaskBatch");
+    expect(
+      tasksBatchPathItem?.post?.requestBody?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/CreateTaskBatchRequest",
+    });
+    expect(
+      tasksBatchPathItem?.post?.responses["200"]?.content?.["application/json"]
+        ?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskBatchResponse",
+    });
+    expect(
+      contractModule.createTaskBatchRequestSchema.parse({
+        project_path: "/repo/main",
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: "11111111-1111-4111-8111-111111111111",
+              title: "Ship batch",
+              spec: "Create the endpoint",
+              status: "processing",
+              source_metadata: { coordinator_session_id: "session-1" },
+            },
+          },
+          {
+            type: "delete",
+            task_id: "22222222-2222-4222-8222-222222222222",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      project_path: "/repo/main",
+      operations: [{ type: "create" }, { type: "delete" }],
+    });
+    expect(
+      contractModule.createTaskBatchRequestSchema.safeParse({
+        project_path: "/repo/main",
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: "not-a-uuid",
+              title: "Ship batch",
+              spec: "Create the endpoint",
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      contractModule.taskBatchResponseSchema.parse({
+        results: [
+          {
+            task_id: "11111111-1111-4111-8111-111111111111",
+            type: "create",
+          },
+          {
+            task_id: "22222222-2222-4222-8222-222222222222",
+            type: "delete",
+          },
+        ],
+      }),
+    ).toEqual({
+      results: [
+        {
+          task_id: "11111111-1111-4111-8111-111111111111",
+          type: "create",
+        },
+        {
+          task_id: "22222222-2222-4222-8222-222222222222",
+          type: "delete",
+        },
+      ],
+    });
+    expect(
+      contractModule.openApiDocument.components.schemas,
+    ).not.toHaveProperty("TaskWriteBulk");
+    expect(
+      contractModule.openApiDocument.components.schemas,
+    ).not.toHaveProperty("CreateTaskWriteBulkRequest");
+  });
+
   it("publishes OpenCode model operations in the shared OpenAPI document", () => {
     const opencodeModelsPathItem = contractModule.openApiDocument.paths[
       contractModule.opencodeModelsPath
@@ -1275,7 +1392,7 @@ describe("contract package baseline", () => {
       "managerReportsPath",
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
-      "taskWriteBulksPath",
+      "tasksBatchPath",
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
       "dimensionsPath",
@@ -1338,6 +1455,7 @@ describe("contract package baseline", () => {
     ).resolves.toContain("TaskListResponse");
     await expect(generatedClientModule.listTasks).toBeTypeOf("function");
     await expect(generatedClientModule.createTask).toBeTypeOf("function");
+    await expect(generatedClientModule.createTaskBatch).toBeTypeOf("function");
     await expect(generatedClientModule.getTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.patchTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
@@ -1348,6 +1466,7 @@ describe("contract package baseline", () => {
       'export * from "./_client/index.js";',
     );
     expect(generatedClientSdkSource).toContain("listTasks");
+    expect(generatedClientSdkSource).toContain("createTaskBatch");
     expect(generatedClientSdkSource).toContain("getTaskSpecById");
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(
       "CreateTaskRequest",
@@ -1506,6 +1625,7 @@ describe("contract package baseline", () => {
       worktree_path: null,
       pull_request_url: null,
       dependencies: [],
+      source_metadata: {},
       done: false,
       status: "processing",
       created_at: "2026-04-20T00:00:00.000Z",

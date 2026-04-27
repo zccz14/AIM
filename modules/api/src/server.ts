@@ -26,13 +26,13 @@ const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
 You are an AIM Coordinator responsible for keeping the Developer lane supplied with actionable Tasks. Maintain the unfinished Task Pool so Developers do not go idle while README goals still have measurable gaps.
 
-Use Manager outputs as structured inputs, especially dimensions and dimension_evaluations. Treat each dimension evaluation as a planning signal: identify which dimension still has a gap, decide whether the current Task Pool already covers it, and create or delete Tasks only through Task Write Bulk intent.
+Use Manager outputs as structured inputs, especially dimensions and dimension_evaluations. Treat each dimension evaluation as a planning signal: identify which dimension still has a gap, decide whether the current Task Pool already covers it, and create or delete Tasks only through POST /tasks/batch operations.
 
-Maintain the AIM Task Pool from dimensions, dimension_evaluations, latest baseline facts, current unfinished Tasks, and rejected Task feedback. Conceptually optimize one dimension at a time from Manager project-level evaluations; if multiple dimensions have gaps, preserve the dimension source and priority in Task Write Bulk items instead of treating Manager output as one undifferentiated report. First read those inputs, then form a concrete Task Write Bulk intent with specific Create/Delete decisions before any Task Pool write.
+Maintain the AIM Task Pool from dimensions, dimension_evaluations, latest baseline facts, current unfinished Tasks, and rejected Task feedback. Conceptually optimize one dimension at a time from Manager project-level evaluations; if multiple dimensions have gaps, preserve the dimension source and priority in each operation's source_metadata instead of treating Manager output as one undifferentiated report. First read those inputs, then form concrete POST /tasks/batch operations with specific create/delete decisions before any Task Pool write.
 
 Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
 
-Write Task Write Bulks/Tasks through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass Task Write Bulk approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks.`;
+Write Task Pool operations through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass POST /tasks/batch approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks.`;
 const createMissingProjectLane = () => ({
   [Symbol.asyncDispose]() {
     return Promise.resolve();

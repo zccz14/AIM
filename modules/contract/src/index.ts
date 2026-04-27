@@ -22,10 +22,9 @@ export {
   taskRejectPath,
   taskResolvePath,
   taskSpecPath,
+  tasksBatchPath,
   tasksPath,
   taskWorktreePathPath,
-  taskWriteBulkByIdPath,
-  taskWriteBulksPath,
 } from "./openapi.js";
 export const dimensionSchema = schemas.Dimension;
 export const createDimensionRequestSchema = schemas.CreateDimensionRequest;
@@ -53,12 +52,10 @@ export const taskPullRequestUrlRequestSchema =
 export const taskDependenciesRequestSchema = schemas.TaskDependenciesRequest;
 export const taskResultRequestSchema = schemas.TaskResultRequest;
 export const taskListResponseSchema = schemas.TaskListResponse;
-export const taskWriteBulkSchema = schemas.TaskWriteBulk;
-export const taskWriteBulkEntrySchema = schemas.TaskWriteBulkEntry;
-export const createTaskWriteBulkRequestSchema =
-  schemas.CreateTaskWriteBulkRequest;
-export const taskWriteBulkListResponseSchema =
-  schemas.TaskWriteBulkListResponse;
+export const taskBatchOperationSchema = schemas.TaskBatchOperation;
+export const createTaskBatchRequestSchema = schemas.CreateTaskBatchRequest;
+export const taskBatchOperationResultSchema = schemas.TaskBatchOperationResult;
+export const taskBatchResponseSchema = schemas.TaskBatchResponse;
 export const opencodeModelCombinationSchema = schemas.OpenCodeModelCombination;
 export const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 export const optimizerStatusResponseSchema = schemas.OptimizerStatusResponse;
@@ -99,14 +96,12 @@ export type TaskDependenciesRequest = Infer<
 >;
 export type TaskResultRequest = Infer<typeof taskResultRequestSchema>;
 export type TaskListResponse = Infer<typeof taskListResponseSchema>;
-export type TaskWriteBulk = Infer<typeof taskWriteBulkSchema>;
-export type TaskWriteBulkEntry = Infer<typeof taskWriteBulkEntrySchema>;
-export type CreateTaskWriteBulkRequest = Input<
-  typeof createTaskWriteBulkRequestSchema
+export type TaskBatchOperation = Infer<typeof taskBatchOperationSchema>;
+export type CreateTaskBatchRequest = Input<typeof createTaskBatchRequestSchema>;
+export type TaskBatchOperationResult = Infer<
+  typeof taskBatchOperationResultSchema
 >;
-export type TaskWriteBulkListResponse = Infer<
-  typeof taskWriteBulkListResponseSchema
->;
+export type TaskBatchResponse = Infer<typeof taskBatchResponseSchema>;
 export type OpenCodeModelCombination = Infer<
   typeof opencodeModelCombinationSchema
 >;
@@ -145,12 +140,11 @@ export type TaskDependenciesRequestSchema =
   typeof taskDependenciesRequestSchema;
 export type TaskResultRequestSchema = typeof taskResultRequestSchema;
 export type TaskListResponseSchema = typeof taskListResponseSchema;
-export type TaskWriteBulkSchema = typeof taskWriteBulkSchema;
-export type TaskWriteBulkEntrySchema = typeof taskWriteBulkEntrySchema;
-export type CreateTaskWriteBulkRequestSchema =
-  typeof createTaskWriteBulkRequestSchema;
-export type TaskWriteBulkListResponseSchema =
-  typeof taskWriteBulkListResponseSchema;
+export type TaskBatchOperationSchema = typeof taskBatchOperationSchema;
+export type CreateTaskBatchRequestSchema = typeof createTaskBatchRequestSchema;
+export type TaskBatchOperationResultSchema =
+  typeof taskBatchOperationResultSchema;
+export type TaskBatchResponseSchema = typeof taskBatchResponseSchema;
 export type OpenCodeModelCombinationSchema =
   typeof opencodeModelCombinationSchema;
 export type OpenCodeModelsResponseSchema = typeof opencodeModelsResponseSchema;
@@ -187,12 +181,12 @@ export type ParsedTaskPullRequestUrlRequest = TaskPullRequestUrlRequest;
 export type ParsedTaskDependenciesRequest = TaskDependenciesRequest;
 export type ParsedTaskResultRequest = TaskResultRequest;
 export type ParsedTaskListResponse = TaskListResponse;
-export type ParsedTaskWriteBulk = TaskWriteBulk;
-export type ParsedTaskWriteBulkEntry = TaskWriteBulkEntry;
-export type ParsedCreateTaskWriteBulkRequest = Output<
-  typeof createTaskWriteBulkRequestSchema
+export type ParsedTaskBatchOperation = TaskBatchOperation;
+export type ParsedCreateTaskBatchRequest = Output<
+  typeof createTaskBatchRequestSchema
 >;
-export type ParsedTaskWriteBulkListResponse = TaskWriteBulkListResponse;
+export type ParsedTaskBatchOperationResult = TaskBatchOperationResult;
+export type ParsedTaskBatchResponse = TaskBatchResponse;
 export type ParsedOpenCodeModelCombination = OpenCodeModelCombination;
 export type ParsedOpenCodeModelsResponse = OpenCodeModelsResponse;
 export type ParsedOptimizerStatusResponse = OptimizerStatusResponse;

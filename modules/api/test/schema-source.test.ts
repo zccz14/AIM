@@ -7,7 +7,6 @@ const schemaUrl = new URL("src/schema.sql", apiRoot);
 const repositorySourceUrls = [
   new URL("src/dimension-repository.ts", apiRoot),
   new URL("src/task-repository.ts", apiRoot),
-  new URL("src/task-write-bulk-repository.ts", apiRoot),
 ];
 
 describe("api sqlite schema source", () => {
@@ -23,7 +22,10 @@ describe("api sqlite schema source", () => {
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS dimension_evaluations/i,
     );
-    expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS task_write_bulks/i);
+    expect(schemaSql).not.toMatch(
+      /CREATE TABLE IF NOT EXISTS task_write_bulks/i,
+    );
+    expect(schemaSql).toMatch(/DROP TABLE IF EXISTS task_write_bulks/i);
     expect(schemaSql).not.toMatch(/manager_reports/i);
   });
 

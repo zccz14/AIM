@@ -256,7 +256,6 @@ export const adaptTaskDashboard = (
     dimensionReports,
     historyTasks,
     rejectedFeedbackSignals,
-    taskWriteBulks: response.taskWriteBulks.items,
     tasks,
     summaryCards: [
       { key: "pool", label: "Task Pool", value: tasks.length },

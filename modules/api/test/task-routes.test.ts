@@ -75,6 +75,28 @@ const resolveTaskResolvePath = (taskId: string) =>
 const resolveTaskRejectPath = (taskId: string) =>
   contractModule.taskRejectPath.replace("{taskId}", taskId);
 
+const createProject = async (
+  app: ReturnType<typeof createTaskRouteApp>,
+  projectPath: string,
+) => {
+  const response = await app.request(contractModule.projectsPath, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      name: "Main project",
+      project_path: projectPath,
+    }),
+  });
+
+  expect(response.status).toBe(201);
+
+  return response.json();
+};
+
 const createSupportedOpenCodeModelsAdapter = () => ({
   listSupportedModels: vi.fn().mockResolvedValue({
     items: [
@@ -457,6 +479,185 @@ describe("task routes", () => {
       true,
     );
     expect(detailPayload).toEqual(createdTask);
+  });
+
+  it("applies POST /tasks/batch create and delete operations atomically in order", async () => {
+    await useProjectRoot("creates-task-batch");
+
+    const app = createTaskRouteApp();
+    const project = await createProject(app, "/repo/main");
+    const existingTaskResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: project.id,
+        task_spec: "remove stale task",
+        title: "Remove stale task",
+      }),
+    });
+    const existingTask = await existingTaskResponse.json();
+    const newTaskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/main",
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: newTaskId,
+              title: "Created from batch",
+              spec: "write batch route",
+              status: "processing",
+              source_metadata: { coordinator_session_id: "session-1" },
+            },
+          },
+          {
+            type: "delete",
+            task_id: existingTask.task_id,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      results: [
+        { task_id: newTaskId, type: "create" },
+        { task_id: existingTask.task_id, type: "delete" },
+      ],
+    });
+
+    const createdTaskResponse = await app.request(
+      resolveTaskByIdPath(newTaskId),
+    );
+
+    expect(createdTaskResponse.status).toBe(200);
+    await expect(createdTaskResponse.json()).resolves.toMatchObject({
+      project_path: "/repo/main",
+      source_metadata: { coordinator_session_id: "session-1" },
+      task_id: newTaskId,
+      title: "Created from batch",
+    });
+    expect(
+      await app.request(resolveTaskByIdPath(existingTask.task_id)),
+    ).toMatchObject({ status: 404 });
+  });
+
+  it("rolls back POST /tasks/batch when any operation fails", async () => {
+    await useProjectRoot("rolls-back-task-batch");
+
+    const app = createTaskRouteApp();
+    await createProject(app, "/repo/main");
+    const newTaskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/main",
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: newTaskId,
+              title: "Created from batch",
+              spec: "write batch route",
+              source_metadata: {},
+            },
+          },
+          {
+            type: "delete",
+            task_id: "22222222-2222-4222-8222-222222222222",
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await app.request(resolveTaskByIdPath(newTaskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("rejects duplicate task ids and terminal deletes in POST /tasks/batch", async () => {
+    await useProjectRoot("rejects-invalid-task-batch");
+
+    const app = createTaskRouteApp();
+    const project = await createProject(app, "/repo/main");
+    const resolvedResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: project.id,
+        status: "resolved",
+        task_spec: "already done",
+        title: "Already done",
+      }),
+    });
+    const resolvedTask = await resolvedResponse.json();
+    const taskId = "11111111-1111-4111-8111-111111111111";
+
+    const duplicateResponse = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_path: "/repo/main",
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Created from batch",
+              spec: "write batch route",
+              source_metadata: {},
+            },
+          },
+          {
+            type: "delete",
+            task_id: taskId,
+          },
+        ],
+      }),
+    });
+    const terminalDeleteResponse = await app.request(
+      contractModule.tasksBatchPath,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          project_path: "/repo/main",
+          operations: [
+            {
+              type: "delete",
+              task_id: resolvedTask.task_id,
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(duplicateResponse.status).toBe(400);
+    expect(terminalDeleteResponse.status).toBe(400);
+    expect(
+      await app.request(resolveTaskByIdPath(resolvedTask.task_id)),
+    ).toMatchObject({
+      status: 200,
+    });
   });
 
   it("returns the raw task spec markdown for GET /tasks/{taskId}/spec", async () => {

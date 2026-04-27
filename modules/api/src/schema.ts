@@ -64,6 +64,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
           pull_request_url TEXT,
           dependencies TEXT NOT NULL,
           result TEXT NOT NULL DEFAULT '',
+          source_metadata TEXT NOT NULL DEFAULT '{}',
           done INTEGER NOT NULL,
           status TEXT NOT NULL,
           created_at TEXT NOT NULL,
@@ -72,8 +73,8 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
         )
       `);
       database.exec(`
-        INSERT INTO tasks (task_id, title, task_spec, project_id, developer_provider_id, developer_model_id, session_id, worktree_path, pull_request_url, dependencies, result, done, status, created_at, updated_at)
-        SELECT task_id, title, task_spec, ${projectIdExpression}, developer_provider_id, developer_model_id, session_id, worktree_path, pull_request_url, dependencies, result, done, status, created_at, updated_at
+        INSERT INTO tasks (task_id, title, task_spec, project_id, developer_provider_id, developer_model_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, done, status, created_at, updated_at)
+        SELECT task_id, title, task_spec, ${projectIdExpression}, developer_provider_id, developer_model_id, session_id, worktree_path, pull_request_url, dependencies, result, '{}', done, status, created_at, updated_at
         FROM tasks_legacy_project_path
       `);
       database.exec("DROP TABLE tasks_legacy_project_path");
@@ -143,38 +144,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
       database.exec("DROP TABLE dimension_evaluations_legacy_project_path");
     }
 
-    const bulkColumns = tableColumns(database, "task_write_bulks");
-    if (bulkColumns.has("project_path")) {
-      database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
-        SELECT DISTINCT project_path, project_path, project_path, '', '', created_at, updated_at
-        FROM task_write_bulks
-        WHERE project_path IS NOT NULL
-      `);
-      database.exec(
-        "ALTER TABLE task_write_bulks RENAME TO task_write_bulks_legacy_project_path",
-      );
-      database.exec(`
-        CREATE TABLE task_write_bulks (
-          project_id TEXT NOT NULL,
-          bulk_id TEXT NOT NULL,
-          content_markdown TEXT NOT NULL,
-          entries TEXT NOT NULL,
-          baseline_ref TEXT,
-          source_metadata TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          PRIMARY KEY (project_id, bulk_id),
-          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-        )
-      `);
-      database.exec(`
-        INSERT INTO task_write_bulks (project_id, bulk_id, content_markdown, entries, baseline_ref, source_metadata, created_at, updated_at)
-        SELECT project_path, bulk_id, content_markdown, entries, baseline_ref, source_metadata, created_at, updated_at
-        FROM task_write_bulks_legacy_project_path
-      `);
-      database.exec("DROP TABLE task_write_bulks_legacy_project_path");
-    }
+    database.exec("DROP TABLE IF EXISTS task_write_bulks");
   } finally {
     database.exec("PRAGMA foreign_keys = ON;");
   }

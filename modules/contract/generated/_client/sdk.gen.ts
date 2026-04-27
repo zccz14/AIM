@@ -17,12 +17,12 @@ import type {
   CreateProjectData,
   CreateProjectErrors,
   CreateProjectResponses,
+  CreateTaskBatchData,
+  CreateTaskBatchErrors,
+  CreateTaskBatchResponses,
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskResponses,
-  CreateTaskWriteBulkData,
-  CreateTaskWriteBulkErrors,
-  CreateTaskWriteBulkResponses,
   DeleteDimensionByIdData,
   DeleteDimensionByIdErrors,
   DeleteDimensionByIdResponses,
@@ -48,9 +48,6 @@ import type {
   GetTaskSpecByIdData,
   GetTaskSpecByIdErrors,
   GetTaskSpecByIdResponses,
-  GetTaskWriteBulkByIdData,
-  GetTaskWriteBulkByIdErrors,
-  GetTaskWriteBulkByIdResponses,
   ListDimensionEvaluationsData,
   ListDimensionEvaluationsErrors,
   ListDimensionEvaluationsResponses,
@@ -65,9 +62,6 @@ import type {
   ListTasksData,
   ListTasksErrors,
   ListTasksResponses,
-  ListTaskWriteBulksData,
-  ListTaskWriteBulksErrors,
-  ListTaskWriteBulksResponses,
   PatchDimensionByIdData,
   PatchDimensionByIdErrors,
   PatchDimensionByIdResponses,
@@ -429,47 +423,23 @@ export const getTaskSpecById = <ThrowOnError extends boolean = false>(
   >({ url: "/tasks/{taskId}/spec", ...options });
 
 /**
- * List coordinator task write bulk intents for a project
+ * Apply an atomic batch of task operations
  */
-export const listTaskWriteBulks = <ThrowOnError extends boolean = false>(
-  options: Options<ListTaskWriteBulksData, ThrowOnError>,
-) =>
-  (options.client ?? client).get<
-    ListTaskWriteBulksResponses,
-    ListTaskWriteBulksErrors,
-    ThrowOnError
-  >({ url: "/task_write_bulks", ...options });
-
-/**
- * Create a coordinator task write bulk intent
- */
-export const createTaskWriteBulk = <ThrowOnError extends boolean = false>(
-  options: Options<CreateTaskWriteBulkData, ThrowOnError>,
+export const createTaskBatch = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTaskBatchData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    CreateTaskWriteBulkResponses,
-    CreateTaskWriteBulkErrors,
+    CreateTaskBatchResponses,
+    CreateTaskBatchErrors,
     ThrowOnError
   >({
-    url: "/task_write_bulks",
+    url: "/tasks/batch",
     ...options,
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
     },
   });
-
-/**
- * Read a coordinator task write bulk intent
- */
-export const getTaskWriteBulkById = <ThrowOnError extends boolean = false>(
-  options: Options<GetTaskWriteBulkByIdData, ThrowOnError>,
-) =>
-  (options.client ?? client).get<
-    GetTaskWriteBulkByIdResponses,
-    GetTaskWriteBulkByIdErrors,
-    ThrowOnError
-  >({ url: "/task_write_bulks/{bulkId}", ...options });
 
 /**
  * List dimensions for a project

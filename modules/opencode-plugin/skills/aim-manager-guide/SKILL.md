@@ -95,7 +95,7 @@ curl "${SERVER_BASE_URL:-http://localhost:8192}/dimensions/<dimension-id>/evalua
 ## 何时不使用
 
 - 不用它直接创建 Task、删除 Task、调用 `POST /tasks` 或维护 Task Pool 写入。
-- 不用它替代 `aim-coordinator-guide` 形成 `Task Write Bulk` list。
+- 不用它替代 `aim-coordinator-guide` 形成 `POST /tasks/batch` operations。
 - 不用它替代 `aim-evaluate-readme` 做逐条 README claim 的窄口径核对。
 - 不用它替代 `aim-ask-strategy` 处理用户参与的问策、创意探索或路线收敛。
 - 不用它替代 `aim-developer-guide` 执行 Developer 工作、修改代码、跑验证、提交、开 PR 或跟进合并。
@@ -150,7 +150,7 @@ Manager 不得：
 
 ### `aim-coordinator-guide`
 
-Coordinator 从 `dimensions` 与 `dimension_evaluations` 派生 Manager 评估信号，并结合最新基线、当前 Task Pool 与 Rejected Task 反馈维护 Task Pool。Coordinator 的产物是可审批的 `Task Write Bulk` list，包含 `Create` / `Delete` 意图、依赖和路由。
+Coordinator 从 `dimensions` 与 `dimension_evaluations` 派生 Manager 评估信号，并结合最新基线、当前 Task Pool 与 Rejected Task 反馈维护 Task Pool。Coordinator 的产物是可审批的 `POST /tasks/batch` operations，包含 `create` / `delete` 意图和来源信息。
 
 Manager 只交接方向信号和约束，不直接写 Task Pool，也不绕过 Coordinator 进入 `aim-create-tasks`。
 
@@ -261,5 +261,5 @@ confidence_and_limits:
 - [ ] 是否逐一形成了包含定量评分和定性描述的维度评估。
 - [ ] 是否把可观测性资料和 Issues 放在方向层处理，而不是直接生成 Task Pool 写入。
 - [ ] 是否只输出 Manager 评估信号 / 方向信号，没有直接创建 Task 或修改代码。
-- [ ] 是否把 Coordinator handoff 写成后续 Task Pool 维护输入，而不是 Task Write Bulk 本身。
+- [ ] 是否把 Coordinator handoff 写成后续 Task Pool 维护输入，而不是 batch operations 本身。
 - [ ] 是否避免把 Manager 评估信号解释成独立 API schema、SQLite schema 或自动化协议。

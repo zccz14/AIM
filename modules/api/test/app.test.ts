@@ -7,7 +7,6 @@ const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
 const mockRegisterOptimizerRoutes = vi.fn();
 const mockRegisterProjectRoutes = vi.fn();
-const mockRegisterTaskWriteBulkRoutes = vi.fn();
 const mockRegisterTaskRoutes = vi.fn();
 
 vi.mock("@aim-ai/contract", () => ({
@@ -40,10 +39,6 @@ vi.mock("../src/routes/optimizer.js", () => ({
 
 vi.mock("../src/routes/projects.js", () => ({
   registerProjectRoutes: mockRegisterProjectRoutes,
-}));
-
-vi.mock("../src/routes/task-write-bulks.js", () => ({
-  registerTaskWriteBulkRoutes: mockRegisterTaskWriteBulkRoutes,
 }));
 
 vi.mock("../src/routes/tasks.js", () => ({

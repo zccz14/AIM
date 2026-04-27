@@ -124,6 +124,7 @@ const Task = z
     developer_provider_id: z.string().min(1),
     developer_model_id: z.string().min(1),
     result: z.string(),
+    source_metadata: z.object({}).partial().strict().passthrough(),
     session_id: z.union([z.string(), z.null()]),
     worktree_path: z.union([z.string(), z.null()]),
     pull_request_url: z.union([z.string(), z.null()]),
@@ -164,59 +165,41 @@ const TaskResultRequest = z
       .regex(/^(?!\s*$).+/),
   })
   .strict();
-const TaskWriteBulkCreateFields = z
+const CreateTaskBatchTask = z
   .object({
-    candidate_task_spec: z.string().min(1),
-    project_path: z.string().min(1),
-    dependencies: z.array(z.string().min(1)),
-    verification_route: z.string().min(1),
+    task_id: z.string().uuid(),
+    title: z.string().min(1),
+    spec: z.string().min(1),
+    dependencies: z.array(z.string().min(1)).optional(),
+    result: z.string().optional().default(""),
+    session_id: z.union([z.string(), z.null()]).optional(),
+    worktree_path: z.union([z.string(), z.null()]).optional(),
+    pull_request_url: z.union([z.string(), z.null()]).optional(),
+    status: z.enum(["processing", "resolved", "rejected"]).optional(),
+    source_metadata: z.object({}).partial().strict().passthrough().optional(),
   })
   .strict();
-const TaskWriteBulkDeleteFields = z
-  .object({
-    target_task_id: z.string().min(1),
-    delete_reason: z.string().min(1),
-    replacement: z.union([z.string(), z.null()]),
-  })
+const CreateTaskBatchOperation = z
+  .object({ type: z.literal("create"), task: CreateTaskBatchTask })
   .strict();
-const TaskWriteBulkEntry = z
-  .object({
-    id: z.string().min(1),
-    action: z.enum(["Create", "Delete"]),
-    depends_on: z.array(z.string().min(1)),
-    reason: z.string().min(1),
-    source: z.string().min(1),
-    create: z.union([TaskWriteBulkCreateFields, z.null()]),
-    delete: z.union([TaskWriteBulkDeleteFields, z.null()]),
-  })
+const DeleteTaskBatchOperation = z
+  .object({ type: z.literal("delete"), task_id: z.string().uuid() })
   .strict();
-const SourceMetadataEntry = z
-  .object({ key: z.string().min(1), value: z.string() })
-  .strict();
-const CreateTaskWriteBulkRequest = z
+const TaskBatchOperation = z.discriminatedUnion("type", [
+  CreateTaskBatchOperation,
+  DeleteTaskBatchOperation,
+]);
+const CreateTaskBatchRequest = z
   .object({
     project_path: z.string().min(1),
-    bulk_id: z.string().min(1),
-    content_markdown: z.string().min(1),
-    entries: z.array(TaskWriteBulkEntry),
-    baseline_ref: z.union([z.string(), z.null()]).optional(),
-    source_metadata: z.array(SourceMetadataEntry).optional(),
+    operations: z.array(TaskBatchOperation).min(1),
   })
   .strict();
-const TaskWriteBulk = z
-  .object({
-    project_path: z.string().min(1),
-    bulk_id: z.string().min(1),
-    content_markdown: z.string().min(1),
-    entries: z.array(TaskWriteBulkEntry),
-    baseline_ref: z.union([z.string(), z.null()]),
-    source_metadata: z.array(SourceMetadataEntry),
-    created_at: z.string().datetime({ offset: true }),
-    updated_at: z.string().datetime({ offset: true }),
-  })
+const TaskBatchOperationResult = z
+  .object({ type: z.enum(["create", "delete"]), task_id: z.string().uuid() })
   .strict();
-const TaskWriteBulkListResponse = z
-  .object({ items: z.array(TaskWriteBulk) })
+const TaskBatchResponse = z
+  .object({ results: z.array(TaskBatchOperationResult) })
   .strict();
 const CreateDimensionRequest = z
   .object({
@@ -293,13 +276,13 @@ export const schemas = {
   TaskPullRequestUrlRequest,
   TaskDependenciesRequest,
   TaskResultRequest,
-  TaskWriteBulkCreateFields,
-  TaskWriteBulkDeleteFields,
-  TaskWriteBulkEntry,
-  SourceMetadataEntry,
-  CreateTaskWriteBulkRequest,
-  TaskWriteBulk,
-  TaskWriteBulkListResponse,
+  CreateTaskBatchTask,
+  CreateTaskBatchOperation,
+  DeleteTaskBatchOperation,
+  TaskBatchOperation,
+  CreateTaskBatchRequest,
+  TaskBatchOperationResult,
+  TaskBatchResponse,
   CreateDimensionRequest,
   Dimension,
   DimensionListResponse,

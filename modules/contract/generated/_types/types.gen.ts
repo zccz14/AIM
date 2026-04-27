@@ -63,6 +63,9 @@ export type Task = {
   developer_provider_id: string;
   developer_model_id: string;
   result: string;
+  source_metadata: {
+    [key: string]: unknown;
+  };
   session_id: string | null;
   worktree_path: string | null;
   pull_request_url: string | null;
@@ -95,6 +98,53 @@ export type PatchTaskRequest = {
   status?: "processing" | "resolved" | "rejected";
 };
 
+export type CreateTaskBatchTask = {
+  task_id: string;
+  title: string;
+  spec: string;
+  dependencies?: Array<string>;
+  result?: string;
+  session_id?: string | null;
+  worktree_path?: string | null;
+  pull_request_url?: string | null;
+  status?: "processing" | "resolved" | "rejected";
+  source_metadata?: {
+    [key: string]: unknown;
+  };
+};
+
+export type CreateTaskBatchOperation = {
+  type: "create";
+  task: CreateTaskBatchTask;
+};
+
+export type DeleteTaskBatchOperation = {
+  type: "delete";
+  task_id: string;
+};
+
+export type TaskBatchOperation =
+  | ({
+      type: "CreateTaskBatchOperation";
+    } & CreateTaskBatchOperation)
+  | ({
+      type: "DeleteTaskBatchOperation";
+    } & DeleteTaskBatchOperation);
+
+export type CreateTaskBatchRequest = {
+  project_path: string;
+  operations: Array<TaskBatchOperation>;
+};
+
+export type TaskBatchOperationResult = {
+  type: "create" | "delete";
+  task_id: string;
+};
+
+export type TaskBatchResponse = {
+  results: Array<TaskBatchOperationResult>;
+};
+
 export type TaskWorktreePathRequest = {
   worktree_path: string | null;
 };
@@ -113,58 +163,6 @@ export type TaskResultRequest = {
 
 export type TaskListResponse = {
   items: Array<Task>;
-};
-
-export type SourceMetadataEntry = {
-  key: string;
-  value: string;
-};
-
-export type TaskWriteBulkCreateFields = {
-  candidate_task_spec: string;
-  project_path: string;
-  dependencies: Array<string>;
-  verification_route: string;
-};
-
-export type TaskWriteBulkDeleteFields = {
-  target_task_id: string;
-  delete_reason: string;
-  replacement: string | null;
-};
-
-export type TaskWriteBulkEntry = {
-  id: string;
-  action: "Create" | "Delete";
-  depends_on: Array<string>;
-  reason: string;
-  source: string;
-  create: TaskWriteBulkCreateFields | null;
-  delete: TaskWriteBulkDeleteFields | null;
-};
-
-export type TaskWriteBulk = {
-  project_path: string;
-  bulk_id: string;
-  content_markdown: string;
-  entries: Array<TaskWriteBulkEntry>;
-  baseline_ref: string | null;
-  source_metadata: Array<SourceMetadataEntry>;
-  readonly created_at: string;
-  readonly updated_at: string;
-};
-
-export type CreateTaskWriteBulkRequest = {
-  project_path: string;
-  bulk_id: string;
-  content_markdown: string;
-  entries: Array<TaskWriteBulkEntry>;
-  baseline_ref?: string | null;
-  source_metadata?: Array<SourceMetadataEntry>;
-};
-
-export type TaskWriteBulkListResponse = {
-  items: Array<TaskWriteBulk>;
 };
 
 export type Dimension = {
@@ -303,6 +301,9 @@ export type TaskWritable = {
   developer_provider_id: string;
   developer_model_id: string;
   result: string;
+  source_metadata: {
+    [key: string]: unknown;
+  };
   session_id: string | null;
   worktree_path: string | null;
   pull_request_url: string | null;
@@ -312,19 +313,6 @@ export type TaskWritable = {
 
 export type TaskListResponseWritable = {
   items: Array<TaskWritable>;
-};
-
-export type TaskWriteBulkWritable = {
-  project_path: string;
-  bulk_id: string;
-  content_markdown: string;
-  entries: Array<TaskWriteBulkEntry>;
-  baseline_ref: string | null;
-  source_metadata: Array<SourceMetadataEntry>;
-};
-
-export type TaskWriteBulkListResponseWritable = {
-  items: Array<TaskWriteBulkWritable>;
 };
 
 export type DimensionWritable = {
@@ -934,100 +922,32 @@ export type GetTaskSpecByIdResponses = {
 export type GetTaskSpecByIdResponse =
   GetTaskSpecByIdResponses[keyof GetTaskSpecByIdResponses];
 
-export type ListTaskWriteBulksData = {
-  body?: never;
-  path?: never;
-  query: {
-    project_path: string;
-  };
-  url: "/task_write_bulks";
-};
-
-export type ListTaskWriteBulksErrors = {
-  /**
-   * Invalid task write bulk filter
-   */
-  400: ErrorResponse;
-};
-
-export type ListTaskWriteBulksError =
-  ListTaskWriteBulksErrors[keyof ListTaskWriteBulksErrors];
-
-export type ListTaskWriteBulksResponses = {
-  /**
-   * Task write bulk collection
-   */
-  200: TaskWriteBulkListResponse;
-};
-
-export type ListTaskWriteBulksResponse =
-  ListTaskWriteBulksResponses[keyof ListTaskWriteBulksResponses];
-
-export type CreateTaskWriteBulkData = {
-  body: CreateTaskWriteBulkRequest;
+export type CreateTaskBatchData = {
+  body: CreateTaskBatchRequest;
   path?: never;
   query?: never;
-  url: "/task_write_bulks";
+  url: "/tasks/batch";
 };
 
-export type CreateTaskWriteBulkErrors = {
+export type CreateTaskBatchErrors = {
   /**
-   * Invalid task write bulk payload
+   * Invalid task batch payload or operation
    */
   400: ErrorResponse;
-  /**
-   * Task write bulk already exists
-   */
-  409: ErrorResponse;
 };
 
-export type CreateTaskWriteBulkError =
-  CreateTaskWriteBulkErrors[keyof CreateTaskWriteBulkErrors];
+export type CreateTaskBatchError =
+  CreateTaskBatchErrors[keyof CreateTaskBatchErrors];
 
-export type CreateTaskWriteBulkResponses = {
+export type CreateTaskBatchResponses = {
   /**
-   * Created task write bulk intent
+   * Applied task batch operations
    */
-  201: TaskWriteBulk;
+  200: TaskBatchResponse;
 };
 
-export type CreateTaskWriteBulkResponse =
-  CreateTaskWriteBulkResponses[keyof CreateTaskWriteBulkResponses];
-
-export type GetTaskWriteBulkByIdData = {
-  body?: never;
-  path: {
-    bulkId: string;
-  };
-  query: {
-    project_path: string;
-  };
-  url: "/task_write_bulks/{bulkId}";
-};
-
-export type GetTaskWriteBulkByIdErrors = {
-  /**
-   * Invalid task write bulk lookup
-   */
-  400: ErrorResponse;
-  /**
-   * Task write bulk not found
-   */
-  404: ErrorResponse;
-};
-
-export type GetTaskWriteBulkByIdError =
-  GetTaskWriteBulkByIdErrors[keyof GetTaskWriteBulkByIdErrors];
-
-export type GetTaskWriteBulkByIdResponses = {
-  /**
-   * Task write bulk detail
-   */
-  200: TaskWriteBulk;
-};
-
-export type GetTaskWriteBulkByIdResponse =
-  GetTaskWriteBulkByIdResponses[keyof GetTaskWriteBulkByIdResponses];
+export type CreateTaskBatchResponse =
+  CreateTaskBatchResponses[keyof CreateTaskBatchResponses];
 
 export type ListDimensionsData = {
   body?: never;

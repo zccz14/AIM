@@ -29,6 +29,7 @@ const buildTask = ({
   pull_request_url: null,
   dependencies,
   result,
+  source_metadata: {},
   done,
   status,
   created_at: "2026-04-19T00:00:00.000Z",
@@ -57,46 +58,6 @@ const buildOptimizerStatus = (running: boolean) => ({
   last_event: null,
   last_scan_at: null,
   running,
-});
-
-const buildTaskWriteBulk = () => ({
-  project_path: "/repo/dashboard",
-  bulk_id: "bulk-approval-1",
-  content_markdown:
-    "# Coordinator write intent\n\nPrepare two candidate task changes for Director approval.",
-  entries: [
-    {
-      id: "entry-create-docs",
-      action: "Create",
-      depends_on: [],
-      reason: "Expose missing Director documentation coverage.",
-      source: "coordinator-session-1",
-      create: {
-        candidate_task_spec: "Write Director-facing task write bulk docs.",
-        project_path: "/repo/dashboard",
-        dependencies: ["task-existing-baseline"],
-        verification_route: "pnpm test:web",
-      },
-      delete: null,
-    },
-    {
-      id: "entry-delete-stale",
-      action: "Delete",
-      depends_on: ["entry-create-docs"],
-      reason: "Remove stale duplicate candidate after replacement exists.",
-      source: "coordinator-session-1",
-      create: null,
-      delete: {
-        target_task_id: "task-stale-1",
-        delete_reason: "Superseded by the approved write intent.",
-        replacement: "entry-create-docs",
-      },
-    },
-  ],
-  baseline_ref: "origin/main@abc1234",
-  source_metadata: [{ key: "coordinator_session_id", value: "session-bulk-1" }],
-  created_at: "2026-04-20T10:00:00.000Z",
-  updated_at: "2026-04-20T10:05:00.000Z",
 });
 
 const buildDimension = ({
@@ -237,13 +198,6 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(buildOptimizerStatus(false)),
-    });
-  });
-
-  await page.route("**/task_write_bulks**", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ items: [] }),
     });
   });
 
@@ -563,82 +517,6 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
       "Strong convergence evidence, missing one explicit intervention path.",
     ),
   ).toBeVisible();
-});
-
-test("lists Task Write Bulks as pre-approval write intents and opens read-only details", async ({
-  page,
-}) => {
-  const requestedBulkUrls: string[] = [];
-  const taskWriteBulk = buildTaskWriteBulk();
-
-  await page.route("**/task_write_bulks**", async (route) => {
-    requestedBulkUrls.push(route.request().url());
-
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ items: [taskWriteBulk] }),
-    });
-  });
-
-  await page.goto("/");
-
-  await expect.poll(() => requestedBulkUrls.length).toBeGreaterThan(0);
-
-  const bulkSection = page
-    .getByRole("region", { name: "Task Write Bulk intents" })
-    .locator('[data-slot="card"]');
-
-  await expect(
-    bulkSection.getByRole("heading", { name: "Task Write Bulks" }),
-  ).toBeVisible();
-  await expect(
-    bulkSection.getByText(
-      "Pre-approval Coordinator write intent. No tasks have been created or executed from these records.",
-    ),
-  ).toBeVisible();
-  await expect(
-    bulkSection.getByRole("button", { name: /bulk-approval-1/i }),
-  ).toBeVisible();
-  await expect(bulkSection.getByText("2 proposed entries")).toBeVisible();
-  await expect(bulkSection.getByText("origin/main@abc1234")).toBeVisible();
-
-  await bulkSection.getByRole("button", { name: /bulk-approval-1/i }).click();
-
-  await expect(
-    page.getByRole("heading", { name: "Task Write Bulk Details" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      "Read-only Coordinator proposal. This is not an executed task result and provides no approve, create, or delete action.",
-    ),
-  ).toBeVisible();
-  await expect(page.getByText("Bulk ID: bulk-approval-1")).toBeVisible();
-  await expect(
-    page.getByText("Baseline Ref: origin/main@abc1234"),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Created At: 2026-04-20T10:00:00.000Z"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Coordinator write intent" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "entry-create-docs" }),
-  ).toBeVisible();
-  await expect(page.getByText("Create", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Write Director-facing task write bulk docs."),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "entry-delete-stale" }),
-  ).toBeVisible();
-  await expect(page.getByText("Delete", { exact: true })).toBeVisible();
-  await expect(page.getByText("task-stale-1")).toBeVisible();
-  await expect(page.getByRole("button", { name: /approve/i })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /delete/i })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /create task/i })).toHaveCount(
-    0,
-  );
 });
 
 test("frames the dashboard as a Director methodology hub", async ({ page }) => {
