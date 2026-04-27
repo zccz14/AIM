@@ -240,15 +240,23 @@ export const createDimensionRepository = (
     INSERT OR IGNORE INTO ${projectsTableName} (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at)
     VALUES (?, ?, ?, '', '', ?, ?)
   `);
+  const getProjectByPathStatement = database.prepare(`
+    SELECT id
+    FROM ${projectsTableName}
+    WHERE project_path = ?
+  `);
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
     createDimension(input: CreateDimensionRequest): Promise<Dimension> {
       const timestamp = new Date().toISOString();
-      const projectId = input.project_path;
+      const existingProject = getProjectByPathStatement.get(
+        input.project_path,
+      ) as { id: string } | undefined;
+      const projectId = existingProject?.id ?? randomUUID();
       ensureProjectStatement.run(
         projectId,
-        projectId,
+        input.project_path,
         input.project_path,
         timestamp,
         timestamp,

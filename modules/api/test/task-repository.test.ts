@@ -52,6 +52,10 @@ const withRequiredCreateFields = <T extends Record<string, unknown>>(
   ...input,
 });
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
+
 afterEach(async () => {
   delete process.env.AIM_PROJECT_ROOT;
   await rm(tempRoot, { force: true, recursive: true });
@@ -172,7 +176,7 @@ describe("task repository", () => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        "project-main",
+        mainProjectId,
         "Main project",
         "/repo/project-main",
         "anthropic",
@@ -183,7 +187,7 @@ describe("task repository", () => {
 
     await expect(
       repository.createTask({
-        project_id: "project-main",
+        project_id: mainProjectId,
         status: "processing",
         task_spec: "store task under project identity",
         title: "Project scoped task",
@@ -191,7 +195,7 @@ describe("task repository", () => {
     ).resolves.toMatchObject({
       developer_model_id: "claude-sonnet-4-5",
       developer_provider_id: "anthropic",
-      project_id: "project-main",
+      project_id: mainProjectId,
       project_path: "/repo/project-main",
     });
 
@@ -203,12 +207,12 @@ describe("task repository", () => {
       .prepare(
         "SELECT id, name, project_path, global_provider_id, global_model_id FROM projects WHERE id = ?",
       )
-      .get("project-main");
+      .get(mainProjectId);
     const persistedTask = database
       .prepare(
         "SELECT project_id, developer_provider_id, developer_model_id FROM tasks WHERE project_id = ?",
       )
-      .get("project-main");
+      .get(mainProjectId);
     database.close();
 
     expect(
@@ -228,14 +232,41 @@ describe("task repository", () => {
     expect(persistedProject).toEqual({
       global_model_id: "claude-sonnet-4-5",
       global_provider_id: "anthropic",
-      id: "project-main",
+      id: mainProjectId,
       name: "Main project",
       project_path: "/repo/project-main",
     });
     expect(persistedTask).toEqual({
       developer_model_id: "claude-sonnet-4-5",
       developer_provider_id: "anthropic",
-      project_id: "project-main",
+      project_id: mainProjectId,
+    });
+  });
+
+  it("creates projects with UUID ids that stay distinct from project_path", async () => {
+    const projectRoot = await createProjectRoot("creates-project-uuid-id");
+    const repository = createTaskRepository({ projectRoot });
+
+    const project = await repository.createProject({
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      name: "Main project",
+      project_path: "/repo/project-main",
+    });
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const persistedProject = database
+      .prepare("SELECT id, project_path FROM projects WHERE project_path = ?")
+      .get("/repo/project-main") as
+      | { id: string; project_path: string }
+      | undefined;
+    database.close();
+
+    expect(project.id).toMatch(uuidPattern);
+    expect(project.id).not.toBe(project.project_path);
+    expect(persistedProject).toEqual({
+      id: project.id,
+      project_path: "/repo/project-main",
     });
   });
 
@@ -257,7 +288,7 @@ describe("task repository", () => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        "project-main",
+        mainProjectId,
         "Main project",
         "/repo/project-main",
         "anthropic",
@@ -267,7 +298,7 @@ describe("task repository", () => {
       );
 
     const task = await repository.createTask({
-      project_id: "project-main",
+      project_id: mainProjectId,
       status: "processing",
       task_spec: "store only the project identity on the task row",
       title: "Project scoped task",
@@ -282,7 +313,7 @@ describe("task repository", () => {
     database.close();
 
     expect(task).toMatchObject({
-      project_id: "project-main",
+      project_id: mainProjectId,
       project_path: "/repo/project-main",
     });
     expect(
@@ -297,7 +328,145 @@ describe("task repository", () => {
         }),
       ]),
     );
-    expect(persistedTask).toEqual({ project_id: "project-main" });
+    expect(persistedTask).toEqual({ project_id: mainProjectId });
+  });
+
+  it("migrates path-as-id project data to UUID ids while preserving child references", async () => {
+    const projectRoot = await createProjectRoot("migrates-path-project-ids");
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        project_path TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE tasks (
+        task_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        task_spec TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        developer_provider_id TEXT NOT NULL,
+        developer_model_id TEXT NOT NULL,
+        session_id TEXT,
+        worktree_path TEXT,
+        pull_request_url TEXT,
+        dependencies TEXT NOT NULL,
+        result TEXT NOT NULL DEFAULT '',
+        done INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE dimensions (
+        id TEXT NOT NULL PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        goal TEXT NOT NULL,
+        evaluation_method TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE dimension_evaluations (
+        id TEXT NOT NULL PRIMARY KEY,
+        dimension_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        commit_sha TEXT NOT NULL,
+        evaluator_model TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        evaluation TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    database
+      .prepare(
+        "INSERT INTO projects (id, name, project_path, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        "/repo/legacy",
+        "Legacy project",
+        "/repo/legacy",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database
+      .prepare(
+        "INSERT INTO tasks (task_id, title, task_spec, project_id, developer_provider_id, developer_model_id, dependencies, result, done, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        "task-1",
+        "Legacy task",
+        "Keep task linked",
+        "/repo/legacy",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "[]",
+        "",
+        0,
+        "processing",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database
+      .prepare(
+        "INSERT INTO dimensions (id, project_id, name, goal, evaluation_method, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        "dimension-1",
+        "/repo/legacy",
+        "Quality",
+        "Improve quality",
+        "Review",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database
+      .prepare(
+        "INSERT INTO dimension_evaluations (id, dimension_id, project_id, commit_sha, evaluator_model, score, evaluation, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        "evaluation-1",
+        "dimension-1",
+        "/repo/legacy",
+        "abc123",
+        "gpt-5.5",
+        80,
+        "Good",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database.close();
+
+    const repository = createTaskRepository({ projectRoot });
+    await repository.listTasks();
+
+    const migratedDatabase = new DatabaseSync(databasePath);
+    const migratedProject = migratedDatabase
+      .prepare("SELECT id, project_path FROM projects WHERE project_path = ?")
+      .get("/repo/legacy") as { id: string; project_path: string };
+    const childReferences = migratedDatabase
+      .prepare(
+        `SELECT
+          (SELECT project_id FROM tasks WHERE task_id = 'task-1') AS task_project_id,
+          (SELECT project_id FROM dimensions WHERE id = 'dimension-1') AS dimension_project_id,
+          (SELECT project_id FROM dimension_evaluations WHERE id = 'evaluation-1') AS evaluation_project_id`,
+      )
+      .get() as Record<string, string>;
+    migratedDatabase.close();
+
+    expect(migratedProject.id).toMatch(uuidPattern);
+    expect(migratedProject.id).not.toBe("/repo/legacy");
+    expect(childReferences).toEqual({
+      dimension_project_id: migratedProject.id,
+      evaluation_project_id: migratedProject.id,
+      task_project_id: migratedProject.id,
+    });
   });
 
   it("creates and persists required task title and developer model columns", async () => {

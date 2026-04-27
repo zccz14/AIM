@@ -52,6 +52,10 @@ const taskRouteSourceUrl = new URL("../src/routes/tasks.ts", import.meta.url);
 const appSourceUrl = new URL("../src/app.ts", import.meta.url);
 const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
+
 let previousProjectRoot: string | undefined;
 
 const createLogger = () => ({
@@ -182,7 +186,8 @@ describe("task routes", () => {
       name: "Main project",
       project_path: "/repo/main",
     });
-    expect(typeof createdProject.id).toBe("string");
+    expect(createdProject.id).toMatch(uuidPattern);
+    expect(createdProject.id).not.toBe(createdProject.project_path);
 
     const listResponse = await app.request("/projects");
 
@@ -345,7 +350,7 @@ describe("task routes", () => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        "project-main",
+        mainProjectId,
         "Main project",
         "/repo/main",
         "anthropic",
@@ -362,7 +367,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        project_id: "project-main",
+        project_id: mainProjectId,
         task_spec: "write sqlite-backed route tests",
         title: "SQLite route tests",
       }),
@@ -375,7 +380,7 @@ describe("task routes", () => {
     expect(createdTask).toMatchObject({
       developer_model_id: "claude-sonnet-4-5",
       developer_provider_id: "anthropic",
-      project_id: "project-main",
+      project_id: mainProjectId,
       project_path: "/repo/main",
       title: "SQLite route tests",
     });

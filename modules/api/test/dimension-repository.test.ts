@@ -24,6 +24,9 @@ const createProjectRoot = async (name: string) => {
   return projectRoot;
 };
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const createDimensionInput = {
   project_path: "/repo/main",
   name: "API Fit",
@@ -147,6 +150,39 @@ describe("dimension repository", () => {
     await expect(
       repository.getDimension(firstDimension.id),
     ).resolves.toBeNull();
+  });
+
+  it("creates dimensions under a UUID project id resolved from project_path", async () => {
+    const projectRoot = await createProjectRoot(
+      "creates-dimension-project-uuid",
+    );
+    const repository = createDimensionRepository({ projectRoot });
+
+    const dimension = await repository.createDimension({
+      ...createDimensionInput,
+      project_path: "/repo/dimensions",
+    });
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const persisted = database
+      .prepare(
+        "SELECT projects.id AS project_id, projects.project_path AS project_path, dimensions.project_id AS dimension_project_id FROM dimensions INNER JOIN projects ON projects.id = dimensions.project_id WHERE dimensions.id = ?",
+      )
+      .get(dimension.id) as
+      | {
+          dimension_project_id: string;
+          project_id: string;
+          project_path: string;
+        }
+      | undefined;
+    database.close();
+
+    expect(persisted?.project_id).toMatch(uuidPattern);
+    expect(persisted?.project_id).not.toBe("/repo/dimensions");
+    expect(persisted).toMatchObject({
+      dimension_project_id: persisted?.project_id,
+      project_path: "/repo/dimensions",
+    });
   });
 
   it("appends evaluations and cascades them when deleting dimensions", async () => {

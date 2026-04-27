@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
 
@@ -23,6 +24,13 @@ const execSchemaStatements = (
 
 type TableInfoRow = { name: string };
 
+type ProjectIdentityRow = {
+  id: string;
+};
+
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const tableColumns = (database: DatabaseSync, tableName: string) =>
   new Set(
     (
@@ -31,6 +39,38 @@ const tableColumns = (database: DatabaseSync, tableName: string) =>
         .all() as TableInfoRow[]
     ).map((row) => row.name),
   );
+
+const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
+  const projectColumns = tableColumns(database, "projects");
+
+  if (!projectColumns.has("id") || !projectColumns.has("project_path")) {
+    return;
+  }
+
+  const legacyProjects = (
+    database.prepare("SELECT id FROM projects").all() as ProjectIdentityRow[]
+  ).filter((project) => !uuidPattern.test(project.id));
+
+  for (const project of legacyProjects) {
+    const nextProjectId = randomUUID();
+
+    for (const tableName of ["tasks", "dimensions", "dimension_evaluations"]) {
+      const columns = tableColumns(database, tableName);
+
+      if (columns.has("project_id")) {
+        database
+          .prepare(
+            `UPDATE ${tableName} SET project_id = ? WHERE project_id = ?`,
+          )
+          .run(nextProjectId, project.id);
+      }
+    }
+
+    database
+      .prepare("UPDATE projects SET id = ? WHERE id = ?")
+      .run(nextProjectId, project.id);
+  }
+};
 
 export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
   database.exec("PRAGMA foreign_keys = OFF;");
@@ -145,6 +185,8 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     }
 
     database.exec("DROP TABLE IF EXISTS task_write_bulks");
+
+    rewriteProjectIdsToUuids(database);
   } finally {
     database.exec("PRAGMA foreign_keys = ON;");
   }

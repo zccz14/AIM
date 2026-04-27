@@ -72,6 +72,7 @@ const releaseWorkflowUrl = new URL(
   "../../../.github/workflows/release.yml",
   import.meta.url,
 );
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
 
 type ContractPackageManifest = {
   name: string;
@@ -567,12 +568,12 @@ describe("contract package baseline", () => {
     );
     expect(
       contractModule.createTaskRequestSchema.parse({
-        project_id: "project-main",
+        project_id: mainProjectId,
         task_spec: "Ship contract",
         title: "Ship contract",
       }),
     ).toEqual({
-      project_id: "project-main",
+      project_id: mainProjectId,
       task_spec: "Ship contract",
       result: "",
       title: "Ship contract",
@@ -603,7 +604,7 @@ describe("contract package baseline", () => {
       contractModule.taskSchema.parse({
         developer_model_id: "claude-sonnet-4-5",
         developer_provider_id: "anthropic",
-        project_id: "project-main",
+        project_id: mainProjectId,
         task_id: "task-1",
         task_spec: "Ship contract",
         title: "Ship contract",
@@ -630,7 +631,7 @@ describe("contract package baseline", () => {
           {
             developer_model_id: "claude-sonnet-4-5",
             developer_provider_id: "anthropic",
-            project_id: "project-main",
+            project_id: mainProjectId,
             task_id: "task-1",
             task_spec: "Ship contract",
             title: "Ship contract",
@@ -663,7 +664,7 @@ describe("contract package baseline", () => {
       contractModule.taskSchema.safeParse({
         task_id: "task-1",
         task_spec: "Ship contract",
-        project_id: "project-main",
+        project_id: mainProjectId,
         project_path: "/repo",
         source_metadata: {},
         session_id: null,
@@ -1296,7 +1297,7 @@ describe("contract package baseline", () => {
       type: "string",
     });
     expect(createSchema.properties.project_id).toEqual({
-      minLength: 1,
+      format: "uuid",
       type: "string",
     });
     expect(
@@ -1304,6 +1305,20 @@ describe("contract package baseline", () => {
         task_spec: "write plan",
       }).success,
     ).toBe(false);
+    expect(
+      contractModule.createTaskRequestSchema.safeParse({
+        project_id: "/repo/main",
+        task_spec: "write plan",
+        title: "Write plan",
+      }).success,
+    ).toBe(false);
+    expect(
+      contractModule.createTaskRequestSchema.safeParse({
+        project_id: "00000000-0000-4000-8000-000000000000",
+        task_spec: "write plan",
+        title: "Write plan",
+      }).success,
+    ).toBe(true);
     expect(
       contractModule.taskSchema.safeParse({
         task_id: "task-1",
@@ -1616,7 +1631,7 @@ describe("contract package baseline", () => {
       task_id: "task-1",
       title: "Write spec",
       task_spec: "write spec",
-      project_id: "project-main",
+      project_id: mainProjectId,
       project_path: "/repo",
       developer_provider_id: "anthropic",
       developer_model_id: "claude-sonnet-4-5",
@@ -1677,7 +1692,7 @@ describe("contract package baseline", () => {
               JSON.stringify({
                 title: "Write spec",
                 task_spec: "write spec",
-                project_id: "project-main",
+                project_id: mainProjectId,
                 dependencies: [],
               })
           ) {
@@ -1751,7 +1766,7 @@ describe("contract package baseline", () => {
       client.createTask({
         title: "Write spec",
         task_spec: "write spec",
-        project_id: "project-main",
+        project_id: mainProjectId,
         dependencies: [],
       }),
     ).resolves.toMatchObject({
@@ -1794,7 +1809,7 @@ describe("contract package baseline", () => {
         body: {
           title: "Write spec",
           task_spec: "write spec",
-          project_id: "project-main",
+          project_id: mainProjectId,
           dependencies: [],
         },
         method: "POST",
@@ -1879,7 +1894,7 @@ describe("contract package baseline", () => {
     });
 
     const result = client.createTask({
-      project_id: "project-main",
+      project_id: mainProjectId,
       task_spec: "",
     });
 

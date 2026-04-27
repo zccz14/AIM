@@ -1170,7 +1170,7 @@ export const openApiDocument = {
         properties: {
           id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
             readOnly: true,
           },
           name: {
@@ -1302,7 +1302,7 @@ export const openApiDocument = {
           },
           project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           project_path: {
             type: "string",
@@ -1374,7 +1374,7 @@ export const openApiDocument = {
           },
           project_id: {
             type: "string",
-            minLength: 1,
+            format: "uuid",
           },
           dependencies: {
             type: "array",
