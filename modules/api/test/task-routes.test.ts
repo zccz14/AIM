@@ -512,7 +512,7 @@ describe("task routes", () => {
     expect(detailPayload).toEqual(createdTask);
   });
 
-  it("applies POST /tasks/batch create and delete operations atomically in order", async () => {
+  it("applies POST /tasks/batch create operations with validation evidence and delete operations atomically in order", async () => {
     await useProjectRoot("creates-task-batch");
 
     const app = createTaskRouteApp();
@@ -546,7 +546,17 @@ describe("task routes", () => {
               title: "Created from batch",
               spec: "write batch route",
               status: "processing",
-              source_metadata: { coordinator_session_id: "session-1" },
+              source_metadata: {
+                coordinator_session_id: "session-1",
+                task_spec_validation: {
+                  conclusion_summary:
+                    "aim-verify-task-spec returned pass for the source gap",
+                  dimension_evaluation_id:
+                    "44444444-4444-4444-8444-444444444444",
+                  validation_session_id: "validation-session-1",
+                  validation_source: "aim-verify-task-spec",
+                },
+              },
             },
           },
           {
@@ -572,7 +582,16 @@ describe("task routes", () => {
     expect(createdTaskResponse.status).toBe(200);
     await expect(createdTaskResponse.json()).resolves.toMatchObject({
       project_id: project.id,
-      source_metadata: { coordinator_session_id: "session-1" },
+      source_metadata: {
+        coordinator_session_id: "session-1",
+        task_spec_validation: {
+          conclusion_summary:
+            "aim-verify-task-spec returned pass for the source gap",
+          dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+          validation_session_id: "validation-session-1",
+          validation_source: "aim-verify-task-spec",
+        },
+      },
       task_id: newTaskId,
       title: "Created from batch",
     });

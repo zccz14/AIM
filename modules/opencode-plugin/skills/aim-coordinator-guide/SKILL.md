@@ -49,7 +49,14 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 - `task.title`：候选 Task 标题。
 - `task.spec`：完整五段式候选 Task Spec，而不是标题或实现提示。
 - `dependencies`：候选 Task 创建时应携带的 Task 依赖；如果没有依赖，写空列表。
-- `source_metadata`：来源信息，例如 Manager 评估、Coordinator session 或 rejected 反馈。
+- `source_metadata`：来源信息，例如 Manager 评估、Coordinator session 或 rejected 反馈；每个 `create` operation 必须先取得独立 Task Spec validation 结论，并把证据保存在 `source_metadata.task_spec_validation`。
+
+`source_metadata.task_spec_validation` 必须至少保留：
+
+- `validation_source`：校验来源，例如 `aim-verify-task-spec`。
+- `validated_at` 或 `validation_session_id`：校验发生时间或可追踪 session。
+- `conclusion_summary`：校验结论摘要，且结论必须是可继续推进的 `pass`。
+- `dimension_evaluation_id`、`dimension_id` 或等价 source gap：说明该 validation 对应哪个 Manager dimension_evaluation/source gap。
 
 `Delete` 条目还必须包含：
 
@@ -78,6 +85,7 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 - 禁止用含糊目标、开放问题或需要 Director 决策的内容生成 Developer Task。
 - 禁止把 README 或 Manager 输出不清晰的问题包装成“澄清类 Developer Task”。
 - 禁止跳过 `aim-verify-task-spec` 自行认定候选 Spec 可创建。
+- 禁止把泛化 optimizer-loop placeholder 当作 validation evidence；validation evidence 必须对应具体候选 Spec 和具体 dimension_evaluation/source gap。
 - 禁止未经用户批准直接创建 Task。
 - 禁止直接调用 `POST /tasks` 逐条写入；批准后的原子写入必须通过 `POST /tasks/batch`。
 
@@ -122,9 +130,10 @@ rejected Task 的失败原因是新的基线规划输入。Coordinator 必须先
 用户批准 `POST /tasks/batch` operations 后：
 
 1. 对每个 `create`，先使用 `aim-verify-task-spec` 校验 `task.spec`。
-2. 只有所有 `create` 校验结论均可继续推进时，才提交 `POST /tasks/batch`。
+2. 只有所有 `create` 校验结论均为 `pass` 且已写入 `source_metadata.task_spec_validation` 时，才提交 `POST /tasks/batch`。
 3. 对每个 `delete`，只在目标 Task 未完成且删除原因明确时保留在 batch 中。
-4. 如果任一 `create` 校验失败，停止提交 batch，并把失败原因反馈给 Coordinator 重新规划。
+4. 如果任一 `create` validation 失败或 `waiting_assumptions`，候选 `create` 不得进入 `POST /tasks/batch`，停止提交包含它的 batch，并把失败原因或等待的 assumption 作为 rejected/planning feedback 输入下一轮 Coordinator 规划。
+5. delete-only batch 不要求 Task Spec validation，因为没有候选 Task Spec；它仍必须满足目标 Task、删除理由和 batch guardrails。
 
 Coordinator 不得在这个阶段接管 Developer 生命周期；已创建的 Task 后续执行必须由 `aim-developer-guide` 覆盖。
 
@@ -145,7 +154,11 @@ Coordinator 不得在这个阶段接管 Developer 生命周期；已创建的 Ta
 - [ ] 输出是 `POST /tasks/batch` operations，而不是泛化分析报告。
 - [ ] 每个 operation 都是 `create` 或 `delete`。
 - [ ] 每个 `create` 都有调用方生成的 UUID 和完整五段式候选 Task Spec。
+- [ ] 每个 `create` 都有独立 Task Spec validation `pass` 结论，并已在 `source_metadata.task_spec_validation` 保留 validation_source、validated_at 或 validation_session_id、conclusion_summary 与 dimension_evaluation/source gap。
 - [ ] 没有直接调用 `POST /tasks` 逐条写入，也没有跳过用户批准。
+- [ ] validation 失败或 `waiting_assumptions` 的候选 `create` 不得进入 `POST /tasks/batch`，失败原因已作为 rejected/planning feedback 输入下一轮规划。
+- [ ] delete-only batch 不要求 Task Spec validation。
+- [ ] 不得把泛化 optimizer-loop placeholder 当作 validation evidence。
 - [ ] 每个 `delete` 都有明确 `task_id` 和 `delete_reason`。
 - [ ] rejected Task 失败原因已被纳入后续规划。
 - [ ] README 或 Manager 输出不清晰且会影响目标、范围、验收、边界或优先级时，已升级 Director 澄清。
