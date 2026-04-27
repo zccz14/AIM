@@ -80,43 +80,25 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
 type AsyncDisposableServer = ReturnType<typeof serve> & AsyncDisposable;
 type ScopedResource = Partial<AsyncDisposable & Disposable>;
 
-const createAsyncResourceScope = () => {
-  const resources: ScopedResource[] = [];
+// 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
+export const startServer = () => {
+  const scope = new AsyncDisposableStack();
   let disposePromise: Promise<void> | null = null;
+  const useResource = <T extends ScopedResource>(resource: T) =>
+    scope.adopt(resource, async (scopedResource) => {
+      const asyncDispose = scopedResource[Symbol.asyncDispose];
 
-  return {
-    async [Symbol.asyncDispose]() {
-      if (disposePromise) {
-        await disposePromise;
+      if (asyncDispose) {
+        await asyncDispose.call(scopedResource);
         return;
       }
 
-      disposePromise = (async () => {
-        for (const resource of resources.splice(0).reverse()) {
-          const asyncDispose = resource[Symbol.asyncDispose];
-
-          if (asyncDispose) {
-            await asyncDispose.call(resource);
-            continue;
-          }
-
-          resource[Symbol.dispose]?.();
-        }
-      })();
-
-      await disposePromise;
-    },
-
-    use<T extends ScopedResource>(resource: T) {
-      resources.push(resource);
-      return resource;
-    },
+      scopedResource[Symbol.dispose]?.();
+    });
+  const disposeScope = () => {
+    disposePromise ??= scope.disposeAsync();
+    return disposePromise;
   };
-};
-
-// 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
-export const startServer = () => {
-  const scope = createAsyncResourceScope();
   const logger = createApiLogger();
   const coordinatorConfig: TaskSessionCoordinatorConfig = {
     baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
@@ -125,7 +107,7 @@ export const startServer = () => {
   const taskRepository = createTaskRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
-  scope.use(taskRepository);
+  useResource(taskRepository);
   const configuredProjects = taskRepository
     .listProjects()
     .filter(isConfiguredProject);
@@ -192,9 +174,9 @@ export const startServer = () => {
   if (configuredProjects.some(isOptimizerEnabled)) {
     optimizerRuntime.start();
   }
-  scope.use(optimizerRuntime);
+  useResource(optimizerRuntime);
 
-  const app = scope.use(
+  const app = useResource(
     createApp({
       logger,
       onTaskResolved: optimizerRuntime.handleEvent,
@@ -228,16 +210,16 @@ export const startServer = () => {
     });
   };
 
-  scope.use({ [Symbol.asyncDispose]: closeServer });
+  useResource({ [Symbol.asyncDispose]: closeServer });
 
   server[Symbol.asyncDispose] = async () => {
-    await scope[Symbol.asyncDispose]();
+    await disposeScope();
   };
 
   try {
     process.once("SIGINT", shutdown);
     process.once("SIGTERM", shutdown);
-    scope.use({
+    useResource({
       [Symbol.dispose]: () => {
         process.off("SIGINT", shutdown);
         process.off("SIGTERM", shutdown);
@@ -245,10 +227,10 @@ export const startServer = () => {
     });
     server.once("close", () => {
       serverClosed = true;
-      void scope[Symbol.asyncDispose]();
+      void disposeScope();
     });
   } catch (error) {
-    void scope[Symbol.asyncDispose]();
+    void disposeScope();
     throw error;
   }
 

@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mockServe = vi.fn();
@@ -92,6 +93,16 @@ describe("server startup", () => {
     vi.resetModules();
     vi.clearAllMocks();
     mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
+  });
+
+  it("uses the standard async disposable stack for server resource ownership", async () => {
+    const source = await readFile(
+      new URL("../src/server.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("new AsyncDisposableStack()");
+    expect(source).not.toContain("createAsyncResourceScope");
   });
 
   it("passes explicit OpenCode config to all optimizer lane coordinators", async () => {
