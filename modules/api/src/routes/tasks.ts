@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
+  type ParsedCreateTaskBatchRequest,
   patchTaskRequestSchema,
   type TaskPullRequestStatusResponse,
   type TaskStatus,
@@ -156,7 +157,152 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
     taskIds.set(taskId, operation.type);
   }
 
+  for (const operation of result.data.operations) {
+    if (operation.type === "create") {
+      const validationError = normalizeTaskSpecValidation(operation.task);
+
+      if (validationError) {
+        return {
+          error: buildValidationError(validationError),
+          ok: false as const,
+        };
+      }
+    }
+  }
+
   return { data: result.data, ok: true as const };
+};
+
+const getNonEmptyString = (source: Record<string, unknown>, field: string) => {
+  const value = source[field];
+
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const normalizeTaskSpecValidation = (
+  task: Extract<
+    ParsedCreateTaskBatchRequest["operations"][number],
+    { type: "create" }
+  >["task"],
+) => {
+  const sourceMetadata = task.source_metadata;
+
+  if (!sourceMetadata) {
+    return "Task batch create requires source_metadata.task_spec_validation evidence";
+  }
+
+  if (
+    !getNonEmptyString(sourceMetadata, "dimension_id") ||
+    !getNonEmptyString(sourceMetadata, "dimension_evaluation_id")
+  ) {
+    return "Task batch create requires top-level dimension_id and dimension_evaluation_id planning evidence separate from task_spec_validation";
+  }
+
+  const taskSpecValidation = sourceMetadata.task_spec_validation;
+
+  if (!isRecord(taskSpecValidation)) {
+    return "Task batch create requires source_metadata.task_spec_validation evidence";
+  }
+
+  const validationSource = getNonEmptyString(
+    taskSpecValidation,
+    "validation_source",
+  );
+  const validatedAt = getNonEmptyString(taskSpecValidation, "validated_at");
+  const validationSessionId = getNonEmptyString(
+    taskSpecValidation,
+    "validation_session_id",
+  );
+  const conclusionSummary = getNonEmptyString(
+    taskSpecValidation,
+    "conclusion_summary",
+  );
+  const sourceGap =
+    getNonEmptyString(taskSpecValidation, "dimension_evaluation_id") ||
+    getNonEmptyString(taskSpecValidation, "dimension_id") ||
+    getNonEmptyString(taskSpecValidation, "source_gap");
+
+  if (
+    !validationSource ||
+    (!validatedAt && !validationSessionId) ||
+    !conclusionSummary ||
+    !sourceGap
+  ) {
+    return "Task batch create requires complete source_metadata.task_spec_validation evidence";
+  }
+
+  const explicitConclusion = getNonEmptyString(
+    taskSpecValidation,
+    "conclusion",
+  );
+  const conclusion =
+    explicitConclusion ?? inferValidationConclusion(conclusionSummary);
+
+  if (
+    conclusion !== "pass" &&
+    conclusion !== "waiting_assumptions" &&
+    conclusion !== "failed"
+  ) {
+    return "Task Spec validation conclusion must be pass, waiting_assumptions, or failed";
+  }
+
+  taskSpecValidation.conclusion = conclusion;
+
+  if (conclusion === "waiting_assumptions") {
+    return buildBlockedValidationMessage(
+      "waiting_assumptions Task Spec validation cannot enter POST /tasks/batch",
+      taskSpecValidation.blocking_assumptions,
+    );
+  }
+
+  if (conclusion === "failed") {
+    return buildBlockedValidationMessage(
+      "failed Task Spec validation cannot enter POST /tasks/batch",
+      taskSpecValidation.failure_reason,
+    );
+  }
+
+  return null;
+};
+
+const buildBlockedValidationMessage = (message: string, detail: unknown) => {
+  if (typeof detail === "string" && detail.trim().length > 0) {
+    return `${message}: ${detail}`;
+  }
+
+  if (Array.isArray(detail)) {
+    const details = detail
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (details.length > 0) {
+      return `${message}: ${details.join("; ")}`;
+    }
+  }
+
+  return message;
+};
+
+const inferValidationConclusion = (conclusionSummary: string) => {
+  const normalized = conclusionSummary.toLowerCase();
+
+  if (normalized.includes("waiting_assumptions")) {
+    return "waiting_assumptions";
+  }
+
+  if (normalized.includes("failed") || normalized.includes("failure")) {
+    return "failed";
+  }
+
+  if (normalized.includes("pass")) {
+    return "pass";
+  }
+
+  return null;
 };
 
 const parsePatchTaskRequest = async (request: Request) => {

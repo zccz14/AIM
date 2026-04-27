@@ -49,14 +49,18 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 - `task.title`：候选 Task 标题。
 - `task.spec`：完整五段式候选 Task Spec，而不是标题或实现提示。
 - `dependencies`：候选 Task 创建时应携带的 Task 依赖；如果没有依赖，写空列表。
-- `source_metadata`：来源信息，例如 Manager 评估、Coordinator session 或 rejected 反馈；每个 `create` operation 必须先取得独立 Task Spec validation 结论，并把证据保存在 `source_metadata.task_spec_validation`。
+- `source_metadata`：来源信息，例如 Manager 评估、Coordinator session 或 rejected 反馈；每个 `create` operation 必须先经过最小 Coordinator Task Spec validation entrypoint，取得 `pass` / `waiting_assumptions` / `failed` 之一的独立 Task Spec validation 结论，并把可持久化证据保存在 `source_metadata.task_spec_validation`。
+- `source_metadata.dimension_id` 与 `source_metadata.dimension_evaluation_id`：用于依赖、冲突、重复覆盖判断的规划证据。它们必须与 validation evidence 分开保留；`source_metadata.task_spec_validation` 里的 source gap 不能替代这类 planning evidence。
 
 `source_metadata.task_spec_validation` 必须至少保留：
 
 - `validation_source`：校验来源，例如 `aim-verify-task-spec`。
 - `validated_at` 或 `validation_session_id`：校验发生时间或可追踪 session。
-- `conclusion_summary`：校验结论摘要，且结论必须是可继续推进的 `pass`。
+- `conclusion`：只能是 `pass`、`waiting_assumptions` 或 `failed`；只有 `pass` 可以进入 `POST /tasks/batch`。
+- `conclusion_summary`：校验结论摘要，且进入创建时结论必须是可继续推进的 `pass`。
 - `dimension_evaluation_id`、`dimension_id` 或等价 source gap：说明该 validation 对应哪个 Manager dimension_evaluation/source gap。
+- `blocking_assumptions`：当结论是 `waiting_assumptions` 时，记录阻断创建的待确认前提，并作为 planning feedback 回到 Coordinator 规划。
+- `failure_reason`：当结论是 `failed` 时，记录失败原因，并作为 planning feedback 回到 Coordinator 规划。
 
 `Delete` 条目还必须包含：
 
@@ -129,11 +133,13 @@ rejected Task 的失败原因是新的基线规划输入。Coordinator 必须先
 
 用户批准 `POST /tasks/batch` operations 后：
 
-1. 对每个 `create`，先使用 `aim-verify-task-spec` 校验 `task.spec`。
-2. 只有所有 `create` 校验结论均为 `pass` 且已写入 `source_metadata.task_spec_validation` 时，才提交 `POST /tasks/batch`。
-3. 对每个 `delete`，只在目标 Task 未完成且删除原因明确时保留在 batch 中。
-4. 如果任一 `create` validation 失败或 `waiting_assumptions`，候选 `create` 不得进入 `POST /tasks/batch`，停止提交包含它的 batch，并把失败原因或等待的 assumption 作为 rejected/planning feedback 输入下一轮 Coordinator 规划。
-5. delete-only batch 不要求 Task Spec validation，因为没有候选 Task Spec；它仍必须满足目标 Task、删除理由和 batch guardrails。
+1. 对每个 `create`，先进入最小 Coordinator Task Spec validation orchestration：用 `aim-verify-task-spec` 校验 `task.spec`，并把候选归类为 `pass`、`waiting_assumptions` 或 `failed`。
+2. `pass`：生成或规范化 `source_metadata.task_spec_validation`，至少包含 validation source、validated_at 或 validation_session_id、`conclusion = pass`、conclusion_summary、dimension_evaluation/source gap；同时保留独立的顶层 `dimension_id` / `dimension_evaluation_id` planning evidence。
+3. `waiting_assumptions`：不得构造或提交包含该候选的 `POST /tasks/batch`；把 `blocking_assumptions` 作为 Coordinator planning feedback。
+4. `failed`：不得构造或提交包含该候选的 `POST /tasks/batch`；把 `failure_reason` 作为 Coordinator planning feedback。
+5. 只有所有 `create` 校验结论均为 `pass` 且已写入 `source_metadata.task_spec_validation` 时，才提交 `POST /tasks/batch`。
+6. 对每个 `delete`，只在目标 Task 未完成且删除原因明确时保留在 batch 中。
+7. delete-only batch 不要求 Task Spec validation，因为没有候选 Task Spec；它仍必须满足目标 Task、删除理由和 batch guardrails。
 
 Coordinator 不得在这个阶段接管 Developer 生命周期；已创建的 Task 后续执行必须由 `aim-developer-guide` 覆盖。
 
@@ -154,7 +160,8 @@ Coordinator 不得在这个阶段接管 Developer 生命周期；已创建的 Ta
 - [ ] 输出是 `POST /tasks/batch` operations，而不是泛化分析报告。
 - [ ] 每个 operation 都是 `create` 或 `delete`。
 - [ ] 每个 `create` 都有调用方生成的 UUID 和完整五段式候选 Task Spec。
-- [ ] 每个 `create` 都有独立 Task Spec validation `pass` 结论，并已在 `source_metadata.task_spec_validation` 保留 validation_source、validated_at 或 validation_session_id、conclusion_summary 与 dimension_evaluation/source gap。
+- [ ] 每个 `create` 都有独立 Task Spec validation `pass` 结论，并已在 `source_metadata.task_spec_validation` 保留 validation_source、validated_at 或 validation_session_id、`conclusion = pass`、conclusion_summary 与 dimension_evaluation/source gap。
+- [ ] 每个 `create` 都在 `source_metadata` 顶层保留独立 planning evidence；没有用 `task_spec_validation` 替代 dependency/conflict planning evidence。
 - [ ] 没有直接调用 `POST /tasks` 逐条写入，也没有跳过用户批准。
 - [ ] validation 失败或 `waiting_assumptions` 的候选 `create` 不得进入 `POST /tasks/batch`，失败原因已作为 rejected/planning feedback 输入下一轮规划。
 - [ ] delete-only batch 不要求 Task Spec validation。

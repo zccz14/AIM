@@ -725,7 +725,20 @@ describe("server startup", () => {
       "Do not bypass POST /tasks/batch approval or independent Task Spec validation",
     );
     expect(coordinatorLaneConfig?.prompt).toContain(
-      "Persist Task Spec validation evidence in each create operation's source_metadata",
+      "Persist normalized Task Spec validation evidence in each passing create operation's source_metadata.task_spec_validation",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "classify each candidate as pass, waiting_assumptions, or failed",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "source_metadata.task_spec_validation",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain("conclusion = pass");
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "validation evidence cannot replace dependency or conflict planning evidence",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "blocking assumptions or failed validation reason",
     );
     expect(coordinatorLaneConfig?.prompt).toContain(
       "If validation fails or waits on assumptions, do not call POST /tasks/batch",
