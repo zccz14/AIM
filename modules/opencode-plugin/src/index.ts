@@ -72,91 +72,105 @@ const settleOpenCodeSession = async (
   }
 };
 
-export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
-  config: async (config) => {
-    const configWithSkills = config as typeof config & ConfigWithSkills;
-    const paths = configWithSkills.skills?.paths ?? [];
+export const AIMOpenCodePlugin: Plugin = async (ctx) => {
+  const idleContinuationInFlight = new Set<string>();
 
-    configWithSkills.skills = {
-      ...configWithSkills.skills,
-      paths: paths.includes(packagedSkillsPath)
-        ? paths
-        : [...paths, packagedSkillsPath],
-    };
-  },
-  async event(eventCtx) {
-    if (eventCtx.event.type === "session.idle") {
-      const sessionId = eventCtx.event.properties.sessionID;
-      console.info(new Date(), `[AIM][Event][session.idle]`, {
-        sessionId,
-      });
+  return {
+    config: async (config) => {
+      const configWithSkills = config as typeof config & ConfigWithSkills;
+      const paths = configWithSkills.skills?.paths ?? [];
 
-      const session = await fetchOpenCodeSession(sessionId);
-      const continuePrompt = session?.continue_prompt?.trim();
+      configWithSkills.skills = {
+        ...configWithSkills.skills,
+        paths: paths.includes(packagedSkillsPath)
+          ? paths
+          : [...paths, packagedSkillsPath],
+      };
+    },
+    async event(eventCtx) {
+      if (eventCtx.event.type === "session.idle") {
+        const sessionId = eventCtx.event.properties.sessionID;
+        console.info(new Date(), `[AIM][Event][session.idle]`, {
+          sessionId,
+        });
 
-      if (session?.state !== "pending" || !continuePrompt) {
+        if (idleContinuationInFlight.has(sessionId)) {
+          return;
+        }
+
+        idleContinuationInFlight.add(sessionId);
+
+        try {
+          const session = await fetchOpenCodeSession(sessionId);
+          const continuePrompt = session?.continue_prompt?.trim();
+
+          if (session?.state !== "pending" || !continuePrompt) {
+            return;
+          }
+
+          await ctx.client.session.promptAsync({
+            body: {
+              parts: [
+                {
+                  text: `${continuePrompt}${continuationTerminalInstructions}`,
+                  type: "text",
+                },
+              ],
+            },
+            path: { id: sessionId },
+            throwOnError: true,
+          });
+        } finally {
+          idleContinuationInFlight.delete(sessionId);
+        }
+
         return;
       }
-
-      await ctx.client.session.promptAsync({
-        body: {
-          parts: [
-            {
-              text: `${continuePrompt}${continuationTerminalInstructions}`,
-              type: "text",
-            },
-          ],
+    },
+    tool: {
+      aim_session_resolve: tool({
+        description:
+          "if this session is controlled by AIM. call when a session is resolved according to the objective",
+        args: {
+          value: tool.schema
+            .string()
+            .optional()
+            .describe("the resolution result or message"),
         },
-        path: { id: sessionId },
-        throwOnError: true,
-      });
-
-      return;
-    }
-  },
-  tool: {
-    aim_session_resolve: tool({
-      description:
-        "if this session is controlled by AIM. call when a session is resolved according to the objective",
-      args: {
-        value: tool.schema
-          .string()
-          .optional()
-          .describe("the resolution result or message"),
-      },
-      async execute(_args, _toolCtx) {
-        console.info(new Date(), `[AIM][Tool][aim_session_resolve] called`, {
-          sessionId: _toolCtx.sessionID,
-          value: _args.value,
-        });
-        await settleOpenCodeSession(_toolCtx.sessionID, "resolve", {
-          value: _args.value,
-        });
-        return ``;
-      },
-    }),
-    aim_session_reject: tool({
-      description:
-        "if this session is controlled by AIM. call when a session is rejected according to the objective",
-      args: {
-        reason: tool.schema
-          .string()
-          .optional()
-          .describe("the reason for rejecting the session"),
-      },
-      async execute(_args, _toolCtx) {
-        console.info(new Date(), `[AIM][Tool][aim_session_reject] called`, {
-          sessionId: _toolCtx.sessionID,
-          reason: _args.reason,
-        });
-        await settleOpenCodeSession(_toolCtx.sessionID, "reject", {
-          reason: _args.reason,
-        });
-        return ``;
-      },
-    }),
-  },
-});
+        async execute(_args, _toolCtx) {
+          console.info(new Date(), `[AIM][Tool][aim_session_resolve] called`, {
+            sessionId: _toolCtx.sessionID,
+            value: _args.value,
+          });
+          await settleOpenCodeSession(_toolCtx.sessionID, "resolve", {
+            value: _args.value,
+          });
+          return ``;
+        },
+      }),
+      aim_session_reject: tool({
+        description:
+          "if this session is controlled by AIM. call when a session is rejected according to the objective",
+        args: {
+          reason: tool.schema
+            .string()
+            .optional()
+            .describe("the reason for rejecting the session"),
+        },
+        async execute(_args, _toolCtx) {
+          console.info(new Date(), `[AIM][Tool][aim_session_reject] called`, {
+            sessionId: _toolCtx.sessionID,
+            reason: _args.reason,
+          });
+          await settleOpenCodeSession(_toolCtx.sessionID, "reject", {
+            reason: _args.reason,
+          });
+          return ``;
+        },
+      }),
+    },
+  };
+};
 
 const pluginModule = {
   id: "@aim-ai/opencode-plugin",

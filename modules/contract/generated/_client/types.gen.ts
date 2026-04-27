@@ -67,6 +67,10 @@ export type OpenCodeSession = {
   value: string | null;
   reason: string | null;
   continue_prompt: string | null;
+  /**
+   * True when the session is still pending and older than the configured stale threshold.
+   */
+  readonly stale: boolean;
   readonly created_at: string;
   readonly updated_at: string;
 };

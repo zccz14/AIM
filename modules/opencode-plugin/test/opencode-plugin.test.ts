@@ -1068,18 +1068,20 @@ describe("opencode plugin package baseline", () => {
   });
 
   it("continues an AIM-controlled pending session when OpenCode reports it idle", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          session_id: "session-1",
-          state: "pending",
-          continue_prompt: "Continue the standalone session.",
-          value: null,
-          reason: null,
-          created_at: "2026-04-27T00:00:00.000Z",
-          updated_at: "2026-04-27T00:00:00.000Z",
-        }),
-        { headers: { "content-type": "application/json" }, status: 200 },
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "pending",
+            continue_prompt: "Continue the standalone session.",
+            value: null,
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:00:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
       ),
     );
     const promptAsync = vi.fn().mockResolvedValue({});
@@ -1116,6 +1118,66 @@ describe("opencode plugin package baseline", () => {
     expect(promptText).toContain("aim_session_resolve");
     expect(promptText).toContain("aim_session_reject");
     expect(promptText).toMatch(/loop will not end/i);
+  });
+
+  it("deduplicates concurrent idle continuations for one session while allowing a later continuation", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "pending",
+            continue_prompt: "Continue the standalone session.",
+            value: null,
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:00:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      ),
+    );
+    let finishPrompt: (() => void) | undefined;
+    const promptAsync = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finishPrompt = () => resolve({});
+        }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { promptAsync } },
+    } as unknown as PluginInput);
+
+    const firstIdle = hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+    const duplicateIdle = hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    await vi.waitFor(() => expect(promptAsync).toHaveBeenCalledOnce());
+    finishPrompt?.();
+    await Promise.all([firstIdle, duplicateIdle]);
+
+    promptAsync.mockResolvedValueOnce({});
+    await hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    expect(promptAsync).toHaveBeenCalledTimes(2);
   });
 
   it("appends terminal instructions even when the stored continue prompt mentions a session tool", async () => {

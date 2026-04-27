@@ -334,8 +334,14 @@ export const registerOpenCodeSessionRoutes = (
       return context.json(input.error, 400);
     }
 
-    if (!getRepository().getSessionById(sessionId)) {
+    const session = getRepository().getSessionById(sessionId);
+
+    if (!session) {
       return context.json(buildNotFoundError(sessionId), 404);
+    }
+
+    if (session.state !== "pending") {
+      return new Response(null, { status: 204 });
     }
 
     const taskSettleError = await settleBoundTask(
@@ -361,8 +367,14 @@ export const registerOpenCodeSessionRoutes = (
       return context.json(input.error, 400);
     }
 
-    if (!getRepository().getSessionById(sessionId)) {
+    const session = getRepository().getSessionById(sessionId);
+
+    if (!session) {
       return context.json(buildNotFoundError(sessionId), 404);
+    }
+
+    if (session.state !== "pending") {
+      return new Response(null, { status: 204 });
     }
 
     const taskSettleError = await settleBoundTask(

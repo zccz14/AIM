@@ -1219,12 +1219,14 @@ describe("contract package baseline", () => {
         value: null,
         reason: null,
         continue_prompt: "Continue.",
+        stale: false,
         created_at: "2026-04-27T10:00:00.000Z",
         updated_at: "2026-04-27T10:00:00.000Z",
       }),
     ).toMatchObject({
       continue_prompt: "Continue.",
       session_id: "session-1",
+      stale: false,
       state: "pending",
     });
   });

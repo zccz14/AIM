@@ -28,6 +28,34 @@ type OpenCodeSessionRepositoryOptions = {
 };
 
 const tableName = "opencode_sessions";
+const defaultStaleAfterMilliseconds = 30 * 60 * 1000;
+
+const getStaleAfterMilliseconds = () => {
+  const rawValue = process.env.AIM_OPENCODE_SESSION_STALE_AFTER_MS;
+
+  if (!rawValue) {
+    return defaultStaleAfterMilliseconds;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+
+  return Number.isFinite(parsedValue) && parsedValue >= 0
+    ? parsedValue
+    : defaultStaleAfterMilliseconds;
+};
+
+const isStalePendingSession = (row: OpenCodeSessionRow) => {
+  if (row.state !== "pending") {
+    return false;
+  }
+
+  const updatedAt = Date.parse(row.updated_at);
+
+  return (
+    !Number.isNaN(updatedAt) &&
+    Date.now() - updatedAt >= getStaleAfterMilliseconds()
+  );
+};
 
 const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
   openCodeSessionSchema.parse({
@@ -35,6 +63,7 @@ const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
     created_at: row.created_at,
     reason: row.reason,
     session_id: row.session_id,
+    stale: isStalePendingSession(row),
     state: row.state,
     updated_at: row.updated_at,
     value: row.value,
@@ -88,7 +117,7 @@ export const createOpenCodeSessionRepository = (
   const settleStatement = database.prepare(`
     UPDATE ${tableName}
     SET state = ?, value = ?, reason = ?, updated_at = ?
-    WHERE session_id = ?
+    WHERE session_id = ? AND state = 'pending'
   `);
 
   return {

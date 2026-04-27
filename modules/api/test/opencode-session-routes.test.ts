@@ -354,6 +354,54 @@ describe("opencode session routes", () => {
     });
   });
 
+  it("exposes stale visibility for old pending sessions without changing their state", async () => {
+    const projectRoot = await useProjectRoot("shows-stale-pending-session");
+    const app = createApp();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-stale",
+        continue_prompt: "Continue stale work.",
+      }),
+    });
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    database
+      .prepare(
+        "UPDATE opencode_sessions SET created_at = ?, updated_at = ? WHERE session_id = ?",
+      )
+      .run(
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+        "session-stale",
+      );
+    database.close();
+
+    const detailResponse = await app.request(
+      opencodeSessionPath("session-stale"),
+    );
+    const listResponse = await app.request(opencodeSessionsPath);
+
+    expect(detailResponse.status).toBe(200);
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      session_id: "session-stale",
+      stale: true,
+      state: "pending",
+    });
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
+          session_id: "session-stale",
+          stale: true,
+          state: "pending",
+        }),
+      ],
+    });
+  });
+
   it("settles pending OpenCode sessions through resolve and reject endpoints", async () => {
     await useProjectRoot("settles-sessions");
     const app = createApp();
@@ -457,6 +505,69 @@ describe("opencode session routes", () => {
       result: "cannot proceed",
       session_id: "session-task-rejected",
       status: "rejected",
+    });
+  });
+
+  it("settling an already settled bound session is idempotent and leaves the task unchanged", async () => {
+    const projectRoot = await useProjectRoot("idempotent-bound-task-settle");
+    insertProject(projectRoot);
+    const app = createRouteApp();
+
+    const taskResponse = await app.request(tasksPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        session_id: "session-task-idempotent",
+        status: "processing",
+        task_spec: "Reject this task once from the session API.",
+        title: "Reject bound task once",
+      }),
+    });
+    const createdTask = await taskResponse.json();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-idempotent",
+        continue_prompt: "Continue until rejected once.",
+      }),
+    });
+
+    expect(
+      await app.request(opencodeSessionRejectPath("session-task-idempotent"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "first terminal result" }),
+      }),
+    ).toMatchObject({ status: 204 });
+
+    const taskAfterFirstSettle = await (
+      await app.request(taskByIdPath(createdTask.task_id))
+    ).json();
+
+    expect(
+      await app.request(opencodeSessionRejectPath("session-task-idempotent"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "second terminal result" }),
+      }),
+    ).toMatchObject({ status: 204 });
+    await expect(
+      (
+        await app.request(opencodeSessionPath("session-task-idempotent"))
+      ).json(),
+    ).resolves.toMatchObject({
+      reason: "first terminal result",
+      state: "rejected",
+    });
+    await expect(
+      (await app.request(taskByIdPath(createdTask.task_id))).json(),
+    ).resolves.toMatchObject({
+      result: taskAfterFirstSettle.result,
+      status: taskAfterFirstSettle.status,
+      updated_at: taskAfterFirstSettle.updated_at,
     });
   });
 
@@ -589,6 +700,73 @@ describe("opencode session routes", () => {
       done: true,
       result: "ship it",
       session_id: "session-task-resolved",
+      status: "resolved",
+    });
+  });
+
+  it("runs the developer session API lifecycle from registered prompt to terminal task settlement", async () => {
+    const projectRoot = await useProjectRoot("developer-session-lifecycle");
+    insertProject(projectRoot);
+    mockGhPullRequestOutput(ghMergedPullRequestOutput);
+    const app = createRouteApp();
+
+    const taskResponse = await app.request(tasksPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        session_id: "developer-session-1",
+        status: "processing",
+        task_spec: "Complete this developer session.",
+        title: "Developer session lifecycle",
+      }),
+    });
+    const createdTask = await taskResponse.json();
+
+    const createSessionResponse = await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "developer-session-1",
+        continue_prompt: "Continue the registered Developer task.",
+      }),
+    });
+
+    expect(createSessionResponse.status).toBe(201);
+    await expect(
+      (await app.request(opencodeSessionPath("developer-session-1"))).json(),
+    ).resolves.toMatchObject({
+      continue_prompt: "Continue the registered Developer task.",
+      session_id: "developer-session-1",
+      stale: false,
+      state: "pending",
+    });
+
+    const resolveResponse = await app.request(
+      opencodeSessionResolvePath("developer-session-1"),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: "completed through plugin tool" }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    await expect(
+      (await app.request(opencodeSessionPath("developer-session-1"))).json(),
+    ).resolves.toMatchObject({
+      session_id: "developer-session-1",
+      stale: false,
+      state: "resolved",
+      value: "completed through plugin tool",
+    });
+    await expect(
+      (await app.request(taskByIdPath(createdTask.task_id))).json(),
+    ).resolves.toMatchObject({
+      done: true,
+      result: "completed through plugin tool",
+      session_id: "developer-session-1",
       status: "resolved",
     });
   });

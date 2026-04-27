@@ -980,6 +980,7 @@ components:
         - value
         - reason
         - continue_prompt
+        - stale
         - created_at
         - updated_at
       properties:
@@ -1000,6 +1001,10 @@ components:
           type:
             - string
             - "null"
+        stale:
+          type: boolean
+          description: True when the session is still pending and older than the configured stale threshold.
+          readOnly: true
         created_at:
           type: string
           format: date-time
