@@ -319,7 +319,9 @@ export const ProjectRegisterPage = () => {
                   />
                 </Field>
                 <Field data-disabled={isSubmitting}>
-                  <FieldLabel htmlFor="git-origin-url">Git Origin URL</FieldLabel>
+                  <FieldLabel htmlFor="git-origin-url">
+                    Git Origin URL
+                  </FieldLabel>
                   <Input
                     disabled={isSubmitting}
                     id="git-origin-url"
