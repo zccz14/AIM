@@ -276,9 +276,7 @@ type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
   onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
-  resourceScope?: {
-    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
-  };
+  resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
 export const registerTaskRoutes = (
