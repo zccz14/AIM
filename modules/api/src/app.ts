@@ -20,48 +20,13 @@ type CreateAppOptions = {
 };
 
 type AppResource = Hono & AsyncDisposable;
-type ScopedResource = Partial<AsyncDisposable & Disposable>;
-
-const createAsyncResourceScope = () => {
-  const resources: ScopedResource[] = [];
-  let disposePromise: Promise<void> | null = null;
-
-  return {
-    async [Symbol.asyncDispose]() {
-      if (disposePromise) {
-        await disposePromise;
-        return;
-      }
-
-      disposePromise = (async () => {
-        for (const resource of resources.splice(0).reverse()) {
-          const asyncDispose = resource[Symbol.asyncDispose];
-
-          if (asyncDispose) {
-            await asyncDispose.call(resource);
-            continue;
-          }
-
-          resource[Symbol.dispose]?.();
-        }
-      })();
-
-      await disposePromise;
-    },
-
-    use<T extends ScopedResource>(resource: T) {
-      resources.push(resource);
-      return resource;
-    },
-  };
-};
 
 export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   const app = new Hono() as AppResource;
-  const resourceScope = createAsyncResourceScope();
+  const resourceScope = new AsyncDisposableStack();
 
   app[Symbol.asyncDispose] = async () => {
-    await resourceScope[Symbol.asyncDispose]();
+    await resourceScope.disposeAsync();
   };
 
   app.use("*", cors({ origin: "*" }));

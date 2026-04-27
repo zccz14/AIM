@@ -46,7 +46,13 @@ const optimizerEnabledProject = {
   optimizer_enabled: true,
 };
 
+const createAppMock = () => ({
+  [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+  fetch: vi.fn(),
+});
+
 const createRepositoryMock = (projects = [configuredProject]) => ({
+  [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
   listProjects: () => projects,
 });
 
@@ -95,14 +101,32 @@ describe("server startup", () => {
     mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
   });
 
-  it("uses the standard async disposable stack for server resource ownership", async () => {
+  it("uses the standard async disposable stack for api resource ownership", async () => {
+    const serverSource = await readFile(
+      new URL("../src/server.ts", import.meta.url),
+      "utf8",
+    );
+    const appSource = await readFile(
+      new URL("../src/app.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(serverSource).toContain("new AsyncDisposableStack()");
+    expect(appSource).toContain("new AsyncDisposableStack()");
+    expect(`${serverSource}\n${appSource}`).not.toMatch(
+      /createAsyncResourceScope|useResource/,
+    );
+  });
+
+  it("only exposes startServer as an async disposable lifecycle contract", async () => {
     const source = await readFile(
       new URL("../src/server.ts", import.meta.url),
       "utf8",
     );
 
-    expect(source).toContain("new AsyncDisposableStack()");
-    expect(source).not.toContain("createAsyncResourceScope");
+    expect(source).toContain(
+      "export const startServer = (): AsyncDisposable =>",
+    );
   });
 
   it("passes explicit OpenCode config to all optimizer lane coordinators", async () => {
@@ -119,7 +143,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -156,7 +180,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -187,7 +211,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -222,7 +246,7 @@ describe("server startup", () => {
     };
 
     mockCreateApiLogger.mockReturnValue(logger);
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -283,7 +307,7 @@ describe("server startup", () => {
     };
 
     mockCreateApiLogger.mockReturnValue(logger);
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -335,7 +359,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
@@ -372,7 +396,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -411,7 +435,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -455,7 +479,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([
@@ -552,7 +576,7 @@ describe("server startup", () => {
     };
 
     mockCreateApiLogger.mockReturnValue(logger);
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([unconfiguredProject]),
@@ -600,7 +624,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -667,7 +691,7 @@ describe("server startup", () => {
       once: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockImplementation(() => {
       listening = true;
       return server;
@@ -706,7 +730,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -805,7 +829,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -825,7 +849,7 @@ describe("server startup", () => {
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("shares cleanup when the HTTP server closes before async disposal", async () => {
+  it("eventually shares cleanup when the HTTP server closes before async disposal", async () => {
     let closeHandler: (() => void) | undefined;
     let closed = false;
     const close = vi.fn((callback?: () => void) => {
@@ -864,7 +888,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
@@ -884,7 +908,9 @@ describe("server startup", () => {
     expect(scheduler[Symbol.asyncDispose]).not.toHaveBeenCalled();
     expect(managerLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
     expect(coordinatorLane[Symbol.asyncDispose]).not.toHaveBeenCalled();
-    expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    });
   });
 
   it("removes startServer signal handlers during async disposal", async () => {
@@ -906,7 +932,7 @@ describe("server startup", () => {
       start: vi.fn(),
     };
 
-    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);

@@ -66,9 +66,7 @@ const requireProjectId = (projectId: string | undefined) =>
 
 type RegisterProjectRoutesOptions = {
   optimizerRuntime?: OptimizerRuntime;
-  resourceScope?: {
-    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
-  };
+  resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
 const getOptimizerBlockerSummary = ({

@@ -90,9 +90,7 @@ const parseCreateDimensionEvaluationRequest = async (request: Request) => {
 
 type RegisterDimensionRoutesOptions = {
   projectRoot?: string;
-  resourceScope?: {
-    use<T extends Partial<AsyncDisposable & Disposable>>(resource: T): T;
-  };
+  resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
 export const registerDimensionRoutes = (
