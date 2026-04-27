@@ -39,6 +39,7 @@ const messages = {
     coordinatorInput: "Coordinator Input",
     createProject: "Create Project",
     createTask: "Create Task",
+    createProject: "Create Project",
     createTaskDescription:
       "Create a new AIM task from the same Director workspace used for convergence review.",
     createTaskFormSummary:
@@ -244,6 +245,7 @@ const messages = {
     coordinatorInput: "Coordinator 输入",
     createProject: "创建项目",
     createTask: "创建任务",
+    createProject: "创建项目",
     createTaskDescription: "在同一个 Director 工作区中创建新的 AIM 任务。",
     createTaskFormSummary: "使用与收敛复核一致的证据语汇编写任务入口。",
     createTaskFormTitle: "先形成聚焦简报，再进入任务池。",
