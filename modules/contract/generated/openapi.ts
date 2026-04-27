@@ -96,6 +96,42 @@ export const openApiDocument = {
       },
     },
     "/opencode/sessions": {
+      get: {
+        operationId: "listOpenCodeSessions",
+        summary: "List AIM-controlled OpenCode session promises",
+        parameters: [
+          {
+            name: "state",
+            in: "query",
+            required: false,
+            schema: {
+              $ref: "#/components/schemas/OpenCodeSessionState",
+            },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "OpenCode session promise list",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeSessionListResponse",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid OpenCode session filter",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
       post: {
         operationId: "createOpenCodeSession",
         summary: "Create an AIM-controlled OpenCode session promise",
@@ -155,6 +191,68 @@ export const openApiDocument = {
           },
           "404": {
             description: "OpenCode session promise not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+      patch: {
+        operationId: "patchOpenCodeSessionById",
+        summary:
+          "Replace continuation prompt for a pending OpenCode session promise",
+        parameters: [
+          {
+            $ref: "#/components/parameters/OpenCodeSessionIdPathParameter",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/PatchOpenCodeSessionRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated OpenCode session promise",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeSession",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid OpenCode session patch",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "OpenCode session promise not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          "409": {
+            description: "OpenCode session promise is not pending",
             content: {
               "application/json": {
                 schema: {
@@ -1507,6 +1605,19 @@ export const openApiDocument = {
           },
         },
       },
+      OpenCodeSessionListResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["items"],
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/OpenCodeSession",
+            },
+          },
+        },
+      },
       CreateOpenCodeSessionRequest: {
         type: "object",
         additionalProperties: false,
@@ -1516,6 +1627,16 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
+          continue_prompt: {
+            type: ["string", "null"],
+          },
+        },
+      },
+      PatchOpenCodeSessionRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["continue_prompt"],
+        properties: {
           continue_prompt: {
             type: ["string", "null"],
           },
@@ -1660,6 +1781,16 @@ export const openApiDocument = {
           source_metadata: {
             type: "object",
             additionalProperties: true,
+          },
+          opencode_session: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/OpenCodeSession",
+              },
+              {
+                type: "null",
+              },
+            ],
           },
           session_id: {
             type: ["string", "null"],

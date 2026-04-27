@@ -122,6 +122,175 @@ afterEach(async () => {
 });
 
 describe("opencode session routes", () => {
+  it("lists OpenCode session promises and filters them by state", async () => {
+    await useProjectRoot("lists-and-filters-sessions");
+    const app = createApp();
+
+    for (const sessionId of [
+      "session-pending",
+      "session-resolved",
+      "session-rejected",
+    ]) {
+      const createResponse = await app.request(opencodeSessionsPath, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          continue_prompt: `Continue ${sessionId}.`,
+        }),
+      });
+
+      expect(createResponse.status).toBe(201);
+    }
+
+    expect(
+      await app.request(opencodeSessionResolvePath("session-resolved"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: "finished" }),
+      }),
+    ).toMatchObject({ status: 204 });
+    expect(
+      await app.request(opencodeSessionRejectPath("session-rejected"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "blocked" }),
+      }),
+    ).toMatchObject({ status: 204 });
+
+    const listResponse = await app.request(opencodeSessionsPath);
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          session_id: "session-pending",
+          state: "pending",
+          value: null,
+          reason: null,
+        }),
+        expect.objectContaining({
+          session_id: "session-resolved",
+          state: "resolved",
+          value: "finished",
+          reason: null,
+        }),
+        expect.objectContaining({
+          session_id: "session-rejected",
+          state: "rejected",
+          value: null,
+          reason: "blocked",
+        }),
+      ]),
+    });
+
+    const filteredResponse = await app.request(
+      `${opencodeSessionsPath}?state=resolved`,
+    );
+
+    expect(filteredResponse.status).toBe(200);
+    await expect(filteredResponse.json()).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
+          session_id: "session-resolved",
+          state: "resolved",
+          value: "finished",
+        }),
+      ],
+    });
+  });
+
+  it("updates continue_prompt only while an OpenCode session is pending", async () => {
+    await useProjectRoot("patches-pending-session-prompt");
+    const app = createApp();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-prompt",
+        continue_prompt: "Continue with stale instructions.",
+      }),
+    });
+
+    const patchResponse = await app.request(
+      opencodeSessionPath("session-prompt"),
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          continue_prompt: "Continue with recovered instructions.",
+        }),
+      },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      session_id: "session-prompt",
+      state: "pending",
+      continue_prompt: "Continue with recovered instructions.",
+    });
+
+    await app.request(opencodeSessionResolvePath("session-prompt"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ value: "done" }),
+    });
+
+    const settledPatchResponse = await app.request(
+      opencodeSessionPath("session-prompt"),
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ continue_prompt: "Retry after settlement." }),
+      },
+    );
+
+    expect(settledPatchResponse.status).toBe(409);
+    await expect(settledPatchResponse.json()).resolves.toMatchObject({
+      code: "TASK_CONFLICT",
+      message: expect.stringContaining("pending"),
+    });
+  });
+
+  it("validates continue_prompt patch payloads and missing sessions", async () => {
+    await useProjectRoot("validates-patch-session-prompt");
+    const app = createApp();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: "session-invalid-patch" }),
+    });
+
+    const invalidResponse = await app.request(
+      opencodeSessionPath("session-invalid-patch"),
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ continue_prompt: 42 }),
+      },
+    );
+
+    expect(invalidResponse.status).toBe(400);
+    await expect(invalidResponse.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message: expect.stringContaining("Invalid OpenCode session"),
+    });
+
+    const missingResponse = await app.request(opencodeSessionPath("missing"), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ continue_prompt: "Recover missing session." }),
+    });
+
+    expect(missingResponse.status).toBe(404);
+    await expect(missingResponse.json()).resolves.toMatchObject({
+      code: "TASK_NOT_FOUND",
+      message: expect.stringContaining("missing"),
+    });
+  });
+
   it("creates a pending OpenCode session record and reads the persisted prompt", async () => {
     const projectRoot = await useProjectRoot("creates-and-reads-session");
     const app = createApp();

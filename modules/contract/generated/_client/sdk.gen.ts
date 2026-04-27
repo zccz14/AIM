@@ -67,6 +67,9 @@ import type {
   ListOpenCodeModelsData,
   ListOpenCodeModelsErrors,
   ListOpenCodeModelsResponses,
+  ListOpenCodeSessionsData,
+  ListOpenCodeSessionsErrors,
+  ListOpenCodeSessionsResponses,
   ListProjectsData,
   ListProjectsResponses,
   ListTasksData,
@@ -75,6 +78,9 @@ import type {
   PatchDimensionByIdData,
   PatchDimensionByIdErrors,
   PatchDimensionByIdResponses,
+  PatchOpenCodeSessionByIdData,
+  PatchOpenCodeSessionByIdErrors,
+  PatchOpenCodeSessionByIdResponses,
   PatchProjectByIdData,
   PatchProjectByIdErrors,
   PatchProjectByIdResponses,
@@ -158,6 +164,18 @@ export const listOpenCodeModels = <ThrowOnError extends boolean = false>(
   >({ url: "/opencode/models", ...options });
 
 /**
+ * List AIM-controlled OpenCode session promises
+ */
+export const listOpenCodeSessions = <ThrowOnError extends boolean = false>(
+  options?: Options<ListOpenCodeSessionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListOpenCodeSessionsResponses,
+    ListOpenCodeSessionsErrors,
+    ThrowOnError
+  >({ url: "/opencode/sessions", ...options });
+
+/**
  * Create an AIM-controlled OpenCode session promise
  */
 export const createOpenCodeSession = <ThrowOnError extends boolean = false>(
@@ -187,6 +205,25 @@ export const getOpenCodeSessionById = <ThrowOnError extends boolean = false>(
     GetOpenCodeSessionByIdErrors,
     ThrowOnError
   >({ url: "/opencode/sessions/{sessionId}", ...options });
+
+/**
+ * Replace continuation prompt for a pending OpenCode session promise
+ */
+export const patchOpenCodeSessionById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchOpenCodeSessionByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    PatchOpenCodeSessionByIdResponses,
+    PatchOpenCodeSessionByIdErrors,
+    ThrowOnError
+  >({
+    url: "/opencode/sessions/{sessionId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * Resolve an AIM-controlled OpenCode session promise

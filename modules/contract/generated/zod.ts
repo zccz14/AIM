@@ -42,12 +42,6 @@ const ErrorResponse = z
     message: z.string().min(1),
   })
   .strict();
-const CreateOpenCodeSessionRequest = z
-  .object({
-    session_id: z.string().min(1),
-    continue_prompt: z.union([z.string(), z.null()]).optional(),
-  })
-  .strict();
 const OpenCodeSessionState = z.enum(["pending", "resolved", "rejected"]);
 const OpenCodeSession = z
   .object({
@@ -59,6 +53,18 @@ const OpenCodeSession = z
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
+  .strict();
+const OpenCodeSessionListResponse = z
+  .object({ items: z.array(OpenCodeSession) })
+  .strict();
+const CreateOpenCodeSessionRequest = z
+  .object({
+    session_id: z.string().min(1),
+    continue_prompt: z.union([z.string(), z.null()]).optional(),
+  })
+  .strict();
+const PatchOpenCodeSessionRequest = z
+  .object({ continue_prompt: z.union([z.string(), z.null()]) })
   .strict();
 const OpenCodeSessionSettleRequest = z
   .object({ value: z.string(), reason: z.string() })
@@ -139,6 +145,7 @@ const Task = z
     developer_model_id: z.string().min(1),
     result: z.string(),
     source_metadata: z.object({}).partial().strict().passthrough(),
+    opencode_session: z.union([OpenCodeSession, z.null()]).optional(),
     session_id: z.union([z.string(), z.null()]),
     worktree_path: z.union([z.string(), z.null()]),
     pull_request_url: z.union([z.string(), z.null()]),
@@ -296,9 +303,11 @@ export const schemas = {
   OpenCodeModelCombination,
   OpenCodeModelsResponse,
   ErrorResponse,
-  CreateOpenCodeSessionRequest,
   OpenCodeSessionState,
   OpenCodeSession,
+  OpenCodeSessionListResponse,
+  CreateOpenCodeSessionRequest,
+  PatchOpenCodeSessionRequest,
   OpenCodeSessionSettleRequest,
   CreateProjectRequest,
   Project,

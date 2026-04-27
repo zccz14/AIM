@@ -4,6 +4,7 @@ import {
   type OpenCodeSessionSettleRequest,
   type OpenCodeSessionState,
   openCodeSessionSchema,
+  type PatchOpenCodeSessionRequest,
 } from "@aim-ai/contract";
 
 import { applySqliteTableSchema } from "./schema.js";
@@ -68,6 +69,22 @@ export const createOpenCodeSessionRepository = (
     FROM ${tableName}
     WHERE session_id = ?
   `);
+  const listStatement = database.prepare(`
+    SELECT session_id, state, value, reason, continue_prompt, created_at, updated_at
+    FROM ${tableName}
+    ORDER BY created_at ASC, session_id ASC
+  `);
+  const listByStateStatement = database.prepare(`
+    SELECT session_id, state, value, reason, continue_prompt, created_at, updated_at
+    FROM ${tableName}
+    WHERE state = ?
+    ORDER BY created_at ASC, session_id ASC
+  `);
+  const updateContinuePromptStatement = database.prepare(`
+    UPDATE ${tableName}
+    SET continue_prompt = ?, updated_at = ?
+    WHERE session_id = ? AND state = 'pending'
+  `);
   const settleStatement = database.prepare(`
     UPDATE ${tableName}
     SET state = ?, value = ?, reason = ?, updated_at = ?
@@ -106,6 +123,29 @@ export const createOpenCodeSessionRepository = (
         | undefined;
 
       return row ? mapOpenCodeSessionRow(row) : null;
+    },
+    listSessions(
+      filter: { state?: OpenCodeSessionState } = {},
+    ): OpenCodeSession[] {
+      const rows = (
+        filter.state
+          ? listByStateStatement.all(filter.state)
+          : listStatement.all()
+      ) as OpenCodeSessionRow[];
+
+      return rows.map(mapOpenCodeSessionRow);
+    },
+    updateContinuePrompt(
+      sessionId: string,
+      input: PatchOpenCodeSessionRequest,
+    ): null | OpenCodeSession {
+      updateContinuePromptStatement.run(
+        input.continue_prompt ?? null,
+        new Date().toISOString(),
+        sessionId,
+      );
+
+      return this.getSessionById(sessionId);
     },
     settleSession(
       sessionId: string,

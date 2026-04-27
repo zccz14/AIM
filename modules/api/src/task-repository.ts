@@ -228,6 +228,7 @@ const mapTaskRow = (row: TaskRow) =>
     dependencies: JSON.parse(row.dependencies) as string[],
     result: row.result,
     source_metadata: JSON.parse(row.source_metadata) as Record<string, unknown>,
+    opencode_session: null,
     done: Boolean(row.done),
     status: row.status,
     created_at: row.created_at,

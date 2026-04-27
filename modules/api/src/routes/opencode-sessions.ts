@@ -6,7 +6,9 @@ import {
   openCodeSessionRejectPath,
   openCodeSessionResolvePath,
   openCodeSessionSettleRequestSchema,
+  openCodeSessionStateSchema,
   openCodeSessionsPath,
+  patchOpenCodeSessionRequestSchema,
   taskErrorSchema,
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
@@ -39,6 +41,12 @@ const buildValidationError = (message: string) =>
     message,
   });
 
+const buildConflictError = (message: string) =>
+  taskErrorSchema.parse({
+    code: "TASK_CONFLICT",
+    message,
+  });
+
 const redactSensitiveErrorDetail = (message: string) =>
   message
     .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]")
@@ -65,6 +73,20 @@ const parseCreateRequest = async (request: Request) => {
   if (!result.success) {
     return {
       error: buildValidationError("Invalid OpenCode session payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parsePatchRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = patchOpenCodeSessionRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError("Invalid OpenCode session patch payload"),
       ok: false as const,
     };
   }
@@ -241,6 +263,29 @@ export const registerOpenCodeSessionRoutes = (
     }
   });
 
+  app.get(openCodeSessionsPath, (context) => {
+    const rawState = context.req.query("state");
+    const stateResult = rawState
+      ? openCodeSessionStateSchema.safeParse(rawState)
+      : null;
+
+    if (stateResult && !stateResult.success) {
+      return context.json(
+        buildValidationError("Invalid OpenCode session state filter"),
+        400,
+      );
+    }
+
+    return context.json(
+      {
+        items: getRepository().listSessions({
+          state: stateResult?.data,
+        }),
+      },
+      200,
+    );
+  });
+
   app.get(openCodeSessionByIdRoutePath, (context) => {
     const sessionId = requireSessionId(context.req.param("sessionId"));
     const session = getRepository().getSessionById(sessionId);
@@ -250,6 +295,35 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     return context.json(session, 200);
+  });
+
+  app.patch(openCodeSessionByIdRoutePath, async (context) => {
+    const sessionId = requireSessionId(context.req.param("sessionId"));
+    const input = await parsePatchRequest(context.req.raw);
+
+    if (!input.ok) {
+      return context.json(input.error, 400);
+    }
+
+    const session = getRepository().getSessionById(sessionId);
+
+    if (!session) {
+      return context.json(buildNotFoundError(sessionId), 404);
+    }
+
+    if (session.state !== "pending") {
+      return context.json(
+        buildConflictError(
+          "OpenCode session continue_prompt can only be updated while pending",
+        ),
+        409,
+      );
+    }
+
+    return context.json(
+      getRepository().updateContinuePrompt(sessionId, input.data),
+      200,
+    );
   });
 
   app.post(openCodeSessionResolveRoutePath, async (context) => {

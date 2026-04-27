@@ -562,6 +562,83 @@ describe("task routes", () => {
     expect(detailPayload).toEqual(createdTask);
   });
 
+  it("surfaces associated OpenCode session promise state on task get and list responses", async () => {
+    await useProjectRoot("surfaces-task-opencode-session-state");
+
+    const app = createTaskRouteApp();
+    const sessionResponse = await app.request(
+      contractModule.openCodeSessionsPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: "session-observed",
+          continue_prompt: "Continue observed task.",
+        }),
+      },
+    );
+
+    expect(sessionResponse.status).toBe(201);
+
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Observed task",
+        task_spec: "surface opencode session state",
+        project_id: mainProjectId,
+        session_id: "session-observed",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const detailResponse = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+    );
+
+    expect(detailResponse.status).toBe(200);
+
+    const detailPayload = await detailResponse.json();
+
+    expect(contractModule.taskSchema.safeParse(detailPayload).success).toBe(
+      true,
+    );
+    expect(detailPayload).toMatchObject({
+      task_id: createdTask.task_id,
+      session_id: "session-observed",
+      opencode_session: {
+        session_id: "session-observed",
+        state: "pending",
+        value: null,
+        reason: null,
+      },
+    });
+
+    const listResponse = await app.request(contractModule.tasksPath);
+
+    expect(listResponse.status).toBe(200);
+
+    const listPayload = await listResponse.json();
+
+    expect(
+      contractModule.taskListResponseSchema.safeParse(listPayload).success,
+    ).toBe(true);
+    expect(listPayload.items).toContainEqual(
+      expect.objectContaining({
+        task_id: createdTask.task_id,
+        opencode_session: expect.objectContaining({
+          session_id: "session-observed",
+          state: "pending",
+        }),
+      }),
+    );
+  });
+
   it("applies POST /tasks/batch create operations with validation evidence and delete operations atomically in order", async () => {
     await useProjectRoot("creates-task-batch");
 
