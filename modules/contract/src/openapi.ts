@@ -2,6 +2,7 @@ import { openApiDocument as generatedOpenApiDocument } from "../generated/openap
 
 export type OpenApiDocument = typeof generatedOpenApiDocument;
 
+export const dbSqlitePath = "/db/sqlite";
 export const healthPath = "/health";
 export const dimensionByIdPath = "/dimensions/{dimensionId}";
 export const dimensionEvaluationsPath = "/dimensions/{dimensionId}/evaluations";

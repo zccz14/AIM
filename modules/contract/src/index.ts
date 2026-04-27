@@ -4,6 +4,7 @@ import { schemas } from "../generated/zod.js";
 
 export type { OpenApiDocument } from "./openapi.js";
 export {
+  dbSqlitePath,
   dimensionByIdPath,
   dimensionEvaluationsPath,
   dimensionsPath,

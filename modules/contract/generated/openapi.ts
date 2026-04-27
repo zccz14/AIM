@@ -20,6 +20,25 @@ export const openApiDocument = {
     },
   ],
   paths: {
+    "/db/sqlite": {
+      get: {
+        operationId: "getDbSqlite",
+        summary: "Download the current AIM SQLite database file",
+        responses: {
+          "200": {
+            description: "AIM SQLite database file",
+            content: {
+              "application/vnd.sqlite3": {
+                schema: {
+                  type: "string",
+                  format: "binary",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/health": {
       get: {
         operationId: "getHealth",
