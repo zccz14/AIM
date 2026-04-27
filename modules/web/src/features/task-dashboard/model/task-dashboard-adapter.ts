@@ -263,7 +263,7 @@ export const adaptTaskDashboard = (
       {
         key: "projects",
         label: "Projects",
-        value: `${response.projects.items.length} project paths`,
+        value: `${response.projects.items.length} projects`,
       },
       {
         key: "dimensions",

@@ -26,20 +26,41 @@ const createProjectRoot = async (name: string) => {
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const otherProjectId = "00000000-0000-4000-8000-000000000002";
 
 const createDimensionInput = {
-  project_path: "/repo/main",
+  project_id: mainProjectId,
   name: "API Fit",
   goal: "Keep the public API aligned with manager workflow needs.",
   evaluation_method: "Review OpenAPI and route behavior against Manager usage.",
 };
 
 const createEvaluationInput = {
-  project_path: "/repo/main",
+  project_id: mainProjectId,
   commit_sha: "abc1234",
   evaluator_model: "anthropic/claude-sonnet-4-5",
   score: 81,
   evaluation: "优秀：API shape is clear and covered.",
+};
+
+const insertProject = (projectRoot: string, projectId = mainProjectId) => {
+  const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+  database
+    .prepare(
+      "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .run(
+      projectId,
+      `Project ${projectId}`,
+      `https://github.com/example/${projectId}.git`,
+      "anthropic",
+      "claude-sonnet-4-5",
+      "2026-04-26T00:00:00.000Z",
+      "2026-04-26T00:00:00.000Z",
+    );
+  database.close();
 };
 
 afterEach(async () => {
@@ -56,7 +77,7 @@ describe("dimension repository", () => {
 
     const repository = createDimensionRepository({ projectRoot });
 
-    await repository.listDimensions("/repo/main");
+    await repository.listDimensions(mainProjectId);
 
     await expect(access(databasePath)).resolves.toBeUndefined();
 
@@ -98,17 +119,19 @@ describe("dimension repository", () => {
       await using scopedRepository = createDimensionRepository({ projectRoot });
 
       repository = scopedRepository;
-      await scopedRepository.listDimensions("/repo/main");
+      await scopedRepository.listDimensions(mainProjectId);
     })();
 
     await expect(async () => {
-      await repository?.listDimensions("/repo/main");
+      await repository?.listDimensions(mainProjectId);
     }).rejects.toThrow(/closed|finalized|open/i);
   });
 
   it("creates, reads, lists, patches, and deletes dimensions", async () => {
     const projectRoot = await createProjectRoot("crud");
     const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
+    insertProject(projectRoot, otherProjectId);
 
     const firstDimension =
       await repository.createDimension(createDimensionInput);
@@ -118,7 +141,7 @@ describe("dimension repository", () => {
     });
     await repository.createDimension({
       ...createDimensionInput,
-      project_path: "/repo/other",
+      project_id: otherProjectId,
     });
 
     expect(firstDimension).toMatchObject(createDimensionInput);
@@ -126,7 +149,7 @@ describe("dimension repository", () => {
     await expect(repository.getDimension(firstDimension.id)).resolves.toEqual(
       firstDimension,
     );
-    await expect(repository.listDimensions("/repo/main")).resolves.toEqual([
+    await expect(repository.listDimensions(mainProjectId)).resolves.toEqual([
       firstDimension,
       secondDimension,
     ]);
@@ -152,42 +175,43 @@ describe("dimension repository", () => {
     ).resolves.toBeNull();
   });
 
-  it("creates dimensions under a UUID project id resolved from project_path", async () => {
+  it("creates dimensions under a UUID project id", async () => {
     const projectRoot = await createProjectRoot(
       "creates-dimension-project-uuid",
     );
     const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
 
     const dimension = await repository.createDimension({
       ...createDimensionInput,
-      project_path: "/repo/dimensions",
     });
 
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
     const persisted = database
       .prepare(
-        "SELECT projects.id AS project_id, projects.project_path AS project_path, dimensions.project_id AS dimension_project_id FROM dimensions INNER JOIN projects ON projects.id = dimensions.project_id WHERE dimensions.id = ?",
+        "SELECT projects.id AS project_id, projects.git_origin_url AS git_origin_url, dimensions.project_id AS dimension_project_id FROM dimensions INNER JOIN projects ON projects.id = dimensions.project_id WHERE dimensions.id = ?",
       )
       .get(dimension.id) as
       | {
           dimension_project_id: string;
           project_id: string;
-          project_path: string;
+          git_origin_url: string;
         }
       | undefined;
     database.close();
 
     expect(persisted?.project_id).toMatch(uuidPattern);
-    expect(persisted?.project_id).not.toBe("/repo/dimensions");
+    expect(persisted?.project_id).toBe(mainProjectId);
     expect(persisted).toMatchObject({
       dimension_project_id: persisted?.project_id,
-      project_path: "/repo/dimensions",
+      git_origin_url: `https://github.com/example/${mainProjectId}.git`,
     });
   });
 
   it("appends evaluations and cascades them when deleting dimensions", async () => {
     const projectRoot = await createProjectRoot("evaluations");
     const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
     const dimension = await repository.createDimension(createDimensionInput);
 
     const firstEvaluation = await repository.createDimensionEvaluation(

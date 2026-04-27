@@ -334,7 +334,7 @@ export const ProjectRegisterPage = () => {
                     value={form.gitOriginUrl}
                   />
                   <FieldDescription>
-                    Use the absolute repository path that AIM should operate on.
+                    Use the repository origin URL that identifies this project.
                   </FieldDescription>
                 </Field>
                 <Field data-disabled={isSubmitting}>

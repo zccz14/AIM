@@ -231,6 +231,7 @@ export const applySqliteTableSchema = (database: DatabaseSync) => {
 };
 
 export const applySqliteIndexSchema = (database: DatabaseSync) => {
+  database.exec("DROP INDEX IF EXISTS tasks_unfinished_session_id_unique;");
   execSchemaStatements(database, (statement) =>
     /^CREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(statement),
   );

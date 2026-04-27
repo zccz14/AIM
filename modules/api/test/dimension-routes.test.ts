@@ -24,13 +24,35 @@ const useProjectRoot = async (name: string) => {
 };
 
 const jsonHeaders = { "content-type": "application/json" };
+const mainProjectId = "00000000-0000-4000-8000-000000000001";
 
-const createDimension = (app: ReturnType<typeof createApp>, name = "API Fit") =>
+const createProject = async (app: ReturnType<typeof createApp>) => {
+  const response = await app.request("/projects", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      git_origin_url: "https://github.com/example/main.git",
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      name: "Main project",
+    }),
+  });
+
+  expect(response.status).toBe(201);
+
+  return response.json() as Promise<{ id: string }>;
+};
+
+const createDimension = (
+  app: ReturnType<typeof createApp>,
+  projectId = mainProjectId,
+  name = "API Fit",
+) =>
   app.request("/dimensions", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({
-      project_path: "/repo/main",
+      project_id: projectId,
       name,
       goal: "Keep the public API aligned with manager workflow needs.",
       evaluation_method:
@@ -55,14 +77,15 @@ describe("dimension routes", () => {
     await useProjectRoot("crud");
 
     const app = createApp();
-    const createResponse = await createDimension(app);
+    const project = await createProject(app);
+    const createResponse = await createDimension(app, project.id);
 
     expect(createResponse.status).toBe(201);
 
     const createdDimension = await createResponse.json();
 
     expect(createdDimension).toMatchObject({
-      project_path: "/repo/main",
+      project_id: project.id,
       name: "API Fit",
       goal: "Keep the public API aligned with manager workflow needs.",
       evaluation_method:
@@ -71,7 +94,7 @@ describe("dimension routes", () => {
     expect(createdDimension.id).toEqual(expect.any(String));
 
     const listResponse = await app.request(
-      `/dimensions?project_path=${encodeURIComponent("/repo/main")}`,
+      `/dimensions?project_id=${encodeURIComponent(project.id)}`,
     );
 
     expect(listResponse.status).toBe(200);
@@ -122,7 +145,10 @@ describe("dimension routes", () => {
     await useProjectRoot("evaluations");
 
     const app = createApp();
-    const createdDimension = await (await createDimension(app)).json();
+    const project = await createProject(app);
+    const createdDimension = await (
+      await createDimension(app, project.id)
+    ).json();
 
     const firstEvaluationResponse = await app.request(
       `/dimensions/${createdDimension.id}/evaluations`,
@@ -130,7 +156,7 @@ describe("dimension routes", () => {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({
-          project_path: "/repo/main",
+          project_id: project.id,
           commit_sha: "abc1234",
           evaluator_model: "anthropic/claude-sonnet-4-5",
           score: 81,
@@ -145,7 +171,7 @@ describe("dimension routes", () => {
 
     expect(firstEvaluation).toMatchObject({
       dimension_id: createdDimension.id,
-      project_path: "/repo/main",
+      project_id: project.id,
       commit_sha: "abc1234",
       evaluator_model: "anthropic/claude-sonnet-4-5",
       score: 81,
@@ -159,7 +185,7 @@ describe("dimension routes", () => {
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({
-          project_path: "/repo/main",
+          project_id: project.id,
           commit_sha: "abc1235",
           evaluator_model: "anthropic/claude-sonnet-4-5",
           score: 101,
@@ -184,13 +210,16 @@ describe("dimension routes", () => {
     await useProjectRoot("cascade");
 
     const app = createApp();
-    const createdDimension = await (await createDimension(app)).json();
+    const project = await createProject(app);
+    const createdDimension = await (
+      await createDimension(app, project.id)
+    ).json();
 
     await app.request(`/dimensions/${createdDimension.id}/evaluations`, {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify({
-        project_path: "/repo/main",
+        project_id: project.id,
         commit_sha: "abc1234",
         evaluator_model: "anthropic/claude-sonnet-4-5",
         score: 61,
