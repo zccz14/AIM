@@ -201,7 +201,13 @@ export const createOptimizerRuntime = ({
         }
 
         logger?.error(
-          { err: error, lane: "developer_follow_up" },
+          {
+            err: error,
+            event: "optimizer_event_scan_failed",
+            lane: "developer_follow_up",
+            task_id: event.taskId,
+            trigger: event.type,
+          },
           "Optimizer lane failed while handling event",
         );
       }

@@ -481,7 +481,10 @@ describe("optimizer runtime", () => {
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({
         err: expect.any(Error),
+        event: "optimizer_event_scan_failed",
         lane: "developer_follow_up",
+        task_id: "task-2",
+        trigger: "task_resolved",
       }),
       "Optimizer lane failed while handling event",
     );
