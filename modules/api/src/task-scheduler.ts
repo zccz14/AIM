@@ -199,12 +199,14 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       logger.info(buildTaskLogFields("task_session_continued", latestTask));
     } catch (error) {
       if (createdSession) {
-        await createdSession[Symbol.asyncDispose]().catch((disposeError) => {
+        try {
+          await createdSession[Symbol.asyncDispose]();
+        } catch (disposeError) {
           logger.error(
             { err: disposeError, taskId: task.task_id },
             `Task scheduler failed while releasing task session ${task.task_id}`,
           );
-        });
+        }
       }
 
       logger.error(

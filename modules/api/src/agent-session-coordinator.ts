@@ -16,7 +16,7 @@ export type AgentSessionInput = {
 export type AgentSessionCoordinator = {
   createSession(
     input: AgentSessionInput,
-  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; sessionId: string }>;
+  ): Promise<AsyncDisposable & { sessionId: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,

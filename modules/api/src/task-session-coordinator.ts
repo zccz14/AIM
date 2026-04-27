@@ -9,8 +9,7 @@ export type TaskSessionCoordinatorConfig = {
   sessionIdleFallbackTimeoutMs?: number;
 };
 
-type TaskSessionRecord = {
-  [Symbol.asyncDispose](): Promise<void>;
+type TaskSessionRecord = AsyncDisposable & {
   id: string;
 };
 
@@ -24,9 +23,7 @@ type TaskSessionCoordinatorAdapter = {
 };
 
 export type TaskSessionCoordinator = {
-  createSession(
-    task: Task,
-  ): Promise<{ [Symbol.asyncDispose](): Promise<void>; sessionId: string }>;
+  createSession(task: Task): Promise<AsyncDisposable & { sessionId: string }>;
   getSessionState(
     sessionId: string,
     projectPath: string,

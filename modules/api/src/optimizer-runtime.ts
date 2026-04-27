@@ -1,8 +1,7 @@
 import type { OptimizerStatusResponse } from "@aim-ai/contract";
 import type { ApiLogger } from "./api-logger.js";
 
-type OptimizerLaneScheduler = {
-  [Symbol.asyncDispose](): Promise<void>;
+type OptimizerLaneScheduler = AsyncDisposable & {
   getStatus?(): {
     last_error: null | string;
     last_scan_at: null | string;
@@ -27,8 +26,7 @@ export type OptimizerEvent = {
   type: "task_resolved";
 };
 
-export type OptimizerRuntime = {
-  [Symbol.asyncDispose](): Promise<void>;
+export type OptimizerRuntime = AsyncDisposable & {
   disable(): Promise<void>;
   getStatus(): OptimizerStatusResponse;
   handleEvent(event: OptimizerEvent): Promise<void>;
