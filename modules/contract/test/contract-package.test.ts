@@ -307,6 +307,7 @@ describe("contract package baseline", () => {
       "createContractClient",
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
+      "createOpenCodeSessionRequestSchema",
       "createProjectRequestSchema",
       "createTaskBatchRequestSchema",
       "createTaskRequestSchema",
@@ -324,6 +325,13 @@ describe("contract package baseline", () => {
       "healthResponseSchema",
       "healthStatusSchema",
       "openApiDocument",
+      "openCodeSessionByIdPath",
+      "openCodeSessionRejectPath",
+      "openCodeSessionResolvePath",
+      "openCodeSessionSchema",
+      "openCodeSessionSettleRequestSchema",
+      "openCodeSessionStateSchema",
+      "openCodeSessionsPath",
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
@@ -379,6 +387,24 @@ describe("contract package baseline", () => {
     ).toBeDefined();
     expect(
       contractModule.openApiDocument.paths[contractModule.opencodeModelsPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.openCodeSessionsPath],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.openCodeSessionByIdPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.openCodeSessionResolvePath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.openCodeSessionRejectPath
+      ],
     ).toBeDefined();
     expect(contractModule).not.toHaveProperty("optimizerStatusPath");
     expect(contractModule).not.toHaveProperty("optimizerStartPath");
@@ -1176,6 +1202,31 @@ describe("contract package baseline", () => {
     });
   });
 
+  it("exports OpenCode session schemas from the built package boundary", () => {
+    expect(contractModule.openCodeSessionsPath).toBe("/opencode/sessions");
+    expect(contractModule.openCodeSessionByIdPath).toBe(
+      "/opencode/sessions/{sessionId}",
+    );
+    expect(contractModule.openCodeSessionStateSchema.parse("pending")).toBe(
+      "pending",
+    );
+    expect(
+      contractModule.openCodeSessionSchema.parse({
+        session_id: "session-1",
+        state: "pending",
+        value: null,
+        reason: null,
+        continue_prompt: "Continue.",
+        created_at: "2026-04-27T10:00:00.000Z",
+        updated_at: "2026-04-27T10:00:00.000Z",
+      }),
+    ).toMatchObject({
+      continue_prompt: "Continue.",
+      session_id: "session-1",
+      state: "pending",
+    });
+  });
+
   it("publishes task CRUD schemas in the shared OpenAPI document", () => {
     const createTaskRequestSchema =
       contractModule.openApiDocument.components.schemas.CreateTaskRequest;
@@ -1506,13 +1557,29 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.resolveTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.rejectTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule.createOpenCodeSession).toBeTypeOf(
+      "function",
+    );
+    await expect(generatedClientModule.getOpenCodeSessionById).toBeTypeOf(
+      "function",
+    );
+    await expect(generatedClientModule.resolveOpenCodeSessionById).toBeTypeOf(
+      "function",
+    );
+    await expect(generatedClientModule.rejectOpenCodeSessionById).toBeTypeOf(
+      "function",
+    );
     expect(generatedOpenApiSource).toContain('"/tasks/{taskId}/spec"');
+    expect(generatedOpenApiSource).toContain(
+      '"/opencode/sessions/{sessionId}"',
+    );
     await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
       'export * from "./_client/index.js";',
     );
     expect(generatedClientSdkSource).toContain("listTasks");
     expect(generatedClientSdkSource).toContain("createTaskBatch");
     expect(generatedClientSdkSource).toContain("getTaskSpecById");
+    expect(generatedClientSdkSource).toContain("createOpenCodeSession");
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(
       "CreateTaskRequest",
     );

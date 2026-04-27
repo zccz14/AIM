@@ -4,7 +4,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import type { Config, PluginInput } from "@opencode-ai/plugin";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { AIMOpenCodePlugin } from "../src/index.js";
 
 const pluginPackageUrl = new URL("../package.json", import.meta.url);
 const pluginEntryUrl = new URL("../dist/index.js", import.meta.url);
@@ -149,6 +151,28 @@ async function loadPluginHooks() {
     }>
   )({} as PluginInput);
 }
+
+async function loadSourcePluginHooks(input: Partial<PluginInput> = {}) {
+  return AIMOpenCodePlugin({
+    client: {
+      session: {
+        promptAsync: vi.fn().mockResolvedValue({}),
+      },
+    },
+    directory: "/repo",
+    experimental_workspace: { register: vi.fn() },
+    project: { id: "project-1", time: { created: 0 }, worktree: "/repo" },
+    serverUrl: new URL("http://127.0.0.1:4096"),
+    worktree: "/repo",
+    $: vi.fn(),
+    ...input,
+  } as unknown as PluginInput);
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 beforeAll(async () => {
   pluginPackage = JSON.parse(
@@ -1036,5 +1060,142 @@ describe("opencode plugin package baseline", () => {
     expect(pluginSource).not.toContain("experimental.chat.system.transform");
     expect(pluginSource).not.toContain("experimental.session.compacting");
     expect(pluginSource).not.toContain("chat.message");
+  });
+
+  it("continues an AIM-controlled pending session when OpenCode reports it idle", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          session_id: "session-1",
+          state: "pending",
+          continue_prompt: "Continue the standalone session.",
+          value: null,
+          reason: null,
+          created_at: "2026-04-27T00:00:00.000Z",
+          updated_at: "2026-04-27T00:00:00.000Z",
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 },
+      ),
+    );
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { promptAsync } },
+    } as unknown as PluginInput);
+
+    await hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://aim.test/opencode/sessions/session-1",
+    );
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        parts: [{ text: "Continue the standalone session.", type: "text" }],
+      },
+      path: { id: "session-1" },
+      throwOnError: true,
+    });
+  });
+
+  it("does not continue settled or unknown AIM-controlled sessions", async () => {
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { promptAsync } },
+    } as unknown as PluginInput);
+
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              session_id: "session-resolved",
+              state: "resolved",
+              continue_prompt: "Do not send.",
+              value: "done",
+              reason: null,
+              created_at: "2026-04-27T00:00:00.000Z",
+              updated_at: "2026-04-27T00:00:00.000Z",
+            }),
+            { headers: { "content-type": "application/json" }, status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 404 })),
+    );
+
+    await hooks.event?.({
+      event: {
+        properties: { sessionID: "session-resolved" },
+        type: "session.idle",
+      },
+    });
+    await hooks.event?.({
+      event: {
+        properties: { sessionID: "session-missing" },
+        type: "session.idle",
+      },
+    });
+
+    expect(promptAsync).not.toHaveBeenCalled();
+  });
+
+  it("settles the current OpenCode session through AIM API tools", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks();
+    const resolveTool = hooks.tool?.aim_session_resolve;
+    const rejectTool = hooks.tool?.aim_session_reject;
+
+    expect(resolveTool).toBeDefined();
+    expect(rejectTool).toBeDefined();
+
+    if (!resolveTool || !rejectTool) {
+      throw new Error("Expected AIM session tools to be registered");
+    }
+
+    await expect(
+      resolveTool.execute({ value: "done" }, {
+        sessionID: "session-1",
+      } as Parameters<typeof resolveTool.execute>[1]),
+    ).resolves.toBe("");
+    await expect(
+      rejectTool.execute({ reason: "blocked" }, {
+        sessionID: "session-2",
+      } as Parameters<typeof rejectTool.execute>[1]),
+    ).resolves.toBe("");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://aim.test/opencode/sessions/session-1/resolve",
+      {
+        body: JSON.stringify({ value: "done" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://aim.test/opencode/sessions/session-2/reject",
+      {
+        body: JSON.stringify({ reason: "blocked" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+    );
   });
 });

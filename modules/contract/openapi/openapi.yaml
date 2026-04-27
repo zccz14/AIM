@@ -56,6 +56,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /opencode/sessions:
+    post:
+      operationId: createOpenCodeSession
+      summary: Create an AIM-controlled OpenCode session promise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOpenCodeSessionRequest"
+      responses:
+        "201":
+          description: Created OpenCode session promise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenCodeSession"
+        "400":
+          description: Invalid OpenCode session payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /opencode/sessions/{sessionId}:
+    get:
+      operationId: getOpenCodeSessionById
+      summary: Read an AIM-controlled OpenCode session promise
+      parameters:
+        - $ref: "#/components/parameters/OpenCodeSessionIdPathParameter"
+      responses:
+        "200":
+          description: OpenCode session promise detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenCodeSession"
+        "404":
+          description: OpenCode session promise not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /opencode/sessions/{sessionId}/resolve:
+    post:
+      operationId: resolveOpenCodeSessionById
+      summary: Resolve an AIM-controlled OpenCode session promise
+      parameters:
+        - $ref: "#/components/parameters/OpenCodeSessionIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenCodeSessionSettleRequest"
+      responses:
+        "204":
+          description: OpenCode session promise resolved
+        "400":
+          description: Invalid OpenCode session settlement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: OpenCode session promise not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /opencode/sessions/{sessionId}/reject:
+    post:
+      operationId: rejectOpenCodeSessionById
+      summary: Reject an AIM-controlled OpenCode session promise
+      parameters:
+        - $ref: "#/components/parameters/OpenCodeSessionIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenCodeSessionSettleRequest"
+      responses:
+        "204":
+          description: OpenCode session promise rejected
+        "400":
+          description: Invalid OpenCode session settlement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: OpenCode session promise not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /projects:
     post:
       operationId: createProject
@@ -656,6 +752,13 @@ components:
       schema:
         type: string
         minLength: 1
+    OpenCodeSessionIdPathParameter:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
     ProjectIdPathParameter:
       name: projectId
       in: path
@@ -804,6 +907,70 @@ components:
       type: string
       enum:
         - task_resolved
+    OpenCodeSessionState:
+      type: string
+      enum:
+        - pending
+        - resolved
+        - rejected
+    OpenCodeSession:
+      type: object
+      additionalProperties: false
+      required:
+        - session_id
+        - state
+        - value
+        - reason
+        - continue_prompt
+        - created_at
+        - updated_at
+      properties:
+        session_id:
+          type: string
+          minLength: 1
+        state:
+          $ref: "#/components/schemas/OpenCodeSessionState"
+        value:
+          type:
+            - string
+            - "null"
+        reason:
+          type:
+            - string
+            - "null"
+        continue_prompt:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateOpenCodeSessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - session_id
+      properties:
+        session_id:
+          type: string
+          minLength: 1
+        continue_prompt:
+          type:
+            - string
+            - "null"
+    OpenCodeSessionSettleRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        value:
+          type: string
+        reason:
+          type: string
     ProjectOptimizerRecentEvent:
       type: object
       additionalProperties: false

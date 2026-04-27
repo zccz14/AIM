@@ -5,10 +5,67 @@ import { type Plugin, type PluginModule, tool } from "@opencode-ai/plugin";
 const packagedSkillsPath = fileURLToPath(
   new URL("../skills/", import.meta.url),
 );
+const defaultAimApiBaseUrl = "http://localhost:8192";
 type ConfigWithSkills = {
   skills?: {
     paths?: string[];
   };
+};
+type OpenCodeSession = {
+  continue_prompt: null | string;
+  state: "pending" | "rejected" | "resolved";
+};
+
+const getAimApiBaseUrl = () =>
+  (
+    process.env.AIM_API_BASE_URL ??
+    process.env.SERVER_BASE_URL ??
+    defaultAimApiBaseUrl
+  )
+    .trim()
+    .replace(/\/+$/, "");
+
+const buildAimApiUrl = (path: string) => `${getAimApiBaseUrl()}${path}`;
+
+const fetchOpenCodeSession = async (
+  sessionId: string,
+): Promise<null | OpenCodeSession> => {
+  const response = await fetch(
+    buildAimApiUrl(`/opencode/sessions/${encodeURIComponent(sessionId)}`),
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`AIM API returned ${response.status} for OpenCode session`);
+  }
+
+  return (await response.json()) as OpenCodeSession;
+};
+
+const settleOpenCodeSession = async (
+  sessionId: string,
+  action: "reject" | "resolve",
+  payload: Record<string, string | undefined>,
+) => {
+  const response = await fetch(
+    buildAimApiUrl(
+      `/opencode/sessions/${encodeURIComponent(sessionId)}/${action}`,
+    ),
+    {
+      body: JSON.stringify(payload),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `AIM API returned ${response.status} while settling OpenCode session`,
+    );
+  }
 };
 
 export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
@@ -25,14 +82,26 @@ export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
   },
   async event(eventCtx) {
     if (eventCtx.event.type === "session.idle") {
+      const sessionId = eventCtx.event.properties.sessionID;
       console.info(new Date(), `[AIM][Event][session.idle]`, {
-        sessionId: eventCtx.event.properties.sessionID,
+        sessionId,
       });
-      // ISSUE: the API of opencode to get the session state is very limited.
-      // TODO:
-      // if this session is controlled by AIM, we can find the continue prompt by calling AIM API.
-      // so we can continue the session with the continue prompt.
-      // until it is resolved or rejected by calling the tools below.
+
+      const session = await fetchOpenCodeSession(sessionId);
+      const continuePrompt = session?.continue_prompt?.trim();
+
+      if (session?.state !== "pending" || !continuePrompt) {
+        return;
+      }
+
+      await ctx.client.session.promptAsync({
+        body: {
+          parts: [{ text: continuePrompt, type: "text" }],
+        },
+        path: { id: sessionId },
+        throwOnError: true,
+      });
+
       return;
     }
   },
@@ -51,7 +120,9 @@ export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
           sessionId: _toolCtx.sessionID,
           value: _args.value,
         });
-        // TODO: call AIM API to mark the session as resolved.
+        await settleOpenCodeSession(_toolCtx.sessionID, "resolve", {
+          value: _args.value,
+        });
         return ``;
       },
     }),
@@ -69,7 +140,9 @@ export const AIMOpenCodePlugin: Plugin = async (ctx) => ({
           sessionId: _toolCtx.sessionID,
           reason: _args.reason,
         });
-        // TODO: call AIM API to mark the session as rejected.
+        await settleOpenCodeSession(_toolCtx.sessionID, "reject", {
+          reason: _args.reason,
+        });
         return ``;
       },
     }),
