@@ -28,7 +28,7 @@ description: Coordinator decision entry for AIM Task Pool maintenance; form an a
 
 - AIM Manager 的最新输出：差距分析、坐标系、迭代方向建议、开放问题。
 - 最新 `origin/main` 基线事实：README、代码、文档、已合并 PR 与可只读验证的当前状态。
-- 当前 Task Pool：所有未完成 Task 的标题、Spec、状态、依赖、已知阻塞与目标边界。
+- 当前 Task Pool：所有未完成 Task 的标题、Spec、状态、依赖、`worktree_path`、`pull_request_url`、`source_metadata`、已知阻塞与目标边界。
 - rejected Task 反馈：失败原因、失败发生的基线事实、是否暴露了前提缺失或目标歧义。
 
 如果这些输入缺失到影响目标、范围、验收、边界或优先级，必须升级给 Director 澄清；不得创建澄清类 Developer Task 来替代目标层决策。
@@ -82,6 +82,14 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 - 禁止直接调用 `POST /tasks` 逐条写入；批准后的原子写入必须通过 `POST /tasks/batch`。
 
 ## Delete 判断规则
+
+### 未完成 Task 执行产物分类门禁
+
+Coordinator 在形成任何 `delete` 或 create+delete 替换前，必须先按可观察字段把每个未完成 Task 分成三类，并把分类写入判断理由：
+
+- `worktree_path = null` 且 `pull_request_url = null`：没有执行产物。只有当该 Task 的前提已经被最新基线、Manager dimension source 或 rejected 反馈明确证明 stale、冲突或不可执行时，才允许用更准确的 `create` + `delete` batch 替换；不得把泛化 optimizer-loop placeholder、低优先级或抽象迭代建议当作 stale 证据。
+- `worktree_path` 已记录且 `pull_request_url = null`：已有 Developer lane 执行产物但尚未上报 PR。默认保留并进入 `evaluate_existing_tasks` / follow-up 路径；除非存在明确 terminal/rejected/Director 决策或 scope 冲突证据，否则不得用 Manager refresh 生成替换 batch。
+- `pull_request_url` 已记录：PR-backed 在途工作。默认保留并进入 `evaluate_existing_tasks` / follow-up 路径；不得只因新 baseline、Manager 新分数或更优描述就删除、重复创建或替换，除非存在明确 terminal/rejected/Director 决策或 scope 冲突证据。
 
 产生 `Delete` 写入意图的条件：
 
