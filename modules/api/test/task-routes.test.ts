@@ -21,6 +21,37 @@ const ghOpenPullRequestOutput = JSON.stringify({
   mergedAt: null,
   state: "OPEN",
 });
+const ghFailedChecksPullRequestOutput = JSON.stringify({
+  autoMergeRequest: null,
+  mergeable: "MERGEABLE",
+  mergedAt: null,
+  reviewDecision: "",
+  state: "OPEN",
+  statusCheckRollup: [
+    {
+      conclusion: "FAILURE",
+      name: "test:api",
+      status: "COMPLETED",
+      workflowName: "CI",
+    },
+  ],
+});
+const ghReviewBlockedPullRequestOutput = JSON.stringify({
+  autoMergeRequest: { enabledAt: "2026-04-26T10:00:00Z" },
+  mergeable: "MERGEABLE",
+  mergedAt: null,
+  reviewDecision: "CHANGES_REQUESTED",
+  state: "OPEN",
+  statusCheckRollup: [],
+});
+const ghMergedFollowupPullRequestOutput = JSON.stringify({
+  autoMergeRequest: null,
+  mergeable: "MERGEABLE",
+  mergedAt: "2026-04-26T10:00:00Z",
+  reviewDecision: "APPROVED",
+  state: "MERGED",
+  statusCheckRollup: [],
+});
 
 const mockGhPullRequestOutput = (stdout: string) => {
   execFileMock.mockImplementation(
@@ -75,6 +106,9 @@ const resolveTaskSpecPath = (taskId: string) =>
 
 const resolveTaskResolvePath = (taskId: string) =>
   contractModule.taskResolvePath.replace("{taskId}", taskId);
+
+const resolveTaskPullRequestStatusPath = (taskId: string) =>
+  "/tasks/{taskId}/pull_request_status".replace("{taskId}", taskId);
 
 const resolveTaskRejectPath = (taskId: string) =>
   contractModule.taskRejectPath.replace("{taskId}", taskId);
@@ -1344,6 +1378,131 @@ describe("task routes", () => {
       "https://github.com/org/repo/pull/2",
     );
     expect(updatedTask.worktree_path).toBe("/repo/.worktrees/task-2");
+  });
+
+  it("classifies failed checks and review blockers with recovery guidance", async () => {
+    await useProjectRoot("pull-request-status-blockers");
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Test task",
+        task_spec: "follow the pull request",
+        project_id: mainProjectId,
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+
+    mockGhPullRequestOutput(ghFailedChecksPullRequestOutput);
+    const failedChecksResponse = await app.request(
+      resolveTaskPullRequestStatusPath(createdTask.task_id),
+    );
+
+    expect(failedChecksResponse.status).toBe(200);
+    await expect(failedChecksResponse.json()).resolves.toMatchObject({
+      category: "failed_checks",
+      pull_request_url: "https://github.com/example/repo/pull/42",
+      recovery_action:
+        "Inspect the failing required checks, fix in-scope failures on the same branch, push, and continue PR follow-up. Escalate if the failure is outside task scope.",
+      summary: expect.stringContaining("test:api"),
+      task_status: "processing",
+    });
+
+    mockGhPullRequestOutput(ghReviewBlockedPullRequestOutput);
+    const reviewBlockedResponse = await app.request(
+      resolveTaskPullRequestStatusPath(createdTask.task_id),
+    );
+
+    expect(reviewBlockedResponse.status).toBe(200);
+    await expect(reviewBlockedResponse.json()).resolves.toMatchObject({
+      category: "review_blocked",
+      recovery_action:
+        "Address blocking review feedback on the same branch, then wait for review dismissal or approval before merging.",
+      summary: expect.stringContaining("CHANGES_REQUESTED"),
+    });
+  });
+
+  it("classifies a merged pull request on an unresolved task as ready to resolve", async () => {
+    await useProjectRoot("pull-request-status-merged-unresolved");
+
+    mockGhPullRequestOutput(ghMergedFollowupPullRequestOutput);
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Test task",
+        task_spec: "follow the pull request",
+        project_id: mainProjectId,
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskPullRequestStatusPath(createdTask.task_id),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      category: "merged_but_not_resolved",
+      recovery_action:
+        "Report the final result with POST /tasks/{taskId}/resolve now that the pull request is merged.",
+      summary: "Pull request is merged, but the AIM task is still processing.",
+      task_done: false,
+      task_status: "processing",
+    });
+  });
+
+  it("classifies unavailable pull request lookups before asking for rejection or escalation", async () => {
+    await useProjectRoot("pull-request-status-unavailable");
+
+    mockGhFailure();
+
+    const app = createTaskRouteApp();
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Test task",
+        task_spec: "follow the pull request",
+        project_id: mainProjectId,
+        pull_request_url: "https://github.com/example/repo/pull/404",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskPullRequestStatusPath(createdTask.task_id),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      category: "pull_request_unavailable",
+      recovery_action:
+        "Verify the pull_request_url, GitHub CLI authentication, and repository access. If the PR was deleted or cannot be recovered, reject or escalate with the exact lookup failure.",
+      summary: expect.stringContaining("Could not query"),
+    });
   });
 
   it("updates dependencies through its dedicated field endpoint with patch validation", async () => {

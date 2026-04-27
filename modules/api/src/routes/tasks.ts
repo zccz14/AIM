@@ -4,11 +4,14 @@ import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
   patchTaskRequestSchema,
+  type TaskPullRequestStatusResponse,
   type TaskStatus,
   taskByIdPath,
   taskDependenciesPath,
   taskDependenciesRequestSchema,
   taskErrorSchema,
+  taskPullRequestStatusPath,
+  taskPullRequestStatusResponseSchema,
   taskPullRequestUrlPath,
   taskPullRequestUrlRequestSchema,
   taskRejectPath,
@@ -39,6 +42,10 @@ const taskWorktreePathRoutePath = taskWorktreePathPath.replace(
   ":taskId",
 );
 const taskPullRequestUrlRoutePath = taskPullRequestUrlPath.replace(
+  "{taskId}",
+  ":taskId",
+);
+const taskPullRequestStatusRoutePath = taskPullRequestStatusPath.replace(
   "{taskId}",
   ":taskId",
 );
@@ -198,6 +205,223 @@ const getPullRequestMergedOutput = (pullRequestUrl: string) =>
       },
     );
   });
+
+const getPullRequestFollowupOutput = (pullRequestUrl: string) =>
+  new Promise<string>((resolve, reject) => {
+    execFile(
+      "gh",
+      [
+        "pr",
+        "view",
+        pullRequestUrl,
+        "--json",
+        "state,mergedAt,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
+      ],
+      { encoding: "utf8" },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+
+          return;
+        }
+
+        resolve(stdout);
+      },
+    );
+  });
+
+type PullRequestFollowupView = {
+  autoMergeRequest?: unknown;
+  mergeable?: unknown;
+  mergedAt?: unknown;
+  reviewDecision?: unknown;
+  state?: unknown;
+  statusCheckRollup?: unknown;
+};
+
+const readCheckName = (check: unknown) => {
+  if (!check || typeof check !== "object") {
+    return "unnamed check";
+  }
+
+  const candidate = check as { name?: unknown; workflowName?: unknown };
+
+  return typeof candidate.name === "string" && candidate.name.trim().length > 0
+    ? candidate.name.trim()
+    : typeof candidate.workflowName === "string" &&
+        candidate.workflowName.trim().length > 0
+      ? candidate.workflowName.trim()
+      : "unnamed check";
+};
+
+const readCheckState = (check: unknown) => {
+  if (!check || typeof check !== "object") {
+    return { conclusion: "", status: "" };
+  }
+
+  const candidate = check as { conclusion?: unknown; status?: unknown };
+
+  return {
+    conclusion:
+      typeof candidate.conclusion === "string"
+        ? candidate.conclusion.toUpperCase()
+        : "",
+    status:
+      typeof candidate.status === "string"
+        ? candidate.status.toUpperCase()
+        : "",
+  };
+};
+
+const buildPullRequestFollowupStatus = (
+  task: {
+    done: boolean;
+    pull_request_url: string | null;
+    status: TaskStatus;
+  },
+  pullRequest: PullRequestFollowupView | null,
+): TaskPullRequestStatusResponse => {
+  const base = {
+    pull_request_url: task.pull_request_url,
+    task_done: task.done,
+    task_status: task.status,
+  };
+
+  if (!task.pull_request_url) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "no_pull_request",
+      recovery_action:
+        "Record pull_request_url after creating the PR, or continue development until a PR exists.",
+      summary: "No pull_request_url is recorded for this task.",
+    });
+  }
+
+  if (!pullRequest) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "pull_request_unavailable",
+      recovery_action:
+        "Verify the pull_request_url, GitHub CLI authentication, and repository access. If the PR was deleted or cannot be recovered, reject or escalate with the exact lookup failure.",
+      summary: "Could not query the pull request with gh.",
+    });
+  }
+
+  const state = typeof pullRequest.state === "string" ? pullRequest.state : "";
+  const mergedAt =
+    typeof pullRequest.mergedAt === "string" ? pullRequest.mergedAt.trim() : "";
+  const checks = Array.isArray(pullRequest.statusCheckRollup)
+    ? pullRequest.statusCheckRollup
+    : [];
+  const failedChecks = checks.filter((check) => {
+    const { conclusion } = readCheckState(check);
+
+    return ["ACTION_REQUIRED", "CANCELLED", "FAILURE", "TIMED_OUT"].includes(
+      conclusion,
+    );
+  });
+  const waitingChecks = checks.filter((check) => {
+    const { status } = readCheckState(check);
+
+    return [
+      "EXPECTED",
+      "IN_PROGRESS",
+      "PENDING",
+      "QUEUED",
+      "REQUESTED",
+    ].includes(status);
+  });
+  const reviewDecision =
+    typeof pullRequest.reviewDecision === "string"
+      ? pullRequest.reviewDecision
+      : "";
+  const mergeable =
+    typeof pullRequest.mergeable === "string" ? pullRequest.mergeable : "";
+  const autoMergeEnabled = pullRequest.autoMergeRequest != null;
+
+  if (
+    (state === "MERGED" || mergedAt.length > 0) &&
+    task.status !== "resolved"
+  ) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "merged_but_not_resolved",
+      recovery_action:
+        "Report the final result with POST /tasks/{taskId}/resolve now that the pull request is merged.",
+      summary: "Pull request is merged, but the AIM task is still processing.",
+    });
+  }
+
+  if (state === "CLOSED") {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "closed_abandoned",
+      recovery_action:
+        "Confirm whether the closed PR was intentionally abandoned. Reopen or create a replacement PR if work should continue; otherwise reject with the closure reason.",
+      summary: "Pull request is closed without being merged.",
+    });
+  }
+
+  if (failedChecks.length > 0) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "failed_checks",
+      recovery_action:
+        "Inspect the failing required checks, fix in-scope failures on the same branch, push, and continue PR follow-up. Escalate if the failure is outside task scope.",
+      summary: `Required checks failed: ${failedChecks.map(readCheckName).join(", ")}.`,
+    });
+  }
+
+  if (waitingChecks.length > 0) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "waiting_checks",
+      recovery_action:
+        "Wait for required checks to finish, then reclassify the PR before merging or resolving the task.",
+      summary: `Required checks are still running: ${waitingChecks.map(readCheckName).join(", ")}.`,
+    });
+  }
+
+  if (["CHANGES_REQUESTED", "REVIEW_REQUIRED"].includes(reviewDecision)) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "review_blocked",
+      recovery_action:
+        "Address blocking review feedback on the same branch, then wait for review dismissal or approval before merging.",
+      summary: `Pull request review is blocking merge: ${reviewDecision}.`,
+    });
+  }
+
+  if (["CONFLICTING", "UNKNOWN"].includes(mergeable)) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "merge_conflict",
+      recovery_action:
+        "Fetch origin, rebase the task branch on origin/main, resolve conflicts, push, and continue PR follow-up.",
+      summary: `Pull request mergeability is ${mergeable}.`,
+    });
+  }
+
+  if (!autoMergeEnabled) {
+    return taskPullRequestStatusResponseSchema.parse({
+      ...base,
+      category: "auto_merge_unavailable",
+      recovery_action:
+        "Enable auto-merge with squash if repository policy allows it. If GitHub refuses, record the exact reason and continue manual PR follow-up.",
+      summary:
+        "Pull request is open, but auto-merge is not enabled or unavailable.",
+    });
+  }
+
+  return taskPullRequestStatusResponseSchema.parse({
+    ...base,
+    category: "ready_to_merge",
+    recovery_action:
+      "Checks and review are clear. Merge according to repository policy if auto-merge has not already completed it.",
+    summary:
+      "Pull request has no observed checks, review, or mergeability blockers.",
+  });
+};
 
 const verifyPullRequestMerged = async (pullRequestUrl: string) => {
   let stdout: string;
@@ -475,6 +699,31 @@ export const registerTaskRoutes = (
     }
 
     return context.json(payload, 200);
+  });
+
+  app.get(taskPullRequestStatusRoutePath, async (context) => {
+    const taskId = requireTaskId(context.req.param("taskId"));
+    const task = await getRepository().getTaskById(taskId);
+
+    if (!task) {
+      return context.json(buildNotFoundError(taskId), 404);
+    }
+
+    if (!task.pull_request_url) {
+      return context.json(buildPullRequestFollowupStatus(task, null), 200);
+    }
+
+    let pullRequest: PullRequestFollowupView | null = null;
+
+    try {
+      pullRequest = JSON.parse(
+        await getPullRequestFollowupOutput(task.pull_request_url),
+      ) as PullRequestFollowupView;
+    } catch {
+      pullRequest = null;
+    }
+
+    return context.json(buildPullRequestFollowupStatus(task, pullRequest), 200);
   });
 
   app.put(taskDependenciesRoutePath, async (context) => {

@@ -16,6 +16,7 @@ export {
   projectsPath,
   taskByIdPath,
   taskDependenciesPath,
+  taskPullRequestStatusPath,
   taskPullRequestUrlPath,
   taskRejectPath,
   taskResolvePath,
@@ -49,6 +50,8 @@ export const patchTaskRequestSchema = schemas.PatchTaskRequest;
 export const taskWorktreePathRequestSchema = schemas.TaskWorktreePathRequest;
 export const taskPullRequestUrlRequestSchema =
   schemas.TaskPullRequestUrlRequest;
+export const taskPullRequestStatusResponseSchema =
+  schemas.TaskPullRequestStatusResponse;
 export const taskDependenciesRequestSchema = schemas.TaskDependenciesRequest;
 export const taskResultRequestSchema = schemas.TaskResultRequest;
 export const taskListResponseSchema = schemas.TaskListResponse;
@@ -92,6 +95,9 @@ export type TaskWorktreePathRequest = Infer<
 >;
 export type TaskPullRequestUrlRequest = Infer<
   typeof taskPullRequestUrlRequestSchema
+>;
+export type TaskPullRequestStatusResponse = Infer<
+  typeof taskPullRequestStatusResponseSchema
 >;
 export type TaskDependenciesRequest = Infer<
   typeof taskDependenciesRequestSchema
@@ -137,6 +143,8 @@ export type TaskWorktreePathRequestSchema =
   typeof taskWorktreePathRequestSchema;
 export type TaskPullRequestUrlRequestSchema =
   typeof taskPullRequestUrlRequestSchema;
+export type TaskPullRequestStatusResponseSchema =
+  typeof taskPullRequestStatusResponseSchema;
 export type TaskDependenciesRequestSchema =
   typeof taskDependenciesRequestSchema;
 export type TaskResultRequestSchema = typeof taskResultRequestSchema;
@@ -179,6 +187,7 @@ export type ParsedCreateTaskRequest = Output<typeof createTaskRequestSchema>;
 export type ParsedPatchTaskRequest = PatchTaskRequest;
 export type ParsedTaskWorktreePathRequest = TaskWorktreePathRequest;
 export type ParsedTaskPullRequestUrlRequest = TaskPullRequestUrlRequest;
+export type ParsedTaskPullRequestStatusResponse = TaskPullRequestStatusResponse;
 export type ParsedTaskDependenciesRequest = TaskDependenciesRequest;
 export type ParsedTaskResultRequest = TaskResultRequest;
 export type ParsedTaskListResponse = TaskListResponse;

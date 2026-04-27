@@ -345,6 +345,8 @@ describe("contract package baseline", () => {
       "taskErrorCodeSchema",
       "taskErrorSchema",
       "taskListResponseSchema",
+      "taskPullRequestStatusPath",
+      "taskPullRequestStatusResponseSchema",
       "taskPullRequestUrlPath",
       "taskPullRequestUrlRequestSchema",
       "taskRejectPath",
@@ -417,6 +419,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.taskPullRequestUrlPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.taskPullRequestStatusPath
       ],
     ).toBeDefined();
     expect(
@@ -532,6 +539,9 @@ describe("contract package baseline", () => {
   it("exports task paths and task schemas from the built package boundary", () => {
     expect(contractModule.tasksPath).toBe("/tasks");
     expect(contractModule.taskByIdPath).toBe("/tasks/{taskId}");
+    expect(contractModule.taskPullRequestStatusPath).toBe(
+      "/tasks/{taskId}/pull_request_status",
+    );
     expect(contractModule.taskResolvePath).toBe("/tasks/{taskId}/resolve");
     expect(contractModule.taskRejectPath).toBe("/tasks/{taskId}/reject");
     expect(contractModule.taskStatusSchema.parse("processing")).toBe(
@@ -566,6 +576,19 @@ describe("contract package baseline", () => {
     ).toEqual({
       status: "resolved",
       result: "final output",
+    });
+    expect(
+      contractModule.taskPullRequestStatusResponseSchema.parse({
+        category: "failed_checks",
+        pull_request_url: "https://github.com/example/repo/pull/42",
+        recovery_action: "Fix failing checks and continue PR follow-up.",
+        summary: "Required checks failed: test:api.",
+        task_done: false,
+        task_status: "processing",
+      }),
+    ).toMatchObject({
+      category: "failed_checks",
+      task_status: "processing",
     });
     expect(
       contractModule.taskResultRequestSchema.parse({
@@ -776,6 +799,24 @@ describe("contract package baseline", () => {
     const taskPullRequestUrlPathItem = contractModule.openApiDocument.paths[
       "/tasks/{taskId}/pull_request_url"
     ] as typeof taskWorktreePathItem;
+    const taskPullRequestStatusPathItem = contractModule.openApiDocument.paths[
+      "/tasks/{taskId}/pull_request_status"
+    ] as
+      | {
+          get?: {
+            responses: Record<
+              string,
+              {
+                content?: {
+                  "application/json"?: {
+                    schema?: Record<string, unknown>;
+                  };
+                };
+              }
+            >;
+          };
+        }
+      | undefined;
     const taskDependenciesPathItem = contractModule.openApiDocument.paths[
       "/tasks/{taskId}/dependencies"
     ] as typeof taskWorktreePathItem;
@@ -844,6 +885,7 @@ describe("contract package baseline", () => {
     expect(taskByIdPathItem).toBeDefined();
     expect(taskWorktreePathItem).toBeDefined();
     expect(taskPullRequestUrlPathItem).toBeDefined();
+    expect(taskPullRequestStatusPathItem).toBeDefined();
     expect(taskDependenciesPathItem).toBeDefined();
     expect(resolveTaskByIdPathItem).toBeDefined();
     expect(rejectTaskByIdPathItem).toBeDefined();
@@ -902,6 +944,20 @@ describe("contract package baseline", () => {
     expect(taskPullRequestUrlPathItem?.put?.responses["200"]).toBeDefined();
     expect(taskPullRequestUrlPathItem?.put?.responses["400"]).toBeDefined();
     expect(taskPullRequestUrlPathItem?.put?.responses["404"]).toBeDefined();
+    expect(
+      taskPullRequestStatusPathItem?.get?.responses["200"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/TaskPullRequestStatusResponse",
+    });
+    expect(
+      taskPullRequestStatusPathItem?.get?.responses["404"]?.content?.[
+        "application/json"
+      ]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/ErrorResponse",
+    });
     expect(
       taskDependenciesPathItem?.put?.requestBody?.content?.["application/json"]
         ?.schema,

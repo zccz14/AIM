@@ -46,6 +46,9 @@ import type {
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
+  GetTaskPullRequestStatusByIdData,
+  GetTaskPullRequestStatusByIdErrors,
+  GetTaskPullRequestStatusByIdResponses,
   GetTaskSpecByIdData,
   GetTaskSpecByIdErrors,
   GetTaskSpecByIdResponses,
@@ -344,6 +347,20 @@ export const putTaskDependenciesById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Classify task pull request follow-up state
+ */
+export const getTaskPullRequestStatusById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetTaskPullRequestStatusByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetTaskPullRequestStatusByIdResponses,
+    GetTaskPullRequestStatusByIdErrors,
+    ThrowOnError
+  >({ url: "/tasks/{taskId}/pull_request_status", ...options });
 
 /**
  * Resolve a task with a result

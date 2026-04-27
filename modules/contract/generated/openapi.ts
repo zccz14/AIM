@@ -601,6 +601,39 @@ export const openApiDocument = {
         },
       },
     },
+    "/tasks/{taskId}/pull_request_status": {
+      get: {
+        operationId: "getTaskPullRequestStatusById",
+        summary: "Classify task pull request follow-up state",
+        parameters: [
+          {
+            $ref: "#/components/parameters/TaskIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Pull request follow-up status and recovery guidance",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/TaskPullRequestStatusResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Task not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/tasks/{taskId}/resolve": {
       post: {
         operationId: "resolveTaskById",
@@ -1663,6 +1696,56 @@ export const openApiDocument = {
               type: "string",
               minLength: 1,
             },
+          },
+        },
+      },
+      TaskPullRequestFollowupCategory: {
+        type: "string",
+        enum: [
+          "no_pull_request",
+          "waiting_checks",
+          "failed_checks",
+          "review_blocked",
+          "merge_conflict",
+          "auto_merge_unavailable",
+          "ready_to_merge",
+          "merged_but_not_resolved",
+          "closed_abandoned",
+          "pull_request_unavailable",
+        ],
+      },
+      TaskPullRequestStatusResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "category",
+          "summary",
+          "recovery_action",
+          "task_status",
+          "task_done",
+          "pull_request_url",
+        ],
+        properties: {
+          category: {
+            $ref: "#/components/schemas/TaskPullRequestFollowupCategory",
+          },
+          summary: {
+            type: "string",
+            minLength: 1,
+          },
+          recovery_action: {
+            type: "string",
+            minLength: 1,
+          },
+          task_status: {
+            type: "string",
+            enum: ["processing", "resolved", "rejected"],
+          },
+          task_done: {
+            type: "boolean",
+          },
+          pull_request_url: {
+            type: ["string", "null"],
           },
         },
       },

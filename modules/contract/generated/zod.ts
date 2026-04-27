@@ -149,6 +149,28 @@ const TaskPullRequestUrlRequest = z
 const TaskDependenciesRequest = z
   .object({ dependencies: z.array(z.string().min(1)) })
   .strict();
+const TaskPullRequestFollowupCategory = z.enum([
+  "no_pull_request",
+  "waiting_checks",
+  "failed_checks",
+  "review_blocked",
+  "merge_conflict",
+  "auto_merge_unavailable",
+  "ready_to_merge",
+  "merged_but_not_resolved",
+  "closed_abandoned",
+  "pull_request_unavailable",
+]);
+const TaskPullRequestStatusResponse = z
+  .object({
+    category: TaskPullRequestFollowupCategory,
+    summary: z.string().min(1),
+    recovery_action: z.string().min(1),
+    task_status: z.enum(["processing", "resolved", "rejected"]),
+    task_done: z.boolean(),
+    pull_request_url: z.union([z.string(), z.null()]),
+  })
+  .strict();
 const TaskResultRequest = z
   .object({
     result: z
@@ -266,6 +288,8 @@ export const schemas = {
   TaskWorktreePathRequest,
   TaskPullRequestUrlRequest,
   TaskDependenciesRequest,
+  TaskPullRequestFollowupCategory,
+  TaskPullRequestStatusResponse,
   TaskResultRequest,
   CreateTaskBatchTask,
   CreateTaskBatchOperation,
