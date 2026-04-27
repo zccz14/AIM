@@ -22,6 +22,7 @@ export type TaskDashboardResponse = {
   dimensionEvaluations: DimensionEvaluation[];
   dimensions: Dimension[];
   history: TaskListResponse;
+  projects: ProjectListResponse;
 };
 
 const getProjectPaths = (responses: TaskListResponse[]) => [
@@ -35,9 +36,10 @@ const getProjectPaths = (responses: TaskListResponse[]) => [
 export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const client = createWebApiClient();
 
-  const [active, history] = await Promise.all([
+  const [active, history, projects] = await Promise.all([
     client.listTasks({ done: false }),
     client.listTasks({ done: true }),
+    client.listProjects(),
   ]);
   const projectPaths = getProjectPaths([active, history]);
   const dimensionResponses = await Promise.all(
@@ -60,6 +62,7 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     dimensionEvaluations,
     dimensions,
     history,
+    projects,
   };
 };
 

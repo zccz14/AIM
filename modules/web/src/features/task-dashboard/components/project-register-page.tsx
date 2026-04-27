@@ -237,6 +237,14 @@ export const ProjectRegisterPage = () => {
                         </td>
                         <td className="py-3 pr-0">
                           <div className="flex justify-end gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <a
+                                href={`#/projects/${encodeURIComponent(project.id)}`}
+                              >
+                                Open
+                                <span className="sr-only"> {project.name}</span>
+                              </a>
+                            </Button>
                             <Button
                               aria-label={`Edit ${project.name}`}
                               onClick={() => {

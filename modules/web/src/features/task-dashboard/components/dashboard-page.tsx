@@ -38,20 +38,20 @@ import {
   panelStack,
   sectionCopy,
   sectionStack,
-  sectionTitle,
 } from "./dashboard-styles.js";
 import { DimensionDetailsPage } from "./dimension-details-page.js";
 import { OverviewSection } from "./overview-section.js";
+import { ProjectDetailPage } from "./project-detail-page.js";
 import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
-import { TaskTableSection } from "./task-table-section.js";
 
 // English dashboard action labels remain in i18n resources: Refresh, Retry.
 
 type DashboardRoute =
   | { kind: "dashboard" }
   | { dimensionId: string; kind: "dimension" }
+  | { kind: "project"; projectId: string }
   | { kind: "projects" }
   | { kind: "task"; taskId: string };
 
@@ -66,12 +66,25 @@ const getCurrentPath = () => {
 };
 
 const getDashboardRoute = (pathname: string): DashboardRoute => {
-  if (pathname === BLOCKED_CREATE_TASK_PATH) {
+  if (
+    pathname === BLOCKED_CREATE_TASK_PATH ||
+    pathname.startsWith("/task-write-bulks/")
+  ) {
     return { kind: "dashboard" };
   }
 
   if (pathname === PROJECTS_PATH) {
     return { kind: "projects" };
+  }
+
+  const projectMatch = pathname.match(/^\/projects\/([^/]+)$/);
+
+  if (projectMatch) {
+    const projectId = projectMatch[1];
+
+    if (projectId) {
+      return { kind: "project", projectId: decodeURIComponent(projectId) };
+    }
   }
 
   const taskMatch = pathname.match(/^\/tasks\/([^/]+)$/);
@@ -130,7 +143,8 @@ export const DashboardPage = () => {
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
       dashboardQuery.data.historyTasks.length > 0 ||
-      dashboardQuery.data.dimensionReports.length > 0);
+      dashboardQuery.data.dimensionReports.length > 0 ||
+      dashboardQuery.data.projects.length > 0);
   const optimizerRunning = optimizerStatus?.running ?? false;
 
   useEffect(() => {
@@ -142,7 +156,10 @@ export const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    if (pathname === BLOCKED_CREATE_TASK_PATH) {
+    if (
+      pathname === BLOCKED_CREATE_TASK_PATH ||
+      pathname.startsWith("/task-write-bulks/")
+    ) {
       navigateTo(DASHBOARD_PATH);
     }
   }, [pathname]);
@@ -198,47 +215,20 @@ export const DashboardPage = () => {
     navigateTo(PROJECTS_PATH);
   };
 
-  const goToTask = (taskId: string) => {
-    navigateTo(`/tasks/${encodeURIComponent(taskId)}`);
-  };
-
   const goToDimension = (dimensionId: string) => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
   };
 
   const headerTitle =
     route.kind === "dashboard"
-      ? t("baselineConvergenceCockpit")
+      ? "Dashboard"
       : route.kind === "projects"
         ? "Project Register"
-        : route.kind === "dimension"
-          ? "Dimension Detail"
-          : t("taskDetails");
-
-  const renderDirectorRail = () => (
-    <aside
-      aria-label={t("interventionRailAria")}
-      className="sticky top-4 flex flex-col gap-4 self-stretch border bg-card p-5 max-lg:static"
-      id="intervention-rail"
-    >
-      <div>
-        <p className={eyebrow}>{t("humanReviewNeeded")}</p>
-        <h3 className={sectionTitle}>{t("directorReviewRail")}</h3>
-      </div>
-      <p className={sectionCopy}>{t("humanAttention")}</p>
-      <ul
-        aria-label={t("directorCheckpoints")}
-        className="m-0 grid list-none gap-2 p-0"
-      >
-        <li>{t("baselineReview")}</li>
-        <li>{t("writeIntentReview")}</li>
-        <li>{t("dependencyPressure")}</li>
-        <li>{t("evaluationSignals")}</li>
-        <li>{t("rejectedFeedback")}</li>
-        <li>{t("taskIntakeLower")}</li>
-      </ul>
-    </aside>
-  );
+        : route.kind === "project"
+          ? "Project Detail"
+          : route.kind === "dimension"
+            ? "Dimension Detail"
+            : t("taskDetails");
 
   const renderContent = () => {
     if (route.kind === "task") {
@@ -261,6 +251,21 @@ export const DashboardPage = () => {
           scope="Project Register"
         >
           <ProjectRegisterPage />
+        </DashboardPanelBoundary>
+      );
+    }
+
+    if (route.kind === "project") {
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind, route.projectId, dashboardQuery.data]}
+          scope="Project Detail"
+        >
+          <ProjectDetailPage
+            dashboard={dashboardQuery.data}
+            projectId={route.projectId}
+          />
         </DashboardPanelBoundary>
       );
     }
@@ -327,45 +332,23 @@ export const DashboardPage = () => {
         ) : null}
 
         {dashboardQuery.isSuccess && hasDashboardData ? (
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.28fr)]">
-            <div className="min-w-0">
-              <DashboardPanelBoundary
-                onRetry={handleRefresh}
-                resetKeys={[dashboardQuery.data.dimensionReports]}
-                scope="AIM Dimension Report"
-              >
-                <AimDimensionReportSection
-                  dimensionReports={dashboardQuery.data.dimensionReports}
-                  onSelectDimension={goToDimension}
-                />
-              </DashboardPanelBoundary>
-              <DashboardPanelBoundary
-                onRetry={handleRefresh}
-                resetKeys={[dashboardQuery.data]}
-                scope="Dashboard Overview"
-              >
-                <OverviewSection
-                  dashboard={dashboardQuery.data}
-                  onSelectTask={goToTask}
-                />
-              </DashboardPanelBoundary>
-              <DashboardPanelBoundary
-                onRetry={handleRefresh}
-                resetKeys={[dashboardQuery.data.tasks]}
-                scope="Task Table"
-              >
-                <TaskTableSection
-                  onSelectTask={goToTask}
-                  tasks={dashboardQuery.data.tasks}
-                />
-              </DashboardPanelBoundary>
-            </div>
+          <div className="grid items-start gap-4">
             <DashboardPanelBoundary
               onRetry={handleRefresh}
-              resetKeys={[route.kind]}
-              scope="Intervention Rail"
+              resetKeys={[dashboardQuery.data]}
+              scope="Dashboard Overview"
             >
-              {renderDirectorRail()}
+              <OverviewSection dashboard={dashboardQuery.data} />
+            </DashboardPanelBoundary>
+            <DashboardPanelBoundary
+              onRetry={handleRefresh}
+              resetKeys={[dashboardQuery.data.dimensionReports]}
+              scope="AIM Dimension Report"
+            >
+              <AimDimensionReportSection
+                dimensionReports={dashboardQuery.data.dimensionReports}
+                onSelectDimension={goToDimension}
+              />
             </DashboardPanelBoundary>
           </div>
         ) : null}
@@ -471,39 +454,19 @@ export const DashboardPage = () => {
                     aria-label={t("directorWorkspace")}
                     className="mt-1 flex flex-wrap gap-2"
                   >
-                    {renderWorkspaceLink(
-                      "#aim-dimension-report",
-                      t("aimDimensionReport"),
-                    )}
-                    {renderWorkspaceLink(
-                      "#convergence-map",
-                      t("baselineConvergenceMap"),
-                    )}
-                    {renderWorkspaceLink(
-                      "#evidence-ledger",
-                      t("evidenceLedger"),
-                    )}
-                    {renderWorkspaceLink(
-                      "#intervention-rail",
-                      t("interventionRail"),
-                    )}
+                    {renderWorkspaceLink("#/projects", "Projects")}
+                    {renderWorkspaceLink("#aim-dimension-report", "Dimensions")}
                   </nav>
                 ) : null}
                 <nav aria-label="AIM sections" className={actionGroup}>
                   {renderNavAction(
                     route.kind === "dashboard",
                     false,
-                    t("baselineReview"),
+                    "Dashboard",
                     goToDashboard,
                   )}
                   {renderNavAction(
-                    route.kind === "dashboard",
-                    false,
-                    t("interventionQueue"),
-                    goToDashboard,
-                  )}
-                  {renderNavAction(
-                    route.kind === "projects",
+                    route.kind === "projects" || route.kind === "project",
                     false,
                     "Projects",
                     goToProjects,

@@ -193,6 +193,7 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   title: task.title,
   taskSpec: task.task_spec,
   result: task.result,
+  projectId: task.project_id,
   projectPath: task.project_path,
   contractStatus: task.status,
   dashboardStatus: toDashboardStatus(task.status),
@@ -255,24 +256,29 @@ export const adaptTaskDashboard = (
   return {
     dimensionReports,
     historyTasks,
+    projects: response.projects.items,
     rejectedFeedbackSignals,
     tasks,
     summaryCards: [
-      { key: "pool", label: "Task Pool", value: tasks.length },
       {
-        key: "processing",
-        label: "Processing",
-        value: processingCount,
+        key: "projects",
+        label: "Projects",
+        value: `${response.projects.items.length} project paths`,
       },
       {
-        key: "historyResolved",
-        label: "History Resolved",
-        value: resolvedCount,
+        key: "dimensions",
+        label: "Dimensions",
+        value: `${dimensionReports.length} dimensions`,
       },
       {
-        key: "historyRejected",
-        label: "History Rejected",
-        value: rejectedCount,
+        key: "active",
+        label: "Active Tasks",
+        value: `${tasks.length} active`,
+      },
+      {
+        key: "completed",
+        label: "Completed Tasks",
+        value: `${historyTasks.length} completed`,
       },
     ],
     decisionSignals: [

@@ -84,7 +84,8 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
     [
       "dashboard-page.tsx",
       "overview-section.tsx",
-      "task-table-section.tsx",
+      "project-detail-page.tsx",
+      "project-register-page.tsx",
       "server-base-url-form.tsx",
       "task-details-page.tsx",
       "task-status-badge.tsx",
@@ -100,7 +101,6 @@ test("keeps dashboard pages on shared Shadcn-style UI primitives", async () => {
   expect(combinedPageSource).toContain("components/ui/card.js");
   expect(combinedPageSource).toContain("components/ui/field.js");
   expect(combinedPageSource).toContain("components/ui/input.js");
-  expect(combinedPageSource).toContain("components/ui/select.js");
   expect(combinedPageSource).not.toContain('className="field-input"');
   expect(combinedPageSource).not.toContain('className="surface-card');
   expect(combinedPageSource).not.toContain('className="aim-field"');
@@ -298,7 +298,7 @@ test("keeps dashboard refresh actions behind a shared handler", async () => {
   );
 });
 
-test("shares branded dashboard shell tokens across overview and table", async () => {
+test("shares branded dashboard shell tokens across overview and project detail", async () => {
   const { readFile } = await import("node:fs/promises");
   const mainSource = await readFile(
     `${process.cwd()}/modules/web/src/main.tsx`,
@@ -316,8 +316,8 @@ test("shares branded dashboard shell tokens across overview and table", async ()
     `${process.cwd()}/modules/web/src/features/task-dashboard/components/overview-section.tsx`,
     "utf8",
   );
-  const tableSource = await readFile(
-    `${process.cwd()}/modules/web/src/features/task-dashboard/components/task-table-section.tsx`,
+  const projectDetailSource = await readFile(
+    `${process.cwd()}/modules/web/src/features/task-dashboard/components/project-detail-page.tsx`,
     "utf8",
   );
 
@@ -330,7 +330,7 @@ test("shares branded dashboard shell tokens across overview and table", async ()
   expect(dashboardPageSource).toContain("ThemeToggle");
   expect(dashboardPageSource).toContain('data-testid="dashboard-shell"');
   expect(overviewSource).toContain("grid gap-3 sm:grid-cols-2 xl:grid-cols-4");
-  expect(overviewSource).toContain("Recent Active Tasks");
-  expect(tableSource).toContain("w-full border-collapse text-left");
-  expect(tableSource).toContain('data-testid="dashboard-table-header"');
+  expect(overviewSource).toContain("Project Health");
+  expect(projectDetailSource).toContain("Project Dimensions");
+  expect(projectDetailSource).toContain("Dependency Pressure");
 });
