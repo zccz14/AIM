@@ -1,4 +1,3 @@
-import type { OptimizerStatusResponse } from "@aim-ai/contract";
 import { AlertCircle, LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -17,15 +16,9 @@ import {
 } from "../../../components/ui/empty.js";
 import { LanguageToggle } from "../../../components/ui/language-toggle.js";
 import { Skeleton } from "../../../components/ui/skeleton.js";
-import { Switch } from "../../../components/ui/switch.js";
 import { ThemeToggle } from "../../../components/ui/theme-toggle.js";
 import { useI18n } from "../../../lib/i18n.js";
 import { cn } from "../../../lib/utils.js";
-import {
-  getOptimizerStatus,
-  startOptimizer,
-  stopOptimizer,
-} from "../api/task-dashboard-api.js";
 import { getTaskDashboardErrorMessage } from "../queries.js";
 import { useTaskDashboardQuery } from "../use-task-dashboard-query.js";
 import { AimDimensionReportSection } from "./aim-dimension-report-section.js";
@@ -120,9 +113,6 @@ export const DashboardPage = () => {
   const { t } = useI18n();
   const dashboardQuery = useTaskDashboardQuery();
   const [pathname, setPathname] = useState(getCurrentPath);
-  const [optimizerStatus, setOptimizerStatus] =
-    useState<OptimizerStatusResponse | null>(null);
-  const [isOptimizerChanging, setIsOptimizerChanging] = useState(false);
   const route = useMemo(() => getDashboardRoute(pathname), [pathname]);
   const selectedTaskId = route.kind === "task" ? route.taskId : null;
   const selectedTask =
@@ -143,8 +133,6 @@ export const DashboardPage = () => {
       dashboardQuery.data.historyTasks.length > 0 ||
       dashboardQuery.data.dimensionReports.length > 0 ||
       dashboardQuery.data.projects.length > 0);
-  const optimizerRunning = optimizerStatus?.running ?? false;
-
   useEffect(() => {
     const handleHashChange = () => setPathname(getCurrentPath());
 
@@ -162,47 +150,8 @@ export const DashboardPage = () => {
     }
   }, [pathname]);
 
-  useEffect(() => {
-    let isActive = true;
-
-    void getOptimizerStatus()
-      .then((status) => {
-        if (isActive) {
-          setOptimizerStatus(status);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
   const handleRefresh = async () => {
-    const [, status] = await Promise.all([
-      dashboardQuery.refetch(),
-      getOptimizerStatus().catch(() => null),
-    ]);
-
-    if (status) {
-      setOptimizerStatus(status);
-    }
-  };
-
-  const handleOptimizerToggle = async () => {
-    setIsOptimizerChanging(true);
-
-    try {
-      const status = optimizerRunning
-        ? await stopOptimizer()
-        : await startOptimizer();
-
-      setOptimizerStatus(status);
-    } catch {
-      return;
-    } finally {
-      setIsOptimizerChanging(false);
-    }
+    await dashboardQuery.refetch();
   };
 
   const goToDashboard = () => {
@@ -372,10 +321,6 @@ export const DashboardPage = () => {
       <a href={href}>{label}</a>
     </Button>
   );
-  const optimizerStatusTitle = optimizerStatus
-    ? `${t("triggers")}: ${optimizerStatus.enabled_triggers.join(", ") || t("none")}; ${t("lastEvent")}: ${optimizerStatus.last_event?.type ?? t("none")}`
-    : t("optimizerStatusNotLoaded");
-
   return (
     <div className="min-h-screen p-4 md:p-5">
       <div
@@ -404,18 +349,6 @@ export const DashboardPage = () => {
               >
                 <LanguageToggle />
                 <ThemeToggle />
-                <div
-                  className="inline-flex min-h-9 cursor-pointer items-center gap-2 border bg-background px-3 text-xs font-medium has-[[data-slot=switch]:disabled]:cursor-not-allowed has-[[data-slot=switch]:disabled]:opacity-50"
-                  title={optimizerStatusTitle}
-                >
-                  <Switch
-                    aria-label={t("aimOptimizer")}
-                    checked={optimizerRunning}
-                    disabled={isOptimizerChanging}
-                    onCheckedChange={() => void handleOptimizerToggle()}
-                  />
-                  <span>{t("aimOptimizer")}</span>
-                </div>
                 <Button
                   disabled={dashboardQuery.isFetching}
                   onClick={() => void handleRefresh()}

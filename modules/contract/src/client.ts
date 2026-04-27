@@ -6,7 +6,6 @@ import {
   deleteProjectById,
   deleteTaskById,
   getHealth,
-  getOptimizerStatus,
   getTaskById,
   listOpenCodeModels,
   listProjects,
@@ -15,8 +14,6 @@ import {
   patchTaskById,
   rejectTaskById,
   resolveTaskById,
-  startOptimizer,
-  stopOptimizer,
 } from "../generated/client.js";
 import type {
   CreateProjectError,
@@ -33,7 +30,6 @@ import type {
   ErrorResponse,
   GetHealthError,
   GetHealthResponse,
-  GetOptimizerStatusResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
   HealthError,
@@ -41,7 +37,6 @@ import type {
   ListTasksError,
   ListTasksResponse,
   OpenCodeModelsResponse,
-  OptimizerStatusResponse,
   PatchProjectByIdError,
   PatchProjectByIdResponse,
   PatchProjectRequest,
@@ -52,8 +47,6 @@ import type {
   ProjectListResponse,
   RejectTaskByIdError,
   ResolveTaskByIdError,
-  StartOptimizerResponse,
-  StopOptimizerResponse,
   Task,
   TaskBatchResponse,
   TaskListResponse,
@@ -88,9 +81,6 @@ export class ContractClientError extends Error {
 export type ContractClient = {
   getHealth(): Promise<HealthResponse>;
   listOpenCodeModels(): Promise<OpenCodeModelsResponse>;
-  getOptimizerStatus(): Promise<OptimizerStatusResponse>;
-  startOptimizer(): Promise<OptimizerStatusResponse>;
-  stopOptimizer(): Promise<OptimizerStatusResponse>;
   listTasks(query?: {
     status?: Task["status"];
     done?: boolean;
@@ -122,7 +112,6 @@ const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskBatchResponseSchema = schemas.TaskBatchResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
-const optimizerStatusResponseSchema = schemas.OptimizerStatusResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
 const toForwardedRequestBody = async (request: Request) => {
@@ -333,45 +322,6 @@ export const createContractClient = ({
       return opencodeModelsResponseSchema.parse(
         result.data,
       ) satisfies OpenCodeModelsResponse;
-    },
-
-    async getOptimizerStatus() {
-      const result = await getOptimizerStatus({
-        client,
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      return optimizerStatusResponseSchema.parse(
-        result.data,
-      ) satisfies GetOptimizerStatusResponse;
-    },
-
-    async startOptimizer() {
-      const result = await startOptimizer({
-        client,
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      return optimizerStatusResponseSchema.parse(
-        result.data,
-      ) satisfies StartOptimizerResponse;
-    },
-
-    async stopOptimizer() {
-      const result = await stopOptimizer({
-        client,
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      return optimizerStatusResponseSchema.parse(
-        result.data,
-      ) satisfies StopOptimizerResponse;
     },
 
     async createTaskBatch(input) {

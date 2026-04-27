@@ -74,36 +74,6 @@ const PatchProjectRequest = z
   })
   .partial()
   .strict();
-const OptimizerTrigger = z.literal("task_resolved");
-const OptimizerEventStatus = z
-  .object({
-    task_id: z.string().min(1),
-    triggered_scan: z.boolean(),
-    type: OptimizerTrigger,
-  })
-  .strict();
-const OptimizerLaneStatus = z
-  .object({
-    last_error: z.union([z.string(), z.null()]),
-    last_scan_at: z.union([z.string(), z.null()]),
-    running: z.boolean(),
-  })
-  .strict();
-const OptimizerStatusResponse = z
-  .object({
-    enabled_triggers: z.array(OptimizerTrigger),
-    last_event: z.union([OptimizerEventStatus, z.null()]),
-    last_scan_at: z.union([z.string(), z.null()]),
-    lanes: z
-      .object({
-        manager_evaluation: OptimizerLaneStatus,
-        coordinator_task_pool: OptimizerLaneStatus,
-        developer_follow_up: OptimizerLaneStatus,
-      })
-      .strict(),
-    running: z.boolean(),
-  })
-  .strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -267,10 +237,6 @@ export const schemas = {
   Project,
   ProjectListResponse,
   PatchProjectRequest,
-  OptimizerTrigger,
-  OptimizerEventStatus,
-  OptimizerLaneStatus,
-  OptimizerStatusResponse,
   CreateTaskRequest,
   Task,
   TaskListResponse,
