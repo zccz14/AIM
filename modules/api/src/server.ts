@@ -33,7 +33,7 @@ Maintain the AIM Task Pool from dimensions, dimension_evaluations, latest baseli
 
 Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
 
-Write Task Pool operations through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass POST /tasks/batch approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks.`;
+Write Task Pool operations through AIM API Server using the available AIM API contracts, and record rejection feedback when a Task is not actionable. Do not bypass POST /tasks/batch approval or independent Task Spec validation by turning Manager evaluation gaps directly into Tasks. Persist Task Spec validation evidence in each create operation's source_metadata, including validation source, validation time or session, conclusion summary, and dimension_evaluation/source gap. If validation fails or waits on assumptions, do not call POST /tasks/batch; feed the failed validation reason back into Coordinator planning. Delete-only batches do not require Task Spec validation. Generic optimizer-loop placeholders are not validation evidence.`;
 const createMissingProjectLane = () => ({
   [Symbol.asyncDispose]() {
     return Promise.resolve();

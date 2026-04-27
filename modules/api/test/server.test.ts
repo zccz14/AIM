@@ -632,6 +632,18 @@ describe("server startup", () => {
     expect(coordinatorLaneConfig?.prompt).toContain(
       "Do not bypass POST /tasks/batch approval or independent Task Spec validation",
     );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Persist Task Spec validation evidence in each create operation's source_metadata",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "If validation fails or waits on assumptions, do not call POST /tasks/batch",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Delete-only batches do not require Task Spec validation",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Generic optimizer-loop placeholders are not validation evidence",
+    );
     expect(coordinatorLaneConfig?.prompt).toMatch(
       /Developer lane[\s\S]*actionable Tasks/i,
     );
