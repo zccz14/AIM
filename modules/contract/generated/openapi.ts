@@ -1573,6 +1573,7 @@ export const openApiDocument = {
           "value",
           "reason",
           "continue_prompt",
+          "stale",
           "created_at",
           "updated_at",
         ],
@@ -1592,6 +1593,12 @@ export const openApiDocument = {
           },
           continue_prompt: {
             type: ["string", "null"],
+          },
+          stale: {
+            type: "boolean",
+            description:
+              "True when the session is still pending and older than the configured stale threshold.",
+            readOnly: true,
           },
           created_at: {
             type: "string",

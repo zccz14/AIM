@@ -50,6 +50,7 @@ const OpenCodeSession = z
     value: z.union([z.string(), z.null()]),
     reason: z.union([z.string(), z.null()]),
     continue_prompt: z.union([z.string(), z.null()]),
+    stale: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
