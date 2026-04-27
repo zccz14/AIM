@@ -43,6 +43,97 @@ afterEach(async () => {
 });
 
 describe("task scheduler", () => {
+  it("logs scan start, empty success, and next tick context for scheduler visibility", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const scheduler = createTaskScheduler({
+      coordinator: createCoordinator(),
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await scheduler.scanOnce({ resolvedTaskId: "task-resolved" });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "task_scheduler_scan_started",
+        resolved_task_id: "task-resolved",
+      }),
+      "Task scheduler scan started",
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "task_scheduler_scan_succeeded",
+        next_scan_after_ms: null,
+        processed_task_count: 0,
+        task_count: 0,
+      }),
+      "Task scheduler scan succeeded",
+    );
+
+    scheduler.start({ intervalMs: 60_000 });
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "task_scheduler_sleeping_until_next_tick",
+          interval_ms: 60_000,
+          next_scan_after_ms: 60_000,
+        }),
+        "Task scheduler waiting for next tick",
+      );
+    });
+
+    await scheduler[Symbol.asyncDispose]();
+    vi.useRealTimers();
+  });
+
+  it("logs why a task is skipped with task and project context", async () => {
+    const task = createTask({
+      dependencies: ["task-dependency"],
+      session_id: "session-1",
+      status: "processing",
+    });
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const coordinator = createCoordinator();
+    coordinator.getSessionState.mockResolvedValue("running");
+    const scheduler = createTaskScheduler({
+      coordinator,
+      logger,
+      taskRepository: {
+        assignSessionIfUnassigned: vi.fn(),
+        listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
+      },
+    });
+
+    await scheduler.scanOnce();
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dependency_count: 1,
+        event: "task_scheduler_task_skipped",
+        project_id: task.project_id,
+        reason: "session_not_idle",
+        session_id: "session-1",
+        session_state: "running",
+        status: "processing",
+        task_id: task.task_id,
+      }),
+      "Task scheduler skipped task",
+    );
+  });
+
   it("stops a sleeping scheduler loop when an await using scope exits", async () => {
     vi.useFakeTimers();
     const repository = {
@@ -175,7 +266,9 @@ describe("task scheduler", () => {
 
     expect(coordinator.getSessionState).not.toHaveBeenCalled();
     expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
-    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_session_bound" }),
+    );
   });
 
   it("creates and binds a session for an unbound unfinished task, then continues if idle", async () => {
@@ -399,7 +492,6 @@ describe("task scheduler", () => {
       }),
       expect.stringContaining(firstTask.task_id),
     );
-    expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
       project_id: secondTask.project_id,
@@ -639,7 +731,6 @@ describe("task scheduler", () => {
       expect.stringContaining(latestSnapshot.task_id),
       latestSnapshot,
     );
-    expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith({
       event: "task_session_continued",
       project_id: latestSnapshot.project_id,
@@ -832,7 +923,12 @@ describe("task scheduler", () => {
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(listUnfinishedTasks).toHaveBeenCalledTimes(2);
-    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_session_bound" }),
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "task_session_continued" }),
+    );
     await scheduler[Symbol.asyncDispose]();
     vi.useRealTimers();
   });

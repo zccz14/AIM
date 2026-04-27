@@ -115,6 +115,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     logger.error(
       {
         err: error,
+        event: "task_scheduler_scan_failed",
       },
       "Task scheduler failed while scanning unfinished tasks",
     );
@@ -156,7 +157,18 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         if (!assignedTask?.session_id) {
           await createdSession[Symbol.asyncDispose]();
           createdSession = null;
-          return;
+          logger.info(
+            {
+              dependency_count: latestTask.dependencies.length,
+              event: "task_scheduler_task_skipped",
+              project_id: latestTask.project_id,
+              reason: "session_assignment_missing",
+              status: latestTask.status,
+              task_id: latestTask.task_id,
+            },
+            "Task scheduler skipped task",
+          );
+          return false;
         }
 
         latestTask = assignedTask;
@@ -174,7 +186,20 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       const sessionId = latestTask.session_id;
 
       if (!sessionId || latestTask.done) {
-        return;
+        logger.info(
+          {
+            dependency_count: latestTask.dependencies.length,
+            done: latestTask.done,
+            event: "task_scheduler_task_skipped",
+            project_id: latestTask.project_id,
+            reason: latestTask.done ? "task_done" : "session_missing",
+            session_id: sessionId ?? null,
+            status: latestTask.status,
+            task_id: latestTask.task_id,
+          },
+          "Task scheduler skipped task",
+        );
+        return false;
       }
 
       const sessionState = await options.coordinator.getSessionState(
@@ -187,7 +212,20 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       }
 
       if (sessionState !== "idle") {
-        return;
+        logger.info(
+          {
+            dependency_count: latestTask.dependencies.length,
+            event: "task_scheduler_task_skipped",
+            project_id: latestTask.project_id,
+            reason: "session_not_idle",
+            session_id: sessionId,
+            session_state: sessionState,
+            status: latestTask.status,
+            task_id: latestTask.task_id,
+          },
+          "Task scheduler skipped task",
+        );
+        return false;
       }
 
       await options.coordinator.sendContinuePrompt(
@@ -197,13 +235,18 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       );
 
       logger.info(buildTaskLogFields("task_session_continued", latestTask));
+      return true;
     } catch (error) {
       if (createdSession) {
         try {
           await createdSession[Symbol.asyncDispose]();
         } catch (disposeError) {
           logger.error(
-            { err: disposeError, taskId: task.task_id },
+            {
+              err: disposeError,
+              event: "task_scheduler_task_session_release_failed",
+              taskId: task.task_id,
+            },
             `Task scheduler failed while releasing task session ${task.task_id}`,
           );
         }
@@ -212,10 +255,14 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       logger.error(
         {
           err: error,
+          event: "task_scheduler_task_failed",
+          project_id: task.project_id,
+          status: task.status,
           taskId: task.task_id,
         },
         `Task scheduler failed while processing task ${task.task_id}`,
       );
+      return false;
     }
   };
 
@@ -225,15 +272,46 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
     }
 
     scanPromise = (async () => {
+      logger.info(
+        {
+          event: "task_scheduler_scan_started",
+          resolved_task_id: context?.resolvedTaskId ?? null,
+        },
+        "Task scheduler scan started",
+      );
       const tasks = await options.taskRepository.listUnfinishedTasks();
+      let processedTaskCount = 0;
 
       if (tasks.length === 0) {
+        logger.info(
+          {
+            event: "task_scheduler_scan_succeeded",
+            next_scan_after_ms: null,
+            processed_task_count: processedTaskCount,
+            resolved_task_id: context?.resolvedTaskId ?? null,
+            task_count: tasks.length,
+          },
+          "Task scheduler scan succeeded",
+        );
         return;
       }
 
       for (const task of prioritizeSessionTasks(tasks, context)) {
-        await runTask(task);
+        if (await runTask(task)) {
+          processedTaskCount += 1;
+        }
       }
+
+      logger.info(
+        {
+          event: "task_scheduler_scan_succeeded",
+          next_scan_after_ms: null,
+          processed_task_count: processedTaskCount,
+          resolved_task_id: context?.resolvedTaskId ?? null,
+          task_count: tasks.length,
+        },
+        "Task scheduler scan succeeded",
+      );
     })().finally(() => {
       scanPromise = null;
     });
@@ -279,6 +357,14 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
             break;
           }
 
+          logger.info(
+            {
+              event: "task_scheduler_sleeping_until_next_tick",
+              interval_ms: startOptions.intervalMs,
+              next_scan_after_ms: startOptions.intervalMs,
+            },
+            "Task scheduler waiting for next tick",
+          );
           await sleep(startOptions.intervalMs);
         }
       })().finally(() => {

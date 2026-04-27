@@ -28,6 +28,84 @@ afterEach(() => {
 });
 
 describe("agent session lane", () => {
+  it("logs scan start, success, skipped overlap, and next tick context", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    let releaseCreate: (() => void) | undefined;
+    const coordinator = {
+      createSession: vi.fn(
+        () =>
+          new Promise<ReturnType<typeof createSession>>((resolve) => {
+            releaseCreate = () => resolve(createSession());
+          }),
+      ),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      coordinator,
+      logger,
+      projectDirectory: "/repo/project-a",
+    });
+
+    const firstScan = lane.scanOnce();
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "optimizer_lane_scan_started",
+          lane: "manager_evaluation",
+          project_directory: "/repo/project-a",
+        }),
+        "Optimizer lane scan started",
+      );
+    });
+
+    const overlappingScan = lane.scanOnce();
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "optimizer_lane_scan_skipped",
+        lane: "manager_evaluation",
+        reason: "scan_in_progress",
+      }),
+      "Optimizer lane scan skipped",
+    );
+
+    releaseCreate?.();
+    await Promise.all([firstScan, overlappingScan]);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "optimizer_lane_scan_succeeded",
+        lane: "manager_evaluation",
+        next_scan_after_ms: null,
+        session_id: "session-1",
+      }),
+      "Optimizer lane scan succeeded",
+    );
+
+    lane.start({ intervalMs: 60_000 });
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "optimizer_lane_sleeping_until_next_tick",
+          interval_ms: 60_000,
+          lane: "manager_evaluation",
+          next_scan_after_ms: 60_000,
+        }),
+        "Optimizer lane waiting for next tick",
+      );
+    });
+
+    await lane[Symbol.asyncDispose]();
+    vi.useRealTimers();
+  });
+
   it("does not expose a public stop lifecycle method", () => {
     const lane = createLane();
 
