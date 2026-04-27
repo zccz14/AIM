@@ -45,7 +45,7 @@ const ErrorResponse = z
 const CreateProjectRequest = z
   .object({
     name: z.string().min(1),
-    project_path: z.string().min(1),
+    git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
   })
@@ -54,7 +54,7 @@ const Project = z
   .object({
     id: z.string().uuid(),
     name: z.string().min(1),
-    project_path: z.string().min(1),
+    git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -65,7 +65,7 @@ const ProjectListResponse = z.object({ items: z.array(Project) }).strict();
 const PatchProjectRequest = z
   .object({
     name: z.string().min(1),
-    project_path: z.string().min(1),
+    git_origin_url: z.string().min(1),
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
   })
@@ -120,7 +120,7 @@ const Task = z
     task_spec: z.string().min(1),
     title: z.string().min(1),
     project_id: z.string().uuid(),
-    project_path: z.string().min(1),
+    git_origin_url: z.string().min(1),
     developer_provider_id: z.string().min(1),
     developer_model_id: z.string().min(1),
     result: z.string(),
@@ -191,7 +191,7 @@ const TaskBatchOperation = z.discriminatedUnion("type", [
 ]);
 const CreateTaskBatchRequest = z
   .object({
-    project_path: z.string().min(1),
+    project_id: z.string().uuid(),
     operations: z.array(TaskBatchOperation).min(1),
   })
   .strict();
@@ -203,7 +203,7 @@ const TaskBatchResponse = z
   .strict();
 const CreateDimensionRequest = z
   .object({
-    project_path: z.string().min(1),
+    project_id: z.string().uuid(),
     name: z.string().min(1),
     goal: z.string().min(1),
     evaluation_method: z.string().min(1),
@@ -212,7 +212,7 @@ const CreateDimensionRequest = z
 const Dimension = z
   .object({
     id: z.string().min(1),
-    project_path: z.string().min(1),
+    project_id: z.string().uuid(),
     name: z.string().min(1),
     goal: z.string().min(1),
     evaluation_method: z.string().min(1),
@@ -233,7 +233,7 @@ const DimensionEvaluation = z
   .object({
     id: z.string().min(1),
     dimension_id: z.string().min(1),
-    project_path: z.string().min(1),
+    project_id: z.string().uuid(),
     commit_sha: z.string().min(1),
     evaluator_model: z.string().min(1),
     score: z.number().int().gte(0).lte(100),
@@ -246,7 +246,7 @@ const DimensionEvaluationListResponse = z
   .strict();
 const CreateDimensionEvaluationRequest = z
   .object({
-    project_path: z.string().min(1),
+    project_id: z.string().uuid(),
     commit_sha: z.string().min(1),
     evaluator_model: z.string().min(1),
     score: z.number().int().gte(0).lte(100),

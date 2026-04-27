@@ -17,7 +17,8 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
-  project_path: "/repo",
+  git_origin_url: "https://github.com/example/repo.git",
+  project_id: "00000000-0000-4000-8000-000000000001",
   pull_request_url: null,
   session_id: null,
   status: "processing",
@@ -135,7 +136,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1", "/repo"),
+      coordinator.getSessionState("session-1", createTask()),
     ).resolves.toBe("idle");
   });
 
@@ -147,7 +148,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1", "/repo"),
+      coordinator.getSessionState("session-1", createTask()),
     ).resolves.toBe("running");
   });
 
@@ -160,7 +161,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1", "/repo"),
+      coordinator.getSessionState("session-1", createTask()),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during getSessionState",
@@ -178,7 +179,7 @@ describe("task session coordinator", () => {
     });
 
     await expect(
-      coordinator.getSessionState("session-1", "/repo"),
+      coordinator.getSessionState("session-1", createTask()),
     ).rejects.toMatchObject({
       cause: adapterError,
       message: "Task session coordinator failed during getSessionState",

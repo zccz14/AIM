@@ -12,7 +12,7 @@ import { createWebApiClient } from "../../../lib/api-client.js";
 
 export type ProjectFormInput = {
   name: string;
-  projectPath: string;
+  gitOriginUrl: string;
   globalProviderId: string;
   globalModelId: string;
 };
@@ -25,10 +25,10 @@ export type TaskDashboardResponse = {
   projects: ProjectListResponse;
 };
 
-const getProjectPaths = (responses: TaskListResponse[]) => [
+const getProjectIds = (responses: TaskListResponse[]) => [
   ...new Set(
     responses.flatMap((response) =>
-      response.items.map((task) => task.project_path).filter(Boolean),
+      response.items.map((task) => task.project_id).filter(Boolean),
     ),
   ),
 ];
@@ -41,10 +41,10 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     client.listTasks({ done: true }),
     client.listProjects(),
   ]);
-  const projectPaths = getProjectPaths([active, history]);
+  const projectIds = getProjectIds([active, history]);
   const dimensionResponses = await Promise.all(
-    projectPaths.map((projectPath) =>
-      client.listDimensions({ project_path: projectPath }),
+    projectIds.map((projectId) =>
+      client.listDimensions({ project_id: projectId }),
     ),
   );
   const dimensions = dimensionResponses.flatMap((response) => response.items);
@@ -81,7 +81,7 @@ export const createProject = async (
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
     name: input.name,
-    project_path: input.projectPath,
+    git_origin_url: input.gitOriginUrl,
   });
 };
 
@@ -95,7 +95,7 @@ export const updateProject = async (
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
     name: input.name,
-    project_path: input.projectPath,
+    git_origin_url: input.gitOriginUrl,
   });
 };
 

@@ -1,12 +1,17 @@
 import type { Task } from "@aim-ai/contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskSessionCoordinatorConfig } from "../src/task-session-coordinator.js";
 
 const mockCreateOpencodeClient = vi.fn();
+const mockEnsureProjectWorkspace = vi.fn();
 
 vi.mock("@opencode-ai/sdk", () => ({
   createOpencodeClient: mockCreateOpencodeClient,
+}));
+
+vi.mock("../src/project-workspace.js", () => ({
+  ensureProjectWorkspace: mockEnsureProjectWorkspace,
 }));
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
@@ -15,7 +20,8 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
-  project_path: "/repo",
+  git_origin_url: "https://github.com/example/repo.git",
+  project_id: "00000000-0000-4000-8000-000000000001",
   pull_request_url: null,
   session_id: null,
   status: "processing",
@@ -73,6 +79,10 @@ describe("opencode sdk adapter", () => {
   afterEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo");
   });
 
   it("creates a session and sends the initial task prompt through the SDK", async () => {
@@ -134,7 +144,7 @@ describe("opencode sdk adapter", () => {
       throwOnError: true,
     });
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
-      "project_path: /repo",
+      "project_id: 00000000-0000-4000-8000-000000000001",
     );
     expect(promptAsync.mock.calls[0]?.[0]?.body.parts[0]?.text).toContain(
       "worktree_path: /repo/.worktrees/task-1",
@@ -183,9 +193,9 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(adapter.getSessionState("session-1", "/repo")).resolves.toBe(
-      "idle",
-    );
+    await expect(
+      adapter.getSessionState("session-1", createTask()),
+    ).resolves.toBe("idle");
     expect(messages).toHaveBeenCalledWith({
       path: { id: "session-1" },
       query: {
@@ -214,9 +224,9 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(adapter.getSessionState("session-1", "/repo")).resolves.toBe(
-      "running",
-    );
+    await expect(
+      adapter.getSessionState("session-1", createTask()),
+    ).resolves.toBe("running");
   });
 
   it("rethrows SDK message fetch failures", async () => {
@@ -237,9 +247,9 @@ describe("opencode sdk adapter", () => {
     );
     const adapter = createOpenCodeSdkAdapter(config);
 
-    await expect(adapter.getSessionState("session-1", "/repo")).rejects.toBe(
-      sdkError,
-    );
+    await expect(
+      adapter.getSessionState("session-1", createTask()),
+    ).rejects.toBe(sdkError);
   });
 
   it("sends continue prompts through the SDK without extra behavior", async () => {

@@ -45,20 +45,16 @@ export const ProjectDetailPage = ({
   }
 
   const activeTasks = dashboard.tasks.filter(
-    (task) =>
-      task.projectId === project.id ||
-      task.projectPath === project.project_path,
+    (task) => task.projectId === project.id || task.projectPath === project.id,
   );
   const completedTasks = dashboard.historyTasks.filter(
-    (task) =>
-      task.projectId === project.id ||
-      task.projectPath === project.project_path,
+    (task) => task.projectId === project.id || task.projectPath === project.id,
   );
   const dependencyLinkedTasks = activeTasks.filter(
     (task) => task.dependencies.length > 0,
   );
   const dimensions = dashboard.dimensionReports.filter(
-    (report) => report.dimension.project_path === project.project_path,
+    (report) => report.dimension.project_id === project.id,
   );
 
   return (
@@ -67,7 +63,7 @@ export const ProjectDetailPage = ({
         <CardHeader className={cardHeader}>
           <p className={eyebrow}>Project Detail</p>
           <CardTitle>{project.name}</CardTitle>
-          <CardDescription>{project.project_path}</CardDescription>
+          <CardDescription>{project.git_origin_url}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <div className={panelStack}>

@@ -29,7 +29,7 @@ export type HealthError = {
 export type Project = {
   readonly id: string;
   name: string;
-  project_path: string;
+  git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
   readonly created_at: string;
@@ -38,14 +38,14 @@ export type Project = {
 
 export type CreateProjectRequest = {
   name: string;
-  project_path: string;
+  git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
 };
 
 export type PatchProjectRequest = {
   name?: string;
-  project_path?: string;
+  git_origin_url?: string;
   global_provider_id?: string;
   global_model_id?: string;
 };
@@ -59,7 +59,7 @@ export type Task = {
   task_spec: string;
   title: string;
   project_id: string;
-  project_path: string;
+  git_origin_url: string;
   developer_provider_id: string;
   developer_model_id: string;
   result: string;
@@ -132,7 +132,7 @@ export type TaskBatchOperation =
     } & DeleteTaskBatchOperation);
 
 export type CreateTaskBatchRequest = {
-  project_path: string;
+  project_id: string;
   operations: Array<TaskBatchOperation>;
 };
 
@@ -167,7 +167,7 @@ export type TaskListResponse = {
 
 export type Dimension = {
   readonly id: string;
-  project_path: string;
+  project_id: string;
   name: string;
   goal: string;
   evaluation_method: string;
@@ -176,7 +176,7 @@ export type Dimension = {
 };
 
 export type CreateDimensionRequest = {
-  project_path: string;
+  project_id: string;
   name: string;
   goal: string;
   evaluation_method: string;
@@ -198,7 +198,7 @@ export type DimensionListResponse = {
 export type DimensionEvaluation = {
   readonly id: string;
   readonly dimension_id: string;
-  project_path: string;
+  project_id: string;
   commit_sha: string;
   evaluator_model: string;
   /**
@@ -210,7 +210,7 @@ export type DimensionEvaluation = {
 };
 
 export type CreateDimensionEvaluationRequest = {
-  project_path: string;
+  project_id: string;
   commit_sha: string;
   evaluator_model: string;
   /**
@@ -284,7 +284,7 @@ export type ErrorResponse = {
 
 export type ProjectWritable = {
   name: string;
-  project_path: string;
+  git_origin_url: string;
   global_provider_id: string;
   global_model_id: string;
 };
@@ -297,7 +297,7 @@ export type TaskWritable = {
   task_spec: string;
   title: string;
   project_id: string;
-  project_path: string;
+  git_origin_url: string;
   developer_provider_id: string;
   developer_model_id: string;
   result: string;
@@ -316,7 +316,7 @@ export type TaskListResponseWritable = {
 };
 
 export type DimensionWritable = {
-  project_path: string;
+  project_id: string;
   name: string;
   goal: string;
   evaluation_method: string;
@@ -330,7 +330,7 @@ export type DimensionListResponseWritable = {
  * Immutable append-only evaluation result for one dimension at one commit by one evaluator model. Score bands: 0-20 缺失, 21-40 初始, 41-60 可用, 61-80 稳定, 81-95 优秀, 96-100 近似完成.
  */
 export type DimensionEvaluationWritable = {
-  project_path: string;
+  project_id: string;
   commit_sha: string;
   evaluator_model: string;
   /**
@@ -354,7 +354,7 @@ export type TaskSessionIdQueryParameter = string;
 
 export type ProjectIdPathParameter = string;
 
-export type ProjectPathQueryParameter = string;
+export type ProjectIdQueryParameter = string;
 
 export type BulkIdPathParameter = string;
 
@@ -953,7 +953,7 @@ export type ListDimensionsData = {
   body?: never;
   path?: never;
   query: {
-    project_path: string;
+    project_id: string;
   };
   url: "/dimensions";
 };

@@ -27,8 +27,8 @@ type TaskRow = {
   dependencies: string;
   done: number;
   pull_request_url: null | string;
+  git_origin_url: string;
   project_id: string;
-  project_path: string;
   result: string;
   session_id: null | string;
   source_metadata: string;
@@ -44,9 +44,9 @@ type ProjectRow = {
   created_at: string;
   global_model_id: string;
   global_provider_id: string;
+  git_origin_url: string;
   id: string;
   name: string;
-  project_path: string;
   updated_at: string;
 };
 
@@ -106,7 +106,7 @@ const requiredColumns = [
 const requiredProjectColumns = [
   { name: "id", notnull: 0, pk: 1, type: "TEXT" },
   { name: "name", notnull: 1, pk: 0, type: "TEXT" },
-  { name: "project_path", notnull: 1, pk: 0, type: "TEXT" },
+  { name: "git_origin_url", notnull: 1, pk: 0, type: "TEXT" },
   { name: "global_provider_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "global_model_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
@@ -122,12 +122,6 @@ const buildProjectConfigurationError = (projectId: string) =>
   new Error(
     `Project ${projectId} is missing global provider/model configuration`,
   );
-
-type LegacyCreateTaskRequest = CreateTaskRequest & {
-  developer_model_id?: string;
-  developer_provider_id?: string;
-  project_path?: string;
-};
 
 const normalizeColumnType = (type: string) => {
   const normalizedType = type.trim().toUpperCase();
@@ -185,7 +179,7 @@ const mapTaskRow = (row: TaskRow) =>
     title: row.title,
     task_spec: row.task_spec,
     project_id: row.project_id,
-    project_path: row.project_path,
+    git_origin_url: row.git_origin_url,
     developer_provider_id: row.developer_provider_id,
     developer_model_id: row.developer_model_id,
     session_id: row.session_id,
@@ -204,7 +198,7 @@ const mapProjectRow = (row: ProjectRow) =>
   projectSchema.parse({
     id: row.id,
     name: row.name,
-    project_path: row.project_path,
+    git_origin_url: row.git_origin_url,
     global_provider_id: row.global_provider_id,
     global_model_id: row.global_model_id,
     created_at: row.created_at,
@@ -357,7 +351,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     SELECT
       id,
       name,
-      project_path,
+      git_origin_url,
       global_provider_id,
       global_model_id,
       created_at,
@@ -365,23 +359,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     FROM ${projectsTableName}
     WHERE id = ?
   `);
-  const getProjectByPathStatement = database.prepare(`
-    SELECT
-      id,
-      name,
-      project_path,
-      global_provider_id,
-      global_model_id,
-      created_at,
-      updated_at
-    FROM ${projectsTableName}
-    WHERE project_path = ?
-  `);
   const listProjectsStatement = database.prepare(`
     SELECT
       id,
       name,
-      project_path,
+      git_origin_url,
       global_provider_id,
       global_model_id,
       created_at,
@@ -393,7 +375,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     INSERT INTO ${projectsTableName} (
       id,
       name,
-      project_path,
+      git_origin_url,
       global_provider_id,
       global_model_id,
       created_at,
@@ -404,7 +386,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     UPDATE ${projectsTableName}
     SET
       name = ?,
-      project_path = ?,
+      git_origin_url = ?,
       global_provider_id = ?,
       global_model_id = ?,
       updated_at = ?
@@ -419,7 +401,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.title,
       tasks.task_spec,
       tasks.project_id,
-      projects.project_path AS project_path,
+      projects.git_origin_url AS git_origin_url,
       tasks.developer_provider_id,
       tasks.developer_model_id,
       tasks.session_id,
@@ -442,7 +424,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.title,
       tasks.task_spec,
       tasks.project_id,
-      projects.project_path AS project_path,
+      projects.git_origin_url AS git_origin_url,
       tasks.developer_provider_id,
       tasks.developer_model_id,
       tasks.session_id,
@@ -502,7 +484,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const project = mapProjectRow({
         id: randomUUID(),
         name: input.name,
-        project_path: input.project_path,
+        git_origin_url: input.git_origin_url,
         global_provider_id: input.global_provider_id,
         global_model_id: input.global_model_id,
         created_at: timestamp,
@@ -512,7 +494,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       insertProjectStatement.run(
         project.id,
         project.name,
-        project.project_path,
+        project.git_origin_url,
         project.global_provider_id,
         project.global_model_id,
         project.created_at,
@@ -542,7 +524,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
       updateProjectStatement.run(
         updatedProject.name,
-        updatedProject.project_path,
+        updatedProject.git_origin_url,
         updatedProject.global_provider_id,
         updatedProject.global_model_id,
         updatedProject.updated_at,
@@ -559,7 +541,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     getFirstProject(): null | ProjectRow {
       const project = database
         .prepare(
-          `SELECT id, name, project_path, global_provider_id, global_model_id, created_at, updated_at FROM ${projectsTableName} ORDER BY created_at ASC, id ASC LIMIT 1`,
+          `SELECT id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at FROM ${projectsTableName} ORDER BY created_at ASC, id ASC LIMIT 1`,
         )
         .get() as ProjectRow | undefined;
 
@@ -568,48 +550,18 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     async createTask(input: CreateTaskRequest): Promise<Task> {
       const timestamp = new Date().toISOString();
       const taskId = randomUUID();
-      const legacyInput = input as LegacyCreateTaskRequest;
-      const projectId = legacyInput.project_id;
+      const projectId = input.project_id;
 
-      if (!projectId && !legacyInput.project_path) {
+      if (!projectId) {
         throw new Error("Task requires project_id");
       }
 
-      let project = projectId
-        ? (getProjectByIdStatement.get(projectId) as ProjectRow | undefined)
-        : undefined;
+      const project = getProjectByIdStatement.get(projectId) as
+        | ProjectRow
+        | undefined;
 
       if (!project) {
-        project = legacyInput.project_path
-          ? (getProjectByPathStatement.get(legacyInput.project_path) as
-              | ProjectRow
-              | undefined)
-          : undefined;
-      }
-
-      if (!project) {
-        if (
-          !legacyInput.project_path ||
-          !legacyInput.developer_provider_id ||
-          !legacyInput.developer_model_id
-        ) {
-          throw new Error(
-            `Project ${projectId ?? legacyInput.project_path} was not found`,
-          );
-        }
-
-        const newProjectId = randomUUID();
-
-        insertProjectStatement.run(
-          newProjectId,
-          legacyInput.project_path,
-          legacyInput.project_path,
-          legacyInput.developer_provider_id,
-          legacyInput.developer_model_id,
-          timestamp,
-          timestamp,
-        );
-        project = getProjectByIdStatement.get(newProjectId) as ProjectRow;
+        throw new Error(`Project ${projectId} was not found`);
       }
 
       if (
@@ -624,7 +576,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         title: input.title,
         task_spec: input.task_spec,
         project_id: project.id,
-        project_path: project.project_path,
+        git_origin_url: project.git_origin_url,
         developer_provider_id: project.global_provider_id,
         developer_model_id: project.global_model_id,
         session_id: input.session_id ?? null,
@@ -663,12 +615,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     async createTaskBatch(
       input: CreateTaskBatchRequest,
     ): Promise<TaskBatchResponse> {
-      const project = getProjectByPathStatement.get(input.project_path) as
+      const project = getProjectByIdStatement.get(input.project_id) as
         | ProjectRow
         | undefined;
 
       if (!project) {
-        throw new Error(`Project path ${input.project_path} was not found`);
+        throw new Error(`Project ${input.project_id} was not found`);
       }
 
       const results: TaskBatchResponse["results"] = [];
@@ -686,7 +638,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               title: operation.task.title,
               task_spec: operation.task.spec,
               project_id: project.id,
-              project_path: project.project_path,
+              git_origin_url: project.git_origin_url,
               developer_provider_id: project.global_provider_id,
               developer_model_id: project.global_model_id,
               session_id: operation.task.session_id ?? null,
@@ -734,8 +686,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
           const task = mapTaskRow(currentTask);
 
-          if (task.project_path !== input.project_path) {
-            throw new Error("Task batch cannot cross project_path");
+          if (task.project_id !== input.project_id) {
+            throw new Error("Task batch cannot cross project_id");
           }
 
           if (task.done || isDoneStatus(task.status)) {
@@ -795,7 +747,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             tasks.title,
             tasks.task_spec,
             tasks.project_id,
-            projects.project_path AS project_path,
+            projects.git_origin_url AS git_origin_url,
             tasks.developer_provider_id,
             tasks.developer_model_id,
             tasks.session_id,

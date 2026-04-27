@@ -608,7 +608,7 @@ describe("contract package baseline", () => {
         task_id: "task-1",
         task_spec: "Ship contract",
         title: "Ship contract",
-        project_path: "/repo",
+        git_origin_url: "https://github.com/example/repo.git",
         result: "complete",
         source_metadata: {},
         session_id: null,
@@ -635,7 +635,7 @@ describe("contract package baseline", () => {
             task_id: "task-1",
             task_spec: "Ship contract",
             title: "Ship contract",
-            project_path: "/repo",
+            git_origin_url: "https://github.com/example/repo.git",
             result: "complete",
             source_metadata: {},
             session_id: null,
@@ -665,7 +665,7 @@ describe("contract package baseline", () => {
         task_id: "task-1",
         task_spec: "Ship contract",
         project_id: mainProjectId,
-        project_path: "/repo",
+        git_origin_url: "https://github.com/example/repo.git",
         source_metadata: {},
         session_id: null,
         worktree_path: null,
@@ -1040,7 +1040,7 @@ describe("contract package baseline", () => {
     });
     expect(
       contractModule.createTaskBatchRequestSchema.parse({
-        project_path: "/repo/main",
+        project_id: mainProjectId,
         operations: [
           {
             type: "create",
@@ -1059,12 +1059,12 @@ describe("contract package baseline", () => {
         ],
       }),
     ).toMatchObject({
-      project_path: "/repo/main",
+      project_id: mainProjectId,
       operations: [{ type: "create" }, { type: "delete" }],
     });
     expect(
       contractModule.createTaskBatchRequestSchema.safeParse({
-        project_path: "/repo/main",
+        project_id: mainProjectId,
         operations: [
           {
             type: "create",
@@ -1273,7 +1273,7 @@ describe("contract package baseline", () => {
     });
   });
 
-  it("requires project_id in task responses and create requests while retaining project_path on responses", async () => {
+  it("requires project_id in task responses and create requests while retaining git_origin_url on responses", async () => {
     const taskSchema = contractModule.openApiDocument.components.schemas
       .Task as {
       properties: Record<string, unknown>;
@@ -1289,10 +1289,10 @@ describe("contract package baseline", () => {
       "utf8",
     );
 
-    expect(taskSchema.required).toContain("project_path");
+    expect(taskSchema.required).toContain("git_origin_url");
     expect(taskSchema.required).toContain("project_id");
     expect(createSchema.required).toContain("project_id");
-    expect(taskSchema.properties.project_path).toEqual({
+    expect(taskSchema.properties.git_origin_url).toEqual({
       minLength: 1,
       type: "string",
     });
@@ -1333,7 +1333,7 @@ describe("contract package baseline", () => {
         updated_at: "2026-04-19T00:00:00.000Z",
       }).success,
     ).toBe(false);
-    expect(generatedTypeDefinitions).toContain("project_path: string;");
+    expect(generatedTypeDefinitions).toContain("git_origin_url: string;");
     expect(generatedTypeDefinitions).toContain("project_id: string;");
     expect(generatedTypeDefinitions).toContain("result: string;");
   });
@@ -1632,7 +1632,7 @@ describe("contract package baseline", () => {
       title: "Write spec",
       task_spec: "write spec",
       project_id: mainProjectId,
-      project_path: "/repo",
+      git_origin_url: "https://github.com/example/repo.git",
       developer_provider_id: "anthropic",
       developer_model_id: "claude-sonnet-4-5",
       result: "",
@@ -1772,7 +1772,7 @@ describe("contract package baseline", () => {
     ).resolves.toMatchObject({
       task_id: "task-1",
       task_spec: "write spec",
-      project_path: "/repo",
+      git_origin_url: "https://github.com/example/repo.git",
       result: "",
       status: "processing",
     });

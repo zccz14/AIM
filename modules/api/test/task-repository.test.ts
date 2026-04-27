@@ -270,6 +270,50 @@ describe("task repository", () => {
     });
   });
 
+  it("persists git_origin_url instead of project_path for project identity", async () => {
+    const projectRoot = await createProjectRoot("stores-project-origin-url");
+    const repository = createTaskRepository({ projectRoot });
+
+    const project = await repository.createProject({
+      git_origin_url: "https://github.com/example/main.git",
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      name: "Main project",
+    });
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const projectColumns = database
+      .prepare("PRAGMA table_info(projects)")
+      .all();
+    const persistedProject = database
+      .prepare("SELECT id, git_origin_url FROM projects WHERE id = ?")
+      .get(project.id);
+    database.close();
+
+    expect(project).toMatchObject({
+      git_origin_url: "https://github.com/example/main.git",
+      name: "Main project",
+    });
+    expect(
+      projectColumns.map((column) => (column as TableInfoRow).name),
+    ).toEqual(
+      expect.arrayContaining([
+        "id",
+        "name",
+        "git_origin_url",
+        "global_provider_id",
+        "global_model_id",
+      ]),
+    );
+    expect(
+      projectColumns.map((column) => (column as TableInfoRow).name),
+    ).not.toContain("project_path");
+    expect(persistedProject).toEqual({
+      git_origin_url: "https://github.com/example/main.git",
+      id: project.id,
+    });
+  });
+
   it("persists task project identity as a project_id foreign key and resolves project_path from projects", async () => {
     const projectRoot = await createProjectRoot("task-project-id-foreign-key");
     const repository = createTaskRepository({ projectRoot });

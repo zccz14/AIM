@@ -33,16 +33,14 @@ export const OverviewSection = ({
   const projectRows = dashboard.projects.map((project) => {
     const activeTasks = dashboard.tasks.filter(
       (task) =>
-        task.projectId === project.id ||
-        task.projectPath === project.project_path,
+        task.projectId === project.id || task.projectPath === project.id,
     );
     const completedTasks = dashboard.historyTasks.filter(
       (task) =>
-        task.projectId === project.id ||
-        task.projectPath === project.project_path,
+        task.projectId === project.id || task.projectPath === project.id,
     );
     const dimensions = dashboard.dimensionReports.filter(
-      (report) => report.dimension.project_path === project.project_path,
+      (report) => report.dimension.project_id === project.id,
     );
 
     return {
@@ -97,7 +95,7 @@ export const OverviewSection = ({
                   >
                     {project.name}
                   </a>
-                  <p className={tableMeta}>{project.project_path}</p>
+                  <p className={tableMeta}>{project.git_origin_url}</p>
                 </div>
                 <p className={tableMeta}>
                   {pluralize(dimensions.length, "dimension")} /{" "}

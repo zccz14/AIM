@@ -15,7 +15,8 @@ AIM Task Context:
 - task_id: ${task.task_id}
 - session_id: ${task.session_id ?? "(not set)"}
 - status: ${task.status}
-- project_path: ${task.project_path}
+- project_id: ${task.project_id}
+- git_origin_url: ${task.git_origin_url}
 - worktree_path: ${task.worktree_path ?? "(not set)"}
 - pull_request_url: ${task.pull_request_url ?? "(not set)"}
 

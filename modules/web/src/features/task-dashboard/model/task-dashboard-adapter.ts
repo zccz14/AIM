@@ -194,7 +194,7 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   taskSpec: task.task_spec,
   result: task.result,
   projectId: task.project_id,
-  projectPath: task.project_path,
+  projectPath: task.project_id,
   contractStatus: task.status,
   dashboardStatus: toDashboardStatus(task.status),
   sessionId: task.session_id,
