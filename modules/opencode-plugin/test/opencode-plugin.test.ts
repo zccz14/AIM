@@ -819,6 +819,15 @@ describe("opencode plugin package baseline", () => {
       "Director",
       "不得直接调用 `POST /tasks` 逐条写入",
       "不得创建澄清类 Developer Task",
+      "未完成 Task 执行产物分类门禁",
+      "`worktree_path = null` 且 `pull_request_url = null`",
+      "允许用更准确的 `create` + `delete` batch 替换",
+      "不得把泛化 optimizer-loop placeholder",
+      "`worktree_path` 已记录且 `pull_request_url = null`",
+      "`pull_request_url` 已记录",
+      "PR-backed 在途工作",
+      "默认保留并进入 `evaluate_existing_tasks` / follow-up 路径",
+      "不得只因新 baseline、Manager 新分数或更优描述就删除、重复创建或替换",
     ]) {
       expect(pluginCoordinatorGuideSkillText).toContain(requiredFragment);
     }
