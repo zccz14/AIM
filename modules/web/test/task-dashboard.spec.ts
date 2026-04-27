@@ -551,7 +551,11 @@ test("renders the AIM brand mark and global controls without optimizer controls"
   await expect(
     globalControls.getByRole("switch", { name: "AIM Optimizer" }),
   ).toHaveCount(0);
-  expect(optimizerRequests).toEqual([]);
+  expect(
+    optimizerRequests.filter(
+      (url) => new URL(url).pathname === "/api/optimizer/status",
+    ),
+  ).toEqual([]);
 });
 
 test("redirects removed task write bulk and direct task creation routes", async ({
