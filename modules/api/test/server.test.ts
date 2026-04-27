@@ -354,6 +354,15 @@ describe("server startup", () => {
     expect(coordinatorLaneConfig?.prompt).toContain(
       "Do not bypass Task Write Bulk approval or independent Task Spec validation",
     );
+    expect(coordinatorLaneConfig?.prompt).toMatch(
+      /Developer lane[\s\S]*actionable Tasks/i,
+    );
+    expect(coordinatorLaneConfig?.prompt).toMatch(
+      /dimensions[\s\S]*dimension_evaluations[\s\S]*planning signal/i,
+    );
+    expect(coordinatorLaneConfig?.prompt).toMatch(
+      /one dimension at a time[\s\S]*dimension source[\s\S]*priority/i,
+    );
   });
 
   it("does not leave the server listening when scheduler startup fails", async () => {

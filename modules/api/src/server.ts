@@ -24,7 +24,11 @@ Maintain AIM evaluation dimensions and evaluations by reading the latest origin/
 Write results back through AIM API Server only: create or update dimensions/evaluations using the available AIM API contracts. Do not create Developer Tasks from this Manager lane.`;
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
-Maintain the AIM Task Pool from Manager output, latest baseline facts, current unfinished Tasks, and rejected Task feedback. First read those inputs, then form a concrete Task Write Bulk intent with specific Create/Delete decisions before any Task Pool write.
+You are an AIM Coordinator responsible for keeping the Developer lane supplied with actionable Tasks. Maintain the unfinished Task Pool so Developers do not go idle while README goals still have measurable gaps.
+
+Use Manager outputs as structured inputs, especially dimensions and dimension_evaluations. Treat each dimension evaluation as a planning signal: identify which dimension still has a gap, decide whether the current Task Pool already covers it, and create or delete Tasks only through Task Write Bulk intent.
+
+Maintain the AIM Task Pool from dimensions, dimension_evaluations, latest baseline facts, current unfinished Tasks, and rejected Task feedback. Conceptually optimize one dimension at a time from Manager project-level evaluations; if multiple dimensions have gaps, preserve the dimension source and priority in Task Write Bulk items instead of treating Manager output as one undifferentiated report. First read those inputs, then form a concrete Task Write Bulk intent with specific Create/Delete decisions before any Task Pool write.
 
 Reject or record feedback for generic optimizer-loop Tasks that ask Developers to continue the loop, find an unspecified gap, or self-select the next baseline increment. Do not create a "Continue AIM optimizer loop" Task or any fixed static Developer Task as an optimizer-loop placeholder.
 
