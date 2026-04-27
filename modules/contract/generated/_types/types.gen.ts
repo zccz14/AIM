@@ -184,6 +184,27 @@ export type TaskDependenciesRequest = {
   dependencies: Array<string>;
 };
 
+export type TaskPullRequestFollowupCategory =
+  | "no_pull_request"
+  | "waiting_checks"
+  | "failed_checks"
+  | "review_blocked"
+  | "merge_conflict"
+  | "auto_merge_unavailable"
+  | "ready_to_merge"
+  | "merged_but_not_resolved"
+  | "closed_abandoned"
+  | "pull_request_unavailable";
+
+export type TaskPullRequestStatusResponse = {
+  category: TaskPullRequestFollowupCategory;
+  summary: string;
+  recovery_action: string;
+  task_status: "processing" | "resolved" | "rejected";
+  task_done: boolean;
+  pull_request_url: string | null;
+};
+
 export type TaskResultRequest = {
   result: string;
 };
@@ -806,6 +827,35 @@ export type PutTaskDependenciesByIdResponses = {
 
 export type PutTaskDependenciesByIdResponse =
   PutTaskDependenciesByIdResponses[keyof PutTaskDependenciesByIdResponses];
+
+export type GetTaskPullRequestStatusByIdData = {
+  body?: never;
+  path: {
+    taskId: string;
+  };
+  query?: never;
+  url: "/tasks/{taskId}/pull_request_status";
+};
+
+export type GetTaskPullRequestStatusByIdErrors = {
+  /**
+   * Task not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetTaskPullRequestStatusByIdError =
+  GetTaskPullRequestStatusByIdErrors[keyof GetTaskPullRequestStatusByIdErrors];
+
+export type GetTaskPullRequestStatusByIdResponses = {
+  /**
+   * Pull request follow-up status and recovery guidance
+   */
+  200: TaskPullRequestStatusResponse;
+};
+
+export type GetTaskPullRequestStatusByIdResponse =
+  GetTaskPullRequestStatusByIdResponses[keyof GetTaskPullRequestStatusByIdResponses];
 
 export type ResolveTaskByIdData = {
   body: TaskResultRequest;
