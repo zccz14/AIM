@@ -319,10 +319,10 @@ export const ProjectRegisterPage = () => {
                   />
                 </Field>
                 <Field data-disabled={isSubmitting}>
-                  <FieldLabel htmlFor="project-path">Git Origin URL</FieldLabel>
+                  <FieldLabel htmlFor="git-origin-url">Git Origin URL</FieldLabel>
                   <Input
                     disabled={isSubmitting}
-                    id="project-path"
+                    id="git-origin-url"
                     onChange={(event) => {
                       const { value } = event.currentTarget;
 
