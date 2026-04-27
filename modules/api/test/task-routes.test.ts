@@ -619,6 +619,232 @@ describe("task routes", () => {
     });
   });
 
+  it("rejects duplicate creates in the same POST /tasks/batch by stable source fields without partial writes", async () => {
+    await useProjectRoot("rejects-same-batch-duplicate-creates");
+
+    const app = createTaskRouteApp();
+    const duplicateTaskId = "11111111-1111-4111-8111-111111111111";
+    const otherDuplicateTaskId = "22222222-2222-4222-8222-222222222222";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: duplicateTaskId,
+              title: "Close evaluation gap",
+              spec: "first plan",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+              },
+            },
+          },
+          {
+            type: "create",
+            task: {
+              task_id: otherDuplicateTaskId,
+              title: "Close evaluation gap",
+              spec: "second plan",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message:
+        'Task batch create duplicates unfinished Task Pool coverage for title "Close evaluation gap", dimension_id "33333333-3333-4333-8333-333333333333", dimension_evaluation_id "44444444-4444-4444-8444-444444444444"',
+    });
+    expect(
+      await app.request(resolveTaskByIdPath(duplicateTaskId)),
+    ).toMatchObject({ status: 404 });
+    expect(
+      await app.request(resolveTaskByIdPath(otherDuplicateTaskId)),
+    ).toMatchObject({ status: 404 });
+  });
+
+  it("rejects duplicate creates covered by an existing unfinished task without partial writes", async () => {
+    await useProjectRoot("rejects-existing-duplicate-create");
+
+    const app = createTaskRouteApp();
+    const existingTaskId = "11111111-1111-4111-8111-111111111111";
+    const duplicateTaskId = "22222222-2222-4222-8222-222222222222";
+    const unrelatedTaskId = "55555555-5555-4555-8555-555555555555";
+    const seedResponse = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: existingTaskId,
+              title: "Close evaluation gap",
+              spec: "existing plan",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(seedResponse.status).toBe(200);
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: duplicateTaskId,
+              title: "Close evaluation gap",
+              spec: "duplicate plan",
+              source_metadata: {
+                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+                dimension_id: "33333333-3333-4333-8333-333333333333",
+              },
+            },
+          },
+          {
+            type: "create",
+            task: {
+              task_id: unrelatedTaskId,
+              title: "Independent task",
+              spec: "must not persist",
+              source_metadata: {
+                dimension_evaluation_id: "77777777-7777-4777-8777-777777777777",
+                dimension_id: "66666666-6666-4666-8666-666666666666",
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message:
+        'Task batch create duplicates unfinished Task Pool coverage for title "Close evaluation gap", dimension_id "33333333-3333-4333-8333-333333333333", dimension_evaluation_id "44444444-4444-4444-8444-444444444444"',
+    });
+    expect(
+      await app.request(resolveTaskByIdPath(existingTaskId)),
+    ).toMatchObject({ status: 200 });
+    expect(
+      await app.request(resolveTaskByIdPath(duplicateTaskId)),
+    ).toMatchObject({ status: 404 });
+    expect(
+      await app.request(resolveTaskByIdPath(unrelatedTaskId)),
+    ).toMatchObject({ status: 404 });
+  });
+
+  it("rejects deletes for nonexistent tasks and leaves valid creates unapplied", async () => {
+    await useProjectRoot("rejects-nonexistent-delete-atomically");
+
+    const app = createTaskRouteApp();
+    const newTaskId = "11111111-1111-4111-8111-111111111111";
+    const missingTaskId = "22222222-2222-4222-8222-222222222222";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: newTaskId,
+              title: "Valid create",
+              spec: "must roll back",
+              source_metadata: {},
+            },
+          },
+          {
+            type: "delete",
+            task_id: missingTaskId,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message: `Task batch cannot delete nonexistent task ${missingTaskId}`,
+    });
+    expect(await app.request(resolveTaskByIdPath(newTaskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("rejects create and delete conflicts in the same POST /tasks/batch", async () => {
+    await useProjectRoot("rejects-create-delete-conflict");
+
+    const app = createTaskRouteApp();
+    const taskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Conflicting task",
+              spec: "do not create and delete in one batch",
+              source_metadata: {},
+            },
+          },
+          {
+            type: "delete",
+            task_id: taskId,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message: `Task batch cannot create and delete task_id ${taskId} in the same batch`,
+    });
+    expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
   it("rejects duplicate task ids and terminal deletes in POST /tasks/batch", async () => {
     await useProjectRoot("rejects-invalid-task-batch");
 

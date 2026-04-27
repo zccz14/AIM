@@ -121,13 +121,23 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
     };
   }
 
-  const taskIds = new Set<string>();
+  const taskIds = new Map<string, "create" | "delete">();
 
   for (const operation of result.data.operations) {
     const taskId =
       operation.type === "create" ? operation.task.task_id : operation.task_id;
+    const existingOperationType = taskIds.get(taskId);
 
-    if (taskIds.has(taskId)) {
+    if (existingOperationType && existingOperationType !== operation.type) {
+      return {
+        error: buildValidationError(
+          `Task batch cannot create and delete task_id ${taskId} in the same batch`,
+        ),
+        ok: false as const,
+      };
+    }
+
+    if (existingOperationType) {
       return {
         error: buildValidationError(
           "Task batch operations must not repeat task_id",
@@ -136,7 +146,7 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
       };
     }
 
-    taskIds.add(taskId);
+    taskIds.set(taskId, operation.type);
   }
 
   return { data: result.data, ok: true as const };
