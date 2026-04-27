@@ -71,9 +71,17 @@ export type OpenCodeSession = {
   readonly updated_at: string;
 };
 
+export type OpenCodeSessionListResponse = {
+  items: Array<OpenCodeSession>;
+};
+
 export type CreateOpenCodeSessionRequest = {
   session_id: string;
   continue_prompt?: string | null;
+};
+
+export type PatchOpenCodeSessionRequest = {
+  continue_prompt: string | null;
 };
 
 export type OpenCodeSessionSettleRequest = {
@@ -115,6 +123,7 @@ export type Task = {
   source_metadata: {
     [key: string]: unknown;
   };
+  opencode_session?: OpenCodeSession | null;
   session_id: string | null;
   worktree_path: string | null;
   pull_request_url: string | null;
@@ -346,6 +355,10 @@ export type OpenCodeSessionWritable = {
   continue_prompt: string | null;
 };
 
+export type OpenCodeSessionListResponseWritable = {
+  items: Array<OpenCodeSessionWritable>;
+};
+
 export type TaskWritable = {
   task_spec: string;
   title: string;
@@ -357,6 +370,7 @@ export type TaskWritable = {
   source_metadata: {
     [key: string]: unknown;
   };
+  opencode_session?: OpenCodeSessionWritable | null;
   session_id: string | null;
   worktree_path: string | null;
   pull_request_url: string | null;
@@ -484,6 +498,35 @@ export type ListOpenCodeModelsResponses = {
 export type ListOpenCodeModelsResponse =
   ListOpenCodeModelsResponses[keyof ListOpenCodeModelsResponses];
 
+export type ListOpenCodeSessionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    state?: OpenCodeSessionState;
+  };
+  url: "/opencode/sessions";
+};
+
+export type ListOpenCodeSessionsErrors = {
+  /**
+   * Invalid OpenCode session filter
+   */
+  400: ErrorResponse;
+};
+
+export type ListOpenCodeSessionsError =
+  ListOpenCodeSessionsErrors[keyof ListOpenCodeSessionsErrors];
+
+export type ListOpenCodeSessionsResponses = {
+  /**
+   * OpenCode session promise list
+   */
+  200: OpenCodeSessionListResponse;
+};
+
+export type ListOpenCodeSessionsResponse =
+  ListOpenCodeSessionsResponses[keyof ListOpenCodeSessionsResponses];
+
 export type CreateOpenCodeSessionData = {
   body: CreateOpenCodeSessionRequest;
   path?: never;
@@ -539,6 +582,43 @@ export type GetOpenCodeSessionByIdResponses = {
 
 export type GetOpenCodeSessionByIdResponse =
   GetOpenCodeSessionByIdResponses[keyof GetOpenCodeSessionByIdResponses];
+
+export type PatchOpenCodeSessionByIdData = {
+  body: PatchOpenCodeSessionRequest;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}";
+};
+
+export type PatchOpenCodeSessionByIdErrors = {
+  /**
+   * Invalid OpenCode session patch
+   */
+  400: ErrorResponse;
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+  /**
+   * OpenCode session promise is not pending
+   */
+  409: ErrorResponse;
+};
+
+export type PatchOpenCodeSessionByIdError =
+  PatchOpenCodeSessionByIdErrors[keyof PatchOpenCodeSessionByIdErrors];
+
+export type PatchOpenCodeSessionByIdResponses = {
+  /**
+   * Updated OpenCode session promise
+   */
+  200: OpenCodeSession;
+};
+
+export type PatchOpenCodeSessionByIdResponse =
+  PatchOpenCodeSessionByIdResponses[keyof PatchOpenCodeSessionByIdResponses];
 
 export type ResolveOpenCodeSessionByIdData = {
   body: OpenCodeSessionSettleRequest;

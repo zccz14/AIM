@@ -5,6 +5,7 @@ import {
   createTaskRequestSchema,
   type ParsedCreateTaskBatchRequest,
   patchTaskRequestSchema,
+  type Task,
   type TaskPullRequestStatusResponse,
   type TaskStatus,
   taskByIdPath,
@@ -32,6 +33,7 @@ import {
   createOpenCodeSdkAdapter,
   type OpenCodeSdkAdapter,
 } from "../opencode-sdk-adapter.js";
+import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import type { OptimizerEvent } from "../optimizer-runtime.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
@@ -675,6 +677,9 @@ export const registerTaskRoutes = (
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
+  let openCodeSessionRepository: null | ReturnType<
+    typeof createOpenCodeSessionRepository
+  > = null;
   const getRepository = () => {
     repository ??=
       options.resourceScope?.use(createTaskRepository({ projectRoot })) ??
@@ -689,6 +694,28 @@ export const registerTaskRoutes = (
 
     return openCodeModelsAdapter;
   };
+  const getOpenCodeSessionRepository = () => {
+    openCodeSessionRepository ??=
+      options.resourceScope?.use(
+        createOpenCodeSessionRepository({ projectRoot }),
+      ) ?? createOpenCodeSessionRepository({ projectRoot });
+
+    return openCodeSessionRepository;
+  };
+  const attachOpenCodeSessions = (tasks: Task[]) => {
+    const sessions = new Map(
+      getOpenCodeSessionRepository()
+        .listSessions()
+        .map((session) => [session.session_id, session]),
+    );
+
+    return tasks.map((task) => ({
+      ...task,
+      opencode_session: task.session_id
+        ? (sessions.get(task.session_id) ?? null)
+        : null,
+    }));
+  };
 
   app.get(tasksPath, async (context) => {
     const filters = parseListFilters(context.req.raw);
@@ -697,7 +724,9 @@ export const registerTaskRoutes = (
       return context.json(filters, 400);
     }
 
-    const items = await getRepository().listTasks(filters);
+    const items = attachOpenCodeSessions(
+      await getRepository().listTasks(filters),
+    );
 
     return context.json({ items }, 200);
   });
@@ -757,7 +786,7 @@ export const registerTaskRoutes = (
 
     logger?.info(buildTaskLogFields("task_created", payload));
 
-    return context.json(payload, 201);
+    return context.json(attachOpenCodeSessions([payload])[0], 201);
   });
 
   app.post(tasksBatchRoutePath, async (context) => {
@@ -792,7 +821,7 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(task, 200);
+    return context.json(attachOpenCodeSessions([task])[0], 200);
   });
 
   app.get(taskSpecRoutePath, async (context) => {
@@ -827,7 +856,7 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(payload, 200);
+    return context.json(attachOpenCodeSessions([payload])[0], 200);
   });
 
   app.put(taskWorktreePathRoutePath, async (context) => {
@@ -844,7 +873,7 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(payload, 200);
+    return context.json(attachOpenCodeSessions([payload])[0], 200);
   });
 
   app.put(taskPullRequestUrlRoutePath, async (context) => {
@@ -861,7 +890,7 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(payload, 200);
+    return context.json(attachOpenCodeSessions([payload])[0], 200);
   });
 
   app.get(taskPullRequestStatusRoutePath, async (context) => {
@@ -903,7 +932,7 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(payload, 200);
+    return context.json(attachOpenCodeSessions([payload])[0], 200);
   });
 
   app.post(taskResolveRoutePath, async (context) => {
