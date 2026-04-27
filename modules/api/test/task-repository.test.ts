@@ -531,6 +531,78 @@ describe("task repository", () => {
     });
   });
 
+  it("adds a disabled optimizer flag to compatible existing project rows", async () => {
+    const projectRoot = await createProjectRoot(
+      "migrates-project-optimizer-flag",
+    );
+    const databasePath = join(projectRoot, "aim.sqlite");
+    const database = new DatabaseSync(databasePath);
+
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        git_origin_url TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE tasks (
+        task_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        task_spec TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        developer_provider_id TEXT NOT NULL,
+        developer_model_id TEXT NOT NULL,
+        session_id TEXT,
+        worktree_path TEXT,
+        pull_request_url TEXT,
+        dependencies TEXT NOT NULL,
+        result TEXT NOT NULL DEFAULT '',
+        source_metadata TEXT NOT NULL DEFAULT '{}',
+        done INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    database
+      .prepare(
+        "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        mainProjectId,
+        "Existing project",
+        "https://github.com/example/existing.git",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database.close();
+
+    const repository = createTaskRepository({ projectRoot });
+    const projects = repository.listProjects();
+    await repository[Symbol.asyncDispose]();
+
+    const migratedDatabase = new DatabaseSync(databasePath);
+    const optimizerColumn = (
+      migratedDatabase
+        .prepare("PRAGMA table_info(projects)")
+        .all() as TableInfoRow[]
+    ).find((column) => column.name === "optimizer_enabled");
+    migratedDatabase.close();
+
+    expect(projects[0]).toMatchObject({ optimizer_enabled: false });
+    expect(optimizerColumn).toMatchObject({
+      dflt_value: "0",
+      name: "optimizer_enabled",
+      notnull: 1,
+      type: "INTEGER",
+    });
+  });
+
   it("creates and persists required task title and developer model columns", async () => {
     const projectRoot = await createProjectRoot(
       "creates-required-model-columns",

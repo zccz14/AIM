@@ -102,12 +102,14 @@ const buildProject = ({
   globalModelId = "claude-sonnet-4-5",
   globalProviderId = "anthropic",
   name = "Main project",
+  optimizerEnabled = false,
   projectId = "00000000-0000-4000-8000-000000000010",
 }: {
   gitOriginUrl?: string;
   globalModelId?: string;
   globalProviderId?: string;
   name?: string;
+  optimizerEnabled?: boolean;
   projectId?: string;
 } = {}) => ({
   id: projectId,
@@ -115,6 +117,7 @@ const buildProject = ({
   git_origin_url: gitOriginUrl,
   global_provider_id: globalProviderId,
   global_model_id: globalModelId,
+  optimizer_enabled: optimizerEnabled,
   created_at: "2026-04-26T00:00:00.000Z",
   updated_at: "2026-04-26T00:00:00.000Z",
 });

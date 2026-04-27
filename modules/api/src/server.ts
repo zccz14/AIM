@@ -51,6 +51,7 @@ const createMissingProjectLane = () => ({
 });
 const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
+const isOptimizerEnabled = (project: Project) => project.optimizer_enabled;
 const createProjectScopedPrompt = (
   prompt: string,
   project: Project,
@@ -188,6 +189,9 @@ export const startServer = () => {
     lanes: optimizerLanes,
     logger,
   });
+  if (configuredProjects.some(isOptimizerEnabled)) {
+    optimizerRuntime.start();
+  }
   scope.use(optimizerRuntime);
 
   const app = scope.use(

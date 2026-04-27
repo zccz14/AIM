@@ -17,6 +17,7 @@ const configuredProject = {
   git_origin_url: "https://github.com/example/main.git",
   id: "00000000-0000-4000-8000-000000000001",
   name: "Main project",
+  optimizer_enabled: false,
   updated_at: "2026-04-26T00:00:00.000Z",
 };
 const secondConfiguredProject = {
@@ -26,6 +27,7 @@ const secondConfiguredProject = {
   git_origin_url: "https://github.com/example/second.git",
   id: "00000000-0000-4000-8000-000000000002",
   name: "Second project",
+  optimizer_enabled: false,
   updated_at: "2026-04-26T00:00:01.000Z",
 };
 const unconfiguredProject = {
@@ -35,7 +37,12 @@ const unconfiguredProject = {
   git_origin_url: "https://github.com/example/unconfigured.git",
   id: "00000000-0000-4000-8000-000000000003",
   name: "Unconfigured project",
+  optimizer_enabled: false,
   updated_at: "2026-04-26T00:00:02.000Z",
+};
+const optimizerEnabledProject = {
+  ...configuredProject,
+  optimizer_enabled: true,
 };
 
 const createRepositoryMock = (projects = [configuredProject]) => ({
@@ -294,6 +301,53 @@ describe("server startup", () => {
     expect(managerLane.start).not.toHaveBeenCalled();
     expect(coordinatorLane.start).not.toHaveBeenCalled();
     expect(scheduler.start).not.toHaveBeenCalled();
+  });
+
+  it("starts optimizer lanes when a configured project has persisted optimizer enablement", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const managerLane = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    mockCreateApp.mockReturnValue({ fetch: vi.fn() });
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane
+      .mockReturnValueOnce(managerLane)
+      .mockReturnValueOnce(coordinatorLane);
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    expect(managerLane.start).toHaveBeenCalledOnce();
+    expect(coordinatorLane.start).toHaveBeenCalledOnce();
+    expect(scheduler.start).toHaveBeenCalledOnce();
+    expect(
+      mockCreateApp.mock.calls[0]?.[0].optimizerRuntime.getStatus(),
+    ).toMatchObject({
+      running: true,
+    });
   });
 
   it("creates manager, coordinator, and developer lanes without a task producer", async () => {
