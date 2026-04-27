@@ -678,6 +678,9 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         for (const operation of input.operations) {
           if (operation.type === "create") {
             const timestamp = new Date().toISOString();
+            const sourceMetadata = JSON.stringify(
+              operation.task.source_metadata ?? {},
+            );
             const task = mapTaskRow({
               task_id: operation.task.task_id,
               title: operation.task.title,
@@ -691,9 +694,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               pull_request_url: operation.task.pull_request_url ?? null,
               dependencies: JSON.stringify(operation.task.dependencies ?? []),
               result: operation.task.result ?? "",
-              source_metadata: JSON.stringify(
-                operation.task.source_metadata ?? {},
-              ),
+              source_metadata: sourceMetadata,
               done: Number(isDoneStatus(operation.task.status ?? "processing")),
               status: operation.task.status ?? "processing",
               created_at: timestamp,
@@ -712,7 +713,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               task.pull_request_url,
               JSON.stringify(task.dependencies),
               task.result,
-              JSON.stringify(task.source_metadata),
+              sourceMetadata,
               Number(task.done),
               task.status,
               task.created_at,
@@ -835,11 +836,15 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       taskId: string,
       patch: PatchTaskRequest,
     ): Promise<null | Task> {
-      const currentTask = await this.getTaskById(taskId);
+      const currentTaskRow = getTaskByIdStatement.get(taskId) as
+        | TaskRow
+        | undefined;
 
-      if (!currentTask) {
+      if (!currentTaskRow) {
         return null;
       }
+
+      const currentTask = mapTaskRow(currentTaskRow);
 
       const nextStatus = patch.status ?? currentTask.status;
       const updatedTask = taskSchema.parse({
@@ -858,7 +863,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         updatedTask.pull_request_url,
         JSON.stringify(updatedTask.dependencies),
         updatedTask.result,
-        JSON.stringify(updatedTask.source_metadata),
+        currentTaskRow.source_metadata,
         Number(updatedTask.done),
         updatedTask.status,
         updatedTask.updated_at,
