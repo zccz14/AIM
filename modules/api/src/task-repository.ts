@@ -125,6 +125,44 @@ const buildProjectConfigurationError = (projectId: string) =>
     `Project ${projectId} is missing global provider/model configuration`,
   );
 
+const getStringSourceMetadataField = (
+  sourceMetadata: Record<string, unknown>,
+  field: string,
+) => {
+  const value = sourceMetadata[field];
+
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
+const getTaskCoverageKey = (task: Pick<Task, "source_metadata" | "title">) => {
+  const dimensionId = getStringSourceMetadataField(
+    task.source_metadata,
+    "dimension_id",
+  );
+  const dimensionEvaluationId = getStringSourceMetadataField(
+    task.source_metadata,
+    "dimension_evaluation_id",
+  );
+
+  if (!dimensionId || !dimensionEvaluationId) {
+    return null;
+  }
+
+  return {
+    dimensionEvaluationId,
+    dimensionId,
+    key: `${task.title}\u0000${dimensionId}\u0000${dimensionEvaluationId}`,
+    title: task.title,
+  };
+};
+
+const buildDuplicateCoverageError = (
+  coverage: NonNullable<ReturnType<typeof getTaskCoverageKey>>,
+) =>
+  new Error(
+    `Task batch create duplicates unfinished Task Pool coverage for title "${coverage.title}", dimension_id "${coverage.dimensionId}", dimension_evaluation_id "${coverage.dimensionEvaluationId}"`,
+  );
+
 const normalizeColumnType = (type: string) => {
   const normalizedType = type.trim().toUpperCase();
 
@@ -466,6 +504,30 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
   const deleteTaskStatement = database.prepare(
     `DELETE FROM ${tasksTableName} WHERE task_id = ?`,
   );
+  const listUnfinishedTasksByProjectStatement = database.prepare(`
+    SELECT
+      tasks.task_id,
+      tasks.title,
+      tasks.task_spec,
+      tasks.project_id,
+      projects.git_origin_url AS git_origin_url,
+      tasks.developer_provider_id,
+      tasks.developer_model_id,
+      tasks.session_id,
+      tasks.worktree_path,
+      tasks.pull_request_url,
+      tasks.dependencies,
+      tasks.result,
+      tasks.source_metadata,
+      tasks.done,
+      tasks.status,
+      tasks.created_at,
+      tasks.updated_at
+    FROM ${tasksTableName} AS tasks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    WHERE tasks.project_id = ? AND tasks.done = 0
+    ORDER BY tasks.created_at ASC, tasks.rowid ASC
+  `);
   const assignSessionIfUnassignedStatement = database.prepare(`
     UPDATE ${tasksTableName}
     SET session_id = ?, updated_at = ?
@@ -636,6 +698,38 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         throw new Error(`Project ${input.project_id} was not found`);
       }
 
+      const coveredKeys = new Set(
+        (
+          listUnfinishedTasksByProjectStatement.all(
+            input.project_id,
+          ) as TaskRow[]
+        )
+          .map((row) => getTaskCoverageKey(mapTaskRow(row)))
+          .filter((coverage) => coverage !== null)
+          .map((coverage) => coverage.key),
+      );
+
+      for (const operation of input.operations) {
+        if (operation.type !== "create") {
+          continue;
+        }
+
+        const coverage = getTaskCoverageKey({
+          source_metadata: operation.task.source_metadata ?? {},
+          title: operation.task.title,
+        });
+
+        if (!coverage) {
+          continue;
+        }
+
+        if (coveredKeys.has(coverage.key)) {
+          throw buildDuplicateCoverageError(coverage);
+        }
+
+        coveredKeys.add(coverage.key);
+      }
+
       const results: TaskBatchResponse["results"] = [];
 
       database.exec("BEGIN");
@@ -694,7 +788,9 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             | undefined;
 
           if (!currentTask) {
-            throw new Error(`Task ${operation.task_id} was not found`);
+            throw new Error(
+              `Task batch cannot delete nonexistent task ${operation.task_id}`,
+            );
           }
 
           const task = mapTaskRow(currentTask);
