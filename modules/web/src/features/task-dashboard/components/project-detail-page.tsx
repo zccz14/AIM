@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../components/ui/card.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { TaskDashboardViewModel } from "../model/task-dashboard-view-model.js";
 import {
   cardHeader,
@@ -19,8 +20,7 @@ import {
   taskListItem,
 } from "./dashboard-styles.js";
 
-const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
-  `${count} ${count === 1 ? singular : plural}`;
+const formatCount = (count: number, label: string) => `${count} ${label}`;
 
 export const ProjectDetailPage = ({
   dashboard,
@@ -29,15 +29,16 @@ export const ProjectDetailPage = ({
   dashboard: TaskDashboardViewModel | undefined;
   projectId: string;
 }) => {
+  const { t } = useI18n();
   const project = dashboard?.projects.find((item) => item.id === projectId);
 
   if (!dashboard || !project) {
     return (
       <Card className={detailSurface}>
         <CardHeader>
-          <CardTitle>Project not available</CardTitle>
+          <CardTitle>{t("projectNotAvailable")}</CardTitle>
           <CardDescription>
-            Refresh projects before opening project-scoped observability.
+            {t("projectNotAvailableDescription")}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -61,40 +62,40 @@ export const ProjectDetailPage = ({
     <section className={pageStack}>
       <Card className={detailSurface}>
         <CardHeader className={cardHeader}>
-          <p className={eyebrow}>Project Detail</p>
+          <p className={eyebrow}>{t("projectDetail")}</p>
           <CardTitle>{project.name}</CardTitle>
           <CardDescription>{project.git_origin_url}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <div className={panelStack}>
-            <p className={eyebrow}>Task Pool</p>
-            <strong>{pluralize(activeTasks.length, "active task")}</strong>
-          </div>
-          <div className={panelStack}>
-            <p className={eyebrow}>Completed</p>
+            <p className={eyebrow}>{t("taskPool")}</p>
             <strong>
-              {pluralize(completedTasks.length, "completed task")}
+              {formatCount(activeTasks.length, t("taskSingular"))}
             </strong>
           </div>
           <div className={panelStack}>
-            <p className={eyebrow}>Dependency Pressure</p>
+            <p className={eyebrow}>{t("completedStatus")}</p>
             <strong>
-              {pluralize(
+              {formatCount(completedTasks.length, t("completedTaskSingular"))}
+            </strong>
+          </div>
+          <div className={panelStack}>
+            <p className={eyebrow}>{t("dependencyPressure")}</p>
+            <strong>
+              {formatCount(
                 dependencyLinkedTasks.length,
-                "dependency-linked task",
+                t("dependencyLinkedTask"),
               )}
             </strong>
           </div>
         </CardContent>
       </Card>
 
-      <section aria-label="Project dimensions" className={pageStack}>
+      <section aria-label={t("projectDimensionsRegion")} className={pageStack}>
         <div>
-          <p className={eyebrow}>Dimensions</p>
-          <h2 className={sectionTitle}>Project Dimensions</h2>
-          <p className={sectionCopy}>
-            Dimension fit is scoped to this project ID only.
-          </p>
+          <p className={eyebrow}>{t("dimensions")}</p>
+          <h2 className={sectionTitle}>{t("projectDimensions")}</h2>
+          <p className={sectionCopy}>{t("projectDimensionsDescription")}</p>
         </div>
         <Card>
           <CardContent className={taskList}>
@@ -112,14 +113,12 @@ export const ProjectDetailPage = ({
                 <strong>
                   {report.latestEvaluation
                     ? `${report.latestEvaluation.score}/100`
-                    : "No score"}
+                    : t("noScore")}
                 </strong>
               </div>
             ))}
             {dimensions.length === 0 ? (
-              <p className={sectionCopy}>
-                No dimensions registered for this project.
-              </p>
+              <p className={sectionCopy}>{t("noDimensionsForProject")}</p>
             ) : null}
           </CardContent>
         </Card>

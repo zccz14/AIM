@@ -3,14 +3,13 @@ import { useI18n } from "../../../lib/i18n.js";
 import { cn } from "../../../lib/utils.js";
 import type { DashboardStatus } from "../model/task-dashboard-view-model.js";
 
-const statusLabelMap: Record<DashboardStatus, string> = {
-  processing: "Processing",
-  rejected: "Rejected",
-  resolved: "Resolved",
-};
-
 export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
-  const { locale } = useI18n();
+  const { t } = useI18n();
+  const statusLabelMap = {
+    processing: t("creatingTask"),
+    rejected: t("rejectedFeedback"),
+    resolved: t("completedStatus"),
+  } satisfies Record<DashboardStatus, string>;
 
   return (
     <Badge
@@ -22,11 +21,7 @@ export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
       data-status={status}
       variant="outline"
     >
-      {locale === "zh"
-        ? { processing: "处理中", rejected: "已拒绝", resolved: "已解决" }[
-            status
-          ]
-        : statusLabelMap[status]}
+      {statusLabelMap[status]}
     </Badge>
   );
 };

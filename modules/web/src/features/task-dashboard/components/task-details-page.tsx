@@ -1,4 +1,5 @@
 import { Card } from "../../../components/ui/card.js";
+import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
 import {
   Checkmark,
@@ -24,50 +25,47 @@ import {
 } from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
-const metadataRows = (task: DashboardTask) => [
-  { label: "Project ID", value: task.projectId },
-  { label: "Task ID", value: task.id },
-  { label: "Contract Status", value: task.contractStatus },
-  { label: "Dashboard Status", value: task.dashboardStatus },
-  { label: "Session ID", value: task.sessionId ?? "None" },
-  { label: "Worktree", value: task.worktreePath ?? "None" },
-  { label: "Created At", value: task.createdAt },
-  { label: "Updated At", value: task.updatedAt },
-];
-
 export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
+  const { t } = useI18n();
+
   if (!task) {
     return (
       <Card className={detailSurface}>
-        <Kicker>Task Details</Kicker>
-        <h2>Task not found</h2>
-        <Muted>
-          The requested task is not available from the current dashboard data.
-        </Muted>
+        <Kicker>{t("taskDetails")}</Kicker>
+        <h2>{t("taskNotFound")}</h2>
+        <Muted>{t("taskNotFoundDescription")}</Muted>
       </Card>
     );
   }
+
+  const metadataRows = [
+    { label: t("projectId"), value: task.projectId },
+    { label: t("taskId"), value: task.id },
+    { label: t("contractStatus"), value: task.contractStatus },
+    { label: t("dashboardStatus"), value: task.dashboardStatus },
+    { label: t("sessionId"), value: task.sessionId ?? t("none") },
+    { label: t("worktree"), value: task.worktreePath ?? t("none") },
+    { label: t("createdAt"), value: task.createdAt },
+    { label: t("updatedAt"), value: task.updatedAt },
+  ];
 
   return (
     <Card className={detailSurface}>
       <header className={detailHeader}>
         <div className={detailTitleRow}>
           <div className={sectionStack}>
-            <Kicker>Task Overview</Kicker>
+            <Kicker>{t("taskOverview")}</Kicker>
             <h2 className={detailTitle}>{task.title}</h2>
           </div>
           <TaskStatusBadge status={task.dashboardStatus} />
         </div>
-        <Muted className={detailSummary}>
-          Review the task brief, delivery metadata, dependencies, and closure
-          cues without dropping out of the Director cockpit.
-        </Muted>
+        <Muted className={detailSummary}>{t("taskOverviewDescription")}</Muted>
       </header>
 
       <div className={responsiveDetailGrid}>
         <DetailCard>
           <div className={detailPanelHeader}>
-            <Kicker>Task Spec</Kicker>
+            <Kicker>{t("taskSpec")}</Kicker>
             <h3>{task.title}</h3>
           </div>
           <MarkdownContent>{task.taskSpec}</MarkdownContent>
@@ -76,11 +74,11 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
         <div className={pageStack}>
           <DetailCard>
             <div className={detailPanelHeader}>
-              <Kicker>Execution Metadata</Kicker>
-              <h3>Delivery Context</h3>
+              <Kicker>{t("executionMetadata")}</Kicker>
+              <h3>{t("deliveryContext")}</h3>
             </div>
             <dl className={metadataList}>
-              {metadataRows(task).map((row) => (
+              {metadataRows.map((row) => (
                 <div className={metadataRow} key={row.label}>
                   <dt className={metadataLabel}>{row.label}</dt>
                   <dd className="m-0">{`${row.label}: ${row.value}`}</dd>
@@ -91,8 +89,8 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
 
           <DetailCard>
             <div className={detailPanelHeader}>
-              <Kicker>Developer Closure Cues</Kicker>
-              <h3>Checklist Facts</h3>
+              <Kicker>{t("developerClosureCues")}</Kicker>
+              <h3>{t("checklistFacts")}</h3>
             </div>
             <div className="flex flex-col gap-3">
               {task.closureChecklist.map((cue) => (
@@ -109,8 +107,8 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
 
           <DetailCard>
             <div className={detailPanelHeader}>
-              <Kicker>Task Relationships</Kicker>
-              <h3>Dependencies and PR</h3>
+              <Kicker>{t("taskRelationships")}</Kicker>
+              <h3>{t("tableDependencies")} / PR</h3>
             </div>
             <div className={chipList}>
               {task.dependencies.length > 0 ? (
@@ -118,7 +116,7 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                   <Chip key={dependencyId}>{dependencyId}</Chip>
                 ))
               ) : (
-                <span className={mutedText}>Dependencies: None</span>
+                <span className={mutedText}>{t("dependenciesNone")}</span>
               )}
             </div>
             {task.pullRequestUrl ? (
@@ -128,10 +126,10 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                 rel="noreferrer"
                 target="_blank"
               >
-                Open Pull Request
+                {t("openPullRequest")}
               </a>
             ) : (
-              <span className={mutedText}>Pull Request: None</span>
+              <span className={mutedText}>{t("pullRequestNone")}</span>
             )}
           </DetailCard>
         </div>

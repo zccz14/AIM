@@ -21,8 +21,7 @@ import {
   taskListItem,
 } from "./dashboard-styles.js";
 
-const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
-  `${count} ${count === 1 ? singular : plural}`;
+const formatCount = (count: number, label: string) => `${count} ${label}`;
 
 export const OverviewSection = ({
   dashboard,
@@ -51,14 +50,14 @@ export const OverviewSection = ({
 
   return (
     <section
-      aria-label="Project observability"
+      aria-label={t("projectObservability")}
       className={`${pageStack} ${cockpitRegion}`}
       id="project-observability"
     >
       <div className={regionHeader}>
         <div>
-          <p className={eyebrow}>Project observability</p>
-          <h2 className={sectionTitle}>Top-Level Dashboard</h2>
+          <p className={eyebrow}>{t("projectObservability")}</p>
+          <h2 className={sectionTitle}>{t("topLevelDashboard")}</h2>
         </div>
         <p className={sectionCopy}>{t("dashboardSimpleDescription")}</p>
       </div>
@@ -76,11 +75,9 @@ export const OverviewSection = ({
 
       <Card>
         <CardHeader className={cardHeader}>
-          <p className={eyebrow}>Projects</p>
-          <CardTitle className={sectionTitle}>Project Health</CardTitle>
-          <CardDescription>
-            Project-level scan target for dimensions and task pool pressure.
-          </CardDescription>
+          <p className={eyebrow}>{t("projects")}</p>
+          <CardTitle className={sectionTitle}>{t("projectHealth")}</CardTitle>
+          <CardDescription>{t("projectHealthDescription")}</CardDescription>
         </CardHeader>
         <CardContent className={taskList}>
           {projectRows.map(
@@ -96,15 +93,18 @@ export const OverviewSection = ({
                   <p className={tableMeta}>{project.git_origin_url}</p>
                 </div>
                 <p className={tableMeta}>
-                  {pluralize(dimensions.length, "dimension")} /{" "}
-                  {pluralize(activeTasks.length, "active task")} /{" "}
-                  {pluralize(completedTasks.length, "completed task")}
+                  {formatCount(dimensions.length, t("dimensionSingular"))} /{" "}
+                  {formatCount(activeTasks.length, t("taskSingular"))} /{" "}
+                  {formatCount(
+                    completedTasks.length,
+                    t("completedTaskSingular"),
+                  )}
                 </p>
               </div>
             ),
           )}
           {projectRows.length === 0 ? (
-            <p className={sectionCopy}>No registered projects available.</p>
+            <p className={sectionCopy}>{t("noRegisteredProjects")}</p>
           ) : null}
         </CardContent>
       </Card>

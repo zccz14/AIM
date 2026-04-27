@@ -9,6 +9,7 @@ import {
   AlertTitle,
 } from "../../../components/ui/alert.js";
 import { Button } from "../../../components/ui/button.js";
+import { useI18n } from "../../../lib/i18n.js";
 import { sectionCopy } from "./dashboard-styles.js";
 
 const getErrorMessage = (error: unknown) =>
@@ -23,6 +24,7 @@ const DashboardPanelFallback = ({
   onRetry?: () => Promise<unknown> | unknown;
   scope: string;
 }) => {
+  const { t } = useI18n();
   const [isRetrying, setIsRetrying] = useState(false);
 
   const handleRetry = async () => {
@@ -39,16 +41,17 @@ const DashboardPanelFallback = ({
   return (
     <Alert className="border p-4" variant="destructive">
       <AlertCircle aria-hidden="true" />
-      <AlertTitle>Panel unavailable</AlertTitle>
+      <AlertTitle>{t("panelUnavailable")}</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-3">
-        <p>{scope} failed to render.</p>
-        <p>Direct cause: {getErrorMessage(error)}</p>
-        <p className={sectionCopy}>
-          Retry this panel after refreshing the dashboard evidence. Other
-          Director cockpit sections remain available.
+        <p>
+          {scope} {t("panelFailedToRender")}
         </p>
+        <p>
+          {t("directCause")}: {getErrorMessage(error)}
+        </p>
+        <p className={sectionCopy}>{t("retryPanelDescription")}</p>
         <Button disabled={isRetrying} onClick={() => void handleRetry()}>
-          Retry panel
+          {t("retryPanel")}
         </Button>
       </AlertDescription>
     </Alert>

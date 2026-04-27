@@ -48,7 +48,7 @@ export const AimDimensionReportSection = ({
           <EmptyHeader>
             <EmptyTitle>{t("noAimDimensionReport")}</EmptyTitle>
             <EmptyDescription>
-              Refresh after a Manager evaluation records AIM dimension evidence.
+              {t("dimensionEvaluationDescription")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -74,7 +74,7 @@ export const AimDimensionReportSection = ({
                 </div>
                 <p className={sectionCopy}>{dimension.goal}</p>
                 <p className={tableMeta}>
-                  Method: {dimension.evaluation_method}
+                  {t("method")}: {dimension.evaluation_method}
                 </p>
                 <p className={sectionCopy}>
                   {latestEvaluation?.evaluation ?? t("noDimensionEvaluation")}
@@ -82,12 +82,12 @@ export const AimDimensionReportSection = ({
               </div>
               <Badge
                 className="h-auto py-2"
-                title="Latest score"
+                title={t("latestScore")}
                 variant="secondary"
               >
                 {latestEvaluation
                   ? `${latestEvaluation.score}/100`
-                  : "No score"}
+                  : t("noScore")}
               </Badge>
             </article>
           ))}
