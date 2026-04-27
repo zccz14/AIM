@@ -127,6 +127,12 @@ export const DashboardPage = () => {
           (report) => report.dimension.id === route.dimensionId,
         ) ?? null)
       : null;
+  const selectedDimensionProject =
+    selectedDimension && dashboardQuery.data
+      ? (dashboardQuery.data.projects.find(
+          (project) => project.id === selectedDimension.dimension.project_id,
+        ) ?? null)
+      : null;
   const hasDashboardData =
     dashboardQuery.data !== undefined &&
     (dashboardQuery.data.tasks.length > 0 ||
@@ -224,7 +230,10 @@ export const DashboardPage = () => {
           resetKeys={[route.kind, selectedDimension?.dimension.id]}
           scope={t("dimensionDetail")}
         >
-          <DimensionDetailsPage report={selectedDimension} />
+          <DimensionDetailsPage
+            project={selectedDimensionProject}
+            report={selectedDimension}
+          />
         </DashboardPanelBoundary>
       );
     }

@@ -63,12 +63,14 @@ const buildDimension = ({
 });
 
 const buildDimensionEvaluation = ({
+  commitSha = "abc1234",
   createdAt = "2026-04-20T09:10:00.000Z",
   dimensionId = "dimension-readme-fit",
   evaluation = "Strong convergence evidence, missing one explicit intervention path.",
   evaluationId = "evaluation-readme-fit-1",
   score = 82,
 }: {
+  commitSha?: string;
   createdAt?: string;
   dimensionId?: string;
   evaluation?: string;
@@ -78,7 +80,7 @@ const buildDimensionEvaluation = ({
   id: evaluationId,
   dimension_id: dimensionId,
   project_id: "00000000-0000-4000-8000-000000000010",
-  commit_sha: "abc1234",
+  commit_sha: commitSha,
   evaluator_model: "gpt-5.5",
   score,
   evaluation,
@@ -640,6 +642,66 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
       )
       .first(),
   ).toBeVisible();
+});
+
+test("highlights the latest dimension evaluation and links GitHub commit evidence", async ({
+  page,
+}) => {
+  const dimension = buildDimension();
+  const evaluations = [
+    buildDimensionEvaluation({
+      commitSha: "1111111",
+      createdAt: "2026-04-20T09:10:00.000Z",
+      dimensionId: dimension.id,
+      evaluation: "Earlier evidence still needs Director review.",
+      evaluationId: "evaluation-readme-fit-1",
+      score: 48,
+    }),
+    buildDimensionEvaluation({
+      commitSha: "2222222",
+      createdAt: "2026-04-20T11:20:00.000Z",
+      dimensionId: dimension.id,
+      evaluation: "Latest evidence clearly identifies the intervention path.",
+      evaluationId: "evaluation-readme-fit-2",
+      score: 82,
+    }),
+  ];
+
+  await page.route("**/dimensions", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [dimension] }),
+    });
+  });
+
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: evaluations }),
+    });
+  });
+
+  await page.goto(`/#/dimensions/${dimension.id}`);
+
+  const latest = page.getByRole("region", { name: "Latest evaluation" });
+
+  await expect(latest).toBeVisible();
+  await expect(latest.getByText("82/100", { exact: true })).toBeVisible();
+  await expect(
+    latest.getByText(
+      "Latest evidence clearly identifies the intervention path.",
+    ),
+  ).toBeVisible();
+  await expect(latest.getByRole("link", { name: "2222222" })).toHaveAttribute(
+    "href",
+    "https://github.com/example/main/commit/2222222",
+  );
+
+  const trend = page.getByRole("figure", { name: "README Fit score trend" });
+
+  await expect(
+    trend.getByRole("link", { name: "1111111" }).first(),
+  ).toHaveAttribute("href", "https://github.com/example/main/commit/1111111");
 });
 
 test("renders the AIM brand mark and global controls without optimizer controls", async ({
