@@ -5,20 +5,11 @@ import type {
   OptimizerStatusResponse,
   Project,
   ProjectListResponse,
-  Task,
   TaskListResponse,
   TaskWriteBulkListResponse,
 } from "@aim-ai/contract";
 
 import { createWebApiClient } from "../../../lib/api-client.js";
-
-export type CreateDashboardTaskInput = {
-  title: string;
-  taskSpec: string;
-  projectPath: string;
-  developerProviderId: string;
-  developerModelId: string;
-};
 
 export type ProjectFormInput = {
   name: string;
@@ -83,18 +74,6 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     history,
     taskWriteBulks,
   };
-};
-
-export const createTaskFromDashboard = async (
-  input: CreateDashboardTaskInput,
-): Promise<Task> => {
-  const client = createWebApiClient();
-
-  return client.createTask({
-    title: input.title,
-    task_spec: input.taskSpec,
-    project_id: input.projectPath,
-  });
 };
 
 export const listProjects = async (): Promise<ProjectListResponse> => {
