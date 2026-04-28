@@ -33,6 +33,7 @@ import {
   sectionStack,
 } from "./dashboard-styles.js";
 import { DimensionDetailsPage } from "./dimension-details-page.js";
+import { OpenCodeSessionsPage } from "./opencode-sessions-page.js";
 import { OverviewSection } from "./overview-section.js";
 import { ProjectDetailPage } from "./project-detail-page.js";
 import { ProjectRegisterPage } from "./project-register-page.js";
@@ -42,6 +43,7 @@ import { TaskDetailsPage } from "./task-details-page.js";
 type DashboardRoute =
   | { kind: "dashboard" }
   | { dimensionId: string; kind: "dimension" }
+  | { kind: "opencode-sessions" }
   | { kind: "project"; projectId: string }
   | { kind: "projects" }
   | { kind: "task"; taskId: string };
@@ -49,6 +51,7 @@ type DashboardRoute =
 const DASHBOARD_PATH = "/";
 const BLOCKED_CREATE_TASK_PATH = "/tasks/new";
 const PROJECTS_PATH = "/projects";
+const OPENCODE_SESSIONS_PATH = "/opencode/sessions";
 
 const getCurrentPath = () => {
   const hashPath = window.location.hash.slice(1);
@@ -66,6 +69,10 @@ const getDashboardRoute = (pathname: string): DashboardRoute => {
 
   if (pathname === PROJECTS_PATH) {
     return { kind: "projects" };
+  }
+
+  if (pathname === OPENCODE_SESSIONS_PATH) {
+    return { kind: "opencode-sessions" };
   }
 
   const projectMatch = pathname.match(/^\/projects\/([^/]+)$/);
@@ -168,6 +175,10 @@ export const DashboardPage = () => {
     navigateTo(PROJECTS_PATH);
   };
 
+  const goToOpenCodeSessions = () => {
+    navigateTo(OPENCODE_SESSIONS_PATH);
+  };
+
   const goToDimension = (dimensionId: string) => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
   };
@@ -177,11 +188,13 @@ export const DashboardPage = () => {
       ? t("dashboard")
       : route.kind === "projects"
         ? t("projectRegister")
-        : route.kind === "project"
-          ? t("projectDetail")
-          : route.kind === "dimension"
-            ? t("dimensionDetail")
-            : t("taskDetails");
+        : route.kind === "opencode-sessions"
+          ? t("openCodeSessions")
+          : route.kind === "project"
+            ? t("projectDetail")
+            : route.kind === "dimension"
+              ? t("dimensionDetail")
+              : t("taskDetails");
 
   const renderContent = () => {
     if (route.kind === "task") {
@@ -219,6 +232,18 @@ export const DashboardPage = () => {
             dashboard={dashboardQuery.data}
             projectId={route.projectId}
           />
+        </DashboardPanelBoundary>
+      );
+    }
+
+    if (route.kind === "opencode-sessions") {
+      return (
+        <DashboardPanelBoundary
+          onRetry={handleRefresh}
+          resetKeys={[route.kind]}
+          scope={t("openCodeSessions")}
+        >
+          <OpenCodeSessionsPage />
         </DashboardPanelBoundary>
       );
     }
@@ -400,6 +425,10 @@ export const DashboardPage = () => {
                       "#aim-dimension-report",
                       t("dimensions"),
                     )}
+                    {renderWorkspaceLink(
+                      "#/opencode/sessions",
+                      t("openCodeSessions"),
+                    )}
                   </nav>
                 ) : null}
                 <nav aria-label={t("aimSections")} className={actionGroup}>
@@ -414,6 +443,12 @@ export const DashboardPage = () => {
                     false,
                     t("projects"),
                     goToProjects,
+                  )}
+                  {renderNavAction(
+                    route.kind === "opencode-sessions",
+                    false,
+                    t("openCodeSessions"),
+                    goToOpenCodeSessions,
                   )}
                 </nav>
               </div>

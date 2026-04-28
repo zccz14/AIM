@@ -563,6 +563,86 @@ test("keeps project management available on the Projects page", async ({
   );
 });
 
+test("opens an OpenCode sessions list page without drilling into session details", async ({
+  page,
+}) => {
+  await page.route("**/opencode/sessions**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            session_id: "ses_pending_review",
+            state: "pending",
+            value: null,
+            reason: null,
+            continue_prompt: "Continue with required checks follow-up.",
+            stale: true,
+            created_at: "2026-04-27T08:00:00.000Z",
+            updated_at: "2026-04-27T09:30:00.000Z",
+          },
+          {
+            session_id: "ses_resolved_delivery",
+            state: "resolved",
+            value: "PR merged and baseline refreshed.",
+            reason: null,
+            continue_prompt: null,
+            stale: false,
+            created_at: "2026-04-26T08:00:00.000Z",
+            updated_at: "2026-04-26T11:30:00.000Z",
+          },
+          {
+            session_id: "ses_rejected_scope",
+            state: "rejected",
+            value: null,
+            reason: "Spec no longer matches origin/main.",
+            continue_prompt: null,
+            stale: false,
+            created_at: "2026-04-25T08:00:00.000Z",
+            updated_at: "2026-04-25T09:00:00.000Z",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "OpenCode Sessions" }).click();
+
+  await expect(page).toHaveURL(/\/#\/opencode\/sessions$/);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "OpenCode Sessions" }),
+  ).toBeVisible();
+  const sessionsRegion = page.getByRole("region", {
+    name: "OpenCode sessions",
+  });
+
+  await expect(sessionsRegion).toBeVisible();
+  await expect(
+    sessionsRegion.getByRole("row", { name: /ses_pending_review/ }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("Pending", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("Stale", { exact: true }),
+  ).toBeVisible();
+  await expect(sessionsRegion.getByText("Continue prompt ready")).toBeVisible();
+  await expect(
+    sessionsRegion.getByRole("row", { name: /ses_resolved_delivery/ }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("PR merged and baseline refreshed."),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByRole("row", { name: /ses_rejected_scope/ }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("Spec no longer matches origin/main."),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open session/ })).toHaveCount(0);
+});
+
 test("opens a dimension detail trend with time, score, evaluation points, and tooltip descriptions", async ({
   page,
 }) => {

@@ -7,6 +7,9 @@ import {
   dimensionEvaluationsPath,
   dimensionListResponseSchema,
   dimensionsPath,
+  type OpenCodeSessionListResponse,
+  openCodeSessionListResponseSchema,
+  openCodeSessionsPath,
   type Task,
   type TaskError,
   type TaskListResponse,
@@ -110,6 +113,7 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     done?: boolean;
     session_id?: string;
   }): Promise<TaskListResponse>;
+  listOpenCodeSessions(): Promise<OpenCodeSessionListResponse>;
   listDimensions(query: { project_id: string }): Promise<DimensionListResponse>;
   listDimensionEvaluations(
     dimensionId: string,
@@ -193,6 +197,30 @@ export const createWebApiClient = (
 
       return taskListResponseSchema.parse(
         (await response.json()) as TaskListResponse,
+      );
+    },
+
+    async listOpenCodeSessions() {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        openCodeSessionsPath,
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return openCodeSessionListResponseSchema.parse(
+        (await response.json()) as OpenCodeSessionListResponse,
       );
     },
 
