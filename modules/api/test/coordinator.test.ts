@@ -236,6 +236,161 @@ describe("coordinator", () => {
     expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
+  it("summarizes active task pool baseline freshness and delivery state for current, stale, and missing metadata", async () => {
+    const currentTask = {
+      ...createTask(1),
+      pull_request_url: "https://github.com/example/project/pull/1",
+      session_id: "session-current",
+      source_metadata: {
+        latest_origin_main_commit: "baseline-current",
+        task_spec_validation: {
+          latest_origin_main_commit: "baseline-current",
+        },
+      },
+      status: "pushed" as const,
+      worktree_path: "/repo/.worktrees/current",
+    };
+    const staleTask = {
+      ...createTask(2),
+      session_id: "session-stale",
+      source_metadata: {
+        latest_origin_main_commit: "baseline-old",
+        task_spec_validation: {
+          latest_origin_main_commit: "baseline-old-validated",
+        },
+      },
+      status: "running" as const,
+      worktree_path: "/repo/.worktrees/stale",
+    };
+    const missingMetadataTask = createTask(3);
+    const unknownFreshnessTask = {
+      ...createTask(4),
+      source_metadata: {
+        latest_origin_main_commit: "baseline-current",
+      },
+    };
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async () => []),
+      listUnfinishedTasks: vi.fn(async () => [
+        currentTask,
+        staleTask,
+        missingMetadataTask,
+        unknownFreshnessTask,
+      ]),
+    };
+    const dimensionRepository = {
+      listDimensionEvaluations: vi.fn(async () => []),
+      listDimensions: vi.fn(async () => []),
+    };
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-active-pool-baselines",
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-current",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Current baseline summary",
+      })),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      activeTaskThreshold: 10,
+      baselineRepository,
+      dimensionRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Current Active Task Pool:");
+    expect(prompt).toContain(
+      "Task 1 (task-project-1-1) status pushed; source baseline baseline-current; validated baseline baseline-current; freshness current; PR https://github.com/example/project/pull/1; worktree /repo/.worktrees/current; session session-current",
+    );
+    expect(prompt).toContain(
+      "Task 2 (task-project-1-2) status running; source baseline baseline-old; validated baseline baseline-old-validated; freshness stale; PR (not set); worktree /repo/.worktrees/stale; session session-stale",
+    );
+    expect(prompt).toContain(
+      "Task 3 (task-project-1-3) status pending; source baseline (missing); validated baseline (missing); freshness missing_baseline_metadata; PR (not set); worktree (not set); session (not set)",
+    );
+    expect(prompt).toContain(
+      "Task 4 (task-project-1-4) status pending; source baseline baseline-current; validated baseline (missing); freshness unknown; PR (not set); worktree (not set); session (not set)",
+    );
+    expect(prompt).toContain(
+      "Stale active tasks are only historical/conceptual coverage candidates and cannot independently prove current baseline coverage.",
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("keeps rejected feedback visible when the active task pool is non-empty", async () => {
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async () => [createRejectedTask(1)]),
+      listUnfinishedTasks: vi.fn(async () => [
+        {
+          ...createTask(1),
+          source_metadata: {
+            latest_origin_main_commit: "baseline-current",
+            task_spec_validation: {
+              latest_origin_main_commit: "baseline-current",
+            },
+          },
+        },
+      ]),
+    };
+    const dimensionRepository = {
+      listDimensionEvaluations: vi.fn(async () => []),
+      listDimensions: vi.fn(async () => []),
+    };
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-rejected-with-pool",
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-current",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Current baseline summary",
+      })),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      activeTaskThreshold: 10,
+      baselineRepository,
+      dimensionRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toMatch(
+      /Current Active Task Pool:\n- Task 1.*freshness current/s,
+    );
+    expect(prompt).toContain("Rejected Task feedback for this project:");
+    expect(prompt).toContain("rejected-project-1-1");
+    expect(prompt).toContain(
+      "Task Spec validation failed because coverage duplicated current Active Task Pool",
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
   it("prioritizes current-baseline signals over stale historical priority candidates without replacing guardrails", async () => {
     const dimensions = [
       createNamedDimension(
