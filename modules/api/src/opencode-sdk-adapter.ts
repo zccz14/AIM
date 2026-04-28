@@ -1,5 +1,6 @@
 import type { OpenCodeModelsResponse, Task } from "@aim-ai/contract";
 import { createOpencodeClient } from "@opencode-ai/sdk";
+import { listSupportedModels } from "./opencode/list-supported-models.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js";
@@ -52,18 +53,7 @@ export const createOpenCodeSdkAdapter = (
       };
     },
     async listSupportedModels() {
-      const response = await client.provider.list({ throwOnError: true });
-
-      return {
-        items: response.data.all.flatMap((provider) =>
-          Object.values(provider.models).map((model) => ({
-            model_id: model.id,
-            model_name: model.name,
-            provider_id: provider.id,
-            provider_name: provider.name,
-          })),
-        ),
-      };
+      return listSupportedModels({ baseUrl: config.baseUrl });
     },
     async sendSessionPrompt(sessionId, prompt) {
       await client.session.promptAsync({
