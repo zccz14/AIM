@@ -18,6 +18,7 @@ export {
   openCodeSessionsPath,
   opencodeModelsPath,
   projectByIdPath,
+  projectDirectorClarificationByIdPath,
   projectDirectorClarificationsPath,
   projectOptimizerStatusPath,
   projectsPath,
@@ -56,6 +57,8 @@ export const directorClarificationStatusSchema =
   schemas.DirectorClarificationStatus;
 export const createDirectorClarificationRequestSchema =
   schemas.CreateDirectorClarificationRequest;
+export const patchDirectorClarificationRequestSchema =
+  schemas.PatchDirectorClarificationRequest;
 export const directorClarificationListResponseSchema =
   schemas.DirectorClarificationListResponse;
 export const projectOptimizerStatusResponseSchema =
@@ -123,6 +126,9 @@ export type DirectorClarificationStatus = Infer<
 >;
 export type CreateDirectorClarificationRequest = Input<
   typeof createDirectorClarificationRequestSchema
+>;
+export type PatchDirectorClarificationRequest = Infer<
+  typeof patchDirectorClarificationRequestSchema
 >;
 export type DirectorClarificationListResponse = Infer<
   typeof directorClarificationListResponseSchema
@@ -204,6 +210,8 @@ export type DirectorClarificationStatusSchema =
   typeof directorClarificationStatusSchema;
 export type CreateDirectorClarificationRequestSchema =
   typeof createDirectorClarificationRequestSchema;
+export type PatchDirectorClarificationRequestSchema =
+  typeof patchDirectorClarificationRequestSchema;
 export type DirectorClarificationListResponseSchema =
   typeof directorClarificationListResponseSchema;
 export type ProjectOptimizerStatusResponseSchema =
@@ -266,6 +274,8 @@ export type ParsedDirectorClarification = DirectorClarification;
 export type ParsedCreateDirectorClarificationRequest = Output<
   typeof createDirectorClarificationRequestSchema
 >;
+export type ParsedPatchDirectorClarificationRequest =
+  PatchDirectorClarificationRequest;
 export type ParsedDirectorClarificationListResponse =
   DirectorClarificationListResponse;
 export type ParsedProjectOptimizerStatusResponse =

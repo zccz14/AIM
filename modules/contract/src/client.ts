@@ -14,6 +14,7 @@ import {
   listOpenCodeModels,
   listProjects,
   listTasks,
+  patchDirectorClarificationById,
   patchProjectById,
   patchTaskById,
   rejectTaskById,
@@ -52,6 +53,9 @@ import type {
   ListTasksError,
   ListTasksResponse,
   OpenCodeModelsResponse,
+  PatchDirectorClarificationByIdError,
+  PatchDirectorClarificationByIdResponse,
+  PatchDirectorClarificationRequest,
   PatchProjectByIdError,
   PatchProjectByIdResponse,
   PatchProjectRequest,
@@ -118,6 +122,11 @@ export type ContractClient = {
   createDirectorClarification(
     projectId: string,
     input: CreateDirectorClarificationRequest,
+  ): Promise<DirectorClarification>;
+  patchDirectorClarificationById(
+    projectId: string,
+    clarificationId: string,
+    input: PatchDirectorClarificationRequest,
   ): Promise<DirectorClarification>;
   deleteProjectById(projectId: string): Promise<void>;
   createTaskBatch(input: CreateTaskBatchRequest): Promise<TaskBatchResponse>;
@@ -414,6 +423,33 @@ export const createContractClient = ({
 
       return directorClarificationSchema.parse(
         result.data satisfies CreateDirectorClarificationResponse,
+      ) satisfies DirectorClarification;
+    },
+
+    async patchDirectorClarificationById(projectId, clarificationId, input) {
+      const result = await patchDirectorClarificationById({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          clarificationId,
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies PatchDirectorClarificationByIdError,
+          ),
+        );
+      }
+
+      return directorClarificationSchema.parse(
+        result.data satisfies PatchDirectorClarificationByIdResponse,
       ) satisfies DirectorClarification;
     },
 

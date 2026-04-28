@@ -89,6 +89,9 @@ import type {
   PatchDimensionByIdData,
   PatchDimensionByIdErrors,
   PatchDimensionByIdResponses,
+  PatchDirectorClarificationByIdData,
+  PatchDirectorClarificationByIdErrors,
+  PatchDirectorClarificationByIdResponses,
   PatchOpenCodeSessionByIdData,
   PatchOpenCodeSessionByIdErrors,
   PatchOpenCodeSessionByIdResponses,
@@ -404,6 +407,27 @@ export const createDirectorClarification = <
     ThrowOnError
   >({
     url: "/projects/{projectId}/director/clarifications",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Settle a Director clarification or adjustment request
+ */
+export const patchDirectorClarificationById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<PatchDirectorClarificationByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    PatchDirectorClarificationByIdResponses,
+    PatchDirectorClarificationByIdErrors,
+    ThrowOnError
+  >({
+    url: "/projects/{projectId}/director/clarifications/{clarificationId}",
     ...options,
     headers: {
       "Content-Type": "application/json",

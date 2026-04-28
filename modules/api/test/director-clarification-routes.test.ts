@@ -151,6 +151,113 @@ describe("director clarification routes", () => {
     });
   });
 
+  it("patches clarification status and reflects updated_at in the project list", async () => {
+    await useProjectRoot("patches-status");
+
+    const app = createApp();
+    const project = await createProject(app);
+
+    const createResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          kind: "clarification",
+          message: "Please settle this once the answer is captured.",
+        }),
+      },
+    );
+
+    expect(createResponse.status).toBe(201);
+    const createdClarification = await createResponse.json();
+
+    const patchResponse = await app.request(
+      `/projects/${project.id}/director/clarifications/${createdClarification.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders,
+        body: JSON.stringify({ status: "addressed" }),
+      },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    const patchedClarification = await patchResponse.json();
+
+    expect(patchedClarification).toMatchObject({
+      id: createdClarification.id,
+      project_id: project.id,
+      status: "addressed",
+    });
+    expect(patchedClarification.updated_at).not.toBe(
+      createdClarification.updated_at,
+    );
+
+    const listResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+    );
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      items: [patchedClarification],
+    });
+  });
+
+  it("validates status patches and project ownership", async () => {
+    await useProjectRoot("patch-validation");
+
+    const app = createApp();
+    const project = await createProject(app, "Main project");
+    const otherProject = await createProject(app, "Other project");
+
+    const createResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          kind: "adjustment",
+          message: "This request should only be settled from its project.",
+        }),
+      },
+    );
+
+    expect(createResponse.status).toBe(201);
+    const createdClarification = await createResponse.json();
+
+    const invalidStatusResponse = await app.request(
+      `/projects/${project.id}/director/clarifications/${createdClarification.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders,
+        body: JSON.stringify({ status: "open" }),
+      },
+    );
+
+    expect(invalidStatusResponse.status).toBe(400);
+    await expect(invalidStatusResponse.json()).resolves.toMatchObject({
+      code: "DIRECTOR_CLARIFICATION_VALIDATION_ERROR",
+      message: "Invalid Director clarification status patch",
+    });
+
+    const wrongProjectResponse = await app.request(
+      `/projects/${otherProject.id}/director/clarifications/${createdClarification.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders,
+        body: JSON.stringify({ status: "dismissed" }),
+      },
+    );
+
+    expect(wrongProjectResponse.status).toBe(404);
+    await expect(wrongProjectResponse.json()).resolves.toMatchObject({
+      code: "DIRECTOR_CLARIFICATION_NOT_FOUND",
+      message: `Director clarification ${createdClarification.id} was not found`,
+    });
+  });
+
   it("rejects project mismatches and dimensions from another project", async () => {
     await useProjectRoot("mismatch");
 

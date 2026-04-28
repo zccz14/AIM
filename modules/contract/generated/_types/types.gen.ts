@@ -368,6 +368,10 @@ export type CreateDirectorClarificationRequest = {
   message: string;
 };
 
+export type PatchDirectorClarificationRequest = {
+  status: "addressed" | "dismissed";
+};
+
 export type DirectorClarificationListResponse = {
   items: Array<DirectorClarification>;
 };
@@ -513,6 +517,8 @@ export type TaskSessionIdQueryParameter = string;
 export type OpenCodeSessionIdPathParameter = string;
 
 export type ProjectIdPathParameter = string;
+
+export type DirectorClarificationIdPathParameter = string;
 
 export type ProjectIdQueryParameter = string;
 
@@ -1018,6 +1024,40 @@ export type CreateDirectorClarificationResponses = {
 
 export type CreateDirectorClarificationResponse =
   CreateDirectorClarificationResponses[keyof CreateDirectorClarificationResponses];
+
+export type PatchDirectorClarificationByIdData = {
+  body: PatchDirectorClarificationRequest;
+  path: {
+    projectId: string;
+    clarificationId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/director/clarifications/{clarificationId}";
+};
+
+export type PatchDirectorClarificationByIdErrors = {
+  /**
+   * Invalid Director clarification status patch
+   */
+  400: ErrorResponse;
+  /**
+   * Project or Director clarification not found
+   */
+  404: ErrorResponse;
+};
+
+export type PatchDirectorClarificationByIdError =
+  PatchDirectorClarificationByIdErrors[keyof PatchDirectorClarificationByIdErrors];
+
+export type PatchDirectorClarificationByIdResponses = {
+  /**
+   * Updated Director clarification
+   */
+  200: DirectorClarification;
+};
+
+export type PatchDirectorClarificationByIdResponse =
+  PatchDirectorClarificationByIdResponses[keyof PatchDirectorClarificationByIdResponses];
 
 export type ListTasksData = {
   body?: never;

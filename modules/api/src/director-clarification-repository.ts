@@ -4,6 +4,7 @@ import {
   type CreateDirectorClarificationRequest,
   type DirectorClarification,
   directorClarificationSchema,
+  type PatchDirectorClarificationRequest,
 } from "@aim-ai/contract";
 
 import { applySqliteSchema } from "./schema.js";
@@ -109,6 +110,17 @@ const mapDirectorClarificationRow = (row: DirectorClarificationRow) =>
     updated_at: row.updated_at,
   });
 
+const nextUpdateTimestamp = (previousTimestamp: string) => {
+  const now = new Date();
+  const previous = new Date(previousTimestamp);
+
+  if (now <= previous) {
+    return new Date(previous.getTime() + 1).toISOString();
+  }
+
+  return now.toISOString();
+};
+
 const bootstrapDirectorClarificationDatabase = (projectRoot?: string) => {
   const database = openTaskDatabase(projectRoot);
 
@@ -145,6 +157,16 @@ export const createDirectorClarificationRepository = (
     FROM ${directorClarificationsTableName}
     WHERE project_id = ?
     ORDER BY created_at ASC, rowid ASC
+  `);
+  const getDirectorClarificationStatement = database.prepare(`
+    SELECT id, project_id, dimension_id, kind, message, status, created_at, updated_at
+    FROM ${directorClarificationsTableName}
+    WHERE id = ? AND project_id = ?
+  `);
+  const patchDirectorClarificationStatusStatement = database.prepare(`
+    UPDATE ${directorClarificationsTableName}
+    SET status = ?, updated_at = ?
+    WHERE id = ? AND project_id = ?
   `);
   const getProjectByIdStatement = database.prepare(`
     SELECT id
@@ -211,6 +233,36 @@ export const createDirectorClarificationRepository = (
       ) as DirectorClarificationRow[];
 
       return Promise.resolve(rows.map(mapDirectorClarificationRow));
+    },
+    patchDirectorClarificationStatus(
+      projectId: string,
+      clarificationId: string,
+      input: PatchDirectorClarificationRequest,
+    ): Promise<DirectorClarification | null> {
+      const existing = getDirectorClarificationStatement.get(
+        clarificationId,
+        projectId,
+      ) as DirectorClarificationRow | undefined;
+
+      if (!existing) {
+        return Promise.resolve(null);
+      }
+
+      const timestamp = nextUpdateTimestamp(existing.updated_at);
+
+      patchDirectorClarificationStatusStatement.run(
+        input.status,
+        timestamp,
+        clarificationId,
+        projectId,
+      );
+
+      const updated = getDirectorClarificationStatement.get(
+        clarificationId,
+        projectId,
+      ) as DirectorClarificationRow;
+
+      return Promise.resolve(mapDirectorClarificationRow(updated));
     },
   };
 };

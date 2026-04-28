@@ -183,6 +183,9 @@ const CreateDirectorClarificationRequest = z
       .regex(/^(?!\s*$).+/),
   })
   .strict();
+const PatchDirectorClarificationRequest = z
+  .object({ status: z.enum(["addressed", "dismissed"]) })
+  .strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -401,6 +404,7 @@ export const schemas = {
   DirectorClarification,
   DirectorClarificationListResponse,
   CreateDirectorClarificationRequest,
+  PatchDirectorClarificationRequest,
   CreateTaskRequest,
   Task,
   TaskListResponse,
