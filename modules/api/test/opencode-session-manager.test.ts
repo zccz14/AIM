@@ -142,7 +142,14 @@ describe("createOpenCodeSessionManager", () => {
       session: {
         create: vi.fn(),
         messages: vi.fn().mockResolvedValue({
-          data: [{ time: Date.now() - 29 * 60 * 1000 }],
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 29 * 60 * 1000 },
+              },
+              parts: [],
+            },
+          ],
         }),
         promptAsync,
       },

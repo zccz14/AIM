@@ -54,27 +54,6 @@ const sleep = (milliseconds: number, signal: AbortSignal) =>
     );
   });
 
-const toMessageTime = (message: unknown) => {
-  if (!message || typeof message !== "object") {
-    return null;
-  }
-
-  for (const field of ["time", "created_at", "createdAt", "timestamp"]) {
-    const value = (message as Record<string, unknown>)[field];
-    if (typeof value === "number") {
-      return value;
-    }
-    if (typeof value === "string") {
-      const parsed = Date.parse(value);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return null;
-};
-
 const getLatestMessageTime = async (
   client: ReturnType<typeof createOpencodeClient>,
   sessionId: string,
@@ -83,10 +62,9 @@ const getLatestMessageTime = async (
     path: { id: sessionId },
     throwOnError: true,
   });
-  const messages = Array.isArray(response.data) ? response.data : [];
-  const latestMessage = messages.at(-1);
+  const latestMessage = response.data.at(-1);
 
-  return toMessageTime(latestMessage) ?? 0;
+  return latestMessage?.info.time.created ?? 0;
 };
 
 export const createOpenCodeSessionManager = ({
