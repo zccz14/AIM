@@ -59,6 +59,12 @@ const createDimension = (id: string) => ({
   updated_at: "2026-04-27T00:00:00.000Z",
 });
 
+const createNamedDimension = (id: string, name: string, goal: string) => ({
+  ...createDimension(id),
+  goal,
+  name,
+});
+
 const createBelowThresholdRepositories = () => ({
   baselineRepository: {
     getLatestBaselineFacts: vi.fn(async () => ({
@@ -228,6 +234,127 @@ describe("coordinator", () => {
     await coordinator[Symbol.asyncDispose]();
 
     expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("adds a stable priority summary before raw evaluation evidence without replacing guardrails", async () => {
+    const dimensions = [
+      createNamedDimension(
+        "director-gui",
+        "Director GUI clarification",
+        "Clarify GUI scope",
+      ),
+      createNamedDimension(
+        "readme-ahead",
+        "README-ahead autonomy",
+        "Reduce README ahead drift",
+      ),
+      createNamedDimension(
+        "optimizer-depth",
+        "optimizer-depth",
+        "Improve optimizer depth",
+      ),
+    ];
+    const evaluations = {
+      "director-gui": {
+        commit_sha: "baseline-123",
+        created_at: "2026-04-28T09:00:00.000Z",
+        dimension_id: "director-gui",
+        evaluation:
+          "Director GUI clarification: consider_create after missing confirmation path.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-director-gui",
+        project_id: project.id,
+        score: 55,
+      },
+      "optimizer-depth": {
+        commit_sha: "baseline-123",
+        created_at: "2026-04-28T11:00:00.000Z",
+        dimension_id: "optimizer-depth",
+        evaluation:
+          "Optimizer-depth needs deeper evidence but no explicit gap.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-optimizer-depth",
+        project_id: project.id,
+        score: 20,
+      },
+      "readme-ahead": {
+        commit_sha: "older-baseline",
+        created_at: "2026-04-28T10:00:00.000Z",
+        dimension_id: "readme-ahead",
+        evaluation:
+          "README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-readme-ahead",
+        project_id: project.id,
+        score: 80,
+      },
+    };
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async () => [createRejectedTask(1)]),
+      listUnfinishedTasks: vi.fn(async () => []),
+    };
+    const dimensionRepository = {
+      listDimensionEvaluations: vi.fn(
+        async (dimensionId: keyof typeof evaluations) => [
+          evaluations[dimensionId],
+        ],
+      ),
+      listDimensions: vi.fn(async () => dimensions),
+    };
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-priority-summary",
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-123",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Current baseline summary",
+      })),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      baselineRepository,
+      dimensionRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Priority summary for candidate signals");
+    expect(prompt).toMatch(
+      /1\. README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: empty.*baseline: older-baseline differs from current baseline-123/s,
+    );
+    expect(prompt).toMatch(
+      /2\. Director GUI clarification.*consider_create.*score: 55.*active_pool: empty/s,
+    );
+    expect(prompt).toMatch(
+      /3\. optimizer-depth.*score: 20.*baseline: current/s,
+    );
+    expect(
+      prompt.indexOf("Priority summary for candidate signals"),
+    ).toBeLessThan(prompt.indexOf("Latest dimension_evaluations"));
+    expect(prompt).toContain(
+      "README-ahead autonomy (readme-ahead) score 80 at 2026-04-28T10:00:00.000Z; commit older-baseline",
+    );
+    expect(prompt).toContain(
+      "README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
+    );
+    expect(prompt).toContain("Rejected Task feedback for this project");
+    expect(prompt).toContain("rejected-project-1-1");
+    expect(prompt).toContain("source_metadata.task_spec_validation");
+    expect(prompt).toContain("Never submit waiting_assumptions");
+    expect(prompt).toContain("failed Task Spec validation");
+
+    await coordinator[Symbol.asyncDispose]();
   });
 
   it("marks current dimension evaluations as matching the current baseline without stale limitations", async () => {
