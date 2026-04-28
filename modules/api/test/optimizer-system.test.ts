@@ -214,4 +214,63 @@ describe("optimizer system", () => {
     expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
+
+  it("disposes the developer scheduler when later optimizer setup fails", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = { listProjects: vi.fn(() => [configuredProject]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const laneStateRepository = {};
+    const managerStateRepository = {};
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    const setupError = new Error("coordinator setup failed");
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockImplementationOnce(() => {
+      throw setupError;
+    });
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    expect(() =>
+      createOptimizerSystem({
+        continuationSessionRepository,
+        coordinatorConfig: {
+          baseUrl: "http://localhost:4096",
+          sessionIdleFallbackTimeoutMs: undefined,
+        },
+        dimensionRepository,
+        intervalMs: 5_000,
+        laneStateRepository,
+        logger,
+        managerStateRepository,
+        taskRepository,
+      }),
+    ).toThrow(setupError);
+
+    await vi.waitFor(() => {
+      expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    });
+  });
 });
