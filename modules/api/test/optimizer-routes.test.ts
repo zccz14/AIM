@@ -91,6 +91,7 @@ describe("optimizer routes", () => {
       project_id: project.id,
       optimizer_enabled: false,
       runtime_active: false,
+      current_baseline_commit_sha: null,
       blocker_summary: "Optimizer disabled for project",
     });
   });
@@ -110,6 +111,7 @@ describe("optimizer routes", () => {
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: false,
+      current_baseline_commit_sha: null,
       blocker_summary: "Optimizer runtime inactive",
     });
   });
@@ -131,6 +133,7 @@ describe("optimizer routes", () => {
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: true,
+      current_baseline_commit_sha: null,
       blocker_summary: null,
     });
   });

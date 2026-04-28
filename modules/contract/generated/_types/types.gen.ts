@@ -125,6 +125,10 @@ export type ProjectOptimizerStatusResponse = {
    */
   runtime_active: boolean;
   blocker_summary: string | null;
+  /**
+   * Current origin/main baseline commit when the project workspace is available.
+   */
+  current_baseline_commit_sha?: string | null;
 };
 
 export type Task = {

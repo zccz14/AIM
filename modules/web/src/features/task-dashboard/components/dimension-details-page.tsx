@@ -1,5 +1,6 @@
 import type { DimensionEvaluation, Project } from "@aim-ai/contract";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Badge } from "../../../components/ui/badge.js";
 import {
   type ChartConfig,
   ChartContainer,
@@ -26,6 +27,27 @@ import {
 import { DirectorClarificationPanel } from "./director-clarification-panel.js";
 
 const formatDateLabel = (value: string) => value.slice(0, 16).replace("T", " ");
+
+const freshnessLabelKeys = {
+  current: "dimensionFreshnessCurrent",
+  missing: "dimensionFreshnessMissing",
+  stale: "dimensionFreshnessStale",
+  unknown: "dimensionFreshnessUnknown",
+} as const;
+
+const freshnessDescriptionKeys = {
+  current: "dimensionFreshnessCurrentDescription",
+  missing: "dimensionFreshnessMissingDescription",
+  stale: "dimensionFreshnessStaleDescription",
+  unknown: "dimensionFreshnessUnknownDescription",
+} as const;
+
+const freshnessVariants = {
+  current: "default",
+  missing: "secondary",
+  stale: "destructive",
+  unknown: "outline",
+} as const;
 
 const getGitHubRepositoryUrl = (gitOriginUrl: string | null | undefined) => {
   const match = gitOriginUrl?.match(
@@ -122,12 +144,47 @@ export const DimensionDetailsPage = ({
         projectId={report.dimension.project_id}
       />
 
+      <section
+        aria-label={t(freshnessLabelKeys[report.freshness.status])}
+        className="grid gap-3 border bg-card p-4 shadow-sm"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={freshnessVariants[report.freshness.status]}>
+            {t(freshnessLabelKeys[report.freshness.status])}
+          </Badge>
+          <p className={tableMeta}>
+            {t("currentBaseline")}:{" "}
+            {report.freshness.currentBaselineCommitSha ? (
+              <CommitReference
+                commitSha={report.freshness.currentBaselineCommitSha}
+                repositoryUrl={repositoryUrl}
+              />
+            ) : (
+              t("none")
+            )}
+            {" · "}
+            {t("dimensionFreshnessEvaluation")}:{" "}
+            {report.freshness.evaluationCommitSha ? (
+              <CommitReference
+                commitSha={report.freshness.evaluationCommitSha}
+                repositoryUrl={repositoryUrl}
+              />
+            ) : (
+              t("none")
+            )}
+          </p>
+        </div>
+        <p className={sectionCopy}>
+          {t(freshnessDescriptionKeys[report.freshness.status])}
+        </p>
+      </section>
+
       {report.evaluations.length === 0 ? (
         <Empty className="state-card border">
           <EmptyHeader>
             <EmptyTitle>{t("noDimensionEvaluation")}</EmptyTitle>
             <EmptyDescription>
-              {t("dimensionEvaluationDescription")}
+              {t(freshnessDescriptionKeys[report.freshness.status])}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

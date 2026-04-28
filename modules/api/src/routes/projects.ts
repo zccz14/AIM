@@ -1,3 +1,6 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+
 import {
   createProjectRequestSchema,
   patchProjectRequestSchema,
@@ -10,6 +13,7 @@ import {
 import type { Hono } from "hono";
 
 import type { OptimizerSystem } from "../optimizer-system.js";
+import { resolveProjectWorkspacePath } from "../project-workspace.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const projectByIdRoutePath = projectByIdPath.replace(
@@ -87,6 +91,34 @@ const getOptimizerBlockerSummary = ({
   return null;
 };
 
+const getCurrentBaselineCommitSha = async (projectId: string) => {
+  const workspacePath = resolveProjectWorkspacePath(projectId);
+
+  if (!existsSync(workspacePath)) {
+    return null;
+  }
+
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      execFile(
+        "git",
+        ["rev-parse", "origin/main"],
+        { cwd: workspacePath },
+        (error, stdout) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve(stdout.trim());
+        },
+      );
+    });
+  } catch {
+    return null;
+  }
+};
+
 export const registerProjectRoutes = (
   app: Hono,
   options: RegisterProjectRoutesOptions = {},
@@ -160,6 +192,7 @@ export const registerProjectRoutes = (
       project_id: projectId,
       optimizer_enabled: optimizerEnabled,
       runtime_active: runtimeActive,
+      current_baseline_commit_sha: await getCurrentBaselineCommitSha(projectId),
       blocker_summary:
         optimizerStatus === undefined
           ? getOptimizerBlockerSummary({

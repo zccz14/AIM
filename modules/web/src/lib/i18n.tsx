@@ -34,6 +34,20 @@ const messages = {
     completedResultActivity: "Completed Result Activity",
     completedStatus: "Completed",
     commit: "Commit",
+    currentBaseline: "Current baseline",
+    dimensionFreshnessCurrent: "Current baseline evaluated",
+    dimensionFreshnessCurrentDescription:
+      "Latest evaluation matches the current origin/main baseline.",
+    dimensionFreshnessEvaluation: "Evaluation commit",
+    dimensionFreshnessMissing: "No current baseline evaluation",
+    dimensionFreshnessMissingDescription:
+      "Current origin/main baseline is known, but this dimension has no evaluation for it yet.",
+    dimensionFreshnessStale: "Stale baseline evaluation",
+    dimensionFreshnessStaleDescription:
+      "Latest evaluation is behind the current origin/main baseline and should be treated as historical signal only.",
+    dimensionFreshnessUnknown: "Unknown baseline",
+    dimensionFreshnessUnknownDescription:
+      "Current origin/main baseline is unavailable, so evaluation freshness cannot be classified.",
     checklistFacts: "Checklist Facts",
     connection: "Connection",
     contractStatus: "Contract Status",
@@ -318,6 +332,20 @@ const messages = {
     completedResultActivity: "已完成结果活动",
     completedStatus: "已完成",
     commit: "Commit",
+    currentBaseline: "当前基线",
+    dimensionFreshnessCurrent: "已评估当前基线",
+    dimensionFreshnessCurrentDescription:
+      "最新评估与当前 origin/main 基线一致。",
+    dimensionFreshnessEvaluation: "评估 commit",
+    dimensionFreshnessMissing: "缺少当前基线评估",
+    dimensionFreshnessMissingDescription:
+      "当前 origin/main 基线已知，但此 Dimension 尚无对应评估。",
+    dimensionFreshnessStale: "基线评估已陈旧",
+    dimensionFreshnessStaleDescription:
+      "最新评估落后于当前 origin/main 基线，只应作为历史信号。",
+    dimensionFreshnessUnknown: "基线未知",
+    dimensionFreshnessUnknownDescription:
+      "当前 origin/main 基线不可用，无法判断评估新鲜度。",
     checklistFacts: "检查清单事实",
     connection: "连接",
     contractStatus: "契约状态",

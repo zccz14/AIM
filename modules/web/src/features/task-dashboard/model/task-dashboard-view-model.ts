@@ -80,9 +80,22 @@ export type DashboardDecisionSignal = {
   detail: string;
 };
 
+export type DashboardDimensionFreshnessStatus =
+  | "current"
+  | "stale"
+  | "missing"
+  | "unknown";
+
+export type DashboardDimensionFreshness = {
+  status: DashboardDimensionFreshnessStatus;
+  currentBaselineCommitSha: string | null;
+  evaluationCommitSha: string | null;
+};
+
 export type DashboardDimensionReportItem = {
   dimension: Dimension;
   evaluations: DimensionEvaluation[];
+  freshness: DashboardDimensionFreshness;
   latestEvaluation: DimensionEvaluation | null;
 };
 
