@@ -63,6 +63,12 @@ export type OpenCodeSessionManager = AsyncDisposable & {
 const staleAfterMilliseconds = 30 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
 const continuationRetryThrottleMilliseconds = staleAfterMilliseconds;
+const continuationTerminalInstructions = `
+
+Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
+
+export const withContinuation = (prompt: string) =>
+  `${prompt}${continuationTerminalInstructions}`;
 
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -169,7 +175,10 @@ export const createOpenCodeSessionManager = ({
                 latestMessageTime,
               });
               await client.session.promptAsync({
-                body: { model, parts: [{ text: prompt, type: "text" }] },
+                body: {
+                  model,
+                  parts: [{ text: withContinuation(prompt), type: "text" }],
+                },
                 path: { id: session.session_id },
                 throwOnError: true,
               });
@@ -227,7 +236,10 @@ export const createOpenCodeSessionManager = ({
     },
     async pushContinuationPrompt({ model, prompt, sessionId }) {
       await client.session.promptAsync({
-        body: { model, parts: [{ text: prompt, type: "text" }] },
+        body: {
+          model,
+          parts: [{ text: withContinuation(prompt), type: "text" }],
+        },
         path: { id: sessionId },
         throwOnError: true,
       });

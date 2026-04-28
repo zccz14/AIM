@@ -135,7 +135,7 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager } = await import(
+    const { createOpenCodeSessionManager, withContinuation } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
@@ -148,7 +148,9 @@ describe("createOpenCodeSessionManager", () => {
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-        parts: [{ text: "Recover the session.", type: "text" }],
+        parts: [
+          { text: withContinuation("Recover the session."), type: "text" },
+        ],
       },
       path: { id: "session-pending" },
       throwOnError: true,
@@ -217,7 +219,7 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager } = await import(
+    const { createOpenCodeSessionManager, withContinuation } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
@@ -234,7 +236,12 @@ describe("createOpenCodeSessionManager", () => {
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: undefined,
-        parts: [{ text: "Recover after scan failure.", type: "text" }],
+        parts: [
+          {
+            text: withContinuation("Recover after scan failure."),
+            type: "text",
+          },
+        ],
       },
       path: { id: "session-after-scan-error" },
       throwOnError: true,
@@ -267,7 +274,7 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager } = await import(
+    const { createOpenCodeSessionManager, withContinuation } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
@@ -287,7 +294,9 @@ describe("createOpenCodeSessionManager", () => {
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: undefined,
-        parts: [{ text: "Second recovery prompt.", type: "text" }],
+        parts: [
+          { text: withContinuation("Second recovery prompt."), type: "text" },
+        ],
       },
       path: { id: "session-prompt-continues" },
       throwOnError: true,
@@ -365,7 +374,7 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager } = await import(
+    const { createOpenCodeSessionManager, withContinuation } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
@@ -382,12 +391,27 @@ describe("createOpenCodeSessionManager", () => {
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-        parts: [{ text: "Continue explicitly.", type: "text" }],
+        parts: [
+          { text: withContinuation("Continue explicitly."), type: "text" },
+        ],
       },
       path: { id: "session-explicit" },
       throwOnError: true,
     });
 
     await manager[Symbol.asyncDispose]();
+  });
+
+  it("appends terminal settlement instructions without changing the original prompt", async () => {
+    const { withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+
+    const prompt = withContinuation("External prompt.");
+
+    expect(prompt.startsWith("External prompt.")).toBe(true);
+    expect(prompt).toContain("aim_session_resolve");
+    expect(prompt).toContain("aim_session_reject");
+    expect(prompt).toContain("this loop will not end");
   });
 });
