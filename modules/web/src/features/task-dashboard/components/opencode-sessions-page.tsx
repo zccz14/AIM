@@ -314,7 +314,7 @@ export const OpenCodeSessionsPage = () => {
                                   text={reason}
                                 />
                               ) : null}
-                              {!value && !reason ? (
+                              {!continuePrompt && !value && !reason ? (
                                 <p className="m-0 max-w-xl text-sm/relaxed">
                                   {t("none")}
                                 </p>
