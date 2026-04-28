@@ -57,8 +57,6 @@ export type ProjectListResponse = {
   items: Array<Project>;
 };
 
-export type OptimizerTriggerSource = "task_resolved";
-
 export type OpenCodeSessionState = "pending" | "resolved" | "rejected";
 
 export type OpenCodeSession = {
@@ -116,12 +114,6 @@ export type OpenCodeSessionSettleRequest = {
   reason?: string;
 };
 
-export type ProjectOptimizerRecentEvent = {
-  task_id: string;
-  triggered_scan: boolean;
-  type: OptimizerTriggerSource;
-};
-
 export type ProjectOptimizerStatusResponse = {
   project_id: string;
   /**
@@ -132,9 +124,6 @@ export type ProjectOptimizerStatusResponse = {
    * True only when project config is enabled and the optimizer runtime is running.
    */
   runtime_active: boolean;
-  enabled_triggers: Array<OptimizerTriggerSource>;
-  recent_event: ProjectOptimizerRecentEvent | null;
-  recent_scan_at: string | null;
   blocker_summary: string | null;
 };
 
