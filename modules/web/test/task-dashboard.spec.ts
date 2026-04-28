@@ -616,6 +616,21 @@ test("opens an OpenCode sessions list page without drilling into session details
   page,
 }) => {
   const continueRequests: string[] = [];
+  const longContinuePrompt = [
+    "Continue with required checks follow-up.",
+    "Review the required check timeline before deciding whether to wait or intervene.",
+    "Preserve the exact token prompt-tail-8f92c7 when the field is expanded.",
+  ].join("\n");
+  const longValue = [
+    "Waiting on required checks.",
+    "The latest run is still pending on the platform queue.",
+    "Preserve the exact token value-tail-4b7a21 when the field is expanded.",
+  ].join("\n");
+  const longReason = [
+    "Spec no longer matches origin/main.",
+    "The task references an obsolete dashboard route after the latest baseline refresh.",
+    "Preserve the exact token reason-tail-93fd10 when the field is expanded.",
+  ].join("\n");
 
   await page.route("**/opencode/sessions**", async (route) => {
     const requestUrl = new URL(route.request().url());
@@ -653,9 +668,9 @@ test("opens an OpenCode sessions list page without drilling into session details
           {
             session_id: "ses_pending_review",
             state: "pending",
-            value: "Waiting on required checks.",
+            value: longValue,
             reason: null,
-            continue_prompt: "Continue with required checks follow-up.",
+            continue_prompt: longContinuePrompt,
             provider_id: "anthropic",
             model_id: "claude-sonnet-4-5",
             stale: true,
@@ -678,7 +693,7 @@ test("opens an OpenCode sessions list page without drilling into session details
             session_id: "ses_rejected_scope",
             state: "rejected",
             value: null,
-            reason: "Spec no longer matches origin/main.",
+            reason: longReason,
             continue_prompt: null,
             provider_id: null,
             model_id: null,
@@ -725,9 +740,11 @@ test("opens an OpenCode sessions list page without drilling into session details
   await expect(
     sessionsRegion.getByText("Continue with required checks follow-up."),
   ).toBeVisible();
+  await expect(sessionsRegion.getByText("prompt-tail-8f92c7")).toBeHidden();
   await expect(
     sessionsRegion.getByText("Waiting on required checks."),
   ).toBeVisible();
+  await expect(sessionsRegion.getByText("value-tail-4b7a21")).toBeHidden();
   await expect(
     sessionsRegion.getByText("anthropic / claude-sonnet-4-5"),
   ).toBeVisible();
@@ -747,11 +764,23 @@ test("opens an OpenCode sessions list page without drilling into session details
     sessionsRegion.getByText("PR merged and baseline refreshed."),
   ).toBeVisible();
   await expect(
+    sessionsRegion.getByRole("button", { name: /PR merged and baseline/ }),
+  ).toHaveCount(0);
+  await expect(
     sessionsRegion.getByRole("row", { name: /ses_rejected_scope/ }),
   ).toBeVisible();
   await expect(
     sessionsRegion.getByText("Spec no longer matches origin/main."),
   ).toBeVisible();
+  await expect(sessionsRegion.getByText("reason-tail-93fd10")).toBeHidden();
+  await sessionsRegion.getByRole("button", { name: /Continue prompt/ }).click();
+  await expect(sessionsRegion.getByText("prompt-tail-8f92c7")).toBeVisible();
+  await sessionsRegion.getByRole("button", { name: /Value/ }).click();
+  await expect(sessionsRegion.getByText("value-tail-4b7a21")).toBeVisible();
+  await sessionsRegion.getByRole("button", { name: /Reason/ }).click();
+  await expect(sessionsRegion.getByText("reason-tail-93fd10")).toBeVisible();
+  await sessionsRegion.getByRole("button", { name: /Reason/ }).click();
+  await expect(sessionsRegion.getByText("reason-tail-93fd10")).toBeHidden();
   await expect(page.getByRole("link", { name: /Open session/ })).toHaveCount(0);
 
   await sessionsRegion

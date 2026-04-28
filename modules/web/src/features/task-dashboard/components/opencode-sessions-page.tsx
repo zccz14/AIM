@@ -3,6 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../../../components/ui/accordion.js";
+import {
   Alert,
   AlertDescription,
   AlertTitle,
@@ -44,11 +50,29 @@ import {
 const toStateLabel = (state: OpenCodeSession["state"]) =>
   state.charAt(0).toUpperCase() + state.slice(1);
 
-const getOutcome = (session: OpenCodeSession, fallback: string) =>
-  session.value ?? session.reason ?? fallback;
+const PREVIEW_LINE_COUNT = 2;
+const PREVIEW_CHARACTER_COUNT = 180;
+
+const normalizeLongText = (value: string | null | undefined) => value?.trim();
+
+const getTextPreview = (value: string) => {
+  const lines = value.split("\n");
+  const linePreview = lines.slice(0, PREVIEW_LINE_COUNT).join("\n");
+  const preview =
+    linePreview.length > PREVIEW_CHARACTER_COUNT
+      ? linePreview.slice(0, PREVIEW_CHARACTER_COUNT).trimEnd()
+      : linePreview;
+
+  return {
+    isExpandable:
+      lines.length > PREVIEW_LINE_COUNT ||
+      value.length > PREVIEW_CHARACTER_COUNT,
+    preview,
+  };
+};
 
 const getContinuePrompt = (session: OpenCodeSession) =>
-  session.continue_prompt?.trim();
+  normalizeLongText(session.continue_prompt);
 
 const getSessionModel = (session: OpenCodeSession, fallback: string) => {
   if (session.provider_id && session.model_id) {
@@ -68,6 +92,49 @@ const countSessionsByState = (
 
 const formatSessionCount = (count: number, state: OpenCodeSession["state"]) =>
   `${count} ${state} ${count === 1 ? "session" : "sessions"}`;
+
+const SessionLongTextField = ({
+  id,
+  label,
+  text,
+}: {
+  id: string;
+  label: string;
+  text: string;
+}) => {
+  const { isExpandable, preview } = getTextPreview(text);
+
+  if (!isExpandable) {
+    return (
+      <div className="flex flex-col gap-1">
+        <p className={tableMeta}>{label}</p>
+        <p className="m-0 max-w-xl whitespace-pre-wrap break-words text-sm/relaxed">
+          {text}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Accordion className="max-w-xl" collapsible type="single">
+      <AccordionItem value={id}>
+        <AccordionTrigger>
+          <span className="flex min-w-0 flex-1 flex-col gap-1 pr-3">
+            <span className={tableMeta}>{label}</span>
+            <span className="whitespace-pre-wrap break-words text-sm/relaxed font-normal text-foreground">
+              {preview}
+            </span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <p className="m-0 max-w-xl whitespace-pre-wrap break-words text-sm/relaxed text-foreground">
+            {text}
+          </p>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+};
 
 export const OpenCodeSessionsPage = () => {
   const { t } = useI18n();
@@ -193,6 +260,8 @@ export const OpenCodeSessionsPage = () => {
                   <tbody>
                     {sessionsQuery.data.items.map((session) => {
                       const continuePrompt = getContinuePrompt(session);
+                      const value = normalizeLongText(session.value);
+                      const reason = normalizeLongText(session.reason);
 
                       return (
                         <tr key={session.session_id}>
@@ -225,18 +294,31 @@ export const OpenCodeSessionsPage = () => {
                                 </Badge>
                               ) : null}
                               {continuePrompt ? (
-                                <div>
-                                  <p className={tableMeta}>
-                                    {t("continuePrompt")}
-                                  </p>
-                                  <p className="m-0 max-w-xl text-sm/relaxed">
-                                    {continuePrompt}
-                                  </p>
-                                </div>
+                                <SessionLongTextField
+                                  id={`${session.session_id}-continue-prompt`}
+                                  label={t("continuePrompt")}
+                                  text={continuePrompt}
+                                />
                               ) : null}
-                              <p className="m-0 max-w-xl text-sm/relaxed">
-                                {getOutcome(session, t("none"))}
-                              </p>
+                              {value ? (
+                                <SessionLongTextField
+                                  id={`${session.session_id}-value`}
+                                  label={t("sessionValue")}
+                                  text={value}
+                                />
+                              ) : null}
+                              {reason ? (
+                                <SessionLongTextField
+                                  id={`${session.session_id}-reason`}
+                                  label={t("sessionReason")}
+                                  text={reason}
+                                />
+                              ) : null}
+                              {!value && !reason ? (
+                                <p className="m-0 max-w-xl text-sm/relaxed">
+                                  {t("none")}
+                                </p>
+                              ) : null}
                             </div>
                           </td>
                           <td className="border-t p-4">
