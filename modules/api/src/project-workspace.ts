@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -7,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import type { Task } from "@aim-ai/contract";
 
+import { execGit } from "./exec-file.js";
+
 const resolveAimHome = () => process.env.AIM_HOME ?? join(homedir(), ".aim");
 const projectWorkspaceCommandCwd = process.cwd();
 
@@ -14,16 +15,7 @@ export const resolveProjectWorkspacePath = (projectId: string) =>
   join(resolveAimHome(), "projects", projectId);
 
 const runGit = (args: string[], cwd = projectWorkspaceCommandCwd) =>
-  new Promise<string>((resolve, reject) => {
-    execFile("git", args, { cwd }, (error, stdout) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(stdout);
-    });
-  });
+  execGit(cwd, args, { target: cwd });
 
 const cloneGitOrigin = async (gitOriginUrl: string, workspacePath: string) => {
   await runGit(["clone", gitOriginUrl, workspacePath]);

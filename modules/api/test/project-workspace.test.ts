@@ -108,7 +108,7 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["clone", realRemoteUrl, workspacePath],
-      { cwd: originalCwd },
+      expect.objectContaining({ cwd: originalCwd, timeout: 60_000 }),
       expect.any(Function),
     );
   });
@@ -130,7 +130,7 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["clone", realRemoteUrl, workspacePath],
-      { cwd: originalCwd },
+      expect.objectContaining({ cwd: originalCwd, timeout: 60_000 }),
       expect.any(Function),
     );
   });
@@ -150,7 +150,7 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["remote", "set-url", "origin", realRemoteUrl],
-      { cwd: workspacePath },
+      expect.objectContaining({ cwd: workspacePath, timeout: 60_000 }),
       expect.any(Function),
     );
   });
@@ -170,13 +170,13 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["clone", remoteUrl, workspacePath],
-      { cwd: originalCwd },
+      expect.objectContaining({ cwd: originalCwd, timeout: 60_000 }),
       expect.any(Function),
     );
     expect(execFileMock).not.toHaveBeenCalledWith(
       "git",
       ["remote", "get-url", "origin"],
-      { cwd: sourceRepoPath },
+      expect.objectContaining({ cwd: sourceRepoPath, timeout: 60_000 }),
       expect.any(Function),
     );
   });

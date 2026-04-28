@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
-
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import {
@@ -38,17 +37,8 @@ type ManagedDeveloperSession = Awaited<
 
 const heartbeatMs = 1000;
 
-const git = (projectDirectory: string, args: string[]) =>
-  new Promise<string>((resolve, reject) => {
-    execFile("git", args, { cwd: projectDirectory }, (error, stdout) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(String(stdout).trim());
-    });
-  });
+const git = async (projectDirectory: string, args: string[]) =>
+  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
 const defaultBaselineRepository: BaselineRepository = {
   async getLatestBaselineFacts(projectDirectory) {

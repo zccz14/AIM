@@ -1,5 +1,3 @@
-import { execFile } from "node:child_process";
-
 import {
   createOpenCodeSessionRequestSchema,
   openCodeSessionByIdPath,
@@ -17,6 +15,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import { execGh } from "../exec-file.js";
 import { createOpenCodeSessionManager } from "../opencode-session-manager.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { createTaskRepository } from "../task-repository.js";
@@ -130,21 +129,8 @@ const parseSettleRequest = async (request: Request) => {
 };
 
 const getPullRequestMergedOutput = (pullRequestUrl: string) =>
-  new Promise<string>((resolve, reject) => {
-    execFile(
-      "gh",
-      ["pr", "view", pullRequestUrl, "--json", "state,mergedAt"],
-      { encoding: "utf8" },
-      (error, stdout) => {
-        if (error) {
-          reject(error);
-
-          return;
-        }
-
-        resolve(stdout);
-      },
-    );
+  execGh(["pr", "view", pullRequestUrl, "--json", "state,mergedAt"], {
+    target: pullRequestUrl,
   });
 
 const verifyPullRequestMerged = async (pullRequestUrl: string) => {
