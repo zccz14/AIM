@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
+  type DimensionEvaluation,
   type OpenCodeSession,
   type ParsedCreateTaskBatchRequest,
   patchTaskRequestSchema,
@@ -30,10 +31,13 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../api-logger.js";
+import { createDimensionRepository } from "../dimension-repository.js";
 import { listSupportedModels } from "../opencode/list-supported-models.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
+
+type SourceBaselineFreshness = Task["source_baseline_freshness"];
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
 const tasksBatchRoutePath = tasksBatchPath;
@@ -203,6 +207,48 @@ const getNonEmptyString = (source: Record<string, unknown>, field: string) => {
   const value = source[field];
 
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
+const unknownSourceBaselineFreshness = (
+  sourceCommit: null | string,
+  currentCommit: null | string,
+): SourceBaselineFreshness => ({
+  current_commit: currentCommit,
+  source_commit: sourceCommit,
+  status: "unknown",
+  summary: sourceCommit
+    ? "Current origin/main baseline is unavailable for comparison"
+    : "Task source baseline metadata is missing latest_origin_main_commit",
+});
+
+const buildSourceBaselineFreshness = (
+  task: Task,
+  currentCommit: null | string,
+): SourceBaselineFreshness => {
+  const sourceCommit = getNonEmptyString(
+    task.source_metadata,
+    "latest_origin_main_commit",
+  );
+
+  if (!sourceCommit || !currentCommit) {
+    return unknownSourceBaselineFreshness(sourceCommit, currentCommit);
+  }
+
+  if (sourceCommit === currentCommit) {
+    return {
+      current_commit: currentCommit,
+      source_commit: sourceCommit,
+      status: "current",
+      summary: `Task source baseline matches current origin/main ${currentCommit}`,
+    };
+  }
+
+  return {
+    current_commit: currentCommit,
+    source_commit: sourceCommit,
+    status: "stale",
+    summary: `Task source baseline ${sourceCommit} differs from current origin/main ${currentCommit}`,
+  };
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -770,10 +816,19 @@ export const registerTaskRoutes = (
   const logger = options.logger;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
+  let dimensionRepository: null | ReturnType<typeof createDimensionRepository> =
+    null;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   let openCodeSessionRepository: null | ReturnType<
     typeof createOpenCodeSessionRepository
   > = null;
+  const getDimensionRepository = () => {
+    dimensionRepository ??=
+      options.resourceScope?.use(createDimensionRepository({ projectRoot })) ??
+      createDimensionRepository({ projectRoot });
+
+    return dimensionRepository;
+  };
   const getRepository = () => {
     repository ??=
       options.resourceScope?.use(createTaskRepository({ projectRoot })) ??
@@ -813,6 +868,39 @@ export const registerTaskRoutes = (
         : null,
     }));
   };
+  const getCurrentCommitsByProject = async (tasks: Task[]) => {
+    const projectIds = [...new Set(tasks.map((task) => task.project_id))];
+    const entries = await Promise.all(
+      projectIds.map(async (projectId) => {
+        const evaluations =
+          await getDimensionRepository().listProjectDimensionEvaluations(
+            projectId,
+          );
+        const latestEvaluation = evaluations.reduce(
+          (latest, evaluation) =>
+            !latest || evaluation.created_at > latest.created_at
+              ? evaluation
+              : latest,
+          null as null | DimensionEvaluation,
+        );
+
+        return [projectId, latestEvaluation?.commit_sha ?? null] as const;
+      }),
+    );
+
+    return new Map(entries);
+  };
+  const attachSourceBaselineFreshness = async (tasks: Task[]) => {
+    const currentCommitsByProject = await getCurrentCommitsByProject(tasks);
+
+    return tasks.map((task) => ({
+      ...task,
+      source_baseline_freshness: buildSourceBaselineFreshness(
+        task,
+        currentCommitsByProject.get(task.project_id) ?? null,
+      ),
+    }));
+  };
 
   app.get(tasksPath, async (context) => {
     const filters = parseListFilters(context.req.raw);
@@ -821,9 +909,10 @@ export const registerTaskRoutes = (
       return context.json(filters, 400);
     }
 
-    const items = attachOpenCodeSessions(
+    const freshTasks = await attachSourceBaselineFreshness(
       await getRepository().listTasks(filters),
     );
+    const items = attachOpenCodeSessions(freshTasks);
 
     return context.json({ items }, 200);
   });
@@ -918,7 +1007,10 @@ export const registerTaskRoutes = (
       return context.json(buildNotFoundError(taskId), 404);
     }
 
-    return context.json(attachOpenCodeSessions([task])[0], 200);
+    return context.json(
+      attachOpenCodeSessions(await attachSourceBaselineFreshness([task]))[0],
+      200,
+    );
   });
 
   app.get(taskSpecRoutePath, async (context) => {

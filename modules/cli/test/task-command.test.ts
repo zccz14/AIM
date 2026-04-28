@@ -66,6 +66,13 @@ const startTaskServer = async () => {
     dependencies: ["task-a", "task-b"],
     result: "",
     source_metadata: {},
+    source_baseline_freshness: {
+      status: "unknown",
+      source_commit: null,
+      current_commit: null,
+      summary:
+        "Task source baseline metadata is missing latest_origin_main_commit",
+    },
     done: false,
     status: "processing",
     created_at: "2026-04-20T00:00:00.000Z",

@@ -43,6 +43,18 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
     { label: t("taskId"), value: task.id },
     { label: t("contractStatus"), value: task.contractStatus },
     { label: t("dashboardStatus"), value: task.dashboardStatus },
+    {
+      label: t("sourceBaseline"),
+      value: task.sourceBaselineFreshness.status,
+    },
+    {
+      label: t("sourceCommit"),
+      value: task.sourceBaselineFreshness.sourceCommit ?? t("none"),
+    },
+    {
+      label: t("currentCommit"),
+      value: task.sourceBaselineFreshness.currentCommit ?? t("none"),
+    },
     { label: t("sessionId"), value: task.sessionId ?? t("none") },
     { label: t("worktree"), value: task.worktreePath ?? t("none") },
     { label: t("createdAt"), value: task.createdAt },
@@ -85,6 +97,7 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
                 </div>
               ))}
             </dl>
+            <Muted>{task.sourceBaselineFreshness.summary}</Muted>
           </DetailCard>
 
           <DetailCard>
