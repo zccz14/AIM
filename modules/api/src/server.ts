@@ -9,6 +9,7 @@ import { createDimensionRepository } from "./dimension-repository.js";
 import { createApiLogger } from "./logger.js";
 import { prepareManagerLaneScanInput } from "./manager-lane-targets.js";
 import { createOpenCodeSessionRepository } from "./opencode-session-repository.js";
+import { createOptimizerLaneStateRepository } from "./optimizer-lane-state-repository.js";
 import { createOptimizerRuntime } from "./optimizer-runtime.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import { createTaskRepository } from "./task-repository.js";
@@ -98,6 +99,10 @@ export const startServer = (): AsyncDisposable => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(openCodeSessionRepository);
+  const optimizerLaneStateRepository = createOptimizerLaneStateRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
+  });
+  scope.use(optimizerLaneStateRepository);
   const dimensionRepository = createDimensionRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
@@ -116,8 +121,10 @@ export const startServer = (): AsyncDisposable => {
     configuredProjects.length > 0
       ? configuredProjects.map((project) =>
           createAgentSessionLane({
+            continuationSessionRepository: openCodeSessionRepository,
             coordinator: agentCoordinator,
             laneName: "manager_evaluation",
+            laneStateRepository: optimizerLaneStateRepository,
             logger,
             modelId: project.global_model_id,
             projectDirectory: () =>
@@ -133,6 +140,7 @@ export const startServer = (): AsyncDisposable => {
                 projectId: project.id,
               }),
             providerId: project.global_provider_id,
+            projectId: project.id,
             title: `AIM Manager evaluation lane (${project.id})`,
           }),
         )

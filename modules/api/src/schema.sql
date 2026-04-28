@@ -80,3 +80,15 @@ CREATE TABLE IF NOT EXISTS opencode_sessions (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS optimizer_lane_states (
+  project_id TEXT NOT NULL,
+  lane_name TEXT NOT NULL,
+  session_id TEXT,
+  last_error TEXT,
+  last_scan_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, lane_name),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);

@@ -354,6 +354,46 @@ describe("opencode session routes", () => {
     });
   });
 
+  it("bootstraps optimizer lane state storage without extending opencode sessions ownership", async () => {
+    const projectRoot = await useProjectRoot("bootstraps-lane-state-schema");
+    const app = createApp();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-schema",
+        continue_prompt: "Continue through the plugin-owned session queue.",
+      }),
+    });
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const opencodeColumns = database
+      .prepare("PRAGMA table_info(opencode_sessions)")
+      .all()
+      .map((column) => (column as { name: string }).name);
+    const laneStateColumns = database
+      .prepare("PRAGMA table_info(optimizer_lane_states)")
+      .all()
+      .map((column) => (column as { name: string }).name);
+    database.close();
+
+    expect(opencodeColumns).not.toEqual(
+      expect.arrayContaining(["owner_id", "owner_type"]),
+    );
+    expect(laneStateColumns).toEqual(
+      expect.arrayContaining([
+        "project_id",
+        "lane_name",
+        "session_id",
+        "last_error",
+        "last_scan_at",
+        "created_at",
+        "updated_at",
+      ]),
+    );
+  });
+
   it("exposes stale visibility for old pending sessions without changing their state", async () => {
     const projectRoot = await useProjectRoot("shows-stale-pending-session");
     const app = createApp();

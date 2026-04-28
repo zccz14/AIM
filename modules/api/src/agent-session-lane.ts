@@ -1,15 +1,45 @@
 import type { AgentSessionCoordinator } from "./agent-session-coordinator.js";
 import type { ApiLogger } from "./api-logger.js";
+import type {
+  OptimizerLaneState,
+  OptimizerLaneStateInput,
+} from "./optimizer-lane-state-repository.js";
 import type { OptimizerLaneName } from "./optimizer-runtime.js";
 
+type ContinuationSession = {
+  reason: null | string;
+  session_id: string;
+  state: "pending" | "rejected" | "resolved";
+  value: null | string;
+};
+
+type ContinuationSessionRepository = {
+  createSession(input: {
+    continue_prompt?: null | string;
+    session_id: string;
+  }): ContinuationSession;
+  getSessionById(sessionId: string): ContinuationSession | null;
+};
+
+type OptimizerLaneStateRepository = {
+  getLaneState(
+    projectId: string,
+    laneName: Exclude<OptimizerLaneName, "developer_follow_up">,
+  ): null | OptimizerLaneState;
+  upsertLaneState(input: OptimizerLaneStateInput): OptimizerLaneState;
+};
+
 type CreateAgentSessionLaneOptions = {
+  continuationSessionRepository?: ContinuationSessionRepository;
   coordinator: AgentSessionCoordinator;
   laneName: Exclude<OptimizerLaneName, "developer_follow_up">;
+  laneStateRepository?: OptimizerLaneStateRepository;
   logger?: ApiLogger;
   modelId: string;
   prepareScanInput?: (
     input: AgentSessionLaneInput,
   ) => Promise<AgentSessionLaneInput | null>;
+  projectId?: string;
   projectDirectory: string | (() => Promise<string>);
   prompt: string;
   providerId: string;
@@ -46,6 +76,11 @@ export const createAgentSessionLane = (
   let wakeSleepingLoop: (() => void) | undefined;
   let session: ManagedAgentSession | null = null;
   let nextScanAfterMs: null | number = null;
+  const usesPersistedContinuation = Boolean(
+    options.continuationSessionRepository &&
+      options.laneStateRepository &&
+      options.projectId,
+  );
 
   const resolveProjectDirectory = () =>
     typeof options.projectDirectory === "function"
@@ -77,6 +112,86 @@ export const createAgentSessionLane = (
       };
     });
 
+  const persistedLaneStateInput = (
+    input: Omit<OptimizerLaneStateInput, "lane_name" | "project_id">,
+  ): OptimizerLaneStateInput | null => {
+    if (!options.projectId) {
+      return null;
+    }
+
+    return {
+      lane_name: options.laneName,
+      project_id: options.projectId,
+      ...input,
+    };
+  };
+
+  const persistLaneState = (
+    input: Omit<OptimizerLaneStateInput, "lane_name" | "project_id">,
+  ) => {
+    const stateInput = persistedLaneStateInput(input);
+
+    if (!stateInput) {
+      return null;
+    }
+
+    return options.laneStateRepository?.upsertLaneState(stateInput) ?? null;
+  };
+
+  const restorePersistedSessionId = () => {
+    if (!usesPersistedContinuation || sessionId || !options.projectId) {
+      return null;
+    }
+
+    const persistedState = options.laneStateRepository?.getLaneState(
+      options.projectId,
+      options.laneName,
+    );
+
+    if (persistedState) {
+      sessionId = persistedState.session_id;
+      lastError = persistedState.last_error;
+      lastScanAt = persistedState.last_scan_at;
+    }
+
+    return persistedState ?? null;
+  };
+
+  const consumePersistedSession = () => {
+    if (!usesPersistedContinuation || !sessionId) {
+      return false;
+    }
+
+    const continuationSession =
+      options.continuationSessionRepository?.getSessionById(sessionId);
+
+    if (continuationSession?.state === "pending") {
+      return true;
+    }
+
+    if (continuationSession?.state === "resolved") {
+      sessionId = null;
+      persistLaneState({
+        last_error: null,
+        last_scan_at: new Date().toISOString(),
+        session_id: null,
+      });
+      return true;
+    }
+
+    if (continuationSession?.state === "rejected") {
+      lastError = continuationSession.reason ?? "Manager lane session rejected";
+      persistLaneState({
+        last_error: lastError,
+        last_scan_at: lastScanAt,
+        session_id: continuationSession.session_id,
+      });
+      throw new Error(lastError);
+    }
+
+    return false;
+  };
+
   const beginScan = () => {
     if (scanPromise) {
       options.logger?.warn(
@@ -92,6 +207,11 @@ export const createAgentSessionLane = (
     }
 
     scanPromise = (async () => {
+      restorePersistedSessionId();
+      if (consumePersistedSession()) {
+        return;
+      }
+
       const projectDirectory = await resolveProjectDirectory();
       options.logger?.info(
         {
@@ -124,11 +244,26 @@ export const createAgentSessionLane = (
       if (!sessionId) {
         session = await options.coordinator.createSession(scanInput);
         sessionId = session.sessionId;
+        if (usesPersistedContinuation) {
+          options.continuationSessionRepository?.createSession({
+            continue_prompt: scanInput.prompt,
+            session_id: sessionId,
+          });
+          persistLaneState({
+            last_error: null,
+            last_scan_at: lastScanAt,
+            session_id: sessionId,
+          });
+        }
         options.logger?.info(
           { lane: options.laneName, session_id: sessionId },
           "Optimizer lane session created",
         );
 
+        return;
+      }
+
+      if (usesPersistedContinuation) {
         return;
       }
 
@@ -152,6 +287,13 @@ export const createAgentSessionLane = (
       .then(() => {
         lastError = null;
         lastScanAt = new Date().toISOString();
+        if (usesPersistedContinuation) {
+          persistLaneState({
+            last_error: null,
+            last_scan_at: lastScanAt,
+            session_id: sessionId,
+          });
+        }
         options.logger?.info(
           {
             event: "optimizer_lane_scan_succeeded",
@@ -193,6 +335,10 @@ export const createAgentSessionLane = (
 
     session = null;
     sessionId = null;
+    if (usesPersistedContinuation) {
+      return;
+    }
+
     await sessionToDispose?.[Symbol.asyncDispose]();
   };
 

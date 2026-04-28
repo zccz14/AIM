@@ -28,6 +28,200 @@ afterEach(() => {
 });
 
 describe("agent session lane", () => {
+  it("creates a plugin continuation session and persists Manager lane session state", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue(null),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue(null),
+    };
+    const coordinator = {
+      createSession: vi
+        .fn()
+        .mockResolvedValue(createSession("manager-session-1")),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
+      continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
+      session_id: "manager-session-1",
+    });
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "manager_evaluation",
+        last_error: null,
+        project_id: "project-1",
+        session_id: "manager-session-1",
+      }),
+    );
+  });
+
+  it("keeps persisted Manager sessions alive when the lane is disposed", async () => {
+    const session = createSession("manager-session-1");
+    const lane = createLane({
+      continuationSessionRepository: {
+        createSession: vi.fn(),
+        getSessionById: vi.fn().mockReturnValue(null),
+      },
+      coordinator: {
+        createSession: vi.fn().mockResolvedValue(session),
+        getSessionState: vi.fn().mockResolvedValue("idle"),
+        sendPrompt: vi.fn().mockResolvedValue(undefined),
+      },
+      laneStateRepository: {
+        getLaneState: vi.fn().mockReturnValue(null),
+        upsertLaneState: vi.fn(),
+      },
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+    await lane[Symbol.asyncDispose]();
+
+    expect(session[Symbol.asyncDispose]).not.toHaveBeenCalled();
+  });
+
+  it("resumes a persisted pending Manager session without duplicate OpenCode work", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "manager_evaluation",
+        last_error: null,
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "persisted-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
+        reason: null,
+        session_id: "persisted-session",
+        state: "pending",
+        value: null,
+      }),
+    };
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+    expect(continuationSessionRepository.createSession).not.toHaveBeenCalled();
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
+  });
+
+  it("clears resolved persisted Manager sessions so a later scan can start fresh", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "manager_evaluation",
+        last_error: null,
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "resolved-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
+        reason: null,
+        session_id: "resolved-session",
+        state: "resolved",
+        value: "manager evaluation complete",
+      }),
+    };
+    const lane = createLane({
+      continuationSessionRepository,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "manager_evaluation",
+        last_error: null,
+        project_id: "project-1",
+        session_id: null,
+      }),
+    );
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
+  });
+
+  it("retains rejected persisted Manager sessions as lane blockers", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "manager_evaluation",
+        last_error: null,
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "rejected-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
+        reason: "manager blocked",
+        session_id: "rejected-session",
+        state: "rejected",
+        value: null,
+      }),
+    };
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "manager_evaluation",
+        last_error: "manager blocked",
+        project_id: "project-1",
+        session_id: "rejected-session",
+      }),
+    );
+    expect(lane.getStatus()).toMatchObject({ last_error: "manager blocked" });
+  });
+
   it("logs scan start, success, skipped overlap, and next tick context", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-26T12:00:00.000Z"));
