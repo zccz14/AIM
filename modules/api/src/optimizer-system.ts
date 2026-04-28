@@ -5,6 +5,10 @@ import { createAgentSessionLane } from "./agent-session-lane.js";
 import type { ApiLogger } from "./api-logger.js";
 import { createManager } from "./manager.js";
 import type {
+  ManagerState,
+  ManagerStateInput,
+} from "./manager-state-repository.js";
+import type {
   OptimizerLaneState,
   OptimizerLaneStateInput,
 } from "./optimizer-lane-state-repository.js";
@@ -72,6 +76,12 @@ type OptimizerLaneStateRepository = {
   upsertLaneState(input: OptimizerLaneStateInput): OptimizerLaneState;
 };
 
+type ManagerStateRepository = {
+  clearManagerState(projectId: string): boolean;
+  getManagerState(projectId: string): ManagerState | null;
+  upsertManagerState(input: ManagerStateInput): ManagerState;
+};
+
 export type OptimizerSystem = AsyncDisposable & {
   optimizerRuntime: OptimizerRuntime;
 };
@@ -83,6 +93,7 @@ type CreateOptimizerSystemOptions = {
   intervalMs: number;
   laneStateRepository: OptimizerLaneStateRepository;
   logger?: ApiLogger;
+  managerStateRepository: ManagerStateRepository;
   taskRepository: TaskRepository;
 };
 
@@ -121,6 +132,7 @@ export const createOptimizerSystem = ({
   intervalMs,
   laneStateRepository,
   logger,
+  managerStateRepository,
   taskRepository,
 }: CreateOptimizerSystemOptions): OptimizerSystem => {
   const configuredProjects = taskRepository
@@ -140,6 +152,7 @@ export const createOptimizerSystem = ({
             coordinator: agentCoordinator,
             dimensionRepository,
             logger,
+            managerStateRepository,
             project,
           }),
         )

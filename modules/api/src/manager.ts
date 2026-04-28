@@ -4,6 +4,10 @@ import type { Project } from "@aim-ai/contract";
 
 import type { AgentSessionCoordinator } from "./agent-session-coordinator.js";
 import type { ApiLogger } from "./api-logger.js";
+import type {
+  ManagerState,
+  ManagerStateInput,
+} from "./manager-state-repository.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 const heartbeatIntervalMs = 10_000;
@@ -23,6 +27,12 @@ type DimensionRepository = {
   ): Promise<string[]>;
 };
 
+type ManagerStateRepository = {
+  clearManagerState(projectId: string): boolean;
+  getManagerState(projectId: string): ManagerState | null;
+  upsertManagerState(input: ManagerStateInput): ManagerState;
+};
+
 type ManagerProject = Pick<
   Project,
   "git_origin_url" | "global_model_id" | "global_provider_id" | "id"
@@ -32,6 +42,7 @@ type CreateManagerOptions = {
   coordinator: AgentSessionCoordinator;
   dimensionRepository: DimensionRepository;
   logger?: ApiLogger;
+  managerStateRepository: ManagerStateRepository;
   project: ManagerProject;
 };
 
@@ -60,8 +71,14 @@ const git = (projectDirectory: string, args: string[]) =>
 const quoteDimensionIds = (dimensionIds: string[]) =>
   dimensionIds.map((dimensionId) => `"${dimensionId}"`).join(", ");
 
-const evaluationKey = (commitSha: string, dimensionIds: string[]) =>
-  `${commitSha}:${[...dimensionIds].sort().join("\0")}`;
+const canonicalDimensionIds = (dimensionIds: string[]) =>
+  [...new Set(dimensionIds)].sort();
+
+const dimensionIdsJson = (dimensionIds: string[]) =>
+  JSON.stringify(canonicalDimensionIds(dimensionIds));
+
+const errorMessage = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
 
 const projectScopedPrompt = (
   prompt: string,
@@ -84,6 +101,7 @@ export const createManager = ({
   coordinator,
   dimensionRepository,
   logger,
+  managerStateRepository,
   project,
 }: CreateManagerOptions): Manager => {
   const stack = new AsyncDisposableStack();
@@ -94,7 +112,6 @@ export const createManager = ({
   let running = true;
   let lastError: null | string = null;
   let lastScanAt: null | string = null;
-  let activeEvaluationKey: null | string = null;
   let sleepTimer: NodeJS.Timeout | undefined;
   let wakeSleep: (() => void) | undefined;
   let loopPromise: Promise<void> | null = null;
@@ -147,9 +164,10 @@ export const createManager = ({
       project.id,
       commitSha,
     );
+    const canonicalMissingDimensionIds = canonicalDimensionIds(dimensionIds);
 
-    if (dimensionIds.length === 0) {
-      activeEvaluationKey = null;
+    if (canonicalMissingDimensionIds.length === 0) {
+      managerStateRepository.clearManagerState(project.id);
       logger?.info(
         {
           commit_sha: commitSha,
@@ -162,12 +180,17 @@ export const createManager = ({
       return;
     }
 
-    const missingEvaluationKey = evaluationKey(commitSha, dimensionIds);
-    if (activeEvaluationKey === missingEvaluationKey) {
+    const missingDimensionIdsJson = dimensionIdsJson(dimensionIds);
+    const persistedState = managerStateRepository.getManagerState(project.id);
+    if (
+      persistedState?.state === "evaluating" &&
+      persistedState.commit_sha === commitSha &&
+      persistedState.dimension_ids_json === missingDimensionIdsJson
+    ) {
       logger?.info(
         {
           commit_sha: commitSha,
-          dimension_ids: dimensionIds,
+          dimension_ids: canonicalMissingDimensionIds,
           event: "manager_idle",
           project_id: project.id,
           reason: "evaluation_already_in_progress",
@@ -180,13 +203,20 @@ export const createManager = ({
     logger?.info(
       {
         commit_sha: commitSha,
-        dimension_ids: dimensionIds,
+        dimension_ids: canonicalMissingDimensionIds,
         event: "manager_missing_evaluations_found",
         project_id: project.id,
       },
       "Manager missing evaluations found",
     );
-    activeEvaluationKey = missingEvaluationKey;
+    managerStateRepository.upsertManagerState({
+      commit_sha: commitSha,
+      dimension_ids_json: missingDimensionIdsJson,
+      last_error: null,
+      project_id: project.id,
+      session_id: null,
+      state: "evaluating",
+    });
     logger?.info(
       { event: "manager_session_started", project_id: project.id },
       "Manager session started",
@@ -196,11 +226,23 @@ export const createManager = ({
       const session = await coordinator.createSession({
         modelId: project.global_model_id,
         projectDirectory,
-        prompt: evaluationPrompt(project, commitSha, dimensionIds),
+        prompt: evaluationPrompt(
+          project,
+          commitSha,
+          canonicalMissingDimensionIds,
+        ),
         providerId: project.global_provider_id,
         title: `AIM Manager evaluation (${project.id})`,
       });
       sessions.use(session);
+      managerStateRepository.upsertManagerState({
+        commit_sha: commitSha,
+        dimension_ids_json: missingDimensionIdsJson,
+        last_error: null,
+        project_id: project.id,
+        session_id: session.sessionId,
+        state: "evaluating",
+      });
       logger?.info(
         {
           event: "manager_session_created",
@@ -218,9 +260,14 @@ export const createManager = ({
         "Manager session succeeded",
       );
     } catch (err) {
-      if (activeEvaluationKey === missingEvaluationKey) {
-        activeEvaluationKey = null;
-      }
+      managerStateRepository.upsertManagerState({
+        commit_sha: commitSha,
+        dimension_ids_json: missingDimensionIdsJson,
+        last_error: errorMessage(err),
+        project_id: project.id,
+        session_id: null,
+        state: "failed",
+      });
       logger?.error(
         { err, event: "manager_session_failed", project_id: project.id },
         "Manager session failed",

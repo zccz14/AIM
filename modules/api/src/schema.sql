@@ -71,6 +71,18 @@ ON dimension_evaluations (project_id);
 CREATE UNIQUE INDEX IF NOT EXISTS dimension_evaluations_project_commit_dimension_unique
 ON dimension_evaluations (project_id, commit_sha, dimension_id);
 
+CREATE TABLE IF NOT EXISTS manager_states (
+  project_id TEXT PRIMARY KEY,
+  commit_sha TEXT NOT NULL,
+  dimension_ids_json TEXT NOT NULL,
+  session_id TEXT,
+  state TEXT NOT NULL,
+  last_error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS opencode_sessions (
   session_id TEXT PRIMARY KEY,
   state TEXT NOT NULL,
