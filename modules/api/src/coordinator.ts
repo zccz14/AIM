@@ -1,5 +1,3 @@
-import { execFile } from "node:child_process";
-
 import type {
   Dimension,
   DimensionEvaluation,
@@ -7,6 +5,7 @@ import type {
   Task,
 } from "@aim-ai/contract";
 
+import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
@@ -67,17 +66,8 @@ type ManagedSession = Awaited<
 const defaultActiveTaskThreshold = 10;
 const defaultHeartbeatMs = 1000;
 
-const git = (projectDirectory: string, args: string[]) =>
-  new Promise<string>((resolve, reject) => {
-    execFile("git", args, { cwd: projectDirectory }, (error, stdout) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(String(stdout).trim());
-    });
-  });
+const git = async (projectDirectory: string, args: string[]) =>
+  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
 const defaultBaselineRepository: BaselineRepository = {
   async getLatestBaselineFacts(projectDirectory) {

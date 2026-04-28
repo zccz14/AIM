@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
-
 import type { Project } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import { execGit } from "./exec-file.js";
 import type {
   ManagerState,
   ManagerStateInput,
@@ -56,17 +55,8 @@ export type Manager = AsyncDisposable & {
   getStatus(): ManagerStatus;
 };
 
-const git = (projectDirectory: string, args: string[]) =>
-  new Promise<string>((resolve, reject) => {
-    execFile("git", args, { cwd: projectDirectory }, (error, stdout) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(String(stdout).trim());
-    });
-  });
+const git = async (projectDirectory: string, args: string[]) =>
+  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
 const quoteDimensionIds = (dimensionIds: string[]) =>
   dimensionIds.map((dimensionId) => `"${dimensionId}"`).join(", ");

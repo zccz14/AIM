@@ -2317,7 +2317,7 @@ describe("task routes", () => {
         "--json",
         "state,mergedAt",
       ],
-      { encoding: "utf8" },
+      expect.objectContaining({ encoding: "utf8", timeout: 60_000 }),
       expect.any(Function),
     );
   });

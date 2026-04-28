@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execGit } from "./exec-file.js";
 
 type DimensionTargetRepository = {
   listUnevaluatedDimensionIds(
@@ -15,22 +15,8 @@ type ManagerLaneScanInput = {
   title: string;
 };
 
-const git = (projectDirectory: string, args: string[]) =>
-  new Promise<string>((resolve, reject) => {
-    execFile(
-      "git",
-      args,
-      { cwd: projectDirectory },
-      (error, stdout: string) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(stdout.trim());
-      },
-    );
-  });
+const git = async (projectDirectory: string, args: string[]) =>
+  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
 const quoteDimensionIds = (dimensionIds: string[]) =>
   dimensionIds.map((dimensionId) => `"${dimensionId}"`).join(", ");

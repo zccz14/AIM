@@ -1,5 +1,3 @@
-import { execFile } from "node:child_process";
-
 import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
@@ -32,6 +30,7 @@ import type { Hono } from "hono";
 
 import type { ApiLogger } from "../api-logger.js";
 import { createDimensionRepository } from "../dimension-repository.js";
+import { execGh } from "../exec-file.js";
 import { listSupportedModels } from "../opencode/list-supported-models.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
@@ -443,46 +442,21 @@ const parseTaskResultRequest = async (request: Request) => {
 };
 
 const getPullRequestMergedOutput = (pullRequestUrl: string) =>
-  new Promise<string>((resolve, reject) => {
-    execFile(
-      "gh",
-      ["pr", "view", pullRequestUrl, "--json", "state,mergedAt"],
-      { encoding: "utf8" },
-      (error, stdout) => {
-        if (error) {
-          reject(error);
-
-          return;
-        }
-
-        resolve(stdout);
-      },
-    );
+  execGh(["pr", "view", pullRequestUrl, "--json", "state,mergedAt"], {
+    target: pullRequestUrl,
   });
 
 const getPullRequestFollowupOutput = (pullRequestUrl: string) =>
-  new Promise<string>((resolve, reject) => {
-    execFile(
-      "gh",
-      [
-        "pr",
-        "view",
-        pullRequestUrl,
-        "--json",
-        "state,mergedAt,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
-      ],
-      { encoding: "utf8" },
-      (error, stdout) => {
-        if (error) {
-          reject(error);
-
-          return;
-        }
-
-        resolve(stdout);
-      },
-    );
-  });
+  execGh(
+    [
+      "pr",
+      "view",
+      pullRequestUrl,
+      "--json",
+      "state,mergedAt,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
+    ],
+    { target: pullRequestUrl },
+  );
 
 type PullRequestFollowupView = {
   autoMergeRequest?: unknown;

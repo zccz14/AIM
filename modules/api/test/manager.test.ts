@@ -120,13 +120,13 @@ describe("manager", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["fetch", "origin", "main"],
-      { cwd: "/repo/project-1" },
+      expect.objectContaining({ cwd: "/repo/project-1", timeout: 60_000 }),
       expect.any(Function),
     );
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["checkout", "origin/main"],
-      { cwd: "/repo/project-1" },
+      expect.objectContaining({ cwd: "/repo/project-1", timeout: 60_000 }),
       expect.any(Function),
     );
     expect(
@@ -208,7 +208,7 @@ describe("manager", () => {
       expect(execFileMock).toHaveBeenCalledWith(
         "git",
         ["rev-parse", "origin/main"],
-        { cwd: "/repo/project-1" },
+        expect.objectContaining({ cwd: "/repo/project-1", timeout: 60_000 }),
         expect.any(Function),
       );
     });
