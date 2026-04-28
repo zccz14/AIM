@@ -181,16 +181,20 @@ describe("agent session lane", () => {
     expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
 
-  it("retains rejected persisted Manager sessions as lane blockers", async () => {
+  it("clears rejected persisted Manager sessions so the next scan can start fresh", async () => {
+    let persistedLaneState = {
+      lane_name: "manager_evaluation",
+      last_error: null as null | string,
+      last_scan_at: null,
+      project_id: "project-1",
+      session_id: "rejected-session" as null | string,
+    };
     const laneStateRepository = {
-      getLaneState: vi.fn().mockReturnValue({
-        lane_name: "manager_evaluation",
-        last_error: null,
-        last_scan_at: null,
-        project_id: "project-1",
-        session_id: "rejected-session",
+      getLaneState: vi.fn(() => persistedLaneState),
+      upsertLaneState: vi.fn((input) => {
+        persistedLaneState = { ...persistedLaneState, ...input };
+        return persistedLaneState;
       }),
-      upsertLaneState: vi.fn(),
     };
     const continuationSessionRepository = {
       createSession: vi.fn(),
@@ -216,16 +220,23 @@ describe("agent session lane", () => {
 
     await lane.scanOnce();
 
-    expect(coordinator.createSession).not.toHaveBeenCalled();
     expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
       expect.objectContaining({
         lane_name: "manager_evaluation",
         last_error: "manager blocked",
         project_id: "project-1",
-        session_id: "rejected-session",
+        session_id: null,
       }),
     );
     expect(lane.getStatus()).toMatchObject({ last_error: "manager blocked" });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
+      continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
+      session_id: "session-1",
+    });
   });
 
   it("creates a plugin continuation session and persists Coordinator task-pool lane session state", async () => {
@@ -361,16 +372,20 @@ describe("agent session lane", () => {
     expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
 
-  it("retains rejected Coordinator sessions as lane blockers", async () => {
+  it("clears rejected Coordinator sessions so the next scan can start fresh", async () => {
+    let persistedLaneState = {
+      lane_name: "coordinator_task_pool",
+      last_error: null as null | string,
+      last_scan_at: null,
+      project_id: "project-1",
+      session_id: "rejected-coordinator-session" as null | string,
+    };
     const laneStateRepository = {
-      getLaneState: vi.fn().mockReturnValue({
-        lane_name: "coordinator_task_pool",
-        last_error: null,
-        last_scan_at: null,
-        project_id: "project-1",
-        session_id: "rejected-coordinator-session",
+      getLaneState: vi.fn(() => persistedLaneState),
+      upsertLaneState: vi.fn((input) => {
+        persistedLaneState = { ...persistedLaneState, ...input };
+        return persistedLaneState;
       }),
-      upsertLaneState: vi.fn(),
     };
     const continuationSessionRepository = {
       createSession: vi.fn(),
@@ -397,17 +412,24 @@ describe("agent session lane", () => {
 
     await lane.scanOnce();
 
-    expect(coordinator.createSession).not.toHaveBeenCalled();
     expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
       expect.objectContaining({
         lane_name: "coordinator_task_pool",
         last_error: "coordinator needs operator review",
         project_id: "project-1",
-        session_id: "rejected-coordinator-session",
+        session_id: null,
       }),
     );
     expect(lane.getStatus()).toMatchObject({
       last_error: "coordinator needs operator review",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
+      continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+      session_id: "session-1",
     });
   });
 
