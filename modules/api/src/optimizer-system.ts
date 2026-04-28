@@ -90,6 +90,9 @@ type CreateOptimizerSystemOptions = {
   taskRepository: TaskRepository;
 };
 
+const getErrorSummary = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
 
@@ -104,48 +107,130 @@ export const createOptimizerSystem = async ({
   taskRepository,
 }: CreateOptimizerSystemOptions): Promise<OptimizerSystem> => {
   await using stack = new AsyncDisposableStack();
-  const configuredProjects = taskRepository
-    .listProjects()
-    .filter(isConfiguredProject);
+  let projects: Project[];
+
+  try {
+    projects = taskRepository.listProjects();
+  } catch (error) {
+    logger?.error(
+      {
+        component: "optimizer-system",
+        error_summary: getErrorSummary(error),
+        optimizer_configured_stage: "list_projects",
+      },
+      "Optimizer setup failed while listing projects",
+    );
+    throw error;
+  }
+
+  const configuredProjects = projects.filter(isConfiguredProject);
   const enabledConfiguredProjects =
     configuredProjects.filter(isOptimizerEnabled);
-  const openCodeSessionManager = stack.use(
-    createOpenCodeSessionManager({
-      baseUrl: coordinatorConfig.baseUrl,
-      repository: continuationSessionRepository,
-    }),
-  );
-  stack.use(
-    createDeveloper({
-      logger,
-      sessionManager: openCodeSessionManager,
-      taskRepository,
-    }),
-  );
+  const startupContext = {
+    configured_project_count: configuredProjects.length,
+    enabled_configured_project_count: enabledConfiguredProjects.length,
+    optimizer_configured_stage: "configured_projects_filter",
+    optimizer_enabled_stage: "enabled_projects_filter",
+    total_project_count: projects.length,
+  };
+  let openCodeSessionManager: ReturnType<typeof createOpenCodeSessionManager>;
 
-  for (const project of enabledConfiguredProjects) {
-    stack.use(
-      createManager({
-        dimensionRepository,
-        logger,
-        managerStateRepository,
-        project,
-        sessionManager: openCodeSessionManager,
+  try {
+    openCodeSessionManager = stack.use(
+      createOpenCodeSessionManager({
+        baseUrl: coordinatorConfig.baseUrl,
+        repository: continuationSessionRepository,
       }),
     );
+  } catch (error) {
+    logger?.error(
+      {
+        ...startupContext,
+        component: "opencode-session-manager",
+        error_summary: getErrorSummary(error),
+      },
+      "Optimizer setup failed while creating OpenCode session manager",
+    );
+    throw error;
+  }
+
+  try {
     stack.use(
-      createCoordinator(project.id, {
-        continuationSessionRepository,
-        dimensionRepository,
-        projectDirectory: () =>
-          ensureProjectWorkspace({
-            git_origin_url: project.git_origin_url,
-            project_id: project.id,
-          }),
+      createDeveloper({
+        logger,
         sessionManager: openCodeSessionManager,
         taskRepository,
       }),
     );
+  } catch (error) {
+    logger?.error(
+      {
+        ...startupContext,
+        component: "developer",
+        error_summary: getErrorSummary(error),
+        lane: "developer",
+      },
+      "Optimizer setup failed while creating developer lane",
+    );
+    throw error;
+  }
+
+  for (const project of enabledConfiguredProjects) {
+    const projectContext = {
+      ...startupContext,
+      optimizer_enabled: project.optimizer_enabled,
+      project_id: project.id,
+    };
+
+    try {
+      stack.use(
+        createManager({
+          dimensionRepository,
+          logger,
+          managerStateRepository,
+          project,
+          sessionManager: openCodeSessionManager,
+        }),
+      );
+    } catch (error) {
+      logger?.error(
+        {
+          ...projectContext,
+          component: "manager",
+          error_summary: getErrorSummary(error),
+          lane: "manager",
+        },
+        "Optimizer setup failed while creating manager lane",
+      );
+      throw error;
+    }
+
+    try {
+      stack.use(
+        createCoordinator(project.id, {
+          continuationSessionRepository,
+          dimensionRepository,
+          projectDirectory: () =>
+            ensureProjectWorkspace({
+              git_origin_url: project.git_origin_url,
+              project_id: project.id,
+            }),
+          sessionManager: openCodeSessionManager,
+          taskRepository,
+        }),
+      );
+    } catch (error) {
+      logger?.error(
+        {
+          ...projectContext,
+          component: "coordinator",
+          error_summary: getErrorSummary(error),
+          lane: "coordinator",
+        },
+        "Optimizer setup failed while creating coordinator lane",
+      );
+      throw error;
+    }
   }
 
   return stack.move();

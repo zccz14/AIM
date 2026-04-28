@@ -712,6 +712,53 @@ describe("server startup", () => {
     expect(listening).toBe(false);
   });
 
+  it("logs actionable optimizer setup diagnostics and preserves the original error", async () => {
+    process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
+
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+    const setupError = new Error("OpenCode is unavailable");
+
+    mockCreateApiLogger.mockReturnValue(logger);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateDeveloper.mockImplementation(() => {
+      throw setupError;
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    await expect(startServer()).rejects.toThrow(setupError);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        component: "developer",
+        error_summary: "OpenCode is unavailable",
+        lane: "developer",
+        optimizer_configured_stage: "configured_projects_filter",
+        optimizer_enabled_stage: "enabled_projects_filter",
+      }),
+      "Optimizer setup failed while creating developer lane",
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        component: "server",
+        error_summary: "OpenCode is unavailable",
+        next_steps: expect.arrayContaining([
+          expect.stringContaining("Project provider/model configuration"),
+          expect.stringContaining("OPENCODE_BASE_URL"),
+          expect.stringContaining("workspaces can be bootstrapped"),
+          expect.stringContaining("repository initialization"),
+        ]),
+        opencode_base_url: "http://127.0.0.1:54321",
+        optimizer_configured_stage: "server_optimizer_setup",
+      }),
+      "AIM server optimizer setup failed",
+    );
+    expect(mockServe).not.toHaveBeenCalled();
+  });
+
   it("supports await using cleanup for the listening server and optimizer runtime", async () => {
     const close = vi.fn((callback?: () => void) => {
       callback?.();

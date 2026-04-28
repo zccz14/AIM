@@ -301,6 +301,23 @@ describe("optimizer system", () => {
       }),
     ).rejects.toThrow(setupError);
 
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        component: "coordinator",
+        configured_project_count: 1,
+        enabled_configured_project_count: 1,
+        error_summary: "coordinator setup failed",
+        lane: "coordinator",
+        optimizer_configured_stage: "configured_projects_filter",
+        optimizer_enabled: true,
+        optimizer_enabled_stage: "enabled_projects_filter",
+        project_id: configuredProject.id,
+        total_project_count: 1,
+      }),
+      "Optimizer setup failed while creating coordinator lane",
+    );
     expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(manager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 });
