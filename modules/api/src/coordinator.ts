@@ -7,8 +7,14 @@ import type {
 
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 
+type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
+  optimizer_enabled?: boolean | number;
+};
+
 type TaskRepository = {
-  getProjectById(projectId: string): null | Project | Promise<null | Project>;
+  getProjectById(
+    projectId: string,
+  ): null | CoordinatorProject | Promise<null | CoordinatorProject>;
   listUnfinishedTasks(): Promise<Task[]> | Task[];
 };
 
@@ -83,7 +89,7 @@ const buildPrompt = ({
   activeTasks: Task[];
   dimensions: Dimension[];
   evaluations: Array<{ dimension: Dimension; evaluation: DimensionEvaluation }>;
-  project: Project;
+  project: CoordinatorProject;
   threshold: number;
 }) => {
   const evaluationSummary = evaluations
