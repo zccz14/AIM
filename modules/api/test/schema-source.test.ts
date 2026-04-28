@@ -7,7 +7,6 @@ const schemaUrl = new URL("src/schema.sql", apiRoot);
 const repositorySourceUrls = [
   new URL("src/dimension-repository.ts", apiRoot),
   new URL("src/manager-state-repository.ts", apiRoot),
-  new URL("src/optimizer-lane-state-repository.ts", apiRoot),
   new URL("src/task-repository.ts", apiRoot),
 ];
 

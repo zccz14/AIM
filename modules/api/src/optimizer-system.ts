@@ -85,7 +85,6 @@ type CreateOptimizerSystemOptions = {
   coordinatorConfig: OpenCodeSessionManagerConfig;
   dimensionRepository: DimensionRepository;
   intervalMs: number;
-  laneStateRepository: unknown;
   logger?: ApiLogger;
   managerStateRepository: ManagerStateRepository;
   taskRepository: TaskRepository;

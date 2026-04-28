@@ -83,4 +83,38 @@ describe("optimizer architecture", () => {
       ),
     ).toEqual([]);
   });
+
+  it("does not reintroduce obsolete optimizer lane state repository wiring", async () => {
+    const sourceFiles = await listSourceFiles(srcDirectory);
+    const obsoleteRepositoryFiles = sourceFiles.filter(
+      (file) =>
+        relative(srcDirectory.pathname, file) ===
+        "optimizer-lane-state-repository.ts",
+    );
+    const productionReferences = await Promise.all(
+      sourceFiles
+        .filter((file) => !obsoleteRepositoryFiles.includes(file))
+        .map(async (file) => ({
+          file,
+          source: await readFile(file, "utf8"),
+        })),
+    );
+
+    expect(obsoleteRepositoryFiles).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes("optimizer-lane-state-repository"),
+      ),
+    ).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes("createOptimizerLaneStateRepository"),
+      ),
+    ).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes("laneStateRepository"),
+      ),
+    ).toEqual([]);
+  });
 });
