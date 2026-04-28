@@ -106,3 +106,20 @@ CREATE TABLE IF NOT EXISTS opencode_sessions (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS optimizer_lane_events (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  lane_name TEXT NOT NULL,
+  event TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  session_id TEXT,
+  task_id TEXT,
+  timestamp TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS optimizer_lane_events_project_lane_timestamp_index
+ON optimizer_lane_events (project_id, lane_name, timestamp);
+
+CREATE INDEX IF NOT EXISTS optimizer_lane_events_project_timestamp_index
+ON optimizer_lane_events (project_id, timestamp);

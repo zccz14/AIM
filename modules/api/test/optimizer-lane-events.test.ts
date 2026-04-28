@@ -1,11 +1,36 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdir, rm } from "node:fs/promises";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createOptimizerLaneEventRecorder } from "../src/optimizer-lane-events.js";
 
+const tempRoot = join(
+  process.cwd(),
+  ".tmp",
+  "modules-api-optimizer-lane-events",
+);
+
+const createProjectRoot = async (name: string) => {
+  const projectRoot = join(tempRoot, name);
+
+  await rm(projectRoot, { force: true, recursive: true });
+  await mkdir(projectRoot, { recursive: true });
+
+  return projectRoot;
+};
+
+afterEach(async () => {
+  vi.useRealTimers();
+  await rm(tempRoot, { force: true, recursive: true });
+});
+
 describe("optimizer lane events", () => {
-  it("keeps bounded recent events per project lane", () => {
+  it("keeps bounded recent events per project lane", async () => {
     vi.useFakeTimers();
-    const recorder = createOptimizerLaneEventRecorder();
+    await using recorder = createOptimizerLaneEventRecorder({
+      projectRoot: await createProjectRoot("bounded-recent-events"),
+    });
 
     for (let index = 0; index < 7; index += 1) {
       vi.setSystemTime(new Date(`2026-04-29T10:00:0${index}.000Z`));
@@ -24,13 +49,13 @@ describe("optimizer lane events", () => {
       expect.objectContaining({ summary: "Manager event 3" }),
       expect.objectContaining({ summary: "Manager event 2" }),
     ]);
-
-    vi.useRealTimers();
   });
 
-  it("isolates lane and project histories", () => {
+  it("isolates lane and project histories", async () => {
     vi.useFakeTimers();
-    const recorder = createOptimizerLaneEventRecorder();
+    await using recorder = createOptimizerLaneEventRecorder({
+      projectRoot: await createProjectRoot("isolated-histories"),
+    });
 
     vi.setSystemTime(new Date("2026-04-29T10:00:00.000Z"));
     recorder.record({
@@ -69,7 +94,40 @@ describe("optimizer lane events", () => {
     expect(recorder.list("project-2")).toEqual([
       expect.objectContaining({ lane_name: "coordinator" }),
     ]);
+  });
 
-    vi.useRealTimers();
+  it("persists recent events across recreated recorders", async () => {
+    vi.useFakeTimers();
+    const projectRoot = await createProjectRoot("persists-across-recorders");
+
+    {
+      await using recorder = createOptimizerLaneEventRecorder({ projectRoot });
+
+      vi.setSystemTime(new Date("2026-04-29T10:00:00.000Z"));
+      recorder.record({
+        event: "start",
+        lane_name: "coordinator",
+        project_id: "project-1",
+        session_id: "session-1",
+        summary: "Coordinator started",
+        task_id: "task-1",
+      });
+    }
+
+    await using recreatedRecorder = createOptimizerLaneEventRecorder({
+      projectRoot,
+    });
+
+    expect(recreatedRecorder.list("project-1")).toEqual([
+      {
+        event: "start",
+        lane_name: "coordinator",
+        project_id: "project-1",
+        session_id: "session-1",
+        summary: "Coordinator started",
+        task_id: "task-1",
+        timestamp: "2026-04-29T10:00:00.000Z",
+      },
+    ]);
   });
 });
