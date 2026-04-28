@@ -4,6 +4,7 @@ import { schemas } from "../generated/zod.js";
 
 export type { OpenApiDocument } from "./openapi.js";
 export {
+  coordinatorProposalDryRunPath,
   dbSqlitePath,
   dimensionByIdPath,
   dimensionEvaluationsPath,
@@ -89,6 +90,10 @@ export const taskBatchOperationSchema = schemas.TaskBatchOperation;
 export const createTaskBatchRequestSchema = schemas.CreateTaskBatchRequest;
 export const taskBatchOperationResultSchema = schemas.TaskBatchOperationResult;
 export const taskBatchResponseSchema = schemas.TaskBatchResponse;
+export const createCoordinatorProposalDryRunRequestSchema =
+  schemas.CreateCoordinatorProposalDryRunRequest;
+export const coordinatorProposalDryRunResponseSchema =
+  schemas.CoordinatorProposalDryRunResponse;
 export const opencodeModelCombinationSchema = schemas.OpenCodeModelCombination;
 export const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 export const taskErrorSchema = schemas.ErrorResponse;
@@ -175,6 +180,12 @@ export type TaskBatchOperationResult = Infer<
   typeof taskBatchOperationResultSchema
 >;
 export type TaskBatchResponse = Infer<typeof taskBatchResponseSchema>;
+export type CreateCoordinatorProposalDryRunRequest = Input<
+  typeof createCoordinatorProposalDryRunRequestSchema
+>;
+export type CoordinatorProposalDryRunResponse = Infer<
+  typeof coordinatorProposalDryRunResponseSchema
+>;
 export type OpenCodeModelCombination = Infer<
   typeof opencodeModelCombinationSchema
 >;
@@ -239,6 +250,10 @@ export type CreateTaskBatchRequestSchema = typeof createTaskBatchRequestSchema;
 export type TaskBatchOperationResultSchema =
   typeof taskBatchOperationResultSchema;
 export type TaskBatchResponseSchema = typeof taskBatchResponseSchema;
+export type CreateCoordinatorProposalDryRunRequestSchema =
+  typeof createCoordinatorProposalDryRunRequestSchema;
+export type CoordinatorProposalDryRunResponseSchema =
+  typeof coordinatorProposalDryRunResponseSchema;
 export type OpenCodeModelCombinationSchema =
   typeof opencodeModelCombinationSchema;
 export type OpenCodeModelsResponseSchema = typeof opencodeModelsResponseSchema;
@@ -296,6 +311,11 @@ export type ParsedCreateTaskBatchRequest = Output<
 >;
 export type ParsedTaskBatchOperationResult = TaskBatchOperationResult;
 export type ParsedTaskBatchResponse = TaskBatchResponse;
+export type ParsedCreateCoordinatorProposalDryRunRequest = Output<
+  typeof createCoordinatorProposalDryRunRequestSchema
+>;
+export type ParsedCoordinatorProposalDryRunResponse =
+  CoordinatorProposalDryRunResponse;
 export type ParsedOpenCodeModelCombination = OpenCodeModelCombination;
 export type ParsedOpenCodeModelsResponse = OpenCodeModelsResponse;
 export type ParsedTaskError = TaskError;

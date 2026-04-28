@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import type { ApiLogger } from "./api-logger.js";
 import type { listSupportedModels } from "./opencode/list-supported-models.js";
 import type { OptimizerSystem } from "./optimizer-system.js";
+import { registerCoordinatorProposalRoutes } from "./routes/coordinator-proposals.js";
 import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerDirectorClarificationRoutes } from "./routes/director-clarifications.js";
@@ -70,6 +71,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
     optimizerSystem: _options.optimizerSystem,
     resourceScope,
   });
+  registerCoordinatorProposalRoutes(app, { resourceScope });
   registerDimensionRoutes(app, { resourceScope });
   registerDirectorClarificationRoutes(app, { resourceScope });
   registerTaskRoutes(app, {

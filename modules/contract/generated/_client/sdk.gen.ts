@@ -13,6 +13,9 @@ import type {
   ContinueOpenCodeSessionByIdResponses,
   ContinuePendingOpenCodeSessionsData,
   ContinuePendingOpenCodeSessionsResponses,
+  CreateCoordinatorProposalDryRunData,
+  CreateCoordinatorProposalDryRunErrors,
+  CreateCoordinatorProposalDryRunResponses,
   CreateDimensionData,
   CreateDimensionErrors,
   CreateDimensionEvaluationData,
@@ -422,6 +425,27 @@ export const patchDirectorClarificationById = <
     ThrowOnError
   >({
     url: "/projects/{projectId}/director/clarifications/{clarificationId}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Build a read-only Coordinator task proposal dry-run
+ */
+export const createCoordinatorProposalDryRun = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<CreateCoordinatorProposalDryRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateCoordinatorProposalDryRunResponses,
+    CreateCoordinatorProposalDryRunErrors,
+    ThrowOnError
+  >({
+    url: "/coordinator/proposals/dry-run",
     ...options,
     headers: {
       "Content-Type": "application/json",
