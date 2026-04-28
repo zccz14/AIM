@@ -23,6 +23,16 @@ export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
 const countTasksByStatus = (tasks: DashboardTask[], status: DashboardStatus) =>
   tasks.filter((task) => task.dashboardStatus === status).length;
 
+const countOpenCodeSessionsByState = (
+  response: TaskDashboardResponse,
+  state: "pending" | "rejected" | "resolved",
+) =>
+  response.openCodeSessions.items.filter((session) => session.state === state)
+    .length;
+
+const formatSessionCount = (count: number, state: string) =>
+  `${count} ${state} ${count === 1 ? "session" : "sessions"}`;
+
 const isActiveTask = (task: DashboardTask) =>
   task.dashboardStatus === "processing";
 
@@ -245,6 +255,15 @@ export const adaptTaskDashboard = (
   const processingCount = countTasksByStatus(tasks, "processing");
   const resolvedCount = countTasksByStatus(historyTasks, "resolved");
   const rejectedCount = countTasksByStatus(historyTasks, "rejected");
+  const pendingSessionCount = countOpenCodeSessionsByState(response, "pending");
+  const resolvedSessionCount = countOpenCodeSessionsByState(
+    response,
+    "resolved",
+  );
+  const rejectedSessionCount = countOpenCodeSessionsByState(
+    response,
+    "rejected",
+  );
   const historyCount = historyTasks.length;
   const successRate =
     historyCount === 0 ? 0 : Math.round((resolvedCount / historyCount) * 100);
@@ -280,6 +299,21 @@ export const adaptTaskDashboard = (
         key: "completed",
         label: "Completed Tasks",
         value: `${historyTasks.length} completed`,
+      },
+      {
+        key: "openCodePending",
+        label: "OpenCode Pending",
+        value: formatSessionCount(pendingSessionCount, "pending"),
+      },
+      {
+        key: "openCodeResolved",
+        label: "OpenCode Resolved",
+        value: formatSessionCount(resolvedSessionCount, "resolved"),
+      },
+      {
+        key: "openCodeRejected",
+        label: "OpenCode Rejected",
+        value: formatSessionCount(rejectedSessionCount, "rejected"),
       },
     ],
     decisionSignals: [

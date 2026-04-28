@@ -61,6 +61,14 @@ const getSessionModel = (session: OpenCodeSession, fallback: string) => {
 const canContinue = (session: OpenCodeSession) =>
   session.state === "pending" && Boolean(session.continue_prompt?.trim());
 
+const countSessionsByState = (
+  sessions: OpenCodeSession[],
+  state: OpenCodeSession["state"],
+) => sessions.filter((session) => session.state === state).length;
+
+const formatSessionCount = (count: number, state: OpenCodeSession["state"]) =>
+  `${count} ${state} ${count === 1 ? "session" : "sessions"}`;
+
 export const OpenCodeSessionsPage = () => {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -78,6 +86,15 @@ export const OpenCodeSessionsPage = () => {
   });
   const continuableSessions = sessionsQuery.isSuccess
     ? sessionsQuery.data.items.filter(canContinue)
+    : [];
+  const statusStats = sessionsQuery.isSuccess
+    ? (["pending", "resolved", "rejected"] as const).map((state) => ({
+        label: `${toStateLabel(state)} Sessions`,
+        value: formatSessionCount(
+          countSessionsByState(sessionsQuery.data.items, state),
+          state,
+        ),
+      }))
     : [];
 
   return (
@@ -129,6 +146,16 @@ export const OpenCodeSessionsPage = () => {
 
           {sessionsQuery.isSuccess && sessionsQuery.data.items.length > 0 ? (
             <div className={pageStack}>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {statusStats.map((stat) => (
+                  <div className="border p-4" key={stat.label}>
+                    <p className={eyebrow}>{stat.label}</p>
+                    <p className="m-0 text-2xl font-medium tracking-tight">
+                      {stat.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
               <div className="flex justify-end">
                 <Button
                   disabled={

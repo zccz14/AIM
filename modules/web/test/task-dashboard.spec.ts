@@ -204,6 +204,52 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ items: [] }),
     });
   });
+
+  await page.route("**/opencode/sessions**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            session_id: "ses_pending_review",
+            state: "pending",
+            value: "Waiting on required checks.",
+            reason: null,
+            continue_prompt: "Continue with required checks follow-up.",
+            provider_id: "anthropic",
+            model_id: "claude-sonnet-4-5",
+            stale: true,
+            created_at: "2026-04-27T08:00:00.000Z",
+            updated_at: "2026-04-27T09:30:00.000Z",
+          },
+          {
+            session_id: "ses_resolved_delivery",
+            state: "resolved",
+            value: "PR merged and baseline refreshed.",
+            reason: null,
+            continue_prompt: null,
+            provider_id: null,
+            model_id: null,
+            stale: false,
+            created_at: "2026-04-26T08:00:00.000Z",
+            updated_at: "2026-04-26T11:30:00.000Z",
+          },
+          {
+            session_id: "ses_rejected_scope",
+            state: "rejected",
+            value: null,
+            reason: "Spec no longer matches origin/main.",
+            continue_prompt: null,
+            provider_id: null,
+            model_id: null,
+            stale: false,
+            created_at: "2026-04-25T08:00:00.000Z",
+            updated_at: "2026-04-25T09:00:00.000Z",
+          },
+        ],
+      }),
+    });
+  });
 });
 
 test("renders a simplified top-level dashboard for projects and dimensions", async ({
@@ -227,6 +273,9 @@ test("renders a simplified top-level dashboard for projects and dimensions", asy
   ).toBeVisible();
   await expect(page.getByText("2 projects")).toBeVisible();
   await expect(page.getByText("2 dimensions")).toBeVisible();
+  await expect(page.getByText("1 pending session")).toBeVisible();
+  await expect(page.getByText("1 resolved session")).toBeVisible();
+  await expect(page.getByText("1 rejected session")).toBeVisible();
 
   for (const removedLabel of [
     "Task Write Bulks",
@@ -654,6 +703,15 @@ test("opens an OpenCode sessions list page without drilling into session details
   });
 
   await expect(sessionsRegion).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("1 pending session", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("1 resolved session", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("1 rejected session", { exact: true }),
+  ).toBeVisible();
   await expect(
     sessionsRegion.getByRole("row", { name: /ses_pending_review/ }),
   ).toBeVisible();
