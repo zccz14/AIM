@@ -53,6 +53,10 @@ export type PushOpenCodeSessionContinuationInput = {
 
 const staleAfterMilliseconds = 30 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
+const continuationRetryThrottleMilliseconds = staleAfterMilliseconds;
+
+const summarizeError = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
 const sleep = (milliseconds: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -100,43 +104,84 @@ export const createOpenCodeSessionManager = ({
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
   const client = createOpencodeClient({ baseUrl });
+  const lastContinuationAttemptBySessionId = new Map<
+    string,
+    { attemptedAt: number; latestMessageTime: number }
+  >();
   if (Symbol.asyncDispose in repository) {
     stack.use(repository as AsyncDisposable);
   }
 
   const watchPendingSessions = async () => {
     while (!abortController.signal.aborted) {
-      const pendingSessions = await repository.listSessions({
-        state: "pending",
-      });
+      let pendingSessions: Awaited<ReturnType<typeof repository.listSessions>>;
+
+      try {
+        pendingSessions = await repository.listSessions({
+          state: "pending",
+        });
+      } catch (error) {
+        console.warn("OpenCode pending session scan failed", {
+          error: summarizeError(error),
+        });
+        await sleep(pollSleepMilliseconds, abortController.signal);
+
+        continue;
+      }
 
       for (const session of pendingSessions) {
         if (abortController.signal.aborted) {
           break;
         }
 
-        const prompt = session.continue_prompt?.trim();
-        if (prompt) {
-          const latestMessageTime = await getLatestMessageTime(
-            client,
-            session.session_id,
-          );
+        try {
+          const prompt = session.continue_prompt?.trim();
+          if (prompt) {
+            const latestMessageTime = await getLatestMessageTime(
+              client,
+              session.session_id,
+            );
 
-          if (Date.now() - latestMessageTime >= staleAfterMilliseconds) {
-            const model =
-              session.provider_id && session.model_id
-                ? {
-                    modelID: session.model_id,
-                    providerID: session.provider_id,
-                  }
-                : undefined;
+            if (Date.now() - latestMessageTime >= staleAfterMilliseconds) {
+              const lastAttempt = lastContinuationAttemptBySessionId.get(
+                session.session_id,
+              );
+              if (
+                lastAttempt?.latestMessageTime === latestMessageTime &&
+                Date.now() - lastAttempt.attemptedAt <
+                  continuationRetryThrottleMilliseconds
+              ) {
+                await sleep(pollSleepMilliseconds, abortController.signal);
 
-            await client.session.promptAsync({
-              body: { model, parts: [{ text: prompt, type: "text" }] },
-              path: { id: session.session_id },
-              throwOnError: true,
-            });
+                continue;
+              }
+
+              const model =
+                session.provider_id && session.model_id
+                  ? {
+                      modelID: session.model_id,
+                      providerID: session.provider_id,
+                    }
+                  : undefined;
+
+              lastContinuationAttemptBySessionId.set(session.session_id, {
+                attemptedAt: Date.now(),
+                latestMessageTime,
+              });
+              await client.session.promptAsync({
+                body: { model, parts: [{ text: prompt, type: "text" }] },
+                path: { id: session.session_id },
+                throwOnError: true,
+              });
+            } else {
+              lastContinuationAttemptBySessionId.delete(session.session_id);
+            }
           }
+        } catch (error) {
+          console.warn("OpenCode pending session recovery failed", {
+            error: summarizeError(error),
+            session_id: session.session_id,
+          });
         }
 
         await sleep(pollSleepMilliseconds, abortController.signal);
