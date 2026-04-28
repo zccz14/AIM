@@ -1,12 +1,18 @@
 import { execFile } from "node:child_process";
 
-import type { AgentSessionLaneInput } from "./agent-session-lane.js";
-
 type DimensionTargetRepository = {
   listUnevaluatedDimensionIds(
     projectId: string,
     commitSha: string,
   ): Promise<string[]>;
+};
+
+type ManagerLaneScanInput = {
+  modelId: string;
+  projectDirectory: string;
+  prompt: string;
+  providerId: string;
+  title: string;
 };
 
 const git = (projectDirectory: string, args: string[]) =>
@@ -35,7 +41,7 @@ export const prepareManagerLaneScanInput = async ({
   projectId,
 }: {
   dimensionRepository: DimensionTargetRepository;
-  input: AgentSessionLaneInput;
+  input: ManagerLaneScanInput;
   projectId: string;
 }) => {
   await git(input.projectDirectory, ["fetch", "origin", "main"]);
