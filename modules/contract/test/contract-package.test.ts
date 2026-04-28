@@ -73,6 +73,12 @@ const releaseWorkflowUrl = new URL(
   import.meta.url,
 );
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const unknownSourceBaselineFreshness = {
+  current_commit: null,
+  source_commit: null,
+  status: "unknown",
+  summary: "Task source baseline metadata is missing latest_origin_main_commit",
+} as const;
 
 type ContractPackageManifest = {
   name: string;
@@ -662,6 +668,7 @@ describe("contract package baseline", () => {
         git_origin_url: "https://github.com/example/repo.git",
         result: "complete",
         source_metadata: {},
+        source_baseline_freshness: unknownSourceBaselineFreshness,
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -689,6 +696,7 @@ describe("contract package baseline", () => {
             git_origin_url: "https://github.com/example/repo.git",
             result: "complete",
             source_metadata: {},
+            source_baseline_freshness: unknownSourceBaselineFreshness,
             session_id: null,
             worktree_path: null,
             pull_request_url: null,
@@ -1812,6 +1820,7 @@ describe("contract package baseline", () => {
       pull_request_url: null,
       dependencies: [],
       source_metadata: {},
+      source_baseline_freshness: unknownSourceBaselineFreshness,
       done: false,
       status: "processing",
       created_at: "2026-04-20T00:00:00.000Z",
