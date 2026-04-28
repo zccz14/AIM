@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
+  type OpenCodeSession,
   type ParsedCreateTaskBatchRequest,
   patchTaskRequestSchema,
   type Task,
@@ -484,9 +485,12 @@ const buildPullRequestFollowupStatus = (
   task: {
     done: boolean;
     pull_request_url: string | null;
+    session_id: string | null;
     status: TaskStatus;
+    worktree_path: string | null;
   },
   pullRequest: PullRequestFollowupView | null,
+  openCodeSession: OpenCodeSession | null = null,
 ): TaskPullRequestStatusResponse => {
   const base = {
     pull_request_url: task.pull_request_url,
@@ -495,6 +499,49 @@ const buildPullRequestFollowupStatus = (
   };
 
   if (!task.pull_request_url) {
+    if (task.status === "processing" && !task.session_id) {
+      return taskPullRequestStatusResponseSchema.parse({
+        ...base,
+        category: "waiting_for_assignment",
+        recovery_action:
+          "Assign a developer session before expecting PR follow-up; no PR exists yet.",
+        summary:
+          "Task is processing without an assigned OpenCode session or PR.",
+      });
+    }
+
+    if (task.status === "processing" && openCodeSession?.stale) {
+      return taskPullRequestStatusResponseSchema.parse({
+        ...base,
+        category: "session_pending_stale",
+        recovery_action:
+          "Continue or restart the stale OpenCode session, then create and record a PR when work is ready.",
+        summary:
+          "Task has a stale pending OpenCode session and no pull_request_url.",
+      });
+    }
+
+    if (task.status === "processing" && task.worktree_path) {
+      return taskPullRequestStatusResponseSchema.parse({
+        ...base,
+        category: "worktree_created_no_pr",
+        recovery_action:
+          "Inspect the task worktree, continue development there if still valid, then create and record pull_request_url.",
+        summary: "Task has a recorded worktree but no pull_request_url.",
+      });
+    }
+
+    if (task.status === "processing" && openCodeSession) {
+      return taskPullRequestStatusResponseSchema.parse({
+        ...base,
+        category: "needs_developer_continue",
+        recovery_action:
+          "Continue the assigned OpenCode session until work is ready for PR, then record pull_request_url.",
+        summary:
+          "Task has an active assigned OpenCode session and no pull_request_url.",
+      });
+    }
+
     return taskPullRequestStatusResponseSchema.parse({
       ...base,
       category: "no_pull_request",
@@ -952,7 +999,14 @@ export const registerTaskRoutes = (
     }
 
     if (!task.pull_request_url) {
-      return context.json(buildPullRequestFollowupStatus(task, null), 200);
+      const openCodeSession = task.session_id
+        ? getOpenCodeSessionRepository().getSessionById(task.session_id)
+        : null;
+
+      return context.json(
+        buildPullRequestFollowupStatus(task, null, openCodeSession),
+        200,
+      );
     }
 
     let pullRequest: PullRequestFollowupView | null = null;

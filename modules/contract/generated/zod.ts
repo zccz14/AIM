@@ -228,6 +228,10 @@ const TaskDependenciesRequest = z
   .strict();
 const TaskPullRequestFollowupCategory = z.enum([
   "no_pull_request",
+  "waiting_for_assignment",
+  "session_pending_stale",
+  "worktree_created_no_pr",
+  "needs_developer_continue",
   "waiting_checks",
   "failed_checks",
   "review_blocked",
