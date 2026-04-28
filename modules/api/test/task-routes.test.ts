@@ -88,6 +88,8 @@ const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const currentBaselineCommit = "fc284b9aa5ff780228c625011d4714f9e6771622";
+const staleBaselineCommit = "45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13";
 const buildPassingCoordinatorSourceMetadata = (
   dimensionId = "33333333-3333-4333-8333-333333333333",
   dimensionEvaluationId = "44444444-4444-4444-8444-444444444444",
@@ -100,10 +102,12 @@ const buildPassingCoordinatorSourceMetadata = (
     "No prerequisite Task must complete before this candidate can start.",
   dimension_evaluation_id: dimensionEvaluationId,
   dimension_id: dimensionId,
+  latest_origin_main_commit: currentBaselineCommit,
   task_spec_validation: {
     conclusion: "pass",
     conclusion_summary: "Task Spec validation passed",
     dimension_evaluation_id: dimensionEvaluationId,
+    validated_baseline_commit: currentBaselineCommit,
     validation_session_id: `validation-${dimensionEvaluationId}`,
     validation_source: "aim-verify-task-spec",
   },
@@ -184,6 +188,9 @@ const createTaskRouteApp = (
   options: Parameters<typeof apiModule.createApp>[0] = {},
 ) =>
   apiModule.createApp({
+    currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+      commit: currentBaselineCommit,
+    }),
     openCodeModelsAdapter: createSupportedOpenCodeModelsAdapter(),
     ...options,
   });
@@ -648,7 +655,9 @@ describe("task routes", () => {
   });
 
   it("reports current, stale, and unknown task source baseline freshness", async () => {
-    await useProjectRoot("reports-task-source-baseline-freshness");
+    const projectRoot = await useProjectRoot(
+      "reports-task-source-baseline-freshness",
+    );
 
     const app = createTaskRouteApp();
     const currentCommit = "fc284b9aa5ff780228c625011d4714f9e6771622";
@@ -705,23 +714,51 @@ describe("task routes", () => {
               },
             },
           },
-          {
-            type: "create",
-            task: {
-              task_id: "22222222-2222-4222-8222-222222222222",
-              title: "Stale source task",
-              spec: "Task planned from stale baseline.",
-              source_metadata: {
-                ...buildPassingCoordinatorSourceMetadata(),
-                latest_origin_main_commit: staleCommit,
-              },
-            },
-          },
         ],
       }),
     });
 
     expect(batchResponse.status).toBe(200);
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const now = "2026-04-26T00:00:00.000Z";
+
+    database
+      .prepare(
+        `INSERT INTO tasks (
+          task_id,
+          title,
+          task_spec,
+          project_id,
+          session_id,
+          worktree_path,
+          pull_request_url,
+          dependencies,
+          result,
+          source_metadata,
+          done,
+          status,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "22222222-2222-4222-8222-222222222222",
+        "Stale source task",
+        "Task planned from stale baseline.",
+        mainProjectId,
+        null,
+        null,
+        null,
+        "[]",
+        "",
+        JSON.stringify({ latest_origin_main_commit: staleCommit }),
+        0,
+        "processing",
+        now,
+        now,
+      );
+    database.close();
 
     const missingMetadataResponse = await app.request(
       contractModule.tasksPath,
@@ -822,6 +859,7 @@ describe("task routes", () => {
                     "aim-verify-task-spec returned pass for the source gap",
                   dimension_evaluation_id:
                     "44444444-4444-4444-8444-444444444444",
+                  validated_baseline_commit: currentBaselineCommit,
                   validation_session_id: "validation-session-1",
                   validation_source: "aim-verify-task-spec",
                 },
@@ -871,6 +909,235 @@ describe("task routes", () => {
     ).toMatchObject({ status: 404 });
   });
 
+  it("accepts POST /tasks/batch create operations from the current baseline", async () => {
+    await useProjectRoot("accepts-current-baseline-batch-create");
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+        commit: currentBaselineCommit,
+      }),
+    });
+    const taskId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Current baseline create",
+              spec: "create only when baseline facts match",
+              source_metadata: buildPassingCoordinatorSourceMetadata(),
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      results: [{ task_id: taskId, type: "create" }],
+    });
+  });
+
+  it("rejects POST /tasks/batch create operations missing baseline freshness metadata", async () => {
+    await useProjectRoot("rejects-missing-baseline-batch-create");
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+        commit: currentBaselineCommit,
+      }),
+    });
+    const taskId = "11111111-1111-4111-8111-111111111111";
+    const {
+      latest_origin_main_commit: _latestOriginMainCommit,
+      task_spec_validation,
+      ...metadataWithoutSourceCommit
+    } = buildPassingCoordinatorSourceMetadata();
+    const {
+      validated_baseline_commit: _validatedBaselineCommit,
+      ...validationWithoutBaselineCommit
+    } = task_spec_validation;
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Missing baseline create",
+              spec: "must not be persisted",
+              source_metadata: {
+                ...metadataWithoutSourceCommit,
+                task_spec_validation: validationWithoutBaselineCommit,
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("latest_origin_main_commit");
+    expect(payload.message).toContain("validated_baseline_commit");
+    expect(payload.message).toContain(currentBaselineCommit);
+    expect(payload.message).toContain(
+      "Refresh the Task Spec from current origin/main",
+    );
+    expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("rejects POST /tasks/batch create operations from stale baseline metadata", async () => {
+    await useProjectRoot("rejects-stale-baseline-batch-create");
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+        commit: currentBaselineCommit,
+      }),
+    });
+    const taskId = "11111111-1111-4111-8111-111111111111";
+    const sourceMetadata = buildPassingCoordinatorSourceMetadata();
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: taskId,
+              title: "Stale baseline create",
+              spec: "must not be persisted",
+              source_metadata: {
+                ...sourceMetadata,
+                latest_origin_main_commit: staleBaselineCommit,
+                task_spec_validation: {
+                  ...sourceMetadata.task_spec_validation,
+                  validated_baseline_commit: staleBaselineCommit,
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain(currentBaselineCommit);
+    expect(payload.message).toContain(staleBaselineCommit);
+    expect(payload.message).toContain(
+      "Refresh the Task Spec from current origin/main",
+    );
+    expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("does not require baseline freshness metadata for POST /tasks/batch delete operations", async () => {
+    await useProjectRoot("delete-only-batch-skips-baseline-freshness");
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+        commit: currentBaselineCommit,
+      }),
+    });
+    const existingTaskResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        task_spec: "remove stale task",
+        title: "Remove stale task",
+      }),
+    });
+    const existingTask = await existingTaskResponse.json();
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "delete",
+            delete_reason:
+              "Stale unfinished task has no worktree or PR and is superseded.",
+            task_id: existingTask.task_id,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      results: [{ task_id: existingTask.task_id, type: "delete" }],
+    });
+  });
+
+  it("redacts sensitive baseline metadata details from POST /tasks/batch freshness errors", async () => {
+    await useProjectRoot("redacts-baseline-freshness-errors");
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi.fn().mockResolvedValue({
+        commit: currentBaselineCommit,
+      }),
+    });
+    const sourceMetadata = buildPassingCoordinatorSourceMetadata();
+    const leakedCommit = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";
+
+    const response = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: "11111111-1111-4111-8111-111111111111",
+              title: "Sensitive stale baseline create",
+              spec: "must not leak metadata",
+              source_metadata: {
+                ...sourceMetadata,
+                latest_origin_main_commit: leakedCommit,
+                task_spec_validation: {
+                  ...sourceMetadata.task_spec_validation,
+                  validated_baseline_commit: leakedCommit,
+                },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+
+    expect(payload.code).toBe("TASK_VALIDATION_ERROR");
+    expect(payload.message).toContain("[REDACTED]");
+    expect(payload.message).toContain(currentBaselineCommit);
+    expect(payload.message).not.toContain("ghp_1234567890");
+  });
+
   it("normalizes passing Task Spec validation evidence before persisting batch creates", async () => {
     await useProjectRoot("normalizes-task-spec-validation-evidence");
 
@@ -900,6 +1167,7 @@ describe("task routes", () => {
                   conclusion_summary: "Task Spec validation passed",
                   dimension_evaluation_id:
                     "44444444-4444-4444-8444-444444444444",
+                  validated_baseline_commit: currentBaselineCommit,
                   validation_session_id: validationSessionId,
                   validation_source: "aim-verify-task-spec",
                 },
@@ -922,6 +1190,7 @@ describe("task routes", () => {
           conclusion: "pass",
           conclusion_summary: "Task Spec validation passed",
           dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
+          validated_baseline_commit: currentBaselineCommit,
           validation_session_id: validationSessionId,
           validation_source: "aim-verify-task-spec",
         },

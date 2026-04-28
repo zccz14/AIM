@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 const mockRegisterHealthRoute = vi.fn();
 const mockRegisterDbRoutes = vi.fn();
@@ -49,6 +49,24 @@ vi.mock("../src/routes/projects.js", () => ({
 vi.mock("../src/routes/tasks.js", () => ({
   registerTaskRoutes: mockRegisterTaskRoutes,
 }));
+
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.resetModules();
+});
+
+afterAll(() => {
+  vi.doUnmock("@aim-ai/contract");
+  vi.doUnmock("../src/routes/db.js");
+  vi.doUnmock("../src/routes/dimensions.js");
+  vi.doUnmock("../src/routes/director-clarifications.js");
+  vi.doUnmock("../src/routes/health.js");
+  vi.doUnmock("../src/routes/manager-reports.js");
+  vi.doUnmock("../src/routes/opencode-models.js");
+  vi.doUnmock("../src/routes/opencode-sessions.js");
+  vi.doUnmock("../src/routes/projects.js");
+  vi.doUnmock("../src/routes/tasks.js");
+});
 
 describe("app wiring", () => {
   it("passes the shared logger through to task routes", async () => {
