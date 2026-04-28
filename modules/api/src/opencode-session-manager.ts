@@ -51,6 +51,15 @@ export type PushOpenCodeSessionContinuationInput = {
   sessionId: string;
 };
 
+export type OpenCodeSessionManager = AsyncDisposable & {
+  createSession(
+    input: CreateManagedOpenCodeSessionInput,
+  ): Promise<AsyncDisposable & { sessionId: string }>;
+  pushContinuationPrompt(
+    input: PushOpenCodeSessionContinuationInput,
+  ): Promise<void>;
+};
+
 const staleAfterMilliseconds = 30 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
 const continuationRetryThrottleMilliseconds = staleAfterMilliseconds;
@@ -93,14 +102,7 @@ const getLatestMessageTime = async (
 export const createOpenCodeSessionManager = ({
   baseUrl,
   repository,
-}: CreateOpenCodeSessionManagerOptions): AsyncDisposable & {
-  createSession(
-    input: CreateManagedOpenCodeSessionInput,
-  ): Promise<AsyncDisposable & { sessionId: string }>;
-  pushContinuationPrompt(
-    input: PushOpenCodeSessionContinuationInput,
-  ): Promise<void>;
-} => {
+}: CreateOpenCodeSessionManagerOptions): OpenCodeSessionManager => {
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
   const client = createOpencodeClient({ baseUrl });

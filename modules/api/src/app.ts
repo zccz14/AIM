@@ -16,6 +16,7 @@ import { registerTaskRoutes } from "./routes/tasks.js";
 export type {
   CreateManagedOpenCodeSessionInput,
   CreateOpenCodeSessionManagerOptions,
+  OpenCodeSessionManager,
 } from "./opencode-session-manager.js";
 export { createOpenCodeSessionManager } from "./opencode-session-manager.js";
 export type {
