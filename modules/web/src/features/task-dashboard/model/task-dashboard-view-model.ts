@@ -35,14 +35,7 @@ export type DashboardClosureCue = {
 };
 
 export type DashboardSummaryCard = {
-  key:
-    | "projects"
-    | "dimensions"
-    | "active"
-    | "completed"
-    | "openCodePending"
-    | "openCodeRejected"
-    | "openCodeResolved";
+  key: "projects" | "dimensions" | "active" | "completed" | "openCodeSessions";
   label: string;
   value: string;
 };

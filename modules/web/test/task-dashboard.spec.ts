@@ -273,9 +273,12 @@ test("renders a simplified top-level dashboard for projects and dimensions", asy
   ).toBeVisible();
   await expect(page.getByText("2 projects")).toBeVisible();
   await expect(page.getByText("2 dimensions")).toBeVisible();
-  await expect(page.getByText("1 pending session")).toBeVisible();
-  await expect(page.getByText("1 resolved session")).toBeVisible();
-  await expect(page.getByText("1 rejected session")).toBeVisible();
+  await expect(
+    page.getByText("Pending 1 / Resolved 1 / Rejected 1"),
+  ).toBeVisible();
+  await expect(page.getByText("OpenCode Pending")).toHaveCount(0);
+  await expect(page.getByText("OpenCode Resolved")).toHaveCount(0);
+  await expect(page.getByText("OpenCode Rejected")).toHaveCount(0);
 
   for (const removedLabel of [
     "Task Write Bulks",
@@ -731,14 +734,19 @@ test("opens an OpenCode sessions list page without drilling into session details
 
   await expect(sessionsRegion).toBeVisible();
   await expect(
-    sessionsRegion.getByText("1 pending session", { exact: true }),
+    sessionsRegion.getByText("Pending 1 / Resolved 2 / Rejected 1", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
-    sessionsRegion.getByText("2 resolved sessions", { exact: true }),
-  ).toBeVisible();
+    sessionsRegion.getByText("Pending Sessions", { exact: true }),
+  ).toHaveCount(0);
   await expect(
-    sessionsRegion.getByText("1 rejected session", { exact: true }),
-  ).toBeVisible();
+    sessionsRegion.getByText("Resolved Sessions", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    sessionsRegion.getByText("Rejected Sessions", { exact: true }),
+  ).toHaveCount(0);
   const pendingReviewRow = sessionsRegion.getByRole("row", {
     name: /ses_pending_review/,
   });
