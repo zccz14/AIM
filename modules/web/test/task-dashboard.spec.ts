@@ -566,7 +566,37 @@ test("keeps project management available on the Projects page", async ({
 test("opens an OpenCode sessions list page without drilling into session details", async ({
   page,
 }) => {
+  const continueRequests: string[] = [];
+
   await page.route("**/opencode/sessions**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+
+    if (route.request().method() === "POST") {
+      continueRequests.push(requestUrl.pathname);
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(
+          requestUrl.pathname.endsWith("/continue_pending")
+            ? {
+                counts: { error: 0, pushed: 1, skipped: 2 },
+                items: [
+                  {
+                    reason: null,
+                    session_id: "ses_pending_review",
+                    status: "pushed",
+                  },
+                ],
+              }
+            : {
+                reason: null,
+                session_id: "ses_pending_review",
+                status: "pushed",
+              },
+        ),
+      });
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -629,6 +659,15 @@ test("opens an OpenCode sessions list page without drilling into session details
   ).toBeVisible();
   await expect(sessionsRegion.getByText("Continue prompt ready")).toBeVisible();
   await expect(
+    sessionsRegion.getByRole("button", {
+      exact: true,
+      name: "Continue all pending sessions",
+    }),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByRole("button", { exact: true, name: "Continue" }),
+  ).toBeVisible();
+  await expect(
     sessionsRegion.getByRole("row", { name: /ses_resolved_delivery/ }),
   ).toBeVisible();
   await expect(
@@ -641,6 +680,23 @@ test("opens an OpenCode sessions list page without drilling into session details
     sessionsRegion.getByText("Spec no longer matches origin/main."),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /Open session/ })).toHaveCount(0);
+
+  await sessionsRegion
+    .getByRole("button", { exact: true, name: "Continue" })
+    .click();
+  await sessionsRegion
+    .getByRole("button", {
+      exact: true,
+      name: "Continue all pending sessions",
+    })
+    .click();
+
+  await expect
+    .poll(() => continueRequests)
+    .toEqual([
+      "/api/opencode/sessions/ses_pending_review/continue",
+      "/api/opencode/sessions/continue_pending",
+    ]);
 });
 
 test("opens a dimension detail trend with time, score, evaluation points, and tooltip descriptions", async ({
