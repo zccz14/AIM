@@ -7,9 +7,11 @@ import { createApiLogger } from "./logger.js";
 import { createManagerStateRepository } from "./manager-state-repository.js";
 import { createOpenCodeSessionRepository } from "./opencode-session-repository.js";
 import { createOptimizerLaneStateRepository } from "./optimizer-lane-state-repository.js";
-import { createOptimizerSystem } from "./optimizer-system.js";
+import {
+  createOptimizerSystem,
+  type OpenCodeSessionManagerConfig,
+} from "./optimizer-system.js";
 import { createTaskRepository } from "./task-repository.js";
-import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js";
 
 const defaultPort = 8192;
 const defaultSchedulerIntervalMs = 5_000;
@@ -37,7 +39,7 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
 export const startServer = (): AsyncDisposable => {
   const scope = new AsyncDisposableStack();
   const logger = createApiLogger();
-  const coordinatorConfig: TaskSessionCoordinatorConfig = {
+  const coordinatorConfig: OpenCodeSessionManagerConfig = {
     baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
     sessionIdleFallbackTimeoutMs,
   };

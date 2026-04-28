@@ -5,10 +5,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
-import {
-  createOpenCodeSdkAdapter,
-  type OpenCodeSdkAdapter,
-} from "../opencode-sdk-adapter.js";
+import { listSupportedModels } from "../opencode/list-supported-models.js";
 
 const buildOpenCodeModelsUnavailableError = () =>
   taskErrorSchema.parse({
@@ -17,7 +14,7 @@ const buildOpenCodeModelsUnavailableError = () =>
   });
 
 type RegisterOpenCodeModelRoutesOptions = {
-  adapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
+  adapter?: { listSupportedModels(): ReturnType<typeof listSupportedModels> };
 };
 
 export const registerOpenCodeModelRoutes = (
@@ -26,9 +23,12 @@ export const registerOpenCodeModelRoutes = (
 ) => {
   let adapter = options.adapter;
   const getAdapter = () => {
-    adapter ??= createOpenCodeSdkAdapter({
-      baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-    });
+    adapter ??= {
+      listSupportedModels: () =>
+        listSupportedModels({
+          baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+        }),
+    };
 
     return adapter;
   };

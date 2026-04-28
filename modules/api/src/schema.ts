@@ -256,6 +256,22 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
       );
     }
 
+    const openCodeSessionColumns = tableColumns(database, "opencode_sessions");
+    if (
+      openCodeSessionColumns.has("session_id") &&
+      !openCodeSessionColumns.has("provider_id")
+    ) {
+      database.exec(
+        "ALTER TABLE opencode_sessions ADD COLUMN provider_id TEXT",
+      );
+    }
+    if (
+      openCodeSessionColumns.has("session_id") &&
+      !openCodeSessionColumns.has("model_id")
+    ) {
+      database.exec("ALTER TABLE opencode_sessions ADD COLUMN model_id TEXT");
+    }
+
     rewriteProjectIdsToUuids(database);
   } finally {
     database.exec("PRAGMA legacy_alter_table = OFF;");

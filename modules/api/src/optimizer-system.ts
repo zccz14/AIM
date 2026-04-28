@@ -1,6 +1,5 @@
 import type { Project, Task } from "@aim-ai/contract";
 
-import { createAgentSessionCoordinator } from "./agent-session-coordinator.js";
 import { createAgentSessionLane } from "./agent-session-lane.js";
 import type { ApiLogger } from "./api-logger.js";
 import { createManager } from "./manager.js";
@@ -8,6 +7,7 @@ import type {
   ManagerState,
   ManagerStateInput,
 } from "./manager-state-repository.js";
+import { createOpenCodeSessionManager } from "./opencode-session-manager.js";
 import type {
   OptimizerLaneState,
   OptimizerLaneStateInput,
@@ -17,11 +17,8 @@ import {
   type OptimizerRuntime,
 } from "./optimizer-runtime.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
+import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { createTaskScheduler } from "./task-scheduler.js";
-import {
-  createTaskSessionCoordinator,
-  type TaskSessionCoordinatorConfig,
-} from "./task-session-coordinator.js";
 
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
@@ -47,6 +44,9 @@ type TaskRepository = {
 };
 
 type ContinuationSession = {
+  continue_prompt: null | string;
+  model_id?: null | string;
+  provider_id?: null | string;
   reason: null | string;
   session_id: string;
   state: "pending" | "rejected" | "resolved";
@@ -56,9 +56,19 @@ type ContinuationSession = {
 type ContinuationSessionRepository = {
   createSession(input: {
     continue_prompt?: null | string;
+    model_id?: null | string;
+    provider_id?: null | string;
     session_id: string;
   }): Promise<ContinuationSession>;
   getSessionById(sessionId: string): null | ContinuationSession;
+  listSessions(filter: {
+    state?: "pending" | "rejected" | "resolved";
+  }): ContinuationSession[] | Promise<ContinuationSession[]>;
+};
+
+export type OpenCodeSessionManagerConfig = {
+  baseUrl: string;
+  sessionIdleFallbackTimeoutMs?: number;
 };
 
 type DimensionRepository = {
@@ -88,7 +98,7 @@ export type OptimizerSystem = AsyncDisposable & {
 
 type CreateOptimizerSystemOptions = {
   continuationSessionRepository: ContinuationSessionRepository;
-  coordinatorConfig: TaskSessionCoordinatorConfig;
+  coordinatorConfig: OpenCodeSessionManagerConfig;
   dimensionRepository: DimensionRepository;
   intervalMs: number;
   laneStateRepository: OptimizerLaneStateRepository;
@@ -135,16 +145,51 @@ export const createOptimizerSystem = ({
   managerStateRepository,
   taskRepository,
 }: CreateOptimizerSystemOptions): OptimizerSystem => {
+  const stack = new AsyncDisposableStack();
   const configuredProjects = taskRepository
     .listProjects()
     .filter(isConfiguredProject);
+  const openCodeSessionManager = stack.use(
+    createOpenCodeSessionManager({
+      baseUrl: coordinatorConfig.baseUrl,
+      repository: continuationSessionRepository,
+    }),
+  );
   const scheduler = createTaskScheduler({
-    continuationSessionRepository,
-    coordinator: createTaskSessionCoordinator(coordinatorConfig),
+    coordinator: {
+      async createSession(task) {
+        const directory = await ensureProjectWorkspace(task);
+
+        return openCodeSessionManager.createSession({
+          directory,
+          model: {
+            modelID: task.developer_model_id,
+            providerID: task.developer_provider_id,
+          },
+          prompt: buildTaskSessionPrompt(task),
+          title: `AIM Developer: ${task.title}`,
+        });
+      },
+    },
     logger,
     taskRepository,
   });
-  const agentCoordinator = createAgentSessionCoordinator(coordinatorConfig);
+  const agentCoordinator = {
+    createSession(input: {
+      modelId: string;
+      projectDirectory: string;
+      prompt: string;
+      providerId: string;
+      title: string;
+    }) {
+      return openCodeSessionManager.createSession({
+        directory: input.projectDirectory,
+        model: { modelID: input.modelId, providerID: input.providerId },
+        prompt: input.prompt,
+        title: input.title,
+      });
+    },
+  };
   const managerLanes =
     configuredProjects.length > 0
       ? configuredProjects.map((project) =>
@@ -202,6 +247,7 @@ export const createOptimizerSystem = ({
   return {
     async [Symbol.asyncDispose]() {
       await optimizerRuntime[Symbol.asyncDispose]();
+      await stack.disposeAsync();
     },
     optimizerRuntime,
   };

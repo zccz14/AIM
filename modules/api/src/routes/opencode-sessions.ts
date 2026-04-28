@@ -17,7 +17,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
-import { createOpenCodeSdkAdapter } from "../opencode-sdk-adapter.js";
+import { createOpenCodeSessionManager } from "../opencode-session-manager.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { createTaskRepository } from "../task-repository.js";
 
@@ -69,7 +69,11 @@ const continuationTerminalInstructions = `
 Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
 
 type OpenCodeSessionPromptSender = {
-  sendPrompt(sessionId: string, prompt: string): Promise<void>;
+  sendPrompt(
+    sessionId: string,
+    prompt: string,
+    model?: { modelID: string; providerID: string },
+  ): Promise<void>;
 };
 
 const getTaskResult = (value: string | undefined) => {
@@ -190,6 +194,8 @@ export const registerOpenCodeSessionRoutes = (
 ) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let adapter = options.adapter;
+  let sessionManager: null | ReturnType<typeof createOpenCodeSessionManager> =
+    null;
   let repository: null | ReturnType<typeof createOpenCodeSessionRepository> =
     null;
   let taskRepository: null | ReturnType<typeof createTaskRepository> = null;
@@ -210,10 +216,25 @@ export const registerOpenCodeSessionRoutes = (
   };
   const getAdapter = () => {
     adapter ??= {
-      sendPrompt: (sessionId, prompt) =>
-        createOpenCodeSdkAdapter({
-          baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-        }).sendSessionPrompt(sessionId, prompt),
+      sendPrompt: (sessionId, prompt, model) => {
+        sessionManager ??=
+          options.resourceScope?.use(
+            createOpenCodeSessionManager({
+              baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+              repository: getRepository(),
+            }),
+          ) ??
+          createOpenCodeSessionManager({
+            baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+            repository: getRepository(),
+          });
+
+        return sessionManager.pushContinuationPrompt({
+          model,
+          prompt,
+          sessionId,
+        });
+      },
     };
 
     return adapter;
@@ -221,6 +242,8 @@ export const registerOpenCodeSessionRoutes = (
 
   const pushContinuePrompt = async (session: {
     continue_prompt: null | string;
+    model_id?: null | string;
+    provider_id?: null | string;
     session_id: string;
     state: "pending" | "rejected" | "resolved";
   }) => {
@@ -246,6 +269,9 @@ export const registerOpenCodeSessionRoutes = (
       await getAdapter().sendPrompt(
         session.session_id,
         `${continuePrompt}${continuationTerminalInstructions}`,
+        session.provider_id && session.model_id
+          ? { modelID: session.model_id, providerID: session.provider_id }
+          : undefined,
       );
 
       return openCodeSessionContinueResultSchema.parse({

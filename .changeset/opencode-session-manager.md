@@ -2,4 +2,4 @@
 "@aim-ai/api": patch
 ---
 
-Add an AsyncDisposable OpenCode session manager for promptless creation and stale pending prompt recovery.
+Route task, agent, and continuation OpenCode sessions through the AsyncDisposable OpenCode session manager, replacing thin coordinator and SDK adapter layers while preserving promptless creation, model-aware recovery, continuation push, and abort disposal.

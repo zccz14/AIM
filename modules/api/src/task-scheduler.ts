@@ -1,9 +1,11 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
-import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
-import type { TaskSessionCoordinator } from "./task-session-coordinator.js";
+
+type TaskSessionCreator = {
+  createSession(task: Task): Promise<AsyncDisposable & { sessionId: string }>;
+};
 
 type SchedulerTaskRepository = {
   assignSessionIfUnassigned(
@@ -13,22 +15,14 @@ type SchedulerTaskRepository = {
   listUnfinishedTasks(): Promise<Task[]>;
 };
 
-type ContinuationSessionRepository = {
-  createSession(input: {
-    continue_prompt: null | string;
-    session_id: string;
-  }): Promise<unknown>;
-};
-
 type CreateTaskSchedulerOptions = {
-  continuationSessionRepository?: ContinuationSessionRepository;
-  coordinator: TaskSessionCoordinator;
+  coordinator: TaskSessionCreator;
   logger?: ApiLogger;
   taskRepository: SchedulerTaskRepository;
 };
 
 type ManagedTaskSession = Awaited<
-  ReturnType<TaskSessionCoordinator["createSession"]>
+  ReturnType<TaskSessionCreator["createSession"]>
 >;
 
 type StartOptions = {
@@ -178,10 +172,6 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         boundInRound = assignedTask.session_id === sessionId;
 
         if (boundInRound) {
-          void options.continuationSessionRepository?.createSession({
-            continue_prompt: buildTaskSessionPrompt(assignedTask),
-            session_id: sessionId,
-          });
           activeSessions.set(sessionId, createdSession);
           createdSession = null;
         } else {

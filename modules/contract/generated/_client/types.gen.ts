@@ -67,6 +67,8 @@ export type OpenCodeSession = {
   value: string | null;
   reason: string | null;
   continue_prompt: string | null;
+  provider_id: string | null;
+  model_id: string | null;
   /**
    * True when the session is still pending and older than the configured stale threshold.
    */
@@ -101,6 +103,8 @@ export type OpenCodeSessionContinueBulkResponse = {
 export type CreateOpenCodeSessionRequest = {
   session_id: string;
   continue_prompt?: string | null;
+  provider_id?: string | null;
+  model_id?: string | null;
 };
 
 export type PatchOpenCodeSessionRequest = {
@@ -377,6 +381,8 @@ export type OpenCodeSessionWritable = {
   value: string | null;
   reason: string | null;
   continue_prompt: string | null;
+  provider_id: string | null;
+  model_id: string | null;
 };
 
 export type OpenCodeSessionListResponseWritable = {

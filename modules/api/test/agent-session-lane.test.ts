@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 describe("agent session lane", () => {
-  it("creates a plugin continuation session and persists Manager lane session state", async () => {
+  it("creates a Manager lane session and persists lane state", async () => {
     const laneStateRepository = {
       getLaneState: vi.fn().mockReturnValue(null),
       upsertLaneState: vi.fn(),
@@ -56,10 +56,6 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).toHaveBeenCalledOnce();
-    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
-      continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
-      session_id: "manager-session-1",
-    });
     expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
       expect.objectContaining({
         lane_name: "manager_evaluation",
@@ -221,13 +217,9 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).toHaveBeenCalledOnce();
-    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
-      continue_prompt: "FOLLOW the aim-manager-guide SKILL.",
-      session_id: "session-1",
-    });
   });
 
-  it("creates a plugin continuation session and persists Coordinator task-pool lane session state", async () => {
+  it("creates a Coordinator task-pool lane session and persists lane state", async () => {
     const laneStateRepository = {
       getLaneState: vi.fn().mockReturnValue(null),
       upsertLaneState: vi.fn(),
@@ -252,10 +244,6 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).toHaveBeenCalledOnce();
-    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
-      continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
-      session_id: "coordinator-session-1",
-    });
     expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
       expect.objectContaining({
         lane_name: "coordinator_task_pool",
@@ -405,10 +393,6 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).toHaveBeenCalledOnce();
-    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
-      continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
-      session_id: "session-1",
-    });
   });
 
   it("logs scan start, success, skipped overlap, and next tick context", async () => {

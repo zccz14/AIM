@@ -315,6 +315,8 @@ describe("opencode session routes", () => {
       body: JSON.stringify({
         session_id: "session-pending",
         continue_prompt: "Continue the AIM-controlled session.",
+        provider_id: "anthropic",
+        model_id: "claude-sonnet-4-5",
       }),
     });
 
@@ -333,6 +335,7 @@ describe("opencode session routes", () => {
     expect(sendPrompt).toHaveBeenCalledWith(
       "session-pending",
       expect.stringContaining("Continue the AIM-controlled session."),
+      { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
     );
     const prompt = sendPrompt.mock.calls[0]?.[1] as string;
     expect(prompt).toContain("aim_session_resolve");
@@ -473,6 +476,8 @@ describe("opencode session routes", () => {
       value: null,
       reason: null,
       continue_prompt: "Continue the standalone AIM-controlled session.",
+      model_id: null,
+      provider_id: null,
     });
     expect(Date.parse(createdSession.created_at)).not.toBeNaN();
     expect(Date.parse(createdSession.updated_at)).not.toBeNaN();
@@ -488,7 +493,7 @@ describe("opencode session routes", () => {
       .all();
     const persisted = database
       .prepare(
-        "SELECT session_id, state, value, reason, continue_prompt FROM opencode_sessions WHERE session_id = ?",
+        "SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id FROM opencode_sessions WHERE session_id = ?",
       )
       .get("session-1");
     database.close();
@@ -500,6 +505,8 @@ describe("opencode session routes", () => {
         "value",
         "reason",
         "continue_prompt",
+        "provider_id",
+        "model_id",
         "created_at",
         "updated_at",
       ]),
@@ -510,6 +517,8 @@ describe("opencode session routes", () => {
       value: null,
       reason: null,
       continue_prompt: "Continue the standalone AIM-controlled session.",
+      provider_id: null,
+      model_id: null,
     });
   });
 

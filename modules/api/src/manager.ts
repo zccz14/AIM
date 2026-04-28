@@ -2,7 +2,6 @@ import { execFile } from "node:child_process";
 
 import type { Project } from "@aim-ai/contract";
 
-import type { AgentSessionCoordinator } from "./agent-session-coordinator.js";
 import type { ApiLogger } from "./api-logger.js";
 import type {
   ManagerState,
@@ -38,8 +37,18 @@ type ManagerProject = Pick<
   "git_origin_url" | "global_model_id" | "global_provider_id" | "id"
 >;
 
+type ManagerSessionCreator = {
+  createSession(input: {
+    modelId: string;
+    projectDirectory: string;
+    prompt: string;
+    providerId: string;
+    title: string;
+  }): Promise<AsyncDisposable & { sessionId: string }>;
+};
+
 type CreateManagerOptions = {
-  coordinator: AgentSessionCoordinator;
+  coordinator: ManagerSessionCreator;
   dimensionRepository: DimensionRepository;
   logger?: ApiLogger;
   managerStateRepository: ManagerStateRepository;
