@@ -23,6 +23,12 @@ const createLane = (overrides = {}) =>
     ...overrides,
   });
 
+const coordinatorLaneOptions = {
+  laneName: "coordinator_task_pool" as const,
+  prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+  title: "AIM Coordinator task-pool lane",
+};
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -220,6 +226,189 @@ describe("agent session lane", () => {
       }),
     );
     expect(lane.getStatus()).toMatchObject({ last_error: "manager blocked" });
+  });
+
+  it("creates a plugin continuation session and persists Coordinator task-pool lane session state", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue(null),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue(null),
+    };
+    const coordinator = {
+      createSession: vi
+        .fn()
+        .mockResolvedValue(createSession("coordinator-session-1")),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      ...coordinatorLaneOptions,
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(continuationSessionRepository.createSession).toHaveBeenCalledWith({
+      continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+      session_id: "coordinator-session-1",
+    });
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "coordinator_task_pool",
+        last_error: null,
+        project_id: "project-1",
+        session_id: "coordinator-session-1",
+      }),
+    );
+  });
+
+  it("resumes a persisted pending Coordinator session without polling OpenCode idle or sending continuation prompts", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "coordinator_task_pool",
+        last_error: null,
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "persisted-coordinator-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+        reason: null,
+        session_id: "persisted-coordinator-session",
+        state: "pending",
+        value: null,
+      }),
+    };
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      ...coordinatorLaneOptions,
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(coordinator.getSessionState).not.toHaveBeenCalled();
+    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+    expect(continuationSessionRepository.createSession).not.toHaveBeenCalled();
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
+  });
+
+  it("clears resolved Coordinator sessions without using resolved value as task-pool output", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "coordinator_task_pool",
+        last_error: "previous blocker",
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "resolved-coordinator-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+        reason: null,
+        session_id: "resolved-coordinator-session",
+        state: "resolved",
+        value:
+          '{"operations":[{"type":"create","title":"must not be parsed"}]}',
+      }),
+    };
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      ...coordinatorLaneOptions,
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "coordinator_task_pool",
+        last_error: null,
+        project_id: "project-1",
+        session_id: null,
+      }),
+    );
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
+  });
+
+  it("retains rejected Coordinator sessions as lane blockers", async () => {
+    const laneStateRepository = {
+      getLaneState: vi.fn().mockReturnValue({
+        lane_name: "coordinator_task_pool",
+        last_error: null,
+        last_scan_at: null,
+        project_id: "project-1",
+        session_id: "rejected-coordinator-session",
+      }),
+      upsertLaneState: vi.fn(),
+    };
+    const continuationSessionRepository = {
+      createSession: vi.fn(),
+      getSessionById: vi.fn().mockReturnValue({
+        continue_prompt: "FOLLOW the aim-coordinator-guide SKILL.",
+        reason: "coordinator needs operator review",
+        session_id: "rejected-coordinator-session",
+        state: "rejected",
+        value: null,
+      }),
+    };
+    const coordinator = {
+      createSession: vi.fn().mockResolvedValue(createSession()),
+      getSessionState: vi.fn().mockResolvedValue("idle"),
+      sendPrompt: vi.fn().mockResolvedValue(undefined),
+    };
+    const lane = createLane({
+      ...coordinatorLaneOptions,
+      continuationSessionRepository,
+      coordinator,
+      laneStateRepository,
+      projectId: "project-1",
+    });
+
+    await lane.scanOnce();
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(laneStateRepository.upsertLaneState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane_name: "coordinator_task_pool",
+        last_error: "coordinator needs operator review",
+        project_id: "project-1",
+        session_id: "rejected-coordinator-session",
+      }),
+    );
+    expect(lane.getStatus()).toMatchObject({
+      last_error: "coordinator needs operator review",
+    });
   });
 
   it("logs scan start, success, skipped overlap, and next tick context", async () => {

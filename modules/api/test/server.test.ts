@@ -5,6 +5,8 @@ const mockServe = vi.fn();
 const mockCreateApp = vi.fn();
 const mockCreateApiLogger = vi.fn();
 const mockCreateDimensionRepository = vi.fn();
+const mockCreateOpenCodeSessionRepository = vi.fn();
+const mockCreateOptimizerLaneStateRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
@@ -62,6 +64,14 @@ const createDimensionRepositoryMock = () => ({
   listUnevaluatedDimensionIds: vi.fn(),
 });
 
+const createOpenCodeSessionRepositoryMock = () => ({
+  [Symbol.asyncDispose]: vi.fn(),
+});
+
+const createOptimizerLaneStateRepositoryMock = () => ({
+  [Symbol.asyncDispose]: vi.fn(),
+});
+
 vi.mock("../src/agent-session-coordinator.js", () => ({
   createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
 }));
@@ -86,6 +96,14 @@ vi.mock("../src/dimension-repository.js", () => ({
   createDimensionRepository: mockCreateDimensionRepository,
 }));
 
+vi.mock("../src/opencode-session-repository.js", () => ({
+  createOpenCodeSessionRepository: mockCreateOpenCodeSessionRepository,
+}));
+
+vi.mock("../src/optimizer-lane-state-repository.js", () => ({
+  createOptimizerLaneStateRepository: mockCreateOptimizerLaneStateRepository,
+}));
+
 vi.mock("../src/task-repository.js", () => ({
   createTaskRepository: mockCreateTaskRepository,
 }));
@@ -107,6 +125,12 @@ describe("server startup", () => {
     mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
     mockCreateDimensionRepository.mockReturnValue(
       createDimensionRepositoryMock(),
+    );
+    mockCreateOpenCodeSessionRepository.mockReturnValue(
+      createOpenCodeSessionRepositoryMock(),
+    );
+    mockCreateOptimizerLaneStateRepository.mockReturnValue(
+      createOptimizerLaneStateRepositoryMock(),
     );
   });
 
@@ -438,6 +462,63 @@ describe("server startup", () => {
       expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
     expect(scheduler.start).not.toHaveBeenCalled();
+  });
+
+  it("wires the coordinator lane to persisted plugin continuation state", async () => {
+    const server = {
+      close: vi.fn(),
+      once: vi.fn(),
+    };
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const openCodeSessionRepository = createOpenCodeSessionRepositoryMock();
+    const optimizerLaneStateRepository =
+      createOptimizerLaneStateRepositoryMock();
+
+    mockCreateApp.mockReturnValue(createAppMock());
+    mockServe.mockReturnValue(server);
+    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateOpenCodeSessionRepository.mockReturnValue(
+      openCodeSessionRepository,
+    );
+    mockCreateOptimizerLaneStateRepository.mockReturnValue(
+      optimizerLaneStateRepository,
+    );
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateTaskSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionLane.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    });
+
+    const { startServer } = await import("../src/server.js");
+
+    startServer();
+
+    const coordinatorLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
+      ([config]) => config.laneName === "coordinator_task_pool",
+    )?.[0];
+
+    expect(coordinatorLaneConfig).toMatchObject({
+      continuationSessionRepository: openCodeSessionRepository,
+      laneName: "coordinator_task_pool",
+      laneStateRepository: optimizerLaneStateRepository,
+      projectId: configuredProject.id,
+    });
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Write Task Pool operations through AIM API Server",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "Resolve or reject only to terminate the OpenCode session promise",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "do not put Task Pool operations or other Coordinator business output in the resolved value",
+    );
   });
 
   it("guards manager lane appends with README claim-to-evidence protocol", async () => {
