@@ -172,8 +172,7 @@ export const openApiDocument = {
     "/opencode/sessions/continue_pending": {
       post: {
         operationId: "continuePendingOpenCodeSessions",
-        summary:
-          "Push continuation prompts for all pending AIM-controlled OpenCode sessions",
+        summary: "Continue all pending sessions",
         responses: {
           "200": {
             description: "Per-session continuation push results",
@@ -286,8 +285,7 @@ export const openApiDocument = {
     "/opencode/sessions/{sessionId}/continue": {
       post: {
         operationId: "continueOpenCodeSessionById",
-        summary:
-          "Push a continuation prompt for one pending AIM-controlled OpenCode session",
+        summary: "Continue",
         parameters: [
           {
             $ref: "#/components/parameters/OpenCodeSessionIdPathParameter",
