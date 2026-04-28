@@ -20,6 +20,7 @@ const sourceEvaluation = {
 describe("coordinator proposal dry-run", () => {
   it("turns an uncovered Manager gap into a dry-run create proposal with a concrete Task Spec draft", () => {
     const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "abc1234",
       evaluations: [
         {
           source_dimension: sourceDimension,
@@ -81,6 +82,7 @@ describe("coordinator proposal dry-run", () => {
 
   it("keeps an existing unfinished coverage task as noop", () => {
     const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "abc1234",
       evaluations: [
         {
           source_dimension: sourceDimension,
@@ -124,6 +126,7 @@ describe("coordinator proposal dry-run", () => {
 
   it("uses rejected stale or self-overlap feedback as replacement planning feedback instead of a generic create placeholder", () => {
     const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "abc1234",
       evaluations: [
         {
           source_dimension: sourceDimension,
@@ -159,6 +162,141 @@ describe("coordinator proposal dry-run", () => {
         task_spec_draft: null,
       }),
     ]);
+  });
+
+  it("blocks stale create candidates before Task batch validation", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "baseline-current",
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: {
+            ...sourceEvaluation,
+            commit_sha: "baseline-old",
+          },
+          source_gap: "Do not create stale baseline work.",
+        },
+      ],
+      taskPool: [],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "create",
+        planning_feedback: {
+          blocked: true,
+          reason:
+            "Create candidate source baseline baseline-old differs from current origin/main baseline baseline-current; refresh the Task Spec from current baseline before validation.",
+        },
+        requires_task_spec_validation: true,
+        task_spec_draft: null,
+      }),
+    ]);
+  });
+
+  it("marks create baseline freshness unknown when current baseline is missing", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: sourceEvaluation,
+          source_gap: "Do not create without a comparable current baseline.",
+        },
+      ],
+      taskPool: [],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "create",
+        planning_feedback: {
+          blocked: true,
+          reason:
+            "Create candidate baseline freshness is unknown because current origin/main baseline is unavailable; fetch origin/main before validation.",
+        },
+        task_spec_draft: null,
+      }),
+    ]);
+  });
+
+  it("keeps same-source current unfinished coverage before stale create precheck", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "baseline-current",
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: {
+            ...sourceEvaluation,
+            commit_sha: "baseline-old",
+          },
+          source_gap: "Existing active coverage has priority.",
+        },
+      ],
+      taskPool: [
+        {
+          done: false,
+          source_metadata: {
+            dimension_evaluation_id: "evaluation-1",
+            dimension_id: "dimension-api",
+            latest_origin_main_commit: "baseline-current",
+          },
+          status: "processing",
+          task_id: "task-current-coverage",
+          title: "Current coverage task",
+        },
+      ],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "keep",
+        planning_feedback: null,
+        task_id: "task-current-coverage",
+        task_spec_draft: null,
+      }),
+    ]);
+  });
+
+  it("does not use stale unfinished same-source Tasks as current coverage evidence", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "baseline-current",
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: {
+            ...sourceEvaluation,
+            commit_sha: "baseline-current",
+          },
+          source_gap: "Current create is still needed.",
+        },
+      ],
+      taskPool: [
+        {
+          done: false,
+          source_metadata: {
+            dimension_evaluation_id: "evaluation-1",
+            dimension_id: "dimension-api",
+            latest_origin_main_commit: "baseline-old",
+          },
+          status: "processing",
+          task_id: "task-stale-coverage",
+          title: "Stale coverage task",
+        },
+      ],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "create",
+        planning_feedback: null,
+        task_spec_draft: expect.any(Object),
+      }),
+    ]);
+    expect(dryRun.operations[0]?.coverage_judgment).toEqual({
+      status: "uncovered_gap",
+      summary:
+        "No unfinished Task Pool item covers dimension dimension-api evaluation evaluation-1.",
+    });
   });
 
   it("can propose deleting stale unfinished coverage without writing a task batch", () => {
