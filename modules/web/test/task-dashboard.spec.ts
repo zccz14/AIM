@@ -665,6 +665,9 @@ test("opens an OpenCode sessions list page without drilling into session details
   ).toBeVisible();
   await expect(sessionsRegion.getByText("Continue prompt ready")).toBeVisible();
   await expect(
+    sessionsRegion.getByText("anthropic / claude-sonnet-4-5"),
+  ).toBeVisible();
+  await expect(
     sessionsRegion.getByRole("button", {
       exact: true,
       name: "Continue all pending sessions",

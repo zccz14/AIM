@@ -47,6 +47,14 @@ const toStateLabel = (state: OpenCodeSession["state"]) =>
 const getOutcome = (session: OpenCodeSession, fallback: string) =>
   session.value ?? session.reason ?? session.continue_prompt ?? fallback;
 
+const getSessionModel = (session: OpenCodeSession, fallback: string) => {
+  if (session.provider_id && session.model_id) {
+    return `${session.provider_id} / ${session.model_id}`;
+  }
+
+  return session.model_id ?? fallback;
+};
+
 const canContinue = (session: OpenCodeSession) =>
   session.state === "pending" && Boolean(session.continue_prompt?.trim());
 
@@ -157,6 +165,9 @@ export const OpenCodeSessionsPage = () => {
                       <tr key={session.session_id}>
                         <td className="border-t p-4 font-mono text-sm">
                           {session.session_id}
+                          <p className={tableMeta}>
+                            {getSessionModel(session, t("none"))}
+                          </p>
                         </td>
                         <td className="border-t p-4">
                           <div className="flex flex-wrap gap-2">
