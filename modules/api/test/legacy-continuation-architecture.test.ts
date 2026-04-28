@@ -28,4 +28,20 @@ describe("legacy continuation architecture", () => {
       existsSync(new URL("../src/session-message-state.ts", import.meta.url)),
     ).toBe(false);
   });
+
+  it("keeps task session binding owned by developer instead of the legacy scheduler", () => {
+    const files = readSourceFiles(srcRoot.pathname);
+    const productionReferences = files
+      .filter(
+        (file) =>
+          !file.endsWith("/developer.ts") &&
+          !file.endsWith("/optimizer-runtime.ts"),
+      )
+      .filter((file) => readFileSync(file, "utf8").includes("task-scheduler"));
+
+    expect(
+      existsSync(new URL("../src/task-scheduler.ts", import.meta.url)),
+    ).toBe(false);
+    expect(productionReferences).toEqual([]);
+  });
 });
