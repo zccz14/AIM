@@ -66,8 +66,8 @@ export const createDeveloper = ({
       createdSession = await sessionManager.createSession({
         directory,
         model: {
-          modelID: task.developer_model_id,
-          providerID: task.developer_provider_id,
+          modelID: task.global_model_id,
+          providerID: task.global_provider_id,
         },
         prompt: buildTaskSessionPrompt(task),
         title: `AIM Developer: ${task.title}`,

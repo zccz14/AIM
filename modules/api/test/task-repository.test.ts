@@ -169,7 +169,7 @@ describe("task repository", () => {
     expect(tasks).toEqual([createdTask]);
   });
 
-  it("stores tasks with project_id and resolves context from an explicit project row", async () => {
+  it("stores tasks with project_id and resolves project model context from an explicit project row", async () => {
     const projectRoot = await createProjectRoot("stores-task-project-id");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
@@ -207,8 +207,8 @@ describe("task repository", () => {
         title: "Project scoped task",
       }),
     ).resolves.toMatchObject({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
+      global_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
       project_id: mainProjectId,
       git_origin_url: "https://github.com/example/project-main.git",
     });
@@ -223,9 +223,7 @@ describe("task repository", () => {
       )
       .get(mainProjectId);
     const persistedTask = database
-      .prepare(
-        "SELECT project_id, developer_provider_id, developer_model_id FROM tasks WHERE project_id = ?",
-      )
+      .prepare("SELECT project_id FROM tasks WHERE project_id = ?")
       .get(mainProjectId);
     database.close();
 
@@ -243,6 +241,11 @@ describe("task repository", () => {
     expect(
       taskColumns.map((column) => (column as TableInfoRow).name),
     ).toContain("project_id");
+    expect(
+      taskColumns.map((column) => (column as TableInfoRow).name),
+    ).not.toEqual(
+      expect.arrayContaining(["developer_provider_id", "developer_model_id"]),
+    );
     expect(persistedProject).toEqual({
       global_model_id: "claude-sonnet-4-5",
       global_provider_id: "anthropic",
@@ -250,11 +253,7 @@ describe("task repository", () => {
       name: "Main project",
       git_origin_url: "https://github.com/example/project-main.git",
     });
-    expect(persistedTask).toEqual({
-      developer_model_id: "claude-sonnet-4-5",
-      developer_provider_id: "anthropic",
-      project_id: mainProjectId,
-    });
+    expect(persistedTask).toEqual({ project_id: mainProjectId });
   });
 
   it("creates projects with UUID ids that stay distinct from git_origin_url", async () => {
@@ -603,9 +602,9 @@ describe("task repository", () => {
     });
   });
 
-  it("creates and persists required task title and developer model columns", async () => {
+  it("creates and persists required task title without task-level developer model columns", async () => {
     const projectRoot = await createProjectRoot(
-      "creates-required-model-columns",
+      "creates-no-task-model-columns",
     );
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
@@ -613,17 +612,15 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const createdTask = await createTask(repository, {
       status: "processing",
-      task_spec: "persist required model fields",
-      title: "Persist model fields",
+      task_spec: "persist task without copied model fields",
+      title: "Persist task identity fields",
     });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
     const columns = database
       .prepare("PRAGMA table_info(tasks)")
       .all() as TableInfoRow[];
     const persistedRow = database
-      .prepare(
-        "SELECT title, developer_provider_id, developer_model_id FROM tasks WHERE task_id = ?",
-      )
+      .prepare("SELECT title FROM tasks WHERE task_id = ?")
       .get(createdTask.task_id);
     database.close();
 
@@ -632,20 +629,9 @@ describe("task repository", () => {
       notnull: 1,
       type: "TEXT",
     });
-    expect(
-      columns.find((column) => column.name === "developer_provider_id"),
-    ).toMatchObject({
-      name: "developer_provider_id",
-      notnull: 1,
-      type: "TEXT",
-    });
-    expect(
-      columns.find((column) => column.name === "developer_model_id"),
-    ).toMatchObject({
-      name: "developer_model_id",
-      notnull: 1,
-      type: "TEXT",
-    });
+    expect(columns.map((column) => column.name)).not.toEqual(
+      expect.arrayContaining(["developer_provider_id", "developer_model_id"]),
+    );
     expect(createdTask).toMatchObject(persistedRow as object);
   });
 

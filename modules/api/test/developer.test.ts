@@ -21,11 +21,11 @@ const createSessionManager = () => ({
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
-  developer_model_id: "claude-sonnet-4-5",
-  developer_provider_id: "anthropic",
   dependencies: [],
   done: false,
   git_origin_url: `https://github.com/example/${overrides.task_id ?? "task-1"}.git`,
+  global_model_id: "claude-sonnet-4-5",
+  global_provider_id: "anthropic",
   project_id: "00000000-0000-4000-8000-000000000001",
   pull_request_url: null,
   session_id: null,
@@ -76,8 +76,8 @@ describe("developer", () => {
     expect(sessionManager.createSession).toHaveBeenCalledWith({
       directory: `/repo/.worktrees/${initialTask.task_id}`,
       model: {
-        modelID: initialTask.developer_model_id,
-        providerID: initialTask.developer_provider_id,
+        modelID: initialTask.global_model_id,
+        providerID: initialTask.global_provider_id,
       },
       prompt: buildTaskSessionPrompt(initialTask),
       title: `AIM Developer: ${initialTask.title}`,

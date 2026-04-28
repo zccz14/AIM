@@ -144,8 +144,8 @@ export type Task = {
   title: string;
   project_id: string;
   git_origin_url: string;
-  developer_provider_id: string;
-  developer_model_id: string;
+  global_provider_id: string;
+  global_model_id: string;
   result: string;
   source_metadata: {
     [key: string]: unknown;
@@ -394,8 +394,8 @@ export type TaskWritable = {
   title: string;
   project_id: string;
   git_origin_url: string;
-  developer_provider_id: string;
-  developer_model_id: string;
+  global_provider_id: string;
+  global_model_id: string;
   result: string;
   source_metadata: {
     [key: string]: unknown;

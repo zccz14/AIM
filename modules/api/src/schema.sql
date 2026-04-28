@@ -16,8 +16,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   title TEXT NOT NULL,
   task_spec TEXT NOT NULL,
   project_id TEXT NOT NULL,
-  developer_provider_id TEXT NOT NULL,
-  developer_model_id TEXT NOT NULL,
   session_id TEXT,
   worktree_path TEXT,
   pull_request_url TEXT,
