@@ -12,6 +12,7 @@ const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
+const mockCreateManager = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
 
 const configuredProject = {
@@ -80,6 +81,10 @@ vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
 }));
 
+vi.mock("../src/manager.js", () => ({
+  createManager: mockCreateManager,
+}));
+
 vi.mock("@hono/node-server", () => ({
   serve: mockServe,
 }));
@@ -132,6 +137,14 @@ describe("server startup", () => {
     mockCreateOptimizerLaneStateRepository.mockReturnValue(
       createOptimizerLaneStateRepositoryMock(),
     );
+    mockCreateManager.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
+    });
   });
 
   afterEach(() => {
@@ -337,8 +350,11 @@ describe("server startup", () => {
     };
     const managerLane = {
       [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn(),
@@ -353,9 +369,8 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateManager.mockReturnValue(managerLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -373,7 +388,6 @@ describe("server startup", () => {
         }),
       }),
     );
-    expect(managerLane.start).not.toHaveBeenCalled();
     expect(coordinatorLane.start).not.toHaveBeenCalled();
     expect(scheduler.start).not.toHaveBeenCalled();
   });
@@ -390,8 +404,11 @@ describe("server startup", () => {
     };
     const managerLane = {
       [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn(),
@@ -407,15 +424,14 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateManager.mockReturnValue(managerLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
     startServer();
 
-    expect(managerLane.start).toHaveBeenCalledOnce();
+    expect(mockCreateManager).toHaveBeenCalledOnce();
     expect(coordinatorLane.start).toHaveBeenCalledOnce();
     expect(scheduler.start).toHaveBeenCalledOnce();
     expect(
@@ -455,7 +471,10 @@ describe("server startup", () => {
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.not.objectContaining({ taskProducer: expect.anything() }),
     );
-    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: configuredProject }),
+    );
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "manager_evaluation" }),
     );
     expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
@@ -521,7 +540,7 @@ describe("server startup", () => {
     );
   });
 
-  it("guards manager lane appends with README claim-to-evidence protocol", async () => {
+  it("wires manager creation to the configured project, coordinator, dimensions, and logger", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -531,13 +550,18 @@ describe("server startup", () => {
       scanOnce: vi.fn(),
       start: vi.fn(),
     };
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const dimensionRepository = createDimensionRepositoryMock();
+    const agentCoordinator = {};
 
+    mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateDimensionRepository.mockReturnValue(dimensionRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateAgentSessionCoordinator.mockReturnValue(agentCoordinator);
     mockCreateAgentSessionLane.mockReturnValue({
       [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
@@ -548,32 +572,18 @@ describe("server startup", () => {
 
     startServer();
 
-    const managerLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
-      ([config]) => config.laneName === "manager_evaluation",
-    )?.[0];
-
-    expect(managerLaneConfig?.prompt).toContain(
-      "Before every dimension_evaluations append",
+    expect(mockCreateManager).toHaveBeenCalledWith({
+      coordinator: agentCoordinator,
+      dimensionRepository,
+      logger,
+      project: configuredProject,
+    });
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
+      expect.objectContaining({ laneName: "manager_evaluation" }),
     );
-    expect(managerLaneConfig?.prompt).toContain(
-      "README claim-to-evidence protocol",
-    );
-    expect(managerLaneConfig?.prompt).toMatch(
-      /aligned[\s\S]*readme_ahead[\s\S]*baseline_ahead[\s\S]*conflicted[\s\S]*ambiguous[\s\S]*prerequisite_gap/,
-    );
-    expect(managerLaneConfig?.prompt).toContain("evidence source or limit");
-    expect(managerLaneConfig?.prompt).toContain("confidence limit");
-    expect(managerLaneConfig?.prompt).toContain(
-      "Coordinator handoff implication",
-    );
-    expect(managerLaneConfig?.prompt).toContain(
-      "append dimension_evaluations only",
-    );
-    expect(managerLaneConfig?.prompt).not.toContain("POST /tasks/batch");
-    expect(managerLaneConfig?.prompt).not.toContain("manager_reports");
   });
 
-  it("defers AIM-managed workspace creation until manager and coordinator lanes scan", async () => {
+  it("defers coordinator AIM-managed workspace creation until the coordinator lane scans", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -608,9 +618,8 @@ describe("server startup", () => {
     );
 
     await laneConfigs[0].projectDirectory();
-    await laneConfigs[1].projectDirectory();
 
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(2);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(1);
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
       git_origin_url: configuredProject.git_origin_url,
       project_id: configuredProject.id,
@@ -660,23 +669,24 @@ describe("server startup", () => {
     );
 
     expect(laneConfigs.map((config) => config.laneName)).toEqual([
-      "manager_evaluation",
-      "manager_evaluation",
       "coordinator_task_pool",
       "coordinator_task_pool",
     ]);
     expect(laneConfigs.map((config) => config.providerId)).toEqual([
       configuredProject.global_provider_id,
       secondConfiguredProject.global_provider_id,
-      configuredProject.global_provider_id,
-      secondConfiguredProject.global_provider_id,
     ]);
     expect(laneConfigs.map((config) => config.modelId)).toEqual([
       configuredProject.global_model_id,
       secondConfiguredProject.global_model_id,
-      configuredProject.global_model_id,
-      secondConfiguredProject.global_model_id,
     ]);
+    expect(mockCreateManager).toHaveBeenCalledTimes(2);
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: configuredProject }),
+    );
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: secondConfiguredProject }),
+    );
     for (const project of [configuredProject, secondConfiguredProject]) {
       expect(
         laneConfigs.some(
@@ -691,7 +701,7 @@ describe("server startup", () => {
       await laneConfig.projectDirectory();
     }
 
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(4);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(2);
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
       git_origin_url: configuredProject.git_origin_url,
       project_id: configuredProject.id,
@@ -892,8 +902,11 @@ describe("server startup", () => {
     };
     const managerLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -907,9 +920,8 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateManager.mockReturnValue(managerLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -989,8 +1001,11 @@ describe("server startup", () => {
       [Symbol.asyncDispose]: vi.fn(async () => {
         cleanupOrder.push("manager:dispose");
       }),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn(async () => {
@@ -1006,9 +1021,8 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateManager.mockReturnValue(managerLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -1050,8 +1064,11 @@ describe("server startup", () => {
     };
     const managerLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -1065,9 +1082,8 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateManager.mockReturnValue(managerLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 

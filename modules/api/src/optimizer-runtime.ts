@@ -12,8 +12,8 @@ type OptimizerLaneScheduler = AsyncDisposable & {
     last_scan_at: null | string;
     running: boolean;
   };
-  scanOnce(context?: { resolvedTaskId?: string }): Promise<void> | void;
-  start(options: { intervalMs: number }): void;
+  scanOnce?(context?: { resolvedTaskId?: string }): Promise<void> | void;
+  start?(options: { intervalMs: number }): void;
 };
 
 export type OptimizerLaneName =
@@ -202,7 +202,7 @@ export const createOptimizerRuntime = ({
       );
 
       try {
-        await developerLane?.lane.scanOnce({ resolvedTaskId: event.taskId });
+        await developerLane?.lane.scanOnce?.({ resolvedTaskId: event.taskId });
         lastScanAt = new Date().toISOString();
 
         if (developerLane) {
@@ -250,9 +250,11 @@ export const createOptimizerRuntime = ({
       let startedLaneCount = 0;
       for (const { lane, name, state } of registrations) {
         try {
-          lane.start({ intervalMs });
+          lane.start?.({ intervalMs });
           state.last_error = null;
-          state.running = true;
+          state.running = lane.start
+            ? true
+            : (lane.getStatus?.().running ?? true);
           startedLaneCount += 1;
           logger?.info(
             {
