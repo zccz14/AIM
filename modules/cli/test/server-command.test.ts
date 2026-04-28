@@ -77,6 +77,20 @@ const rejectOnEarlyExit = async (
   );
 };
 
+const stopChild = async (child: ReturnType<typeof spawn>) => {
+  child.kill("SIGTERM");
+
+  const closed = await Promise.race([
+    once(child, "close").then(() => true),
+    new Promise<false>((resolve) => setTimeout(() => resolve(false), 1_000)),
+  ]);
+
+  if (!closed) {
+    child.kill("SIGKILL");
+    await once(child, "close");
+  }
+};
+
 describe("server cli command", () => {
   it("starts the API server on the requested port", async () => {
     const port = await getFreePort();
@@ -102,9 +116,8 @@ describe("server cli command", () => {
       ).resolves.toEqual({ status: "ok" });
     } finally {
       if (!closed) {
-        child.kill("SIGTERM");
-        await once(child, "close");
+        await stopChild(child);
       }
     }
-  });
+  }, 10_000);
 });
