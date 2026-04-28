@@ -2,7 +2,6 @@ import type { Project, Task } from "@aim-ai/contract";
 
 import { createAgentSessionLane } from "./agent-session-lane.js";
 import type { ApiLogger } from "./api-logger.js";
-import { createManager } from "./manager.js";
 import type {
   ManagerState,
   ManagerStateInput,
@@ -107,22 +106,6 @@ type CreateOptimizerSystemOptions = {
   taskRepository: TaskRepository;
 };
 
-const createMissingProjectLane = () => ({
-  [Symbol.asyncDispose]() {
-    return Promise.resolve();
-  },
-  scanOnce() {
-    throw new Error(
-      "AIM optimizer lane requires at least one configured project",
-    );
-  },
-  start() {
-    throw new Error(
-      "AIM optimizer lane requires at least one configured project",
-    );
-  },
-});
-
 const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
 
@@ -138,11 +121,9 @@ Project scope: project_id "${project.id}". Only act on this configured Project a
 export const createOptimizerSystem = ({
   continuationSessionRepository,
   coordinatorConfig,
-  dimensionRepository,
   intervalMs,
   laneStateRepository,
   logger,
-  managerStateRepository,
   taskRepository,
 }: CreateOptimizerSystemOptions): OptimizerSystem => {
   const stack = new AsyncDisposableStack();
@@ -190,55 +171,38 @@ export const createOptimizerSystem = ({
       });
     },
   };
-  const managerLanes =
-    configuredProjects.length > 0
-      ? configuredProjects.map((project) =>
-          createManager({
-            coordinator: agentCoordinator,
-            dimensionRepository,
-            logger,
-            managerStateRepository,
-            project,
-          }),
-        )
-      : [createMissingProjectLane()];
-  const coordinatorLanes =
-    configuredProjects.length > 0
-      ? configuredProjects.map((project) =>
-          createAgentSessionLane({
-            continuationSessionRepository,
-            coordinator: agentCoordinator,
-            laneName: "coordinator_task_pool",
-            laneStateRepository,
-            logger,
-            modelId: project.global_model_id,
-            projectDirectory: () =>
-              ensureProjectWorkspace({
-                git_origin_url: project.git_origin_url,
-                project_id: project.id,
-              }),
-            prompt: createProjectScopedPrompt(coordinatorPrompt, project),
-            providerId: project.global_provider_id,
-            projectId: project.id,
-            title: `AIM Coordinator task-pool lane (${project.id})`,
-          }),
-        )
-      : [createMissingProjectLane()];
-  const optimizerRuntime = createOptimizerRuntime({
-    intervalMs,
-    lanes: [
-      ...managerLanes.map((lane) => ({
-        lane,
-        name: "manager_evaluation" as const,
-      })),
-      ...coordinatorLanes.map((lane) => ({
-        lane,
-        name: "coordinator_task_pool" as const,
-      })),
-      { lane: scheduler, name: "developer_follow_up" as const },
-    ],
-    logger,
-  });
+  const coordinatorLanes = configuredProjects.map((project) =>
+    createAgentSessionLane({
+      continuationSessionRepository,
+      coordinator: agentCoordinator,
+      laneName: "coordinator_task_pool",
+      laneStateRepository,
+      logger,
+      modelId: project.global_model_id,
+      projectDirectory: () =>
+        ensureProjectWorkspace({
+          git_origin_url: project.git_origin_url,
+          project_id: project.id,
+        }),
+      prompt: createProjectScopedPrompt(coordinatorPrompt, project),
+      providerId: project.global_provider_id,
+      projectId: project.id,
+      title: `AIM Coordinator task-pool lane (${project.id})`,
+    }),
+  );
+  const optimizerRuntime = stack.use(
+    createOptimizerRuntime({
+      intervalMs,
+      lanes: [
+        ...coordinatorLanes.map((lane) => ({
+          lane,
+          name: "coordinator_task_pool" as const,
+        })),
+        { lane: scheduler, name: "developer_follow_up" as const },
+      ],
+      logger,
+    }),
+  );
 
   if (configuredProjects.some(isOptimizerEnabled)) {
     optimizerRuntime.start();
@@ -246,7 +210,6 @@ export const createOptimizerSystem = ({
 
   return {
     async [Symbol.asyncDispose]() {
-      await optimizerRuntime[Symbol.asyncDispose]();
       await stack.disposeAsync();
     },
     optimizerRuntime,
