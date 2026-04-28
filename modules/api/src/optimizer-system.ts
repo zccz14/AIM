@@ -111,79 +111,98 @@ export const createOptimizerSystem = ({
   taskRepository,
 }: CreateOptimizerSystemOptions): OptimizerSystem => {
   const stack = new AsyncDisposableStack();
-  const configuredProjects = taskRepository
-    .listProjects()
-    .filter(isConfiguredProject);
-  const enabledConfiguredProjects =
-    configuredProjects.filter(isOptimizerEnabled);
-  const openCodeSessionManager = stack.use(
-    createOpenCodeSessionManager({
-      baseUrl: coordinatorConfig.baseUrl,
-      repository: continuationSessionRepository,
-    }),
-  );
-  const scheduler = createTaskScheduler({
-    logger,
-    sessionManager: openCodeSessionManager,
-    taskRepository,
-  });
-  const managerLanes: ReturnType<typeof createManager>[] = [];
-  const coordinators: ReturnType<typeof createCoordinator>[] = [];
-
-  for (const project of enabledConfiguredProjects) {
-    managerLanes.push(
-      stack.use(
-        createManager({
-          dimensionRepository,
-          logger,
-          managerStateRepository,
-          project,
-          sessionManager: openCodeSessionManager,
-        }),
-      ),
+  const setupStack = new AsyncDisposableStack();
+  try {
+    const configuredProjects = taskRepository
+      .listProjects()
+      .filter(isConfiguredProject);
+    const enabledConfiguredProjects =
+      configuredProjects.filter(isOptimizerEnabled);
+    const openCodeSessionManager = stack.use(
+      createOpenCodeSessionManager({
+        baseUrl: coordinatorConfig.baseUrl,
+        repository: continuationSessionRepository,
+      }),
     );
-    coordinators.push(
-      stack.use(
-        createCoordinator(project.id, {
-          dimensionRepository,
-          projectDirectory: () =>
-            ensureProjectWorkspace({
-              git_origin_url: project.git_origin_url,
-              project_id: project.id,
-            }),
-          sessionManager: openCodeSessionManager,
-          taskRepository,
-        }),
-      ),
+    const scheduler = setupStack.use(
+      createTaskScheduler({
+        logger,
+        sessionManager: openCodeSessionManager,
+        taskRepository,
+      }),
     );
-  }
+    const managerLanes: ReturnType<typeof createManager>[] = [];
+    const coordinators: ReturnType<typeof createCoordinator>[] = [];
 
-  const optimizerRuntime = stack.use(
-    createOptimizerRuntime({
-      intervalMs,
-      lanes: [
-        ...managerLanes.map((lane) => ({
-          lane,
-          name: "manager_evaluation" as const,
-        })),
-        ...coordinators.map((lane) => ({
-          lane,
-          name: "coordinator_task_pool" as const,
-        })),
-        { lane: scheduler, name: "developer_follow_up" as const },
-      ],
-      logger,
-    }),
-  );
+    for (const project of enabledConfiguredProjects) {
+      managerLanes.push(
+        stack.use(
+          createManager({
+            dimensionRepository,
+            logger,
+            managerStateRepository,
+            project,
+            sessionManager: openCodeSessionManager,
+          }),
+        ),
+      );
+      coordinators.push(
+        stack.use(
+          createCoordinator(project.id, {
+            dimensionRepository,
+            projectDirectory: () =>
+              ensureProjectWorkspace({
+                git_origin_url: project.git_origin_url,
+                project_id: project.id,
+              }),
+            sessionManager: openCodeSessionManager,
+            taskRepository,
+          }),
+        ),
+      );
+    }
 
-  if (enabledConfiguredProjects.length > 0) {
-    optimizerRuntime.start();
-  }
+    const optimizerRuntime = stack.use(
+      createOptimizerRuntime({
+        intervalMs,
+        lanes: [
+          ...managerLanes.map((lane) => ({
+            lane,
+            name: "manager_evaluation" as const,
+          })),
+          ...coordinators.map((lane) => ({
+            lane,
+            name: "coordinator_task_pool" as const,
+          })),
+          { lane: scheduler, name: "developer_follow_up" as const },
+        ],
+        logger,
+      }),
+    );
 
-  return {
-    async [Symbol.asyncDispose]() {
+    if (enabledConfiguredProjects.length > 0) {
+      optimizerRuntime.start();
+    }
+
+    return {
+      async [Symbol.asyncDispose]() {
+        await stack.disposeAsync();
+      },
+      optimizerRuntime,
+    };
+  } catch (error) {
+    void (async () => {
+      await setupStack.disposeAsync();
       await stack.disposeAsync();
-    },
-    optimizerRuntime,
-  };
+    })().catch((disposeError: unknown) => {
+      logger?.error(
+        {
+          err: disposeError,
+          event: "optimizer_setup_dispose_failed",
+        },
+        "Optimizer system setup cleanup failed",
+      );
+    });
+    throw error;
+  }
 };
