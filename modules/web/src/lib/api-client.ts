@@ -26,8 +26,11 @@ import {
   type Task,
   type TaskError,
   type TaskListResponse,
+  type TaskPullRequestStatusResponse,
   taskErrorSchema,
   taskListResponseSchema,
+  taskPullRequestStatusPath,
+  taskPullRequestStatusResponseSchema,
   tasksPath,
 } from "@aim-ai/contract";
 
@@ -138,6 +141,9 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
   listDirectorClarifications(
     projectId: string,
   ): Promise<DirectorClarificationListResponse>;
+  getTaskPullRequestStatus(
+    taskId: string,
+  ): Promise<TaskPullRequestStatusResponse>;
   createDirectorClarification(
     projectId: string,
     input: CreateDirectorClarificationRequest,
@@ -187,6 +193,9 @@ const buildProjectDirectorClarificationsPath = (projectId: string) =>
     "{projectId}",
     encodeURIComponent(projectId),
   );
+
+const buildTaskPullRequestStatusPath = (taskId: string) =>
+  taskPullRequestStatusPath.replace("{taskId}", encodeURIComponent(taskId));
 
 const buildOpenCodeSessionContinuePath = (sessionId: string) =>
   openCodeSessionContinuePath.replace(
@@ -379,6 +388,30 @@ export const createWebApiClient = (
 
       return directorClarificationListResponseSchema.parse(
         (await response.json()) as DirectorClarificationListResponse,
+      );
+    },
+
+    async getTaskPullRequestStatus(taskId) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildTaskPullRequestStatusPath(taskId),
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return taskPullRequestStatusResponseSchema.parse(
+        (await response.json()) as TaskPullRequestStatusResponse,
       );
     },
 

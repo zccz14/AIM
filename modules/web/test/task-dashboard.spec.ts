@@ -154,6 +154,25 @@ const buildDirectorClarification = ({
   updated_at: createdAt,
 });
 
+const buildTaskPullRequestStatus = ({
+  category = "waiting_checks",
+  pullRequestUrl = "https://github.com/example/main/pull/42",
+  recoveryAction = "Wait for required checks before merging.",
+  summary = "Pull request is open and required checks are still running.",
+}: {
+  category?: string;
+  pullRequestUrl?: string | null;
+  recoveryAction?: string;
+  summary?: string;
+} = {}) => ({
+  category,
+  summary,
+  recovery_action: recoveryAction,
+  task_status: "processing",
+  task_done: false,
+  pull_request_url: pullRequestUrl,
+});
+
 const routeProjectOptimizerStatus = async (
   page: Page,
   currentBaseline: string | null,
@@ -214,6 +233,25 @@ test.beforeEach(async ({ page }) => {
                 }),
               ],
       }),
+    });
+  });
+
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    const taskId = decodeURIComponent(
+      new URL(route.request().url()).pathname.split("/").at(-2) ?? "task-main",
+    );
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildTaskPullRequestStatus({
+          pullRequestUrl: null,
+          summary: `No pull request recorded for ${taskId}.`,
+          recoveryAction:
+            "Create or link a pull request before merge follow-up.",
+          category: "no_pull_request",
+        }),
+      ),
     });
   });
 
@@ -607,6 +645,118 @@ test("shows task source baseline freshness for current, stale, and missing metad
       "Task source baseline metadata is missing latest_origin_main_commit",
     ),
   ).toBeVisible();
+});
+
+test("shows the selected task pull request follow-up status", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildTaskPullRequestStatus({
+          category: "waiting_checks",
+          recoveryAction: "Wait for required checks to finish, then merge.",
+          summary: "Pull request #42 is waiting for required checks.",
+        }),
+      ),
+    });
+  });
+
+  await page.goto("/#/tasks/task-main");
+
+  const status = page.getByRole("region", { name: "Pull Request Status" });
+
+  await expect(status.getByText("Loading pull request status")).toBeVisible();
+  await expect(status.getByText("waiting_checks")).toBeVisible();
+  await expect(
+    status.getByText("Pull request #42 is waiting for required checks."),
+  ).toBeVisible();
+  await expect(
+    status.getByText("Wait for required checks to finish, then merge."),
+  ).toBeVisible();
+});
+
+test("shows pull request status errors without hiding task relationships", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "TASK_VALIDATION_ERROR",
+        message: "GitHub status lookup timed out.",
+      }),
+    });
+  });
+
+  await page.goto("/#/tasks/task-main");
+
+  const relationships = page.getByText("task-resolved", { exact: true });
+  const status = page.getByRole("region", { name: "Pull Request Status" });
+
+  await expect(relationships).toBeVisible();
+  await expect(
+    status.getByText(
+      "Pull request status unavailable: GitHub status lookup timed out.",
+    ),
+  ).toBeVisible();
+});
+
+test("keeps pull request status isolated when switching tasks", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    const taskId = decodeURIComponent(
+      new URL(route.request().url()).pathname.split("/").at(-2) ?? "",
+    );
+
+    requests.push(taskId);
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        taskId === "task-research"
+          ? buildTaskPullRequestStatus({
+              category: "no_pull_request",
+              pullRequestUrl: null,
+              recoveryAction: "Create a PR when the research task is ready.",
+              summary: "No pull request exists for the research task.",
+            })
+          : buildTaskPullRequestStatus({
+              category: "ready_to_merge",
+              recoveryAction: "Merge after Director confirmation.",
+              summary: "Pull request #42 is ready to merge.",
+            }),
+      ),
+    });
+  });
+
+  await page.goto("/#/tasks/task-main");
+
+  const status = page.getByRole("region", { name: "Pull Request Status" });
+
+  await expect(status.getByText("ready_to_merge")).toBeVisible();
+  await expect(
+    status.getByText("Pull request #42 is ready to merge."),
+  ).toBeVisible();
+
+  await page.goto("/#/tasks/task-research");
+
+  await expect(status.getByText("no_pull_request")).toBeVisible();
+  await expect(
+    status.getByText("No pull request exists for the research task."),
+  ).toBeVisible();
+  await expect(
+    status.getByText("No pull request is linked to this task."),
+  ).toBeVisible();
+  await expect(
+    status.getByText("Pull request #42 is ready to merge."),
+  ).toHaveCount(0);
+  expect(requests).toEqual(["task-main", "task-research"]);
 });
 
 test("shows project optimizer config and runtime observability separately", async ({
