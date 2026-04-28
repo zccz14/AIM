@@ -35,8 +35,8 @@ const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   : parsedSchedulerIntervalMs;
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
-export const startServer = (): AsyncDisposable => {
-  const scope = new AsyncDisposableStack();
+export const startServer = async (): Promise<AsyncDisposable> => {
+  await using scope = new AsyncDisposableStack();
   const logger = createApiLogger();
   const coordinatorConfig: OpenCodeSessionManagerConfig = {
     baseUrl: process.env.OPENCODE_BASE_URL?.trim() || defaultOpencodeBaseUrl,
@@ -59,7 +59,7 @@ export const startServer = (): AsyncDisposable => {
   });
   scope.use(dimensionRepository);
   const optimizerSystem = scope.use(
-    createOptimizerSystem({
+    await createOptimizerSystem({
       continuationSessionRepository: openCodeSessionRepository,
       coordinatorConfig,
       dimensionRepository,
@@ -112,32 +112,27 @@ export const startServer = (): AsyncDisposable => {
 
   scope.use({ [Symbol.asyncDispose]: closeServer });
 
-  try {
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
-    scope.use({
-      [Symbol.dispose]: () => {
-        process.off("SIGINT", shutdown);
-        process.off("SIGTERM", shutdown);
-      },
-    });
-    server.once("close", () => {
-      serverClosed = true;
-      if (!disposingServer) {
-        void scope.disposeAsync();
-      }
-    });
-  } catch (error) {
-    void scope.disposeAsync();
-    throw error;
-  }
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  scope.use({
+    [Symbol.dispose]: () => {
+      process.off("SIGINT", shutdown);
+      process.off("SIGTERM", shutdown);
+    },
+  });
+  server.once("close", () => {
+    serverClosed = true;
+    if (!disposingServer) {
+      void scope.disposeAsync();
+    }
+  });
 
-  return scope;
+  return scope.move();
 };
 
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  startServer();
+  void startServer();
 }
