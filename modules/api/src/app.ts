@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 
 import type { ApiLogger } from "./api-logger.js";
 import type { listSupportedModels } from "./opencode/list-supported-models.js";
-import type { OptimizerEvent, OptimizerRuntime } from "./optimizer-runtime.js";
+import type { OptimizerSystem } from "./optimizer-system.js";
 import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
 import { registerHealthRoute } from "./routes/health.js";
@@ -36,10 +36,9 @@ type OpenCodeModelsAdapter = {
 
 type CreateAppOptions = {
   logger?: ApiLogger;
-  onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: OpenCodeModelsAdapter;
   openCodeSessionsAdapter?: OpenCodeSessionPromptSender;
-  optimizerRuntime?: OptimizerRuntime;
+  optimizerSystem?: OptimizerSystem;
 };
 
 type AppResource = Hono & AsyncDisposable;
@@ -64,13 +63,12 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
     resourceScope,
   });
   registerProjectRoutes(app, {
-    optimizerRuntime: _options.optimizerRuntime,
+    optimizerSystem: _options.optimizerSystem,
     resourceScope,
   });
   registerDimensionRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,
-    onTaskResolved: _options.onTaskResolved,
     openCodeModelsAdapter: _options.openCodeModelsAdapter,
     resourceScope,
   });

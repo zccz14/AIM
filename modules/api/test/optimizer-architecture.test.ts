@@ -23,6 +23,39 @@ const listSourceFiles = async (directory: URL): Promise<string[]> => {
 };
 
 describe("optimizer architecture", () => {
+  it("uses heartbeat components instead of the obsolete optimizer runtime event shell", async () => {
+    const sourceFiles = await listSourceFiles(srcDirectory);
+    const runtimeFiles = sourceFiles.filter(
+      (file) =>
+        relative(srcDirectory.pathname, file) === "optimizer-runtime.ts",
+    );
+    const productionReferences = await Promise.all(
+      sourceFiles
+        .filter((file) => !runtimeFiles.includes(file))
+        .map(async (file) => ({
+          file,
+          source: await readFile(file, "utf8"),
+        })),
+    );
+
+    expect(runtimeFiles).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes("createOptimizerRuntime"),
+      ),
+    ).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes("onTaskResolved"),
+      ),
+    ).toEqual([]);
+    expect(
+      productionReferences.filter(({ source }) =>
+        source.includes('type: "task_resolved"'),
+      ),
+    ).toEqual([]);
+  });
+
   it("does not expose the obsolete shared agent session lane module", async () => {
     const sourceFiles = await listSourceFiles(srcDirectory);
     const legacyLaneFiles = sourceFiles.filter(

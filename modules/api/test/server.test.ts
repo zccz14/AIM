@@ -316,12 +316,8 @@ describe("server startup", () => {
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
         logger,
-        onTaskResolved: expect.any(Function),
-        optimizerRuntime: expect.objectContaining({
-          getStatus: expect.any(Function),
-          handleEvent: expect.any(Function),
-          start: expect.any(Function),
-          disable: expect.any(Function),
+        optimizerSystem: expect.objectContaining({
+          [Symbol.asyncDispose]: expect.any(Function),
         }),
       }),
     );
@@ -367,17 +363,13 @@ describe("server startup", () => {
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
         logger,
-        onTaskResolved: expect.any(Function),
-        optimizerRuntime: expect.objectContaining({
-          getStatus: expect.any(Function),
-          handleEvent: expect.any(Function),
-          start: expect.any(Function),
-          disable: expect.any(Function),
+        optimizerSystem: expect.objectContaining({
+          [Symbol.asyncDispose]: expect.any(Function),
         }),
       }),
     );
-    expect(coordinatorLane.start).not.toHaveBeenCalled();
-    expect(scheduler.start).not.toHaveBeenCalled();
+    expect(mockCreateCoordinator).not.toHaveBeenCalled();
+    expect(mockCreateManager).not.toHaveBeenCalled();
   });
 
   it("starts optimizer lanes when a configured project has persisted optimizer enablement", async () => {
@@ -414,11 +406,9 @@ describe("server startup", () => {
       expect.objectContaining({ project: optimizerEnabledProject }),
     );
     expect(mockCreateDeveloper).toHaveBeenCalledOnce();
-    expect(
-      mockCreateApp.mock.calls[0]?.[0].optimizerRuntime.getStatus(),
-    ).toMatchObject({
-      running: true,
-    });
+    expect(mockCreateApp.mock.calls[0]?.[0].optimizerSystem).toEqual(
+      expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
+    );
   });
 
   it("creates coordinator and developer lanes without a task producer", async () => {
@@ -634,7 +624,7 @@ describe("server startup", () => {
     });
   });
 
-  it("uses empty project lanes when no projects are configured", async () => {
+  it("keeps optimizer system disposable when no projects are configured", async () => {
     const logger = {
       error: vi.fn(),
       info: vi.fn(),
@@ -665,24 +655,12 @@ describe("server startup", () => {
     const { startServer } = await import("../src/server.js");
 
     const serverRuntime = startServer();
-    const optimizerRuntime = mockCreateApp.mock.calls[0]?.[0].optimizerRuntime;
 
-    optimizerRuntime.start();
-
-    expect(optimizerRuntime.getStatus()).toMatchObject({
-      lanes: {
-        coordinator_task_pool: {
-          last_error: null,
-          running: false,
-        },
-        developer_follow_up: { running: true },
-        manager_evaluation: {
-          last_error: null,
-          running: false,
-        },
-      },
-      running: true,
-    });
+    expect(mockCreateApp.mock.calls[0]?.[0].optimizerSystem).toEqual(
+      expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
+    );
+    expect(mockCreateCoordinator).not.toHaveBeenCalled();
+    expect(mockCreateManager).not.toHaveBeenCalled();
 
     await serverRuntime[Symbol.asyncDispose]();
   });
@@ -822,7 +800,7 @@ describe("server startup", () => {
     expect(app[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("releases server-owned resources after closing traffic without disabling optimizer lanes twice", async () => {
+  it("releases server-owned resources after closing traffic", async () => {
     const cleanupOrder: string[] = [];
     const close = vi.fn((callback?: () => void) => {
       cleanupOrder.push("server:close");
@@ -869,9 +847,8 @@ describe("server startup", () => {
 
     expect(cleanupOrder).toEqual([
       "server:close",
+      "coordinator:dispose",
       "developer:dispose",
-      "coordinator:dispose",
-      "coordinator:dispose",
       "repository:dispose",
     ]);
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();

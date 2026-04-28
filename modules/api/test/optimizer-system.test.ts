@@ -47,7 +47,7 @@ describe("optimizer system", () => {
     vi.clearAllMocks();
   });
 
-  it("starts enabled optimizer lanes immediately and disposes them through the system lifecycle", async () => {
+  it("creates heartbeat components for enabled projects and disposes them through the system lifecycle", async () => {
     const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const taskRepository = { listProjects: vi.fn(() => [configuredProject]) };
     const continuationSessionRepository = {
@@ -99,9 +99,6 @@ describe("optimizer system", () => {
       taskRepository,
     });
 
-    expect(system.optimizerRuntime.getStatus()).toMatchObject({
-      running: true,
-    });
     expect(mockCreateDeveloper).toHaveBeenCalledWith(
       expect.objectContaining({
         logger,
@@ -137,9 +134,6 @@ describe("optimizer system", () => {
 
     await system[Symbol.asyncDispose]();
 
-    expect(system.optimizerRuntime.getStatus()).toMatchObject({
-      running: false,
-    });
     expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(coordinator[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(manager[Symbol.asyncDispose]).toHaveBeenCalled();
@@ -185,9 +179,6 @@ describe("optimizer system", () => {
       taskRepository,
     });
 
-    expect(system.optimizerRuntime.getStatus()).toMatchObject({
-      running: false,
-    });
     expect(mockCreateManager).not.toHaveBeenCalled();
     expect(mockCreateDeveloper).toHaveBeenCalledOnce();
 

@@ -1,7 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app.js";
 
@@ -60,35 +60,7 @@ afterEach(async () => {
 
 describe("optimizer routes", () => {
   it("does not expose global optimizer runtime controls", async () => {
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({
-        enabled_triggers: ["task_resolved"],
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-          developer_follow_up: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-        },
-        last_event: null,
-        last_scan_at: null,
-        running: false,
-      }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
-    const app = createApp({ optimizerRuntime });
+    const app = createApp();
 
     await expect(app.request("/optimizer/status")).resolves.toHaveProperty(
       "status",
@@ -100,44 +72,14 @@ describe("optimizer routes", () => {
     await expect(
       app.request("/optimizer/stop", { method: "POST" }),
     ).resolves.toHaveProperty("status", 404);
-
-    expect(optimizerRuntime.getStatus).not.toHaveBeenCalled();
-    expect(optimizerRuntime.start).not.toHaveBeenCalled();
-    expect(optimizerRuntime.disable).not.toHaveBeenCalled();
   });
 
   it("reports disabled project optimizer config separately from runtime activity", async () => {
     await useProjectRoot("disabled-project");
 
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({
-        enabled_triggers: ["task_resolved"],
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-          developer_follow_up: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-        },
-        last_event: null,
-        last_scan_at: null,
-        running: true,
-      }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
-    const app = createApp({ optimizerRuntime });
+    const app = createApp({
+      optimizerSystem: { [Symbol.asyncDispose]: async () => undefined },
+    });
     const project = await createProject(app, false);
 
     const response = await app.request(
@@ -156,38 +98,10 @@ describe("optimizer routes", () => {
     });
   });
 
-  it("reports enabled project config with inactive runtime as a blocker", async () => {
+  it("reports enabled project config without system presence as inactive", async () => {
     await useProjectRoot("enabled-inactive-project");
 
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({
-        enabled_triggers: ["task_resolved"],
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-          developer_follow_up: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: false,
-          },
-        },
-        last_event: null,
-        last_scan_at: null,
-        running: false,
-      }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
-    const app = createApp({ optimizerRuntime });
+    const app = createApp();
     const project = await createProject(app, true);
 
     const response = await app.request(
@@ -199,49 +113,19 @@ describe("optimizer routes", () => {
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: false,
-      enabled_triggers: ["task_resolved"],
+      enabled_triggers: [],
       recent_event: null,
       recent_scan_at: null,
       blocker_summary: "Optimizer runtime inactive",
     });
   });
 
-  it("exposes recent optimizer event updates for an active project runtime", async () => {
+  it("reports enabled project config with optimizer system presence as active", async () => {
     await useProjectRoot("enabled-active-project");
 
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({
-        enabled_triggers: ["task_resolved"],
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-          developer_follow_up: {
-            last_error: null,
-            last_scan_at: "2026-04-27T10:00:00.000Z",
-            running: true,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-        },
-        last_event: {
-          task_id: "task-1",
-          triggered_scan: true,
-          type: "task_resolved",
-        },
-        last_scan_at: "2026-04-27T10:00:00.000Z",
-        running: true,
-      }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
-    const app = createApp({ optimizerRuntime });
+    const app = createApp({
+      optimizerSystem: { [Symbol.asyncDispose]: async () => undefined },
+    });
     const project = await createProject(app, true);
 
     const response = await app.request(
@@ -253,63 +137,10 @@ describe("optimizer routes", () => {
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: true,
-      enabled_triggers: ["task_resolved"],
-      recent_event: {
-        task_id: "task-1",
-        triggered_scan: true,
-        type: "task_resolved",
-      },
-      recent_scan_at: "2026-04-27T10:00:00.000Z",
+      enabled_triggers: [],
+      recent_event: null,
+      recent_scan_at: null,
       blocker_summary: null,
     });
-  });
-
-  it("summarizes optimizer lane errors with redacted recovery context", async () => {
-    await useProjectRoot("enabled-lane-error-project");
-
-    const optimizerRuntime = {
-      getStatus: vi.fn().mockReturnValue({
-        enabled_triggers: ["task_resolved"],
-        lanes: {
-          coordinator_task_pool: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-          developer_follow_up: {
-            last_error:
-              "gh failed with token ghp_1234567890abcdefghijklmnopqrstuvwxyz and stack at internal.js:1",
-            last_scan_at: "2026-04-27T10:00:00.000Z",
-            running: true,
-          },
-          manager_evaluation: {
-            last_error: null,
-            last_scan_at: null,
-            running: true,
-          },
-        },
-        last_event: null,
-        last_scan_at: "2026-04-27T10:00:00.000Z",
-        running: true,
-      }),
-      handleEvent: vi.fn(),
-      start: vi.fn(),
-      disable: vi.fn().mockResolvedValue(undefined),
-    };
-    const app = createApp({ optimizerRuntime });
-    const project = await createProject(app, true);
-
-    const response = await app.request(
-      `/projects/${project.id}/optimizer/status`,
-    );
-
-    expect(response.status).toBe(200);
-    const payload = await response.json();
-
-    expect(payload.blocker_summary).toContain("developer_follow_up");
-    expect(payload.blocker_summary).toContain("Check optimizer logs");
-    expect(payload.blocker_summary).toContain("[REDACTED]");
-    expect(payload.blocker_summary).not.toContain("ghp_1234567890");
-    expect(payload.blocker_summary).not.toContain("internal.js:1");
   });
 });

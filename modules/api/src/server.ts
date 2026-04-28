@@ -75,13 +75,11 @@ export const startServer = (): AsyncDisposable => {
       taskRepository,
     }),
   );
-  const { optimizerRuntime } = optimizerSystem;
 
   const app = scope.use(
     createApp({
       logger,
-      onTaskResolved: optimizerRuntime.handleEvent,
-      optimizerRuntime,
+      optimizerSystem,
     }),
   );
 

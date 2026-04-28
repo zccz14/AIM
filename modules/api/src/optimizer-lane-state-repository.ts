@@ -1,9 +1,13 @@
-import type { OptimizerLaneName } from "./optimizer-runtime.js";
 import { applySqliteTableSchema } from "./schema.js";
 import {
   createTaskDatabaseAsyncDispose,
   openTaskDatabase,
 } from "./task-database.js";
+
+export type OptimizerLaneName =
+  | "coordinator_task_pool"
+  | "developer_follow_up"
+  | "manager_evaluation";
 
 export type OptimizerLaneState = {
   created_at: string;
