@@ -54,7 +54,6 @@ describe("optimizer system", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const dimensionRepository = {};
-    const laneStateRepository = {};
     const managerStateRepository = {};
     const developer = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -91,7 +90,6 @@ describe("optimizer system", () => {
       },
       dimensionRepository,
       intervalMs: 5_000,
-      laneStateRepository,
       logger,
       managerStateRepository,
       taskRepository,
@@ -203,6 +201,63 @@ describe("optimizer system", () => {
     expect(coordinator[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(manager[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("reports optimizer status from the enabled project's manager lane", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = { listProjects: vi.fn(() => [configuredProject]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: "2026-04-29T10:15:30.000Z",
+        running: true,
+      })),
+    };
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    expect(system.getProjectStatus).toBeTypeOf("function");
+    expect(system.getProjectStatus?.(configuredProject.id)).toMatchObject({
+      blocker_summary:
+        "Manager lane active; recent scan at 2026-04-29T10:15:30.000Z",
+    });
+
+    await system[Symbol.asyncDispose]();
   });
 
   it("does not create project optimizer lanes for configured projects when optimizer is disabled", async () => {

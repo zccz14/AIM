@@ -2,12 +2,14 @@ import type {
   Dimension,
   DimensionEvaluation,
   Project,
+  ProjectOptimizerStatusResponse,
   Task,
 } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
 import { createCoordinator } from "./coordinator.js";
 import { createDeveloper } from "./developer.js";
+import type { Manager } from "./manager.js";
 import { createManager } from "./manager.js";
 import type {
   ManagerState,
@@ -78,7 +80,14 @@ type ManagerStateRepository = {
   upsertManagerState(input: ManagerStateInput): ManagerState;
 };
 
-export type OptimizerSystem = AsyncDisposable;
+export type OptimizerProjectStatus = Pick<
+  ProjectOptimizerStatusResponse,
+  "blocker_summary"
+>;
+
+export type OptimizerSystem = AsyncDisposable & {
+  getProjectStatus?(projectId: string): OptimizerProjectStatus;
+};
 
 type CreateOptimizerSystemOptions = {
   continuationSessionRepository: ContinuationSessionRepository;
@@ -126,6 +135,7 @@ export const createOptimizerSystem = async ({
   const configuredProjects = projects.filter(isConfiguredProject);
   const enabledConfiguredProjects =
     configuredProjects.filter(isOptimizerEnabled);
+  const managersByProjectId = new Map<string, Manager>();
   const startupContext = {
     configured_project_count: configuredProjects.length,
     enabled_configured_project_count: enabledConfiguredProjects.length,
@@ -183,7 +193,7 @@ export const createOptimizerSystem = async ({
     };
 
     try {
-      stack.use(
+      const manager = stack.use(
         createManager({
           dimensionRepository,
           logger,
@@ -192,6 +202,7 @@ export const createOptimizerSystem = async ({
           sessionManager: openCodeSessionManager,
         }),
       );
+      managersByProjectId.set(project.id, manager);
     } catch (error) {
       logger?.error(
         {
@@ -233,5 +244,32 @@ export const createOptimizerSystem = async ({
     }
   }
 
-  return stack.move();
+  const resources = stack.move();
+
+  return {
+    async [Symbol.asyncDispose]() {
+      await resources[Symbol.asyncDispose]();
+    },
+    getProjectStatus(projectId: string) {
+      const manager = managersByProjectId.get(projectId);
+
+      if (!manager) {
+        return {
+          blocker_summary: "Optimizer lane inactive",
+        };
+      }
+
+      const status = manager.getStatus();
+
+      return {
+        blocker_summary: status.last_error
+          ? `Manager lane failed: ${status.last_error}`
+          : status.last_scan_at
+            ? `Manager lane active; recent scan at ${status.last_scan_at}`
+            : status.running
+              ? "Manager lane active; no recent scan yet"
+              : "Manager lane inactive",
+      };
+    },
+  };
 };

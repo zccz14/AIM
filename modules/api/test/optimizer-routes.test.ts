@@ -134,4 +134,30 @@ describe("optimizer routes", () => {
       blocker_summary: null,
     });
   });
+
+  it("reports optimizer lane status for an enabled active project", async () => {
+    await useProjectRoot("enabled-active-project-with-lane-signals");
+
+    const blockerSummary =
+      "Manager lane active; recent scan at 2026-04-29T10:15:30.000Z";
+    const app = createApp({
+      optimizerSystem: {
+        [Symbol.asyncDispose]: async () => undefined,
+        getProjectStatus: () => ({ blocker_summary: blockerSummary }),
+      },
+    });
+    const project = await createProject(app, true);
+
+    const response = await app.request(
+      `/projects/${project.id}/optimizer/status`,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      project_id: project.id,
+      optimizer_enabled: true,
+      runtime_active: true,
+      blocker_summary: blockerSummary,
+    });
+  });
 });
