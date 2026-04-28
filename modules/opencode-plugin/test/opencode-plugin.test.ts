@@ -1278,6 +1278,107 @@ describe("opencode plugin package baseline", () => {
     expect(promptAsync).not.toHaveBeenCalled();
   });
 
+  it("reports JSON AIM API error details when fetching an OpenCode session fails", async () => {
+    const hooks = await loadSourcePluginHooks();
+
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            code: "session_lookup_failed",
+            message: "Database connection unavailable",
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 503,
+            statusText: "Service Unavailable",
+          },
+        ),
+      ),
+    );
+
+    await expect(
+      hooks.event?.({
+        event: {
+          properties: { sessionID: "session-1" },
+          type: "session.idle",
+        },
+      }),
+    ).rejects.toThrow(
+      /status: 503, statusText: Service Unavailable, code: session_lookup_failed, message: Database connection unavailable/,
+    );
+  });
+
+  it("reports bounded sanitized text when fetching an OpenCode session returns non-JSON", async () => {
+    const hooks = await loadSourcePluginHooks();
+
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("upstream timeout while reading session".repeat(30), {
+          status: 502,
+          statusText: "Bad Gateway",
+        }),
+      ),
+    );
+
+    await expect(
+      hooks.event?.({
+        event: {
+          properties: { sessionID: "session-1" },
+          type: "session.idle",
+        },
+      }),
+    ).rejects.toThrow(
+      /status: 502, statusText: Bad Gateway, body: upstream timeout/,
+    );
+  });
+
+  it("does not leak sensitive details from AIM API fetch errors", async () => {
+    const hooks = await loadSourcePluginHooks();
+
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            "Authorization: Bearer secret-token-123 https://aim.test/opencode/sessions/session-1?token=secret-token-123 AIM_API_TOKEN=secret-token-123",
+            { status: 500, statusText: "Internal Server Error" },
+          ),
+        ),
+    );
+
+    let error: unknown;
+    try {
+      await hooks.event?.({
+        event: {
+          properties: { sessionID: "session-1" },
+          type: "session.idle",
+        },
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+
+    expect(message).toContain("status: 500");
+    expect(message).toContain("statusText: Internal Server Error");
+    expect(message).toContain("Bearer [redacted]");
+    expect(message).toContain("[redacted-url]");
+    expect(message).toContain("AIM_API_TOKEN=[redacted]");
+    expect(message).not.toContain("secret-token-123");
+    expect(message).not.toContain(
+      "https://aim.test/opencode/sessions/session-1",
+    );
+  });
+
   it("settles the current OpenCode session through AIM API tools", async () => {
     const fetchMock = vi
       .fn()
@@ -1325,6 +1426,69 @@ describe("opencode plugin package baseline", () => {
         headers: { "content-type": "application/json" },
         method: "POST",
       },
+    );
+  });
+
+  it("reports JSON AIM API error details when resolving an OpenCode session fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            code: "session_already_settled",
+            message: "Session is already rejected",
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 409,
+            statusText: "Conflict",
+          },
+        ),
+      ),
+    );
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks();
+    const resolveTool = hooks.tool?.aim_session_resolve;
+
+    if (!resolveTool) {
+      throw new Error("Expected AIM resolve tool to be registered");
+    }
+
+    await expect(
+      resolveTool.execute({ value: "done" }, {
+        sessionID: "session-1",
+      } as Parameters<typeof resolveTool.execute>[1]),
+    ).rejects.toThrow(
+      /status: 409, statusText: Conflict, code: session_already_settled, message: Session is already rejected/,
+    );
+  });
+
+  it("reports text AIM API error details when rejecting an OpenCode session fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("session reject endpoint unavailable", {
+          status: 503,
+          statusText: "Service Unavailable",
+        }),
+      ),
+    );
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks();
+    const rejectTool = hooks.tool?.aim_session_reject;
+
+    if (!rejectTool) {
+      throw new Error("Expected AIM reject tool to be registered");
+    }
+
+    await expect(
+      rejectTool.execute({ reason: "blocked" }, {
+        sessionID: "session-1",
+      } as Parameters<typeof rejectTool.execute>[1]),
+    ).rejects.toThrow(
+      /status: 503, statusText: Service Unavailable, body: session reject endpoint unavailable/,
     );
   });
 });
