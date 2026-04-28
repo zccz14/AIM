@@ -206,6 +206,100 @@ describe("dimension routes", () => {
     });
   });
 
+  it("returns an actionable validation error for duplicate baseline dimension evaluations", async () => {
+    await useProjectRoot("duplicate-evaluation");
+
+    const app = createApp();
+    const project = await createProject(app);
+    const createdDimension = await (
+      await createDimension(app, project.id)
+    ).json();
+    const evaluationPayload = {
+      project_id: project.id,
+      commit_sha: "abc1234",
+      evaluator_model: "anthropic/claude-sonnet-4-5",
+      score: 81,
+      evaluation: "优秀：API shape is clear and covered.",
+    };
+
+    const firstEvaluationResponse = await app.request(
+      `/dimensions/${createdDimension.id}/evaluations`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify(evaluationPayload),
+      },
+    );
+
+    expect(firstEvaluationResponse.status).toBe(201);
+
+    const duplicateEvaluationResponse = await app.request(
+      `/dimensions/${createdDimension.id}/evaluations`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          ...evaluationPayload,
+          score: 99,
+          evaluation: "Duplicate write for the same baseline.",
+        }),
+      },
+    );
+
+    expect(duplicateEvaluationResponse.status).toBe(400);
+    const duplicateError = await duplicateEvaluationResponse.json();
+    const expectedDuplicateError = {
+      code: "DIMENSION_VALIDATION_ERROR",
+      message: `Dimension evaluation already exists for dimension_id ${createdDimension.id}, project_id ${project.id}, and commit_sha abc1234. Read the existing dimension evaluations for this dimension or wait for the next baseline before writing another evaluation.`,
+    };
+
+    expect(duplicateError).toEqual(expectedDuplicateError);
+    expect(duplicateError.message).not.toMatch(
+      /sqlite|unique|constraint|stack/i,
+    );
+
+    const repeatedDuplicateError = await (
+      await app.request(`/dimensions/${createdDimension.id}/evaluations`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify(evaluationPayload),
+      })
+    ).json();
+
+    expect(repeatedDuplicateError).toEqual(expectedDuplicateError);
+  });
+
+  it("keeps project mismatch evaluation errors as validation errors", async () => {
+    await useProjectRoot("evaluation-project-mismatch");
+
+    const app = createApp();
+    const project = await createProject(app);
+    const createdDimension = await (
+      await createDimension(app, project.id)
+    ).json();
+
+    const mismatchResponse = await app.request(
+      `/dimensions/${createdDimension.id}/evaluations`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: "00000000-0000-4000-8000-000000000002",
+          commit_sha: "abc1234",
+          evaluator_model: "anthropic/claude-sonnet-4-5",
+          score: 81,
+          evaluation: "Project mismatch.",
+        }),
+      },
+    );
+
+    expect(mismatchResponse.status).toBe(400);
+    await expect(mismatchResponse.json()).resolves.toEqual({
+      code: "DIMENSION_VALIDATION_ERROR",
+      message: "dimension evaluation project_id must match dimension",
+    });
+  });
+
   it("cascades evaluation deletion when a dimension is deleted", async () => {
     await useProjectRoot("cascade");
 

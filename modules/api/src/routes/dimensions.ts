@@ -32,6 +32,33 @@ const buildValidationError = (message: string) =>
     message,
   });
 
+const isDimensionEvaluationUniqueConstraintError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    /unique constraint failed/i.test(error.message) &&
+    error.message.includes("dimension_evaluations") &&
+    error.message.includes("project_id") &&
+    error.message.includes("commit_sha") &&
+    error.message.includes("dimension_id")
+  );
+};
+
+const buildDuplicateEvaluationError = ({
+  commitSha,
+  dimensionId,
+  projectId,
+}: {
+  commitSha: string;
+  dimensionId: string;
+  projectId: string;
+}) =>
+  buildValidationError(
+    `Dimension evaluation already exists for dimension_id ${dimensionId}, project_id ${projectId}, and commit_sha ${commitSha}. Read the existing dimension evaluations for this dimension or wait for the next baseline before writing another evaluation.`,
+  );
+
 const requireDimensionId = (dimensionId: string | undefined) =>
   dimensionId ?? "dimension-unknown";
 
@@ -212,15 +239,31 @@ export const registerDimensionRoutes = (
       );
     }
 
-    const dimensionEvaluation = await getRepository().createDimensionEvaluation(
-      dimensionId,
-      parsedRequest.data,
-    );
+    try {
+      const dimensionEvaluation =
+        await getRepository().createDimensionEvaluation(
+          dimensionId,
+          parsedRequest.data,
+        );
 
-    if (!dimensionEvaluation) {
-      return context.json(buildNotFoundError(dimensionId), 404);
+      if (!dimensionEvaluation) {
+        return context.json(buildNotFoundError(dimensionId), 404);
+      }
+
+      return context.json(dimensionEvaluation, 201);
+    } catch (error) {
+      if (isDimensionEvaluationUniqueConstraintError(error)) {
+        return context.json(
+          buildDuplicateEvaluationError({
+            commitSha: parsedRequest.data.commit_sha,
+            dimensionId,
+            projectId: parsedRequest.data.project_id,
+          }),
+          400,
+        );
+      }
+
+      throw error;
     }
-
-    return context.json(dimensionEvaluation, 201);
   });
 };
