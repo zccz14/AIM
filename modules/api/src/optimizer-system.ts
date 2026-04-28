@@ -33,6 +33,7 @@ type TaskRepository = {
     projectId: string,
   ): null | CoordinatorProject | Promise<null | CoordinatorProject>;
   listProjects(): Project[];
+  listRejectedTasksByProject(projectId: string): Promise<Task[]>;
   listUnfinishedTasks(): Promise<Task[]>;
 };
 

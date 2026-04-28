@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+
 import type {
   Dimension,
   DimensionEvaluation,
@@ -15,7 +17,18 @@ type TaskRepository = {
   getProjectById(
     projectId: string,
   ): null | CoordinatorProject | Promise<null | CoordinatorProject>;
+  listRejectedTasksByProject(projectId: string): Promise<Task[]> | Task[];
   listUnfinishedTasks(): Promise<Task[]> | Task[];
+};
+
+type BaselineFacts = {
+  commitSha: string;
+  fetchedAt: string;
+  summary: string;
+};
+
+type BaselineRepository = {
+  getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
 };
 
 type DimensionRepository = {
@@ -27,6 +40,7 @@ type DimensionRepository = {
 
 type CreateCoordinatorOptions = {
   activeTaskThreshold?: number;
+  baselineRepository?: BaselineRepository;
   dimensionRepository: DimensionRepository;
   heartbeatMs?: number;
   projectDirectory: string | (() => Promise<string> | string);
@@ -40,6 +54,35 @@ type ManagedSession = Awaited<
 
 const defaultActiveTaskThreshold = 10;
 const defaultHeartbeatMs = 1000;
+
+const git = (projectDirectory: string, args: string[]) =>
+  new Promise<string>((resolve, reject) => {
+    execFile("git", args, { cwd: projectDirectory }, (error, stdout) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(String(stdout).trim());
+    });
+  });
+
+const defaultBaselineRepository: BaselineRepository = {
+  async getLatestBaselineFacts(projectDirectory) {
+    await git(projectDirectory, ["fetch", "origin", "main"]);
+
+    return {
+      commitSha: await git(projectDirectory, ["rev-parse", "origin/main"]),
+      fetchedAt: new Date().toISOString(),
+      summary: await git(projectDirectory, [
+        "log",
+        "-1",
+        "--format=%s",
+        "origin/main",
+      ]),
+    };
+  },
+};
 
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -79,17 +122,41 @@ const latestEvaluation = (evaluations: DimensionEvaluation[]) =>
     null,
   );
 
+const summarizeRejectedTask = (task: Task) => {
+  const validation = task.source_metadata.task_spec_validation;
+  const validationSummary =
+    typeof validation === "object" && validation !== null
+      ? Object.entries(validation as Record<string, unknown>)
+          .filter(([key]) =>
+            [
+              "conclusion",
+              "conclusion_summary",
+              "failure_reason",
+              "blocking_assumptions",
+            ].includes(key),
+          )
+          .map(([key, value]) => `${key}: ${String(value)}`)
+          .join("; ")
+      : "no task_spec_validation metadata";
+
+  return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${task.result || "no result"}. ${validationSummary}`;
+};
+
 const buildPrompt = ({
   activeTasks,
+  baselineFacts,
   dimensions,
   evaluations,
   project,
+  rejectedTasks,
   threshold,
 }: {
   activeTasks: Task[];
+  baselineFacts: BaselineFacts;
   dimensions: Dimension[];
   evaluations: Array<{ dimension: Dimension; evaluation: DimensionEvaluation }>;
   project: CoordinatorProject;
+  rejectedTasks: Task[];
   threshold: number;
 }) => {
   const evaluationSummary = evaluations
@@ -101,12 +168,23 @@ const buildPrompt = ({
   const poolSummary = activeTasks
     .map((task) => `- ${task.title} (${task.task_id}) status ${task.status}`)
     .join("\n");
+  const rejectedSummary = rejectedTasks.map(summarizeRejectedTask).join("\n");
 
   return `You are the AIM Coordinator for project_id "${project.id}".
 
 Maintain the Active Task Pool for this single project only. The current threshold is ${threshold}. Active Task Pool: ${activeTasks.length} unfinished Tasks.
 
-Analyze the latest dimension_evaluations and current Active Task Pool, then append Tasks through the AIM API only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
+Analyze the latest dimension_evaluations, current Active Task Pool, rejected Task feedback, and latest baseline facts, then append Tasks through the AIM API only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
+
+Current baseline facts:
+- origin/main commit "${baselineFacts.commitSha}" fetched at ${baselineFacts.fetchedAt}: ${baselineFacts.summary}
+
+POST /tasks/batch planning and validation guardrails:
+- Create Tasks only through POST /tasks/batch after independently checking the latest origin/main baseline facts and current Active Task Pool.
+- Do not create stale baseline work, self-overlap, duplicate coverage, or replacements that conflict with unfinished Tasks in this project.
+- Every create operation must include source_metadata Coordinator planning evidence: current_task_pool_coverage, dependency_rationale, conflict_duplicate_assessment, and unfinished_task_non_conflict_rationale.
+- Every create operation must include complete source_metadata.task_spec_validation evidence with conclusion "pass". Never submit waiting_assumptions or failed Task Spec validation through POST /tasks/batch.
+- Use rejected Task feedback below to avoid repeating stale baseline, self-overlap, duplicate coverage, waiting_assumptions, and failed Task Spec validation patterns.
 
 Dimensions:
 ${dimensions.map((dimension) => `- ${dimension.name} (${dimension.id}): ${dimension.goal}`).join("\n") || "- none"}
@@ -115,7 +193,10 @@ Latest dimension_evaluations:
 ${evaluationSummary || "- none"}
 
 Current Active Task Pool:
-${poolSummary || "- none"}`;
+${poolSummary || "- none"}
+
+Rejected Task feedback for this project:
+${rejectedSummary || "- none"}`;
 };
 
 export const createCoordinator = (
@@ -126,6 +207,8 @@ export const createCoordinator = (
   const abortController = new AbortController();
   const threshold = options.activeTaskThreshold ?? defaultActiveTaskThreshold;
   const heartbeatMs = options.heartbeatMs ?? defaultHeartbeatMs;
+  const baselineRepository =
+    options.baselineRepository ?? defaultBaselineRepository;
   let activeSession: ManagedSession | null = null;
 
   const scanOnce = async () => {
@@ -143,6 +226,9 @@ export const createCoordinator = (
 
     const dimensions =
       await options.dimensionRepository.listDimensions(projectId);
+    const rejectedTasks = (
+      await options.taskRepository.listRejectedTasksByProject(projectId)
+    ).filter((task) => task.project_id === projectId);
     const evaluations = (
       await Promise.all(
         dimensions.map(async (dimension) => {
@@ -157,6 +243,8 @@ export const createCoordinator = (
       )
     ).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
     const directory = await resolveProjectDirectory(options.projectDirectory);
+    const baselineFacts =
+      await baselineRepository.getLatestBaselineFacts(directory);
 
     activeSession = await options.sessionManager.createSession({
       directory,
@@ -166,9 +254,11 @@ export const createCoordinator = (
       },
       prompt: buildPrompt({
         activeTasks,
+        baselineFacts,
         dimensions,
         evaluations,
         project,
+        rejectedTasks,
         threshold,
       }),
       title: `AIM Coordinator task-pool session (${project.id})`,
