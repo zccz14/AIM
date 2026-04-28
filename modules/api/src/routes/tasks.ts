@@ -937,6 +937,10 @@ export const registerTaskRoutes = (
     return openCodeSessionRepository;
   };
   const attachOpenCodeSessions = (tasks: Task[]) => {
+    if (tasks.length === 0) {
+      return tasks;
+    }
+
     const sessions = new Map(
       getOpenCodeSessionRepository()
         .listSessions()
