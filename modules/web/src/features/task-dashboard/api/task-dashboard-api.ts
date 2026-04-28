@@ -26,6 +26,7 @@ export type TaskDashboardResponse = {
   dimensionEvaluations: DimensionEvaluation[];
   dimensions: Dimension[];
   history: TaskListResponse;
+  openCodeSessions: OpenCodeSessionListResponse;
   projectOptimizerStatuses: Record<string, ProjectOptimizerStatusResponse>;
   projects: ProjectListResponse;
 };
@@ -41,9 +42,10 @@ const getProjectIds = (responses: TaskListResponse[]) => [
 export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
   const client = createWebApiClient();
 
-  const [active, history, projects] = await Promise.all([
+  const [active, history, openCodeSessions, projects] = await Promise.all([
     client.listTasks({ done: false }),
     client.listTasks({ done: true }),
+    client.listOpenCodeSessions(),
     client.listProjects(),
   ]);
   const projectIds = getProjectIds([active, history]);
@@ -79,6 +81,7 @@ export const getTaskDashboard = async (): Promise<TaskDashboardResponse> => {
     dimensionEvaluations,
     dimensions,
     history,
+    openCodeSessions,
     projectOptimizerStatuses,
     projects,
   };
