@@ -13,10 +13,15 @@ import { registerOpenCodeSessionRoutes } from "./routes/opencode-sessions.js";
 import { registerProjectRoutes } from "./routes/projects.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
+type OpenCodeSessionPromptSender = {
+  sendPrompt(sessionId: string, prompt: string): Promise<void>;
+};
+
 type CreateAppOptions = {
   logger?: ApiLogger;
   onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
+  openCodeSessionsAdapter?: OpenCodeSessionPromptSender;
   optimizerRuntime?: OptimizerRuntime;
 };
 
@@ -37,7 +42,10 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerOpenCodeSessionRoutes(app, { resourceScope });
+  registerOpenCodeSessionRoutes(app, {
+    adapter: _options.openCodeSessionsAdapter,
+    resourceScope,
+  });
   registerProjectRoutes(app, {
     optimizerRuntime: _options.optimizerRuntime,
     resourceScope,

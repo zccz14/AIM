@@ -169,6 +169,25 @@ export const openApiDocument = {
         },
       },
     },
+    "/opencode/sessions/continue_pending": {
+      post: {
+        operationId: "continuePendingOpenCodeSessions",
+        summary:
+          "Push continuation prompts for all pending AIM-controlled OpenCode sessions",
+        responses: {
+          "200": {
+            description: "Per-session continuation push results",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeSessionContinueBulkResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/opencode/sessions/{sessionId}": {
       get: {
         operationId: "getOpenCodeSessionById",
@@ -253,6 +272,40 @@ export const openApiDocument = {
           },
           "409": {
             description: "OpenCode session promise is not pending",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/opencode/sessions/{sessionId}/continue": {
+      post: {
+        operationId: "continueOpenCodeSessionById",
+        summary:
+          "Push a continuation prompt for one pending AIM-controlled OpenCode session",
+        parameters: [
+          {
+            $ref: "#/components/parameters/OpenCodeSessionIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Continuation push result",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeSessionContinueResult",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "OpenCode session promise not found",
             content: {
               "application/json": {
                 schema: {
@@ -1621,6 +1674,62 @@ export const openApiDocument = {
             type: "array",
             items: {
               $ref: "#/components/schemas/OpenCodeSession",
+            },
+          },
+        },
+      },
+      OpenCodeSessionContinueStatus: {
+        type: "string",
+        enum: ["pushed", "skipped", "error"],
+      },
+      OpenCodeSessionContinueResult: {
+        type: "object",
+        additionalProperties: false,
+        required: ["session_id", "status", "reason"],
+        properties: {
+          session_id: {
+            type: "string",
+            minLength: 1,
+          },
+          status: {
+            $ref: "#/components/schemas/OpenCodeSessionContinueStatus",
+          },
+          reason: {
+            type: ["string", "null"],
+          },
+        },
+      },
+      OpenCodeSessionContinueCounts: {
+        type: "object",
+        additionalProperties: false,
+        required: ["pushed", "skipped", "error"],
+        properties: {
+          pushed: {
+            type: "integer",
+            minimum: 0,
+          },
+          skipped: {
+            type: "integer",
+            minimum: 0,
+          },
+          error: {
+            type: "integer",
+            minimum: 0,
+          },
+        },
+      },
+      OpenCodeSessionContinueBulkResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["counts", "items"],
+        properties: {
+          counts: {
+            $ref: "#/components/schemas/OpenCodeSessionContinueCounts",
+          },
+          items: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/OpenCodeSessionContinueResult",
             },
           },
         },

@@ -8,6 +8,11 @@ import type {
 
 import { client } from "./client.gen.js";
 import type {
+  ContinueOpenCodeSessionByIdData,
+  ContinueOpenCodeSessionByIdErrors,
+  ContinueOpenCodeSessionByIdResponses,
+  ContinuePendingOpenCodeSessionsData,
+  ContinuePendingOpenCodeSessionsResponses,
   CreateDimensionData,
   CreateDimensionErrors,
   CreateDimensionEvaluationData,
@@ -195,6 +200,20 @@ export const createOpenCodeSession = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Push continuation prompts for all pending AIM-controlled OpenCode sessions
+ */
+export const continuePendingOpenCodeSessions = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<ContinuePendingOpenCodeSessionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    ContinuePendingOpenCodeSessionsResponses,
+    unknown,
+    ThrowOnError
+  >({ url: "/opencode/sessions/continue_pending", ...options });
+
+/**
  * Read an AIM-controlled OpenCode session promise
  */
 export const getOpenCodeSessionById = <ThrowOnError extends boolean = false>(
@@ -224,6 +243,20 @@ export const patchOpenCodeSessionById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Push a continuation prompt for one pending AIM-controlled OpenCode session
+ */
+export const continueOpenCodeSessionById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ContinueOpenCodeSessionByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ContinueOpenCodeSessionByIdResponses,
+    ContinueOpenCodeSessionByIdErrors,
+    ThrowOnError
+  >({ url: "/opencode/sessions/{sessionId}/continue", ...options });
 
 /**
  * Resolve an AIM-controlled OpenCode session promise

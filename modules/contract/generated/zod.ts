@@ -64,6 +64,27 @@ const CreateOpenCodeSessionRequest = z
     continue_prompt: z.union([z.string(), z.null()]).optional(),
   })
   .strict();
+const OpenCodeSessionContinueCounts = z
+  .object({
+    pushed: z.number().int().gte(0),
+    skipped: z.number().int().gte(0),
+    error: z.number().int().gte(0),
+  })
+  .strict();
+const OpenCodeSessionContinueStatus = z.enum(["pushed", "skipped", "error"]);
+const OpenCodeSessionContinueResult = z
+  .object({
+    session_id: z.string().min(1),
+    status: OpenCodeSessionContinueStatus,
+    reason: z.union([z.string(), z.null()]),
+  })
+  .strict();
+const OpenCodeSessionContinueBulkResponse = z
+  .object({
+    counts: OpenCodeSessionContinueCounts,
+    items: z.array(OpenCodeSessionContinueResult),
+  })
+  .strict();
 const PatchOpenCodeSessionRequest = z
   .object({ continue_prompt: z.union([z.string(), z.null()]) })
   .strict();
@@ -308,6 +329,10 @@ export const schemas = {
   OpenCodeSession,
   OpenCodeSessionListResponse,
   CreateOpenCodeSessionRequest,
+  OpenCodeSessionContinueCounts,
+  OpenCodeSessionContinueStatus,
+  OpenCodeSessionContinueResult,
+  OpenCodeSessionContinueBulkResponse,
   PatchOpenCodeSessionRequest,
   OpenCodeSessionSettleRequest,
   CreateProjectRequest,

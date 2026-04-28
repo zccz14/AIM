@@ -79,6 +79,25 @@ export type OpenCodeSessionListResponse = {
   items: Array<OpenCodeSession>;
 };
 
+export type OpenCodeSessionContinueStatus = "pushed" | "skipped" | "error";
+
+export type OpenCodeSessionContinueResult = {
+  session_id: string;
+  status: OpenCodeSessionContinueStatus;
+  reason: string | null;
+};
+
+export type OpenCodeSessionContinueCounts = {
+  pushed: number;
+  skipped: number;
+  error: number;
+};
+
+export type OpenCodeSessionContinueBulkResponse = {
+  counts: OpenCodeSessionContinueCounts;
+  items: Array<OpenCodeSessionContinueResult>;
+};
+
 export type CreateOpenCodeSessionRequest = {
   session_id: string;
   continue_prompt?: string | null;
@@ -558,6 +577,23 @@ export type CreateOpenCodeSessionResponses = {
 export type CreateOpenCodeSessionResponse =
   CreateOpenCodeSessionResponses[keyof CreateOpenCodeSessionResponses];
 
+export type ContinuePendingOpenCodeSessionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/opencode/sessions/continue_pending";
+};
+
+export type ContinuePendingOpenCodeSessionsResponses = {
+  /**
+   * Per-session continuation push results
+   */
+  200: OpenCodeSessionContinueBulkResponse;
+};
+
+export type ContinuePendingOpenCodeSessionsResponse =
+  ContinuePendingOpenCodeSessionsResponses[keyof ContinuePendingOpenCodeSessionsResponses];
+
 export type GetOpenCodeSessionByIdData = {
   body?: never;
   path: {
@@ -623,6 +659,35 @@ export type PatchOpenCodeSessionByIdResponses = {
 
 export type PatchOpenCodeSessionByIdResponse =
   PatchOpenCodeSessionByIdResponses[keyof PatchOpenCodeSessionByIdResponses];
+
+export type ContinueOpenCodeSessionByIdData = {
+  body?: never;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}/continue";
+};
+
+export type ContinueOpenCodeSessionByIdErrors = {
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+};
+
+export type ContinueOpenCodeSessionByIdError =
+  ContinueOpenCodeSessionByIdErrors[keyof ContinueOpenCodeSessionByIdErrors];
+
+export type ContinueOpenCodeSessionByIdResponses = {
+  /**
+   * Continuation push result
+   */
+  200: OpenCodeSessionContinueResult;
+};
+
+export type ContinueOpenCodeSessionByIdResponse =
+  ContinueOpenCodeSessionByIdResponses[keyof ContinueOpenCodeSessionByIdResponses];
 
 export type ResolveOpenCodeSessionByIdData = {
   body: OpenCodeSessionSettleRequest;

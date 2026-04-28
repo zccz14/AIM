@@ -3,6 +3,10 @@ import { execFile } from "node:child_process";
 import {
   createOpenCodeSessionRequestSchema,
   openCodeSessionByIdPath,
+  openCodeSessionContinueBulkResponseSchema,
+  openCodeSessionContinuePath,
+  openCodeSessionContinuePendingPath,
+  openCodeSessionContinueResultSchema,
   openCodeSessionRejectPath,
   openCodeSessionResolvePath,
   openCodeSessionSettleRequestSchema,
@@ -13,10 +17,15 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import { createOpenCodeSdkAdapter } from "../opencode-sdk-adapter.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const openCodeSessionByIdRoutePath = openCodeSessionByIdPath.replace(
+  "{sessionId}",
+  ":sessionId",
+);
+const openCodeSessionContinueRoutePath = openCodeSessionContinuePath.replace(
   "{sessionId}",
   ":sessionId",
 );
@@ -54,6 +63,14 @@ const redactSensitiveErrorDetail = (message: string) =>
 
 const requireSessionId = (sessionId: string | undefined) =>
   sessionId ?? "session-unknown";
+
+const continuationTerminalInstructions = `
+
+Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
+
+type OpenCodeSessionPromptSender = {
+  sendPrompt(sessionId: string, prompt: string): Promise<void>;
+};
 
 const getTaskResult = (value: string | undefined) => {
   if (!value?.trim()) {
@@ -163,6 +180,7 @@ const verifyPullRequestMerged = async (pullRequestUrl: string) => {
 };
 
 type RegisterOpenCodeSessionRoutesOptions = {
+  adapter?: OpenCodeSessionPromptSender;
   resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
@@ -171,6 +189,7 @@ export const registerOpenCodeSessionRoutes = (
   options: RegisterOpenCodeSessionRoutesOptions = {},
 ) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
+  let adapter = options.adapter;
   let repository: null | ReturnType<typeof createOpenCodeSessionRepository> =
     null;
   let taskRepository: null | ReturnType<typeof createTaskRepository> = null;
@@ -188,6 +207,59 @@ export const registerOpenCodeSessionRoutes = (
       createTaskRepository({ projectRoot });
 
     return taskRepository;
+  };
+  const getAdapter = () => {
+    adapter ??= {
+      sendPrompt: (sessionId, prompt) =>
+        createOpenCodeSdkAdapter({
+          baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+        }).sendSessionPrompt(sessionId, prompt),
+    };
+
+    return adapter;
+  };
+
+  const pushContinuePrompt = async (session: {
+    continue_prompt: null | string;
+    session_id: string;
+    state: "pending" | "rejected" | "resolved";
+  }) => {
+    const continuePrompt = session.continue_prompt?.trim();
+
+    if (session.state !== "pending") {
+      return openCodeSessionContinueResultSchema.parse({
+        reason: "settled",
+        session_id: session.session_id,
+        status: "skipped",
+      });
+    }
+
+    if (!continuePrompt) {
+      return openCodeSessionContinueResultSchema.parse({
+        reason: "empty_continue_prompt",
+        session_id: session.session_id,
+        status: "skipped",
+      });
+    }
+
+    try {
+      await getAdapter().sendPrompt(
+        session.session_id,
+        `${continuePrompt}${continuationTerminalInstructions}`,
+      );
+
+      return openCodeSessionContinueResultSchema.parse({
+        reason: null,
+        session_id: session.session_id,
+        status: "pushed",
+      });
+    } catch (error) {
+      return openCodeSessionContinueResultSchema.parse({
+        reason: error instanceof Error ? error.message : String(error),
+        session_id: session.session_id,
+        status: "error",
+      });
+    }
   };
 
   const settleBoundTask = async (
@@ -295,6 +367,34 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     return context.json(session, 200);
+  });
+
+  app.post(openCodeSessionContinuePendingPath, async (context) => {
+    const items = await Promise.all(
+      getRepository()
+        .listSessions()
+        .map((session) => pushContinuePrompt(session)),
+    );
+    const counts = { error: 0, pushed: 0, skipped: 0 };
+    for (const item of items) {
+      counts[item.status] += 1;
+    }
+
+    return context.json(
+      openCodeSessionContinueBulkResponseSchema.parse({ counts, items }),
+      200,
+    );
+  });
+
+  app.post(openCodeSessionContinueRoutePath, async (context) => {
+    const sessionId = requireSessionId(context.req.param("sessionId"));
+    const session = getRepository().getSessionById(sessionId);
+
+    if (!session) {
+      return context.json(buildNotFoundError(sessionId), 404);
+    }
+
+    return context.json(await pushContinuePrompt(session), 200);
   });
 
   app.patch(openCodeSessionByIdRoutePath, async (context) => {
