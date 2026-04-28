@@ -33,6 +33,14 @@ const parsedSchedulerIntervalMs = Number.parseInt(
 const schedulerIntervalMs = Number.isNaN(parsedSchedulerIntervalMs)
   ? defaultSchedulerIntervalMs
   : parsedSchedulerIntervalMs;
+const getErrorSummary = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+const optimizerSetupNextSteps = [
+  "check Project provider/model configuration and optimizer enablement",
+  "verify OPENCODE_BASE_URL points at a reachable OpenCode server",
+  "confirm AIM_PROJECT_ROOT workspaces can be bootstrapped",
+  "confirm repository initialization and schema state are valid",
+];
 
 // 生产部署可复用 createApp() 接入不同 runtime；此入口仅处理本地 Node 启动与 PORT 边界。
 export const startServer = async (): Promise<AsyncDisposable> => {
@@ -58,17 +66,33 @@ export const startServer = async (): Promise<AsyncDisposable> => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(dimensionRepository);
-  const optimizerSystem = scope.use(
-    await createOptimizerSystem({
-      continuationSessionRepository: openCodeSessionRepository,
-      coordinatorConfig,
-      dimensionRepository,
-      intervalMs: schedulerIntervalMs,
-      logger,
-      managerStateRepository,
-      taskRepository,
-    }),
-  );
+  let optimizerSystem: Awaited<ReturnType<typeof createOptimizerSystem>>;
+
+  try {
+    optimizerSystem = scope.use(
+      await createOptimizerSystem({
+        continuationSessionRepository: openCodeSessionRepository,
+        coordinatorConfig,
+        dimensionRepository,
+        intervalMs: schedulerIntervalMs,
+        logger,
+        managerStateRepository,
+        taskRepository,
+      }),
+    );
+  } catch (error) {
+    logger.error(
+      {
+        component: "server",
+        error_summary: getErrorSummary(error),
+        next_steps: optimizerSetupNextSteps,
+        opencode_base_url: coordinatorConfig.baseUrl,
+        optimizer_configured_stage: "server_optimizer_setup",
+      },
+      "AIM server optimizer setup failed",
+    );
+    throw error;
+  }
 
   const app = scope.use(
     createApp({
@@ -134,5 +158,10 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  void startServer();
+  void startServer().catch((error: unknown) => {
+    console.error(
+      `AIM server failed during optimizer setup: ${getErrorSummary(error)}. Next steps: ${optimizerSetupNextSteps.join("; ")}.`,
+    );
+    process.exitCode = 1;
+  });
 }

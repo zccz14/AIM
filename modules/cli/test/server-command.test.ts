@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -9,6 +9,10 @@ const cliBinUrl = new URL("../bin/aim.js", import.meta.url);
 const cliRootUrl = new URL("../", import.meta.url);
 const cliEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const apiServerEntryUrl = new URL("../../api/dist/server.mjs", import.meta.url);
+const serverStartSourceUrl = new URL(
+  "../src/commands/server/start.ts",
+  import.meta.url,
+);
 
 beforeAll(async () => {
   for (const entryUrl of [cliEntryUrl, apiServerEntryUrl]) {
@@ -92,6 +96,18 @@ const stopChild = async (child: ReturnType<typeof spawn>) => {
 };
 
 describe("server cli command", () => {
+  it("prints actionable optimizer setup guidance before rethrowing startup errors", async () => {
+    const source = await readFile(serverStartSourceUrl, "utf8");
+
+    expect(source).toContain("logToStderr(");
+    expect(source).toContain("AIM server failed during optimizer setup");
+    expect(source).toContain("Project configuration");
+    expect(source).toContain("OpenCode base URL");
+    expect(source).toContain("workspace/bootstrap");
+    expect(source).toContain("repository initialization");
+    expect(source).toContain("throw error;");
+  });
+
   it("starts the API server on the requested port", async () => {
     const port = await getFreePort();
     const child = spawn(
