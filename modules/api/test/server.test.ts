@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockServe = vi.fn();
 const mockCreateApp = vi.fn();
 const mockCreateApiLogger = vi.fn();
+const mockCreateDeveloper = vi.fn();
 const mockCreateDimensionRepository = vi.fn();
 const mockCreateManagerStateRepository = vi.fn();
 const mockCreateOpenCodeSessionRepository = vi.fn();
 const mockCreateOpenCodeSessionManager = vi.fn();
 const mockCreateOptimizerLaneStateRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
-const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateCoordinator = vi.fn();
@@ -126,8 +126,8 @@ vi.mock("../src/task-repository.js", () => ({
   createTaskRepository: mockCreateTaskRepository,
 }));
 
-vi.mock("../src/task-scheduler.js", () => ({
-  createTaskScheduler: mockCreateTaskScheduler,
+vi.mock("../src/developer.js", () => ({
+  createDeveloper: mockCreateDeveloper,
 }));
 
 vi.mock("../src/project-workspace.js", () => ({
@@ -218,7 +218,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -232,7 +232,7 @@ describe("server startup", () => {
     });
   });
 
-  it("defaults scheduler enablement and base url when env vars are unset", async () => {
+  it("defaults optimizer enablement and base url when env vars are unset", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -246,7 +246,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -272,7 +272,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -281,7 +281,7 @@ describe("server startup", () => {
     expect(() => startServer()).not.toThrow();
   });
 
-  it("creates one api logger and passes it to app and scheduler", async () => {
+  it("creates one api logger and passes it to app and developer", async () => {
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
 
     const logger = {
@@ -304,7 +304,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -325,7 +325,7 @@ describe("server startup", () => {
         }),
       }),
     );
-    expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
+    expect(mockCreateDeveloper).toHaveBeenCalledWith(
       expect.objectContaining({ logger }),
     );
   });
@@ -355,7 +355,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
@@ -401,7 +401,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
@@ -413,7 +413,7 @@ describe("server startup", () => {
     expect(mockCreateManager).toHaveBeenCalledWith(
       expect.objectContaining({ project: optimizerEnabledProject }),
     );
-    expect(scheduler.start).toHaveBeenCalledOnce();
+    expect(mockCreateDeveloper).toHaveBeenCalledOnce();
     expect(
       mockCreateApp.mock.calls[0]?.[0].optimizerRuntime.getStatus(),
     ).toMatchObject({
@@ -437,15 +437,15 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
     const { startServer } = await import("../src/server.js");
 
     expect(() => startServer()).not.toThrow();
-    expect(mockCreateTaskScheduler).toHaveBeenCalledTimes(1);
-    expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
+    expect(mockCreateDeveloper).toHaveBeenCalledTimes(1);
+    expect(mockCreateDeveloper).toHaveBeenCalledWith(
       expect.not.objectContaining({ taskProducer: expect.anything() }),
     );
     expect(mockCreateManager).toHaveBeenCalledWith(
@@ -455,7 +455,7 @@ describe("server startup", () => {
       optimizerEnabledProject.id,
       expect.objectContaining({ taskRepository: expect.any(Object) }),
     );
-    expect(scheduler.start).toHaveBeenCalledOnce();
+    expect(mockCreateDeveloper).toHaveBeenCalledOnce();
   });
 
   it("wires the coordinator component to shared optimizer state", async () => {
@@ -484,7 +484,7 @@ describe("server startup", () => {
     mockCreateOptimizerLaneStateRepository.mockReturnValue(
       optimizerLaneStateRepository,
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -521,7 +521,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -548,7 +548,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
@@ -592,7 +592,7 @@ describe("server startup", () => {
         unconfiguredProject,
       ]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockEnsureProjectWorkspace
@@ -658,7 +658,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([unconfiguredProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -703,7 +703,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -719,7 +719,7 @@ describe("server startup", () => {
     );
   });
 
-  it("does not leave the server listening when scheduler startup fails", async () => {
+  it("does not leave the server listening when optimizer setup fails", async () => {
     process.env.OPENCODE_BASE_URL = "http://127.0.0.1:54321";
 
     let listening = false;
@@ -770,7 +770,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
@@ -809,7 +809,7 @@ describe("server startup", () => {
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([optimizerEnabledProject]),
     );
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 
@@ -840,7 +840,7 @@ describe("server startup", () => {
     };
     const scheduler = {
       [Symbol.asyncDispose]: vi.fn(async () => {
-        cleanupOrder.push("scheduler:dispose");
+        cleanupOrder.push("developer:dispose");
       }),
       scanOnce: vi.fn(),
       start: vi.fn(),
@@ -856,7 +856,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
@@ -869,7 +869,7 @@ describe("server startup", () => {
 
     expect(cleanupOrder).toEqual([
       "server:close",
-      "scheduler:dispose",
+      "developer:dispose",
       "coordinator:dispose",
       "coordinator:dispose",
       "repository:dispose",
@@ -914,7 +914,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
     mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
@@ -955,7 +955,7 @@ describe("server startup", () => {
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(taskRepository);
-    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
 

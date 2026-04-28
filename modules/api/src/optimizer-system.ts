@@ -7,6 +7,7 @@ import type {
 
 import type { ApiLogger } from "./api-logger.js";
 import { createCoordinator } from "./coordinator.js";
+import { createDeveloper } from "./developer.js";
 import { createManager } from "./manager.js";
 import type {
   ManagerState,
@@ -18,7 +19,6 @@ import {
   type OptimizerRuntime,
 } from "./optimizer-runtime.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
-import { createTaskScheduler } from "./task-scheduler.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
   optimizer_enabled?: boolean | number;
@@ -125,8 +125,8 @@ export const createOptimizerSystem = ({
         repository: continuationSessionRepository,
       }),
     );
-    const scheduler = setupStack.use(
-      createTaskScheduler({
+    const developer = setupStack.use(
+      createDeveloper({
         logger,
         sessionManager: openCodeSessionManager,
         taskRepository,
@@ -176,7 +176,7 @@ export const createOptimizerSystem = ({
             lane,
             name: "coordinator_task_pool" as const,
           })),
-          { lane: scheduler, name: "developer_follow_up" as const },
+          { lane: developer, name: "developer_follow_up" as const },
         ],
         logger,
       }),
