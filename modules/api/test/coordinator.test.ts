@@ -206,6 +206,14 @@ describe("coordinator", () => {
     expect(prompt).toContain("Current baseline facts");
     expect(prompt).toContain('commit "baseline-123"');
     expect(prompt).toContain("Fix optimizer scheduler setup cleanup (#245)");
+    expect(prompt).toContain("commit abc123");
+    expect(prompt).toContain(
+      "stale: evaluation commit abc123 differs from current origin/main baseline baseline-123",
+    );
+    expect(prompt).toContain("treat as historical signal only");
+    expect(prompt).toContain(
+      "do not use it independently as current baseline evidence for creating Tasks",
+    );
     expect(prompt).toContain("Rejected Task feedback for this project");
     expect(prompt).toContain("rejected-project-1-1");
     expect(prompt).toContain(
@@ -335,13 +343,78 @@ describe("coordinator", () => {
       prompt.indexOf("Priority summary for candidate signals"),
     ).toBeLessThan(prompt.indexOf("Latest dimension_evaluations"));
     expect(prompt).toContain(
-      "README-ahead autonomy (readme-ahead) score 80 at 2026-04-28T10:00:00.000Z: README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
+      "README-ahead autonomy (readme-ahead) score 80 at 2026-04-28T10:00:00.000Z; commit older-baseline",
+    );
+    expect(prompt).toContain(
+      "README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
     );
     expect(prompt).toContain("Rejected Task feedback for this project");
     expect(prompt).toContain("rejected-project-1-1");
     expect(prompt).toContain("source_metadata.task_spec_validation");
     expect(prompt).toContain("Never submit waiting_assumptions");
     expect(prompt).toContain("failed Task Spec validation");
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("marks current dimension evaluations as matching the current baseline without stale limitations", async () => {
+    const dimension = createDimension("dimension-current");
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async () => []),
+      listUnfinishedTasks: vi.fn(async () => []),
+    };
+    const dimensionRepository = {
+      listDimensionEvaluations: vi.fn(async (dimensionId: string) => [
+        {
+          commit_sha: "baseline-current",
+          created_at: "2026-04-28T10:00:00.000Z",
+          dimension_id: dimensionId,
+          evaluation: "Current baseline still needs accessibility coverage.",
+          evaluator_model: "claude-sonnet-4-5",
+          id: "evaluation-current",
+          project_id: project.id,
+          score: 64,
+        },
+      ]),
+      listDimensions: vi.fn(async () => [dimension]),
+    };
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-current-evaluation",
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-current",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Current baseline summary",
+      })),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      baselineRepository,
+      dimensionRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("commit baseline-current");
+    expect(prompt).toContain(
+      "matches current origin/main baseline baseline-current",
+    );
+    expect(prompt).not.toContain("stale: evaluation commit baseline-current");
+    expect(prompt).not.toContain("historical signal only");
+    expect(prompt).toContain(
+      "Current baseline still needs accessibility coverage.",
+    );
 
     await coordinator[Symbol.asyncDispose]();
   });
