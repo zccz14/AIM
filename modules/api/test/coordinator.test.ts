@@ -32,6 +32,23 @@ const createTask = (index: number, projectId = project.id) => ({
   worktree_path: null,
 });
 
+const createRejectedTask = (index: number, projectId = project.id) => ({
+  ...createTask(index, projectId),
+  done: true,
+  result:
+    "Task Spec validation failed because coverage duplicated current Active Task Pool and used stale baseline facts.",
+  source_metadata: {
+    task_spec_validation: {
+      conclusion: "failed",
+      failure_reason:
+        "waiting_assumptions and stale baseline blocked POST /tasks/batch",
+    },
+  },
+  status: "rejected" as const,
+  task_id: `rejected-${projectId}-${index}`,
+  title: `Rejected Task ${index}`,
+});
+
 const createDimension = (id: string) => ({
   created_at: "2026-04-27T00:00:00.000Z",
   evaluation_method: "score the README goal",
@@ -56,6 +73,7 @@ describe("coordinator", () => {
   it("starts immediately and does nothing when this project's Active Task Pool is sufficient", async () => {
     const taskRepository = {
       getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(),
       listUnfinishedTasks: vi.fn(async () => [
         ...Array.from({ length: 10 }, (_, index) => createTask(index)),
         createTask(99, "other-project"),
@@ -91,6 +109,10 @@ describe("coordinator", () => {
     const dimension = createDimension("dimension-1");
     const taskRepository = {
       getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async (projectId: string) => [
+        createRejectedTask(1, projectId),
+        createRejectedTask(2, "other-project"),
+      ]),
       listUnfinishedTasks: vi.fn(async () => [
         createTask(1),
         createTask(2, "other-project"),
@@ -118,9 +140,17 @@ describe("coordinator", () => {
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
     };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-123",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Fix optimizer scheduler setup cleanup (#245)",
+      })),
+    };
 
     const { createCoordinator } = await import("../src/coordinator.js");
     const coordinator = createCoordinator(project.id, {
+      baselineRepository,
       dimensionRepository,
       projectDirectory: "/repo/workspace/project-1",
       sessionManager,
@@ -131,6 +161,12 @@ describe("coordinator", () => {
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(dimensionRepository.listDimensions).toHaveBeenCalledWith(project.id);
+    expect(taskRepository.listRejectedTasksByProject).toHaveBeenCalledWith(
+      project.id,
+    );
+    expect(baselineRepository.getLatestBaselineFacts).toHaveBeenCalledWith(
+      "/repo/workspace/project-1",
+    );
     expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,7 +178,22 @@ describe("coordinator", () => {
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
     expect(prompt).toContain('project_id "project-1"');
     expect(prompt).toContain("Active Task Pool: 1 unfinished Tasks");
+    expect(prompt).toContain("Current baseline facts");
+    expect(prompt).toContain('commit "baseline-123"');
+    expect(prompt).toContain("Fix optimizer scheduler setup cleanup (#245)");
+    expect(prompt).toContain("Rejected Task feedback for this project");
+    expect(prompt).toContain("rejected-project-1-1");
+    expect(prompt).toContain(
+      "Task Spec validation failed because coverage duplicated current Active Task Pool",
+    );
+    expect(prompt).not.toContain("rejected-other-project-2");
     expect(prompt).toContain("append Tasks");
+    expect(prompt).toContain("POST /tasks/batch");
+    expect(prompt).toContain("source_metadata.task_spec_validation");
+    expect(prompt).toContain("waiting_assumptions");
+    expect(prompt).toContain("failed Task Spec validation");
+    expect(prompt).toContain("self-overlap");
+    expect(prompt).toContain("duplicate coverage");
     expect(prompt).toContain(
       "Latest gap: missing coordinator-created task coverage.",
     );
@@ -155,6 +206,7 @@ describe("coordinator", () => {
   it("keeps the heartbeat loop alive after a transient repository failure", async () => {
     const taskRepository = {
       getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async () => []),
       listUnfinishedTasks: vi
         .fn()
         .mockRejectedValueOnce(new Error("temporary database lock"))
@@ -171,10 +223,18 @@ describe("coordinator", () => {
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
     };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-after-retry",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Retry baseline",
+      })),
+    };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { createCoordinator } = await import("../src/coordinator.js");
     const coordinator = createCoordinator(project.id, {
+      baselineRepository,
       dimensionRepository,
       projectDirectory: "/repo/workspace/project-1",
       sessionManager,

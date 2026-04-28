@@ -882,6 +882,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     listUnfinishedTasks(): Promise<Task[]> {
       return this.listTasks({ done: false });
     },
+    async listRejectedTasksByProject(projectId: string): Promise<Task[]> {
+      const rejectedTasks = await this.listTasks({ status: "rejected" });
+
+      return rejectedTasks.filter((task) => task.project_id === projectId);
+    },
     async assignSessionIfUnassigned(
       taskId: string,
       sessionId: string,
