@@ -10,6 +10,10 @@ export const dimensionsPath = "/dimensions";
 export const opencodeModelsPath = "/opencode/models";
 export const openCodeSessionsPath = "/opencode/sessions";
 export const openCodeSessionByIdPath = "/opencode/sessions/{sessionId}";
+export const openCodeSessionContinuePendingPath =
+  "/opencode/sessions/continue_pending";
+export const openCodeSessionContinuePath =
+  "/opencode/sessions/{sessionId}/continue";
 export const openCodeSessionResolvePath =
   "/opencode/sessions/{sessionId}/resolve";
 export const openCodeSessionRejectPath =

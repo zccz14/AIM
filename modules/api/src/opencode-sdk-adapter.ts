@@ -12,6 +12,7 @@ export type OpenCodeSdkAdapter = {
   createSession(task: Task): Promise<AsyncDisposable & { id: string }>;
   getSessionState(sessionId: string, task: Task): Promise<TaskSessionState>;
   listSupportedModels(): Promise<OpenCodeModelsResponse>;
+  sendSessionPrompt(sessionId: string, prompt: string): Promise<void>;
   sendPrompt(sessionId: string, prompt: string, task: Task): Promise<void>;
 };
 
@@ -82,6 +83,15 @@ export const createOpenCodeSdkAdapter = (
           })),
         ),
       };
+    },
+    async sendSessionPrompt(sessionId, prompt) {
+      await client.session.promptAsync({
+        body: {
+          parts: [{ text: prompt, type: "text" }],
+        },
+        path: { id: sessionId },
+        throwOnError: true,
+      });
     },
     async sendPrompt(sessionId, prompt, task) {
       await client.session.promptAsync({
