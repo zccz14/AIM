@@ -47,6 +47,73 @@ describe("optimizer system", () => {
     vi.clearAllMocks();
   });
 
+  it("resolves to an owned async disposable system without disposing setup resources", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = { listProjects: vi.fn(() => [configuredProject]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const laneStateRepository = {};
+    const managerStateRepository = {};
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const systemPromise = createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      laneStateRepository,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    expect(systemPromise).toBeInstanceOf(Promise);
+
+    const system = await systemPromise;
+
+    expect(developer[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(coordinator[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(manager[Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(openCodeSessionManager[Symbol.asyncDispose]).not.toHaveBeenCalled();
+
+    await system[Symbol.asyncDispose]();
+
+    expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(coordinator[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(manager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
   it("creates heartbeat components for enabled projects and disposes them through the system lifecycle", async () => {
     const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const taskRepository = { listProjects: vi.fn(() => [configuredProject]) };
@@ -84,7 +151,7 @@ describe("optimizer system", () => {
       "../src/optimizer-system.js"
     );
 
-    const system = createOptimizerSystem({
+    const system = await createOptimizerSystem({
       continuationSessionRepository,
       coordinatorConfig: {
         baseUrl: "http://localhost:4096",
@@ -162,7 +229,7 @@ describe("optimizer system", () => {
       "../src/optimizer-system.js"
     );
 
-    const system = createOptimizerSystem({
+    const system = await createOptimizerSystem({
       continuationSessionRepository,
       coordinatorConfig: {
         baseUrl: "http://localhost:4096",
@@ -219,7 +286,7 @@ describe("optimizer system", () => {
       "../src/optimizer-system.js"
     );
 
-    expect(() =>
+    await expect(
       createOptimizerSystem({
         continuationSessionRepository,
         coordinatorConfig: {
@@ -232,10 +299,8 @@ describe("optimizer system", () => {
         managerStateRepository,
         taskRepository,
       }),
-    ).toThrow(setupError);
+    ).rejects.toThrow(setupError);
 
-    await vi.waitFor(() => {
-      expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
-    });
+    expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 });
