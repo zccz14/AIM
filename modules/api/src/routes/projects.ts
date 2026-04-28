@@ -153,14 +153,20 @@ export const registerProjectRoutes = (
 
     const optimizerEnabled = Boolean(project.optimizer_enabled);
     const runtimeActive = optimizerEnabled && Boolean(options.optimizerSystem);
+    const optimizerStatus = runtimeActive
+      ? options.optimizerSystem?.getProjectStatus?.(projectId)
+      : undefined;
     const response = projectOptimizerStatusResponseSchema.parse({
       project_id: projectId,
       optimizer_enabled: optimizerEnabled,
       runtime_active: runtimeActive,
-      blocker_summary: getOptimizerBlockerSummary({
-        optimizerEnabled,
-        runtimeActive,
-      }),
+      blocker_summary:
+        optimizerStatus === undefined
+          ? getOptimizerBlockerSummary({
+              optimizerEnabled,
+              runtimeActive,
+            })
+          : optimizerStatus.blocker_summary,
     });
 
     return context.json(response, 200);
