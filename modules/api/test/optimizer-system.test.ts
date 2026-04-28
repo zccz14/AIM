@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
+const mockCreateManager = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
@@ -13,6 +14,10 @@ vi.mock("../src/agent-session-coordinator.js", () => ({
 
 vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
+}));
+
+vi.mock("../src/manager.js", () => ({
+  createManager: mockCreateManager,
 }));
 
 vi.mock("../src/task-scheduler.js", () => ({
@@ -57,7 +62,11 @@ describe("optimizer system", () => {
     const managerLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
-      start: vi.fn(),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
     };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -67,10 +76,9 @@ describe("optimizer system", () => {
 
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
+    mockCreateManager.mockReturnValue(managerLane);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
-    mockCreateAgentSessionLane
-      .mockReturnValueOnce(managerLane)
-      .mockReturnValueOnce(coordinatorLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
     const { createOptimizerSystem } = await import(
       "../src/optimizer-system.js"
@@ -92,16 +100,18 @@ describe("optimizer system", () => {
     expect(system.optimizerRuntime.getStatus()).toMatchObject({
       running: true,
     });
-    expect(managerLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(coordinatorLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
-    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+    expect(mockCreateManager).toHaveBeenCalledWith(
       expect.objectContaining({
-        continuationSessionRepository,
-        laneName: "manager_evaluation",
-        laneStateRepository,
-        projectId: configuredProject.id,
+        coordinator: {},
+        dimensionRepository,
+        logger,
+        project: configuredProject,
       }),
+    );
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
+      expect.objectContaining({ laneName: "manager_evaluation" }),
     );
     expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -3,7 +3,7 @@ import type { Project, Task } from "@aim-ai/contract";
 import { createAgentSessionCoordinator } from "./agent-session-coordinator.js";
 import { createAgentSessionLane } from "./agent-session-lane.js";
 import type { ApiLogger } from "./api-logger.js";
-import { prepareManagerLaneScanInput } from "./manager-lane-targets.js";
+import { createManager } from "./manager.js";
 import type {
   OptimizerLaneState,
   OptimizerLaneStateInput,
@@ -19,13 +19,6 @@ import {
   type TaskSessionCoordinatorConfig,
 } from "./task-session-coordinator.js";
 
-const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
-
-Maintain AIM evaluation dimensions and evaluations by reading the latest origin/main baseline, README goals, current dimensions, evaluations, Task Pool, and rejected Tasks through AIM API Server.
-
-Before every dimension_evaluations append, apply the README claim-to-evidence protocol: classify key README claims as aligned, readme_ahead, baseline_ahead, conflicted, ambiguous, or prerequisite_gap; include an evidence source or limit, confidence limit, and Coordinator handoff implication for each claim that materially affects the dimension.
-
-Write results back through AIM API Server only: create or update dimensions/evaluations using the available AIM API contracts; append dimension_evaluations only for Manager findings. Do not create Developer Tasks from this Manager lane.`;
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
 
 You are an AIM Coordinator responsible for keeping the Developer lane supplied with actionable Tasks. Maintain the unfinished Task Pool so Developers do not go idle while README goals still have measurable gaps.
@@ -143,28 +136,11 @@ export const createOptimizerSystem = ({
   const managerLanes =
     configuredProjects.length > 0
       ? configuredProjects.map((project) =>
-          createAgentSessionLane({
-            continuationSessionRepository,
+          createManager({
             coordinator: agentCoordinator,
-            laneName: "manager_evaluation",
-            laneStateRepository,
+            dimensionRepository,
             logger,
-            modelId: project.global_model_id,
-            projectDirectory: () =>
-              ensureProjectWorkspace({
-                git_origin_url: project.git_origin_url,
-                project_id: project.id,
-              }),
-            prompt: createProjectScopedPrompt(managerPrompt, project),
-            prepareScanInput: (input) =>
-              prepareManagerLaneScanInput({
-                dimensionRepository,
-                input,
-                projectId: project.id,
-              }),
-            providerId: project.global_provider_id,
-            projectId: project.id,
-            title: `AIM Manager evaluation lane (${project.id})`,
+            project,
           }),
         )
       : [createMissingProjectLane()];
