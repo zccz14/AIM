@@ -185,7 +185,7 @@ describe("server startup", () => {
     );
 
     expect(source).toContain(
-      "export const startServer = (): AsyncDisposable =>",
+      "export const startServer = async (): Promise<AsyncDisposable> =>",
     );
   });
 
@@ -212,7 +212,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateOpenCodeSessionManager).toHaveBeenCalledWith({
       baseUrl: "http://127.0.0.1:54321",
@@ -240,7 +240,9 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    expect(() => startServer()).not.toThrow();
+    await expect(startServer()).resolves.toEqual(
+      expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
+    );
     expect(mockCreateOpenCodeSessionManager).toHaveBeenCalledWith({
       baseUrl: "http://localhost:4096",
       repository: expect.any(Object),
@@ -266,7 +268,9 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    expect(() => startServer()).not.toThrow();
+    await expect(startServer()).resolves.toEqual(
+      expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
+    );
   });
 
   it("creates one api logger and passes it to app and developer", async () => {
@@ -298,7 +302,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateApiLogger).toHaveBeenCalledTimes(1);
     expect(mockCreateApp).toHaveBeenCalledWith(
@@ -346,7 +350,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -388,7 +392,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateManager).toHaveBeenCalledWith(
       expect.objectContaining({ project: optimizerEnabledProject }),
@@ -421,7 +425,9 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    expect(() => startServer()).not.toThrow();
+    await expect(startServer()).resolves.toEqual(
+      expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
+    );
     expect(mockCreateDeveloper).toHaveBeenCalledTimes(1);
     expect(mockCreateDeveloper).toHaveBeenCalledWith(
       expect.not.objectContaining({ taskProducer: expect.anything() }),
@@ -463,7 +469,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     const openCodeSessionManager =
       mockCreateOpenCodeSessionManager.mock.results[0]?.value;
@@ -499,7 +505,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateManager).not.toHaveBeenCalled();
   });
@@ -527,7 +533,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
 
@@ -575,7 +581,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     const coordinatorConfigs = mockCreateCoordinator.mock.calls.map(
       ([projectId, config]) => ({ config, projectId }),
@@ -636,7 +642,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    const serverRuntime = startServer();
+    const serverRuntime = await startServer();
 
     expect(mockCreateApp.mock.calls[0]?.[0].optimizerSystem).toEqual(
       expect.objectContaining({ [Symbol.asyncDispose]: expect.any(Function) }),
@@ -669,7 +675,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    startServer();
+    await startServer();
 
     expect(mockCreateCoordinator).toHaveBeenCalledWith(
       optimizerEnabledProject.id,
@@ -702,7 +708,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    expect(() => startServer()).toThrow(/tasks schema is incompatible/);
+    await expect(startServer()).rejects.toThrow(/tasks schema is incompatible/);
     expect(listening).toBe(false);
   });
 
@@ -738,7 +744,7 @@ describe("server startup", () => {
     const { startServer } = await import("../src/server.js");
 
     await (async () => {
-      await using _runtime = startServer();
+      await using _runtime = await startServer();
     })();
 
     expect(close).toHaveBeenCalledOnce();
@@ -776,7 +782,7 @@ describe("server startup", () => {
     const { startServer } = await import("../src/server.js");
 
     await (async () => {
-      await using _server = startServer();
+      await using _server = await startServer();
     })();
 
     expect(app[Symbol.asyncDispose]).toHaveBeenCalledOnce();
@@ -824,7 +830,7 @@ describe("server startup", () => {
     const { startServer } = await import("../src/server.js");
 
     await (async () => {
-      await using _runtime = startServer();
+      await using _runtime = await startServer();
     })();
 
     expect(cleanupOrder).toEqual([
@@ -880,7 +886,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    const runtime = startServer();
+    const runtime = await startServer();
     server.close();
     await runtime[Symbol.asyncDispose]();
 
@@ -920,7 +926,7 @@ describe("server startup", () => {
 
     const { startServer } = await import("../src/server.js");
 
-    const runtime = startServer();
+    const runtime = await startServer();
     expect(process.listenerCount("SIGINT")).toBe(sigintListeners + 1);
     expect(process.listenerCount("SIGTERM")).toBe(sigtermListeners + 1);
 

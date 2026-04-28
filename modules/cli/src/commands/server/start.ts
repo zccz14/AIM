@@ -19,6 +19,6 @@ export default class ServerStartCommand extends Command {
 
     const { startServer } = await import("@aim-ai/api/server");
 
-    startServer();
+    await startServer();
   }
 }
