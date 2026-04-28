@@ -7,6 +7,7 @@ import type { listSupportedModels } from "./opencode/list-supported-models.js";
 import type { OptimizerSystem } from "./optimizer-system.js";
 import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
+import { registerDirectorClarificationRoutes } from "./routes/director-clarifications.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerOpenCodeModelRoutes } from "./routes/opencode-models.js";
 import { registerOpenCodeSessionRoutes } from "./routes/opencode-sessions.js";
@@ -67,6 +68,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
     resourceScope,
   });
   registerDimensionRoutes(app, { resourceScope });
+  registerDirectorClarificationRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
     logger: _options.logger,
     openCodeModelsAdapter: _options.openCodeModelsAdapter,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mockRegisterHealthRoute = vi.fn();
 const mockRegisterDbRoutes = vi.fn();
+const mockRegisterDirectorClarificationRoutes = vi.fn();
 const mockRegisterDimensionRoutes = vi.fn();
 const mockRegisterManagerReportRoutes = vi.fn();
 const mockRegisterOpenCodeModelRoutes = vi.fn();
@@ -23,6 +24,10 @@ vi.mock("../src/routes/db.js", () => ({
 
 vi.mock("../src/routes/dimensions.js", () => ({
   registerDimensionRoutes: mockRegisterDimensionRoutes,
+}));
+
+vi.mock("../src/routes/director-clarifications.js", () => ({
+  registerDirectorClarificationRoutes: mockRegisterDirectorClarificationRoutes,
 }));
 
 vi.mock("../src/routes/manager-reports.js", () => ({

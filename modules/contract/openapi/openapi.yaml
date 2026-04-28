@@ -337,6 +337,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/director/clarifications:
+    get:
+      operationId: listDirectorClarifications
+      summary: List Director clarification and adjustment requests for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPathParameter"
+      responses:
+        "200":
+          description: Director clarification collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectorClarificationListResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createDirectorClarification
+      summary: Record a Director clarification or adjustment request
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDirectorClarificationRequest"
+      responses:
+        "201":
+          description: Created Director clarification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectorClarification"
+        "400":
+          description: Invalid Director clarification payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project or dimension not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tasks:
     post:
       operationId: createTask
@@ -1749,6 +1798,90 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DimensionEvaluation"
+    DirectorClarificationKind:
+      type: string
+      enum:
+        - clarification
+        - adjustment
+    DirectorClarificationStatus:
+      type: string
+      enum:
+        - open
+        - addressed
+        - dismissed
+    DirectorClarification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - project_id
+        - dimension_id
+        - kind
+        - message
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          minLength: 1
+          readOnly: true
+        project_id:
+          type: string
+          format: uuid
+        dimension_id:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        kind:
+          $ref: "#/components/schemas/DirectorClarificationKind"
+        message:
+          type: string
+          minLength: 1
+          pattern: ^(?!\s*$).+
+        status:
+          $ref: "#/components/schemas/DirectorClarificationStatus"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateDirectorClarificationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - project_id
+        - kind
+        - message
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        dimension_id:
+          type:
+            - string
+            - "null"
+          minLength: 1
+        kind:
+          $ref: "#/components/schemas/DirectorClarificationKind"
+        message:
+          type: string
+          minLength: 1
+          pattern: ^(?!\s*$).+
+    DirectorClarificationListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectorClarification"
     OpenCodeModelCombination:
       type: object
       additionalProperties: false
@@ -1805,6 +1938,8 @@ components:
             - TASK_WRITE_BULK_VALIDATION_ERROR
             - DIMENSION_NOT_FOUND
             - DIMENSION_VALIDATION_ERROR
+            - DIRECTOR_CLARIFICATION_NOT_FOUND
+            - DIRECTOR_CLARIFICATION_VALIDATION_ERROR
             - OPENCODE_MODELS_UNAVAILABLE
         message:
           type: string

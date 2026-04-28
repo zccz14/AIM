@@ -19,6 +19,9 @@ import type {
   CreateDimensionEvaluationErrors,
   CreateDimensionEvaluationResponses,
   CreateDimensionResponses,
+  CreateDirectorClarificationData,
+  CreateDirectorClarificationErrors,
+  CreateDirectorClarificationResponses,
   CreateOpenCodeSessionData,
   CreateOpenCodeSessionErrors,
   CreateOpenCodeSessionResponses,
@@ -69,6 +72,9 @@ import type {
   ListDimensionsData,
   ListDimensionsErrors,
   ListDimensionsResponses,
+  ListDirectorClarificationsData,
+  ListDirectorClarificationsErrors,
+  ListDirectorClarificationsResponses,
   ListOpenCodeModelsData,
   ListOpenCodeModelsErrors,
   ListOpenCodeModelsResponses,
@@ -369,6 +375,41 @@ export const getProjectOptimizerStatus = <ThrowOnError extends boolean = false>(
     GetProjectOptimizerStatusErrors,
     ThrowOnError
   >({ url: "/projects/{projectId}/optimizer/status", ...options });
+
+/**
+ * List Director clarification and adjustment requests for a project
+ */
+export const listDirectorClarifications = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListDirectorClarificationsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListDirectorClarificationsResponses,
+    ListDirectorClarificationsErrors,
+    ThrowOnError
+  >({ url: "/projects/{projectId}/director/clarifications", ...options });
+
+/**
+ * Record a Director clarification or adjustment request
+ */
+export const createDirectorClarification = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<CreateDirectorClarificationData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateDirectorClarificationResponses,
+    CreateDirectorClarificationErrors,
+    ThrowOnError
+  >({
+    url: "/projects/{projectId}/director/clarifications",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * List tasks

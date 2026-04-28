@@ -331,6 +331,32 @@ export type DimensionEvaluationListResponse = {
   items: Array<DimensionEvaluation>;
 };
 
+export type DirectorClarificationKind = "clarification" | "adjustment";
+
+export type DirectorClarificationStatus = "open" | "addressed" | "dismissed";
+
+export type DirectorClarification = {
+  readonly id: string;
+  project_id: string;
+  dimension_id: string | null;
+  kind: DirectorClarificationKind;
+  message: string;
+  status: DirectorClarificationStatus;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+export type CreateDirectorClarificationRequest = {
+  project_id: string;
+  dimension_id?: string | null;
+  kind: DirectorClarificationKind;
+  message: string;
+};
+
+export type DirectorClarificationListResponse = {
+  items: Array<DirectorClarification>;
+};
+
 export type OpenCodeModelCombination = {
   provider_id: string;
   provider_name: string;
@@ -359,6 +385,8 @@ export type ErrorResponse = {
     | "TASK_WRITE_BULK_VALIDATION_ERROR"
     | "DIMENSION_NOT_FOUND"
     | "DIMENSION_VALIDATION_ERROR"
+    | "DIRECTOR_CLARIFICATION_NOT_FOUND"
+    | "DIRECTOR_CLARIFICATION_VALIDATION_ERROR"
     | "OPENCODE_MODELS_UNAVAILABLE";
   message: string;
 };
@@ -439,6 +467,18 @@ export type DimensionEvaluationWritable = {
 
 export type DimensionEvaluationListResponseWritable = {
   items: Array<DimensionEvaluationWritable>;
+};
+
+export type DirectorClarificationWritable = {
+  project_id: string;
+  dimension_id: string | null;
+  kind: DirectorClarificationKind;
+  message: string;
+  status: DirectorClarificationStatus;
+};
+
+export type DirectorClarificationListResponseWritable = {
+  items: Array<DirectorClarificationWritable>;
 };
 
 export type TaskIdPathParameter = string;
@@ -895,6 +935,68 @@ export type GetProjectOptimizerStatusResponses = {
 
 export type GetProjectOptimizerStatusResponse =
   GetProjectOptimizerStatusResponses[keyof GetProjectOptimizerStatusResponses];
+
+export type ListDirectorClarificationsData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/director/clarifications";
+};
+
+export type ListDirectorClarificationsErrors = {
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type ListDirectorClarificationsError =
+  ListDirectorClarificationsErrors[keyof ListDirectorClarificationsErrors];
+
+export type ListDirectorClarificationsResponses = {
+  /**
+   * Director clarification collection
+   */
+  200: DirectorClarificationListResponse;
+};
+
+export type ListDirectorClarificationsResponse =
+  ListDirectorClarificationsResponses[keyof ListDirectorClarificationsResponses];
+
+export type CreateDirectorClarificationData = {
+  body: CreateDirectorClarificationRequest;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/director/clarifications";
+};
+
+export type CreateDirectorClarificationErrors = {
+  /**
+   * Invalid Director clarification payload
+   */
+  400: ErrorResponse;
+  /**
+   * Project or dimension not found
+   */
+  404: ErrorResponse;
+};
+
+export type CreateDirectorClarificationError =
+  CreateDirectorClarificationErrors[keyof CreateDirectorClarificationErrors];
+
+export type CreateDirectorClarificationResponses = {
+  /**
+   * Created Director clarification
+   */
+  201: DirectorClarification;
+};
+
+export type CreateDirectorClarificationResponse =
+  CreateDirectorClarificationResponses[keyof CreateDirectorClarificationResponses];
 
 export type ListTasksData = {
   body?: never;
