@@ -166,7 +166,9 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
 
   for (const operation of result.data.operations) {
     if (operation.type === "create") {
-      const planningError = normalizeCoordinatorPlanningEvidence(operation.task);
+      const planningError = normalizeCoordinatorPlanningEvidence(
+        operation.task,
+      );
 
       if (planningError) {
         return {
