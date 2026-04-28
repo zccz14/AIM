@@ -9,7 +9,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
-import type { OptimizerRuntime } from "../optimizer-runtime.js";
+import type { OptimizerSystem } from "../optimizer-system.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const projectByIdRoutePath = projectByIdPath.replace(
@@ -32,11 +32,6 @@ const buildValidationError = (message: string) =>
     code: "PROJECT_VALIDATION_ERROR",
     message,
   });
-
-const redactSensitiveErrorDetail = (message: string) =>
-  message
-    .replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]")
-    .replace(/\s+and stack\s+at\s+[^\s.]+(?:\.\w+)?:\d+/gi, "");
 
 const parseCreateProjectRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
@@ -70,36 +65,26 @@ const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
 
 type RegisterProjectRoutesOptions = {
-  optimizerRuntime?: OptimizerRuntime;
+  optimizerSystem?: OptimizerSystem;
   resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
 const getOptimizerBlockerSummary = ({
   optimizerEnabled,
-  runtimeStatus,
+  runtimeActive,
 }: {
   optimizerEnabled: boolean;
-  runtimeStatus: ReturnType<OptimizerRuntime["getStatus"]> | null;
+  runtimeActive: boolean;
 }) => {
   if (!optimizerEnabled) {
     return "Optimizer disabled for project";
   }
 
-  if (!runtimeStatus?.running) {
+  if (!runtimeActive) {
     return "Optimizer runtime inactive";
   }
 
-  const blockedLane = Object.entries(runtimeStatus.lanes).find(
-    ([, lane]) => lane.last_error,
-  );
-
-  if (!blockedLane) {
-    return null;
-  }
-
-  const [laneName, lane] = blockedLane;
-
-  return `Optimizer lane ${laneName} error: ${redactSensitiveErrorDetail(lane.last_error ?? "unknown error")}. Check optimizer logs and fix the lane blocker before expecting new scans.`;
+  return null;
 };
 
 export const registerProjectRoutes = (
@@ -167,19 +152,17 @@ export const registerProjectRoutes = (
     }
 
     const optimizerEnabled = Boolean(project.optimizer_enabled);
-    const runtimeStatus = options.optimizerRuntime?.getStatus() ?? null;
+    const runtimeActive = optimizerEnabled && Boolean(options.optimizerSystem);
     const response = projectOptimizerStatusResponseSchema.parse({
       project_id: projectId,
       optimizer_enabled: optimizerEnabled,
-      runtime_active: optimizerEnabled && Boolean(runtimeStatus?.running),
-      enabled_triggers: optimizerEnabled
-        ? (runtimeStatus?.enabled_triggers ?? [])
-        : [],
-      recent_event: runtimeStatus?.last_event ?? null,
-      recent_scan_at: runtimeStatus?.last_scan_at ?? null,
+      runtime_active: runtimeActive,
+      enabled_triggers: [],
+      recent_event: null,
+      recent_scan_at: null,
       blocker_summary: getOptimizerBlockerSummary({
         optimizerEnabled,
-        runtimeStatus,
+        runtimeActive,
       }),
     });
 

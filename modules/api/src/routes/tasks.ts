@@ -31,7 +31,6 @@ import type { Hono } from "hono";
 import type { ApiLogger } from "../api-logger.js";
 import { listSupportedModels } from "../opencode/list-supported-models.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
-import type { OptimizerEvent } from "../optimizer-runtime.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
@@ -711,7 +710,6 @@ const parseTaskDependenciesRequest = async (request: Request) => {
 
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
-  onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
   openCodeModelsAdapter?: {
     listSupportedModels(): ReturnType<typeof listSupportedModels>;
   };
@@ -723,7 +721,6 @@ export const registerTaskRoutes = (
   options: RegisterTaskRoutesOptions = {},
 ) => {
   const logger = options.logger;
-  const onTaskResolved = options.onTaskResolved;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
@@ -1029,19 +1026,6 @@ export const registerTaskRoutes = (
     }
 
     logger?.info(buildTaskLogFields("task_resolved", payload));
-
-    if (onTaskResolved) {
-      Promise.resolve()
-        .then(() =>
-          onTaskResolved({ taskId: payload.task_id, type: "task_resolved" }),
-        )
-        .catch((error: unknown) => {
-          logger?.error(
-            { err: error, taskId },
-            "Task scheduler scan trigger failed after task resolve",
-          );
-        });
-    }
 
     return new Response(null, { status: 204 });
   });

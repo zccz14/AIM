@@ -78,16 +78,18 @@ describe("app wiring", () => {
     );
   });
 
-  it("passes the task resolved hook through to task routes", async () => {
-    const onTaskResolved = vi.fn();
+  it("passes optimizer system presence through to project routes", async () => {
+    const optimizerSystem = {
+      [Symbol.asyncDispose]: vi.fn(),
+    };
 
     const { createApp } = await import("../src/app.js");
 
-    createApp({ onTaskResolved });
+    createApp({ optimizerSystem });
 
-    expect(mockRegisterTaskRoutes).toHaveBeenCalledWith(
+    expect(mockRegisterProjectRoutes).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ onTaskResolved }),
+      expect.objectContaining({ optimizerSystem }),
     );
   });
 });
