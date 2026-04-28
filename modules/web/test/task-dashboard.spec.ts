@@ -112,13 +112,40 @@ const buildProject = ({
   updated_at: "2026-04-26T00:00:00.000Z",
 });
 
+const buildDirectorClarification = ({
+  clarificationId = "clarification-1",
+  createdAt = "2026-04-28T10:00:00.000Z",
+  dimensionId = null,
+  kind = "clarification",
+  message = "Clarify whether the README fit gap should be prioritized.",
+  projectId = "00000000-0000-4000-8000-000000000010",
+  status = "open",
+}: {
+  clarificationId?: string;
+  createdAt?: string;
+  dimensionId?: string | null;
+  kind?: "clarification" | "adjustment";
+  message?: string;
+  projectId?: string;
+  status?: "open" | "addressed" | "dismissed";
+} = {}) => ({
+  id: clarificationId,
+  project_id: projectId,
+  dimension_id: dimensionId,
+  kind,
+  message,
+  status,
+  created_at: createdAt,
+  updated_at: createdAt,
+});
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("aim.serverBaseUrl", "/api");
     window.localStorage.setItem("aim.web.locale", "en");
   });
 
-  await page.route("**/tasks**", async (route) => {
+  await page.route("**/api/tasks**", async (route) => {
     const doneFilter = new URL(route.request().url()).searchParams.get("done");
 
     await route.fulfill({
@@ -152,7 +179,12 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route("**/projects**", async (route) => {
+  await page.route("**/api/projects**", async (route) => {
+    if (new URL(route.request().url()).pathname.includes("/director/")) {
+      await route.fallback();
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -170,7 +202,23 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route("**/dimensions**", async (route) => {
+  await page.route(
+    "**/api/projects/*/director/clarifications",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            buildDirectorClarification({
+              message: "Clarify whether target-gap coverage needs a replan.",
+            }),
+          ],
+        }),
+      });
+    },
+  );
+
+  await page.route("**/api/dimensions**", async (route) => {
     const projectId = new URL(route.request().url()).searchParams.get(
       "project_id",
     );
@@ -191,21 +239,21 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [buildDimensionEvaluation()] }),
     });
   });
 
-  await page.route("**/task_write_bulks**", async (route) => {
+  await page.route("**/api/task_write_bulks**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [] }),
     });
   });
 
-  await page.route("**/opencode/sessions**", async (route) => {
+  await page.route("**/api/opencode/sessions**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -322,10 +370,152 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
   await expect(page.getByText("Research Fit")).toHaveCount(0);
 });
 
+test("submits a project Director clarification and shows recent request status", async ({
+  page,
+}) => {
+  const requests: unknown[] = [];
+  let clarifications = [
+    buildDirectorClarification({
+      clarificationId: "clarification-existing",
+      message: "Clarify whether target-gap coverage needs a replan.",
+    }),
+  ];
+
+  await page.route(
+    "**/api/projects/*/director/clarifications",
+    async (route) => {
+      if (route.request().method() === "POST") {
+        const payload = JSON.parse(route.request().postData() ?? "{}") as {
+          dimension_id?: string | null;
+          kind: "clarification" | "adjustment";
+          message: string;
+          project_id: string;
+        };
+
+        requests.push(payload);
+        const createdClarification = buildDirectorClarification({
+          clarificationId: "clarification-created",
+          createdAt: "2026-04-28T11:00:00.000Z",
+          dimensionId: payload.dimension_id ?? null,
+          kind: payload.kind,
+          message: payload.message,
+          projectId: payload.project_id,
+        });
+        clarifications = [createdClarification, ...clarifications];
+
+        await route.fulfill({
+          contentType: "application/json",
+          status: 201,
+          body: JSON.stringify(createdClarification),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ items: clarifications }),
+      });
+    },
+  );
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const panel = page.getByRole("region", {
+    name: "Director clarification requests",
+  });
+
+  await expect(panel).toBeVisible();
+  await expect(
+    panel.getByText("Clarify whether target-gap coverage needs a replan."),
+  ).toBeVisible();
+  await expect(panel.getByText("open", { exact: true }).first()).toBeVisible();
+  await panel.getByLabel("Request type").selectOption("adjustment");
+  await panel
+    .getByLabel("Request message")
+    .fill("Adjust the next scan toward baseline freshness evidence.");
+  await panel.getByRole("button", { name: "Send request" }).click();
+
+  await expect(panel.getByText("Request recorded")).toBeVisible();
+  await expect(
+    panel.getByText("Adjust the next scan toward baseline freshness evidence."),
+  ).toBeVisible();
+  await expect
+    .poll(() => requests)
+    .toEqual([
+      {
+        project_id: "00000000-0000-4000-8000-000000000010",
+        dimension_id: null,
+        kind: "adjustment",
+        message: "Adjust the next scan toward baseline freshness evidence.",
+      },
+    ]);
+});
+
+test("shows actionable API errors and keeps the Director clarification panel mobile safe", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 800, width: 390 });
+  await page.route(
+    "**/api/projects/*/director/clarifications",
+    async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          contentType: "application/json",
+          status: 503,
+          body: JSON.stringify({
+            code: "DIRECTOR_CLARIFICATION_VALIDATION_ERROR",
+            message: "Director clarification store is temporarily unavailable.",
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ items: [] }),
+      });
+    },
+  );
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const panel = page.getByRole("region", {
+    name: "Director clarification requests",
+  });
+
+  await expect(panel).toBeVisible();
+  await expect(
+    panel.getByText("No recent Director clarification requests"),
+  ).toBeVisible();
+  await panel
+    .getByLabel("Request message")
+    .fill("Clarify the rejected feedback recovery path.");
+  await panel.getByRole("button", { name: "Send request" }).click();
+
+  await expect(
+    panel.getByText("Clarification request failed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("Director clarification store is temporarily unavailable."),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+});
+
 test("shows project optimizer config and runtime observability separately", async ({
   page,
 }) => {
-  await page.route("**/projects**", async (route) => {
+  await page.route("**/api/projects**", async (route) => {
+    if (new URL(route.request().url()).pathname.includes("/director/")) {
+      await route.fallback();
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -333,7 +523,7 @@ test("shows project optimizer config and runtime observability separately", asyn
       }),
     });
   });
-  await page.route("**/projects/*/optimizer/status", async (route) => {
+  await page.route("**/api/projects/*/optimizer/status", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -368,7 +558,7 @@ test("shows project optimizer config and runtime observability separately", asyn
 test("summarizes when the main target gap is already covered by unfinished tasks", async ({
   page,
 }) => {
-  await page.route("**/tasks**", async (route) => {
+  await page.route("**/api/tasks**", async (route) => {
     const doneFilter = new URL(route.request().url()).searchParams.get("done");
 
     await route.fulfill({
@@ -386,7 +576,7 @@ test("summarizes when the main target gap is already covered by unfinished tasks
       }),
     });
   });
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -419,7 +609,7 @@ test("summarizes when the main target gap is already covered by unfinished tasks
 test("warns Director when rejected feedback indicates stale or duplicate coverage risk", async ({
   page,
 }) => {
-  await page.route("**/tasks**", async (route) => {
+  await page.route("**/api/tasks**", async (route) => {
     const doneFilter = new URL(route.request().url()).searchParams.get("done");
 
     await route.fulfill({
@@ -461,7 +651,7 @@ test("warns Director when rejected feedback indicates stale or duplicate coverag
 test("exposes the visible dimension evaluation path for the current gap", async ({
   page,
 }) => {
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -493,7 +683,7 @@ test("keeps project management available on the Projects page", async ({
   let projects = [buildProject()];
   const requests: string[] = [];
 
-  await page.route("**/projects**", async (route) => {
+  await page.route("**/api/projects**", async (route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
     const projectId = decodeURIComponent(
@@ -625,7 +815,7 @@ test("opens an OpenCode sessions list page without drilling into session details
     "Preserve the exact token reason-tail-93fd10 when the field is expanded.",
   ].join("\n");
 
-  await page.route("**/opencode/sessions**", async (route) => {
+  await page.route("**/api/opencode/sessions**", async (route) => {
     const requestUrl = new URL(route.request().url());
 
     if (route.request().method() === "POST") {
@@ -852,14 +1042,14 @@ test("opens a dimension detail trend with time, score, evaluation points, and to
     }),
   ];
 
-  await page.route("**/dimensions**", async (route) => {
+  await page.route("**/api/dimensions**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [dimension] }),
     });
   });
 
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: evaluations }),
@@ -927,14 +1117,14 @@ test("highlights the latest dimension evaluation and links GitHub commit evidenc
     }),
   ];
 
-  await page.route("**/dimensions", async (route) => {
+  await page.route("**/api/dimensions", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [dimension] }),
     });
   });
 
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: evaluations }),
@@ -971,14 +1161,14 @@ test("renders latest dimension evaluation Markdown with prose styling", async ({
   const markdownEvaluation =
     "Latest **evidence** identifies the intervention path.\n\n- Preserve Director focus";
 
-  await page.route("**/dimensions", async (route) => {
+  await page.route("**/api/dimensions", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ items: [dimension] }),
     });
   });
 
-  await page.route("**/dimensions/*/evaluations", async (route) => {
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -1009,7 +1199,7 @@ test("renders the AIM brand mark and global controls without optimizer controls"
 }) => {
   const optimizerRequests: string[] = [];
 
-  await page.route("**/optimizer/**", async (route) => {
+  await page.route("**/api/optimizer/**", async (route) => {
     optimizerRequests.push(route.request().url());
     await route.abort();
   });

@@ -3,12 +3,15 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getTaskDashboard,
+  listDirectorClarifications,
   listOpenCodeSessions,
 } from "./api/task-dashboard-api.js";
 import { adaptTaskDashboard } from "./model/task-dashboard-adapter.js";
 
 export const taskDashboardQueryKey = ["task-dashboard"] as const;
 export const openCodeSessionsQueryKey = ["opencode-sessions"] as const;
+export const directorClarificationsQueryKey = (projectId: string) =>
+  ["director-clarifications", projectId] as const;
 
 export const getTaskDashboardErrorMessage = (error: unknown) =>
   error instanceof ContractClientError
@@ -29,6 +32,13 @@ export const getOpenCodeSessionsErrorMessage = (error: unknown) =>
       ? `OpenCode sessions unavailable: ${error.message}`
       : "OpenCode sessions unavailable: unexpected error";
 
+export const getDirectorClarificationErrorMessage = (error: unknown) =>
+  error instanceof ContractClientError
+    ? `Director clarification request failed: ${error.error.message}`
+    : error instanceof Error
+      ? `Director clarification request failed: ${error.message}`
+      : "Director clarification request failed: unexpected error";
+
 export const taskDashboardQueryOptions = queryOptions({
   queryKey: taskDashboardQueryKey,
   queryFn: async () => adaptTaskDashboard(await getTaskDashboard()),
@@ -42,3 +52,11 @@ export const openCodeSessionsQueryOptions = queryOptions({
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
 });
+
+export const directorClarificationsQueryOptions = (projectId: string) =>
+  queryOptions({
+    queryKey: directorClarificationsQueryKey(projectId),
+    queryFn: () => listDirectorClarifications(projectId),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });

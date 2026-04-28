@@ -23,6 +23,7 @@ import {
   sectionTitle,
   tableMeta,
 } from "./dashboard-styles.js";
+import { DirectorClarificationPanel } from "./director-clarification-panel.js";
 
 const formatDateLabel = (value: string) => value.slice(0, 16).replace("T", " ");
 
@@ -114,6 +115,12 @@ export const DimensionDetailsPage = ({
       <p className={tableMeta}>
         {t("method")}: {report.dimension.evaluation_method}
       </p>
+
+      <DirectorClarificationPanel
+        contextName={report.dimension.name}
+        dimensionId={report.dimension.id}
+        projectId={report.dimension.project_id}
+      />
 
       {report.evaluations.length === 0 ? (
         <Empty className="state-card border">

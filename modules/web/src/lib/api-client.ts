@@ -1,12 +1,18 @@
 import {
   ContractClientError,
+  type CreateDirectorClarificationRequest,
   createContractClient,
+  createDirectorClarificationRequestSchema,
   type DimensionEvaluationListResponse,
   type DimensionListResponse,
+  type DirectorClarification,
+  type DirectorClarificationListResponse,
   dimensionEvaluationListResponseSchema,
   dimensionEvaluationsPath,
   dimensionListResponseSchema,
   dimensionsPath,
+  directorClarificationListResponseSchema,
+  directorClarificationSchema,
   type OpenCodeSessionContinueBulkResponse,
   type OpenCodeSessionContinueResult,
   type OpenCodeSessionListResponse,
@@ -16,6 +22,7 @@ import {
   openCodeSessionContinueResultSchema,
   openCodeSessionListResponseSchema,
   openCodeSessionsPath,
+  projectDirectorClarificationsPath,
   type Task,
   type TaskError,
   type TaskListResponse,
@@ -128,6 +135,13 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
   listDimensionEvaluations(
     dimensionId: string,
   ): Promise<DimensionEvaluationListResponse>;
+  listDirectorClarifications(
+    projectId: string,
+  ): Promise<DirectorClarificationListResponse>;
+  createDirectorClarification(
+    projectId: string,
+    input: CreateDirectorClarificationRequest,
+  ): Promise<DirectorClarification>;
 };
 
 const buildTaskListPath = (query?: {
@@ -166,6 +180,12 @@ const buildDimensionEvaluationListPath = (dimensionId: string) =>
   dimensionEvaluationsPath.replace(
     "{dimensionId}",
     encodeURIComponent(dimensionId),
+  );
+
+const buildProjectDirectorClarificationsPath = (projectId: string) =>
+  projectDirectorClarificationsPath.replace(
+    "{projectId}",
+    encodeURIComponent(projectId),
   );
 
 const buildOpenCodeSessionContinuePath = (sessionId: string) =>
@@ -335,6 +355,59 @@ export const createWebApiClient = (
 
       return dimensionEvaluationListResponseSchema.parse(
         (await response.json()) as DimensionEvaluationListResponse,
+      );
+    },
+
+    async listDirectorClarifications(projectId) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildProjectDirectorClarificationsPath(projectId),
+        {
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return directorClarificationListResponseSchema.parse(
+        (await response.json()) as DirectorClarificationListResponse,
+      );
+    },
+
+    async createDirectorClarification(projectId, input) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildProjectDirectorClarificationsPath(projectId),
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(
+            createDirectorClarificationRequestSchema.parse(input),
+          ),
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return directorClarificationSchema.parse(
+        (await response.json()) as DirectorClarification,
       );
     },
   };

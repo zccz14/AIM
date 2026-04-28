@@ -1,6 +1,9 @@
 import type {
+  CreateDirectorClarificationRequest,
   Dimension,
   DimensionEvaluation,
+  DirectorClarification,
+  DirectorClarificationListResponse,
   OpenCodeModelsResponse,
   OpenCodeSessionContinueBulkResponse,
   OpenCodeSessionContinueResult,
@@ -154,4 +157,21 @@ export const continueOpenCodeSession = async (
   const client = createWebApiClient();
 
   return client.continueOpenCodeSession(sessionId);
+};
+
+export const listDirectorClarifications = async (
+  projectId: string,
+): Promise<DirectorClarificationListResponse> => {
+  const client = createWebApiClient();
+
+  return client.listDirectorClarifications(projectId);
+};
+
+export const createDirectorClarification = async (
+  projectId: string,
+  input: CreateDirectorClarificationRequest,
+): Promise<DirectorClarification> => {
+  const client = createWebApiClient();
+
+  return client.createDirectorClarification(projectId, input);
 };
