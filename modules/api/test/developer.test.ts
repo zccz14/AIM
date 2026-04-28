@@ -19,6 +19,16 @@ const createSessionManager = () => ({
   createSession: vi.fn().mockResolvedValue(createSessionHandle("session-1")),
 });
 
+const baselineFacts = {
+  commitSha: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
+  fetchedAt: "2026-04-28T17:13:03.000Z",
+  summary: "Refactor optimizer system startup lifecycle (#258)",
+};
+
+const createBaselineRepository = () => ({
+  getLatestBaselineFacts: vi.fn().mockResolvedValue(baselineFacts),
+});
+
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
   dependencies: [],
@@ -57,11 +67,14 @@ describe("developer", () => {
     const boundTask = createTask({ session_id: "session-1" });
     const repository = {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
     };
     const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
 
     const developer = createDeveloper({
+      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -79,7 +92,11 @@ describe("developer", () => {
         modelID: initialTask.global_model_id,
         providerID: initialTask.global_provider_id,
       },
-      prompt: buildTaskSessionPrompt(initialTask),
+      prompt: buildTaskSessionPrompt(initialTask, {
+        activeTasks: [initialTask],
+        baselineFacts,
+        rejectedTasks: [],
+      }),
       title: `AIM Developer: ${initialTask.title}`,
     });
 
@@ -90,13 +107,16 @@ describe("developer", () => {
     vi.useFakeTimers();
     const repository = {
       assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi
         .fn()
         .mockResolvedValue([createTask({ session_id: "session-existing" })]),
     };
     const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
 
     const developer = createDeveloper({
+      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -121,12 +141,15 @@ describe("developer", () => {
       assignSessionIfUnassigned: vi
         .fn()
         .mockResolvedValue(createTask({ session_id: "session-1" })),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
     };
     const sessionManager = createSessionManager();
     sessionManager.createSession.mockResolvedValue(activeSession);
+    const baselineRepository = createBaselineRepository();
 
     const developer = createDeveloper({
+      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -151,12 +174,15 @@ describe("developer", () => {
           session_id: "existing-session",
         }),
       ),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi.fn().mockResolvedValue([createTask()]),
     };
     const sessionManager = createSessionManager();
     sessionManager.createSession.mockResolvedValue(lostRaceSession);
+    const baselineRepository = createBaselineRepository();
 
     const developer = createDeveloper({
+      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -169,6 +195,78 @@ describe("developer", () => {
     });
 
     expect(lostRaceSession[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("builds the session prompt with current baseline, active pool, and rejected feedback before preserving atomic session assignment", async () => {
+    vi.useFakeTimers();
+    const initialTask = createTask();
+    const activeTask = createTask({
+      session_id: "session-active",
+      task_id: "task-active",
+      title: "Active overlapping work",
+    });
+    const rejectedTask = createTask({
+      done: true,
+      result: "Rejected because origin/main moved.",
+      status: "rejected",
+      task_id: "task-rejected",
+      title: "Rejected stale work",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi
+        .fn()
+        .mockResolvedValue(createTask({ session_id: "session-1" })),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([rejectedTask]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask, activeTask]),
+    };
+    const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
+
+    const developer = createDeveloper({
+      baselineRepository,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
+        initialTask.task_id,
+        "session-1",
+      );
+    });
+
+    expect(baselineRepository.getLatestBaselineFacts).toHaveBeenCalledWith(
+      `/repo/.worktrees/${initialTask.task_id}`,
+    );
+    expect(repository.listRejectedTasksByProject).toHaveBeenCalledWith(
+      initialTask.project_id,
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledBefore(
+      repository.assignSessionIfUnassigned,
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          'origin/main commit "a9979ba9487edf2d822e10ae7b651c98be3d175d" fetched at 2026-04-28T17:13:03.000Z: Refactor optimizer system startup lifecycle (#258)',
+        ),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "- Active overlapping work (task-active) status processing session session-active",
+        ),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "- Rejected stale work (task-rejected) rejected",
+        ),
+      }),
+    );
 
     await developer[Symbol.asyncDispose]();
   });
