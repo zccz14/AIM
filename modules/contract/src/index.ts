@@ -18,6 +18,7 @@ export {
   openCodeSessionsPath,
   opencodeModelsPath,
   projectByIdPath,
+  projectDirectorClarificationsPath,
   projectOptimizerStatusPath,
   projectsPath,
   taskByIdPath,
@@ -48,6 +49,15 @@ export const projectSchema = schemas.Project;
 export const createProjectRequestSchema = schemas.CreateProjectRequest;
 export const patchProjectRequestSchema = schemas.PatchProjectRequest;
 export const projectListResponseSchema = schemas.ProjectListResponse;
+export const directorClarificationSchema = schemas.DirectorClarification;
+export const directorClarificationKindSchema =
+  schemas.DirectorClarificationKind;
+export const directorClarificationStatusSchema =
+  schemas.DirectorClarificationStatus;
+export const createDirectorClarificationRequestSchema =
+  schemas.CreateDirectorClarificationRequest;
+export const directorClarificationListResponseSchema =
+  schemas.DirectorClarificationListResponse;
 export const projectOptimizerStatusResponseSchema =
   schemas.ProjectOptimizerStatusResponse;
 export const openCodeSessionSchema = schemas.OpenCodeSession;
@@ -104,6 +114,19 @@ export type Project = Infer<typeof projectSchema>;
 export type CreateProjectRequest = Input<typeof createProjectRequestSchema>;
 export type PatchProjectRequest = Infer<typeof patchProjectRequestSchema>;
 export type ProjectListResponse = Infer<typeof projectListResponseSchema>;
+export type DirectorClarification = Infer<typeof directorClarificationSchema>;
+export type DirectorClarificationKind = Infer<
+  typeof directorClarificationKindSchema
+>;
+export type DirectorClarificationStatus = Infer<
+  typeof directorClarificationStatusSchema
+>;
+export type CreateDirectorClarificationRequest = Input<
+  typeof createDirectorClarificationRequestSchema
+>;
+export type DirectorClarificationListResponse = Infer<
+  typeof directorClarificationListResponseSchema
+>;
 export type ProjectOptimizerStatusResponse = Infer<
   typeof projectOptimizerStatusResponseSchema
 >;
@@ -174,6 +197,15 @@ export type ProjectSchema = typeof projectSchema;
 export type CreateProjectRequestSchema = typeof createProjectRequestSchema;
 export type PatchProjectRequestSchema = typeof patchProjectRequestSchema;
 export type ProjectListResponseSchema = typeof projectListResponseSchema;
+export type DirectorClarificationSchema = typeof directorClarificationSchema;
+export type DirectorClarificationKindSchema =
+  typeof directorClarificationKindSchema;
+export type DirectorClarificationStatusSchema =
+  typeof directorClarificationStatusSchema;
+export type CreateDirectorClarificationRequestSchema =
+  typeof createDirectorClarificationRequestSchema;
+export type DirectorClarificationListResponseSchema =
+  typeof directorClarificationListResponseSchema;
 export type ProjectOptimizerStatusResponseSchema =
   typeof projectOptimizerStatusResponseSchema;
 export type OpenCodeSessionSchema = typeof openCodeSessionSchema;
@@ -230,6 +262,12 @@ export type ParsedCreateProjectRequest = Output<
 >;
 export type ParsedPatchProjectRequest = PatchProjectRequest;
 export type ParsedProjectListResponse = ProjectListResponse;
+export type ParsedDirectorClarification = DirectorClarification;
+export type ParsedCreateDirectorClarificationRequest = Output<
+  typeof createDirectorClarificationRequestSchema
+>;
+export type ParsedDirectorClarificationListResponse =
+  DirectorClarificationListResponse;
 export type ParsedProjectOptimizerStatusResponse =
   ProjectOptimizerStatusResponse;
 export type ParsedOpenCodeSession = OpenCodeSession;

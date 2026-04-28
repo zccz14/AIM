@@ -37,6 +37,8 @@ const ErrorResponse = z
       "TASK_WRITE_BULK_VALIDATION_ERROR",
       "DIMENSION_NOT_FOUND",
       "DIMENSION_VALIDATION_ERROR",
+      "DIRECTOR_CLARIFICATION_NOT_FOUND",
+      "DIRECTOR_CLARIFICATION_VALIDATION_ERROR",
       "OPENCODE_MODELS_UNAVAILABLE",
     ]),
     message: z.string().min(1),
@@ -145,6 +147,37 @@ const ProjectOptimizerStatusResponse = z
     recent_event: z.union([ProjectOptimizerRecentEvent, z.null()]),
     recent_scan_at: z.union([z.string(), z.null()]),
     blocker_summary: z.union([z.string(), z.null()]),
+  })
+  .strict();
+const DirectorClarificationKind = z.enum(["clarification", "adjustment"]);
+const DirectorClarificationStatus = z.enum(["open", "addressed", "dismissed"]);
+const DirectorClarification = z
+  .object({
+    id: z.string().min(1),
+    project_id: z.string().uuid(),
+    dimension_id: z.union([z.string(), z.null()]),
+    kind: DirectorClarificationKind,
+    message: z
+      .string()
+      .min(1)
+      .regex(/^(?!\s*$).+/),
+    status: DirectorClarificationStatus,
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+const DirectorClarificationListResponse = z
+  .object({ items: z.array(DirectorClarification) })
+  .strict();
+const CreateDirectorClarificationRequest = z
+  .object({
+    project_id: z.string().uuid(),
+    dimension_id: z.union([z.string(), z.null()]).optional(),
+    kind: DirectorClarificationKind,
+    message: z
+      .string()
+      .min(1)
+      .regex(/^(?!\s*$).+/),
   })
   .strict();
 const CreateTaskRequest = z
@@ -350,6 +383,11 @@ export const schemas = {
   OptimizerTriggerSource,
   ProjectOptimizerRecentEvent,
   ProjectOptimizerStatusResponse,
+  DirectorClarificationKind,
+  DirectorClarificationStatus,
+  DirectorClarification,
+  DirectorClarificationListResponse,
+  CreateDirectorClarificationRequest,
   CreateTaskRequest,
   Task,
   TaskListResponse,

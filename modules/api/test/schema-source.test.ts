@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const apiRoot = new URL("../", import.meta.url);
 const schemaUrl = new URL("src/schema.sql", apiRoot);
 const repositorySourceUrls = [
+  new URL("src/director-clarification-repository.ts", apiRoot),
   new URL("src/dimension-repository.ts", apiRoot),
   new URL("src/manager-state-repository.ts", apiRoot),
   new URL("src/task-repository.ts", apiRoot),
@@ -22,6 +23,9 @@ describe("api sqlite schema source", () => {
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS dimensions/i);
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS dimension_evaluations/i,
+    );
+    expect(schemaSql).toMatch(
+      /CREATE TABLE IF NOT EXISTS director_clarifications/i,
     );
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS optimizer_lane_states/i,

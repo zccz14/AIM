@@ -20,6 +20,8 @@ export const openCodeSessionRejectPath =
   "/opencode/sessions/{sessionId}/reject";
 export const projectsPath = "/projects";
 export const projectByIdPath = "/projects/{projectId}";
+export const projectDirectorClarificationsPath =
+  "/projects/{projectId}/director/clarifications";
 export const projectOptimizerStatusPath =
   "/projects/{projectId}/optimizer/status";
 export const tasksPath = "/tasks";

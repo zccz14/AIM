@@ -307,6 +307,7 @@ describe("contract package baseline", () => {
       "createContractClient",
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
+      "createDirectorClarificationRequestSchema",
       "createOpenCodeSessionRequestSchema",
       "createProjectRequestSchema",
       "createTaskBatchRequestSchema",
@@ -319,6 +320,10 @@ describe("contract package baseline", () => {
       "dimensionListResponseSchema",
       "dimensionSchema",
       "dimensionsPath",
+      "directorClarificationKindSchema",
+      "directorClarificationListResponseSchema",
+      "directorClarificationSchema",
+      "directorClarificationStatusSchema",
       "healthErrorCodeSchema",
       "healthErrorSchema",
       "healthPath",
@@ -345,6 +350,7 @@ describe("contract package baseline", () => {
       "patchProjectRequestSchema",
       "patchTaskRequestSchema",
       "projectByIdPath",
+      "projectDirectorClarificationsPath",
       "projectListResponseSchema",
       "projectOptimizerStatusPath",
       "projectOptimizerStatusResponseSchema",
@@ -447,6 +453,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.projectOptimizerStatusPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.projectDirectorClarificationsPath
       ],
     ).toBeDefined();
     expect(
@@ -1535,6 +1546,9 @@ describe("contract package baseline", () => {
     );
     expect(contractPackage.scripts?.["openapi:check"]).toContain(
       "dimensionsPath",
+    );
+    expect(contractPackage.scripts?.["openapi:check"]).toContain(
+      "projectDirectorClarificationsPath",
     );
     expect(contractPackage.scripts?.generate).toBeDefined();
     expect(contractPackage.scripts?.["build:dist"]).toContain(
