@@ -604,7 +604,7 @@ test("opens an OpenCode sessions list page without drilling into session details
           {
             session_id: "ses_pending_review",
             state: "pending",
-            value: null,
+            value: "Waiting on required checks.",
             reason: null,
             continue_prompt: "Continue with required checks follow-up.",
             provider_id: "anthropic",
@@ -664,6 +664,12 @@ test("opens an OpenCode sessions list page without drilling into session details
     sessionsRegion.getByText("Stale", { exact: true }),
   ).toBeVisible();
   await expect(sessionsRegion.getByText("Continue prompt ready")).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("Continue with required checks follow-up."),
+  ).toBeVisible();
+  await expect(
+    sessionsRegion.getByText("Waiting on required checks."),
+  ).toBeVisible();
   await expect(
     sessionsRegion.getByText("anthropic / claude-sonnet-4-5"),
   ).toBeVisible();

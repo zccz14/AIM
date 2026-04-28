@@ -45,7 +45,10 @@ const toStateLabel = (state: OpenCodeSession["state"]) =>
   state.charAt(0).toUpperCase() + state.slice(1);
 
 const getOutcome = (session: OpenCodeSession, fallback: string) =>
-  session.value ?? session.reason ?? session.continue_prompt ?? fallback;
+  session.value ?? session.reason ?? fallback;
+
+const getContinuePrompt = (session: OpenCodeSession) =>
+  session.continue_prompt?.trim();
 
 const getSessionModel = (session: OpenCodeSession, fallback: string) => {
   if (session.provider_id && session.model_id) {
@@ -161,58 +164,74 @@ export const OpenCodeSessionsPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sessionsQuery.data.items.map((session) => (
-                      <tr key={session.session_id}>
-                        <td className="border-t p-4 font-mono text-sm">
-                          {session.session_id}
-                          <p className={tableMeta}>
-                            {getSessionModel(session, t("none"))}
-                          </p>
-                        </td>
-                        <td className="border-t p-4">
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary">
-                              {toStateLabel(session.state)}
-                            </Badge>
-                            {session.stale ? (
-                              <Badge variant="destructive">{t("stale")}</Badge>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="border-t p-4">
-                          <p className={tableMeta}>{session.updated_at}</p>
-                        </td>
-                        <td className="border-t p-4">
-                          <div className="flex flex-col gap-1">
-                            {session.continue_prompt ? (
-                              <Badge className="w-fit" variant="outline">
-                                {t("continuePromptReady")}
-                              </Badge>
-                            ) : null}
-                            <p className="m-0 max-w-xl text-sm/relaxed">
-                              {getOutcome(session, t("none"))}
+                    {sessionsQuery.data.items.map((session) => {
+                      const continuePrompt = getContinuePrompt(session);
+
+                      return (
+                        <tr key={session.session_id}>
+                          <td className="border-t p-4 font-mono text-sm">
+                            {session.session_id}
+                            <p className={tableMeta}>
+                              {getSessionModel(session, t("none"))}
                             </p>
-                          </div>
-                        </td>
-                        <td className="border-t p-4">
-                          {canContinue(session) ? (
-                            <Button
-                              disabled={continueSessionMutation.isPending}
-                              onClick={() =>
-                                continueSessionMutation.mutate(
-                                  session.session_id,
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              {t("continue")}
-                            </Button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="border-t p-4">
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary">
+                                {toStateLabel(session.state)}
+                              </Badge>
+                              {session.stale ? (
+                                <Badge variant="destructive">
+                                  {t("stale")}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="border-t p-4">
+                            <p className={tableMeta}>{session.updated_at}</p>
+                          </td>
+                          <td className="border-t p-4">
+                            <div className="flex flex-col gap-1">
+                              {continuePrompt ? (
+                                <Badge className="w-fit" variant="outline">
+                                  {t("continuePromptReady")}
+                                </Badge>
+                              ) : null}
+                              {continuePrompt ? (
+                                <div>
+                                  <p className={tableMeta}>
+                                    {t("continuePrompt")}
+                                  </p>
+                                  <p className="m-0 max-w-xl text-sm/relaxed">
+                                    {continuePrompt}
+                                  </p>
+                                </div>
+                              ) : null}
+                              <p className="m-0 max-w-xl text-sm/relaxed">
+                                {getOutcome(session, t("none"))}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-t p-4">
+                            {canContinue(session) ? (
+                              <Button
+                                disabled={continueSessionMutation.isPending}
+                                onClick={() =>
+                                  continueSessionMutation.mutate(
+                                    session.session_id,
+                                  )
+                                }
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                {t("continue")}
+                              </Button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
