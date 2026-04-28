@@ -27,7 +27,7 @@ describe("api sqlite schema source", () => {
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS director_clarifications/i,
     );
-    expect(schemaSql).toMatch(
+    expect(schemaSql).not.toMatch(
       /CREATE TABLE IF NOT EXISTS optimizer_lane_states/i,
     );
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS manager_states/i);

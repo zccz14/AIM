@@ -522,8 +522,8 @@ describe("opencode session routes", () => {
     });
   });
 
-  it("bootstraps optimizer lane state storage without extending opencode sessions ownership", async () => {
-    const projectRoot = await useProjectRoot("bootstraps-lane-state-schema");
+  it("does not bootstrap legacy optimizer lane state storage", async () => {
+    const projectRoot = await useProjectRoot("skips-lane-state-schema");
     const app = createApp();
 
     await app.request(opencodeSessionsPath, {
@@ -540,26 +540,49 @@ describe("opencode session routes", () => {
       .prepare("PRAGMA table_info(opencode_sessions)")
       .all()
       .map((column) => (column as { name: string }).name);
-    const laneStateColumns = database
-      .prepare("PRAGMA table_info(optimizer_lane_states)")
-      .all()
-      .map((column) => (column as { name: string }).name);
+    const laneStateTables = database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      )
+      .all("optimizer_lane_states");
     database.close();
 
     expect(opencodeColumns).not.toEqual(
       expect.arrayContaining(["owner_id", "owner_type"]),
     );
-    expect(laneStateColumns).toEqual(
-      expect.arrayContaining([
-        "project_id",
-        "lane_name",
-        "session_id",
-        "last_error",
-        "last_scan_at",
-        "created_at",
-        "updated_at",
-      ]),
+    expect(laneStateTables).toEqual([]);
+  });
+
+  it("preserves an existing legacy optimizer lane state table", async () => {
+    const projectRoot = await useProjectRoot("preserves-lane-state-table");
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database.exec(
+      "CREATE TABLE optimizer_lane_states (legacy_value TEXT NOT NULL)",
     );
+    database
+      .prepare("INSERT INTO optimizer_lane_states (legacy_value) VALUES (?)")
+      .run("keep me");
+    database.close();
+
+    const app = createApp();
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-preserve-schema",
+        continue_prompt: "Continue without touching the legacy table.",
+      }),
+    });
+
+    const migratedDatabase = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const laneStateRows = migratedDatabase
+      .prepare("SELECT legacy_value FROM optimizer_lane_states")
+      .all();
+    migratedDatabase.close();
+
+    expect(laneStateRows).toEqual([{ legacy_value: "keep me" }]);
   });
 
   it("exposes stale visibility for old pending sessions without changing their state", async () => {
