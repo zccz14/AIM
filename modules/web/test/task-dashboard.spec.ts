@@ -171,6 +171,7 @@ const routeProjectOptimizerStatus = async (
         runtime_active: true,
         blocker_summary: null,
         current_baseline_commit_sha: currentBaseline,
+        recent_events: [],
       }),
     });
   });
