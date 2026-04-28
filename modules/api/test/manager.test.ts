@@ -178,6 +178,39 @@ describe("manager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("does not create duplicate OpenCode sessions for unchanged missing evaluations on later heartbeats", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGit("abc1234");
+    const coordinator = createCoordinator();
+    const dimensionRepository = {
+      listUnevaluatedDimensionIds: vi
+        .fn()
+        .mockResolvedValue(["dimension-api", "dimension-docs"]),
+    };
+    const { createManager } = await import("../src/manager.js");
+    const manager = createManager({
+      coordinator,
+      dimensionRepository,
+      project,
+    });
+
+    await vi.waitFor(() => {
+      expect(coordinator.createSession).toHaveBeenCalledOnce();
+    });
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await vi.waitFor(() => {
+      expect(
+        dimensionRepository.listUnevaluatedDimensionIds,
+      ).toHaveBeenCalledTimes(2);
+    });
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("logs heartbeat failures with the original error object and continues future heartbeats", async () => {
     vi.useFakeTimers();
     mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
