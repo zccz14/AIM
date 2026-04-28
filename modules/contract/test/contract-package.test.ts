@@ -1033,6 +1033,7 @@ describe("contract package baseline", () => {
       expect.arrayContaining([
         "#/components/parameters/TaskStatusQueryParameter",
         "#/components/parameters/TaskDoneQueryParameter",
+        "#/components/parameters/TaskProjectIdQueryParameter",
         "#/components/parameters/TaskSessionIdQueryParameter",
       ]),
     );
@@ -2011,6 +2012,7 @@ describe("contract package baseline", () => {
     await expect(
       client.listTasks({
         done: false,
+        project_id: mainProjectId,
         session_id: "session-1",
         status: "processing",
       }),
@@ -2056,6 +2058,7 @@ describe("contract package baseline", () => {
         pathname: contractModule.tasksPath,
         searchParams: {
           done: "false",
+          project_id: mainProjectId,
           session_id: "session-1",
           status: "processing",
         },

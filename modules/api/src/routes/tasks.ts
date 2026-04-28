@@ -124,6 +124,7 @@ const parseListFilters = (request: Request) => {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const done = searchParams.get("done");
+  const projectId = searchParams.get("project_id");
   const sessionId = searchParams.get("session_id");
 
   if (status !== null && !taskStatusSchema.safeParse(status).success) {
@@ -134,12 +135,17 @@ const parseListFilters = (request: Request) => {
     return buildValidationError("Invalid task done filter");
   }
 
+  if (projectId !== null && projectId.length === 0) {
+    return buildValidationError("Invalid task project filter");
+  }
+
   if (sessionId !== null && sessionId.length === 0) {
     return buildValidationError("Invalid task session filter");
   }
 
   return {
     done: done === null ? undefined : done === "true",
+    project_id: projectId ?? undefined,
     session_id: sessionId ?? undefined,
     status: status === null ? undefined : (status as TaskStatus),
   };

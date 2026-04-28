@@ -447,6 +447,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/TaskStatusQueryParameter"
         - $ref: "#/components/parameters/TaskDoneQueryParameter"
+        - $ref: "#/components/parameters/TaskProjectIdQueryParameter"
         - $ref: "#/components/parameters/TaskSessionIdQueryParameter"
       responses:
         "200":
@@ -914,6 +915,13 @@ components:
       required: false
       schema:
         type: boolean
+    TaskProjectIdQueryParameter:
+      name: project_id
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
     TaskSessionIdQueryParameter:
       name: session_id
       in: query

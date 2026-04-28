@@ -512,6 +512,8 @@ export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
 
 export type TaskDoneQueryParameter = boolean;
 
+export type TaskProjectIdQueryParameter = string;
+
 export type TaskSessionIdQueryParameter = string;
 
 export type OpenCodeSessionIdPathParameter = string;
@@ -1065,6 +1067,7 @@ export type ListTasksData = {
   query?: {
     status?: "processing" | "resolved" | "rejected";
     done?: boolean;
+    project_id?: string;
     session_id?: string;
   };
   url: "/tasks";

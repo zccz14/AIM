@@ -118,6 +118,7 @@ const startTaskServer = async () => {
           items:
             url.searchParams.get("status") === "processing" &&
             url.searchParams.get("done") === "false" &&
+            url.searchParams.get("project_id") === mainProjectId &&
             url.searchParams.get("session_id") === "session-1"
               ? [task]
               : [],
@@ -264,6 +265,8 @@ describe("task cli command baseline", () => {
       "processing",
       "--done",
       "false",
+      "--project-id",
+      mainProjectId,
       "--session-id",
       "session-1",
     ]);
@@ -278,6 +281,7 @@ describe("task cli command baseline", () => {
       searchParams: {
         status: "processing",
         done: "false",
+        project_id: mainProjectId,
         session_id: "session-1",
       },
     });

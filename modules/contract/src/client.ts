@@ -105,6 +105,7 @@ export type ContractClient = {
   listTasks(query?: {
     status?: Task["status"];
     done?: boolean;
+    project_id?: string;
     session_id?: string;
   }): Promise<TaskListResponse>;
   listProjects(): Promise<ProjectListResponse>;

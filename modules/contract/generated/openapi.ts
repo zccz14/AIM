@@ -760,6 +760,9 @@ export const openApiDocument = {
             $ref: "#/components/parameters/TaskDoneQueryParameter",
           },
           {
+            $ref: "#/components/parameters/TaskProjectIdQueryParameter",
+          },
+          {
             $ref: "#/components/parameters/TaskSessionIdQueryParameter",
           },
         ],
@@ -1544,6 +1547,15 @@ export const openApiDocument = {
         required: false,
         schema: {
           type: "boolean",
+        },
+      },
+      TaskProjectIdQueryParameter: {
+        name: "project_id",
+        in: "query",
+        required: false,
+        schema: {
+          type: "string",
+          minLength: 1,
         },
       },
       TaskSessionIdQueryParameter: {

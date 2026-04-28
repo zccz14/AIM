@@ -16,6 +16,7 @@ export default class TaskListCommand extends Command {
     "base-url": Flags.string({ description: "API base URL" }),
     status: Flags.string({ description: "Task status" }),
     done: Flags.string({ description: "Task completion state" }),
+    "project-id": Flags.string({ description: "Task project id" }),
     "session-id": Flags.string({ description: "Task session id" }),
   };
 
@@ -29,6 +30,7 @@ export default class TaskListCommand extends Command {
       const tasks = await client.listTasks({
         status: parseStatusFlag(flags.status),
         done: parseBooleanFlag(flags.done),
+        project_id: flags["project-id"],
         session_id: flags["session-id"],
       });
 
