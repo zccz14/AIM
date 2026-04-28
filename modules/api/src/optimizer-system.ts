@@ -52,8 +52,7 @@ type ContinuationSession = {
   value: null | string;
 };
 
-type ContinuationSessionRepository = {
-  [Symbol.asyncDispose](): Promise<void>;
+type ContinuationSessionRepository = AsyncDisposable & {
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
