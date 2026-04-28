@@ -17,7 +17,7 @@ type ContinuationSessionRepository = {
   createSession(input: {
     continue_prompt: null | string;
     session_id: string;
-  }): unknown;
+  }): Promise<unknown>;
 };
 
 type CreateTaskSchedulerOptions = {
@@ -178,7 +178,7 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
         boundInRound = assignedTask.session_id === sessionId;
 
         if (boundInRound) {
-          options.continuationSessionRepository?.createSession({
+          void options.continuationSessionRepository?.createSession({
             continue_prompt: buildTaskSessionPrompt(assignedTask),
             session_id: sessionId,
           });

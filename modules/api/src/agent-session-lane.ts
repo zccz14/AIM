@@ -17,7 +17,7 @@ type ContinuationSessionRepository = {
   createSession(input: {
     continue_prompt?: null | string;
     session_id: string;
-  }): ContinuationSession;
+  }): Promise<ContinuationSession>;
   getSessionById(sessionId: string): ContinuationSession | null;
 };
 
@@ -246,7 +246,7 @@ export const createAgentSessionLane = (
         session = await options.coordinator.createSession(scanInput);
         sessionId = session.sessionId;
         if (usesPersistedContinuation) {
-          options.continuationSessionRepository?.createSession({
+          void options.continuationSessionRepository?.createSession({
             continue_prompt: scanInput.prompt,
             session_id: sessionId,
           });

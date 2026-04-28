@@ -122,7 +122,9 @@ export const createOpenCodeSessionRepository = (
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
-    createSession(input: CreateOpenCodeSessionRequest): OpenCodeSession {
+    async createSession(
+      input: CreateOpenCodeSessionRequest,
+    ): Promise<OpenCodeSession> {
       const timestamp = new Date().toISOString();
       const session = mapOpenCodeSessionRow({
         continue_prompt: input.continue_prompt ?? null,

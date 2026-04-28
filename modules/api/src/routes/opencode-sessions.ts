@@ -320,7 +320,7 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     try {
-      const session = getRepository().createSession(input.data);
+      const session = await getRepository().createSession(input.data);
 
       return context.json(session, 201);
     } catch (error) {
