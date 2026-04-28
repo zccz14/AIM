@@ -1,5 +1,7 @@
 import {
   createDirectorClarificationRequestSchema,
+  patchDirectorClarificationRequestSchema,
+  projectDirectorClarificationByIdPath,
   projectDirectorClarificationsPath,
   taskErrorSchema,
 } from "@aim-ai/contract";
@@ -9,6 +11,10 @@ import { createDirectorClarificationRepository } from "../director-clarification
 
 const projectDirectorClarificationsRoutePath =
   projectDirectorClarificationsPath.replace("{projectId}", ":projectId");
+const projectDirectorClarificationByIdRoutePath =
+  projectDirectorClarificationByIdPath
+    .replace("{projectId}", ":projectId")
+    .replace("{clarificationId}", ":clarificationId");
 
 const buildNotFoundError = (message: string) =>
   taskErrorSchema.parse({
@@ -25,6 +31,9 @@ const buildValidationError = (message: string) =>
 const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
 
+const requireClarificationId = (clarificationId: string | undefined) =>
+  clarificationId ?? "clarification-unknown";
+
 const parseCreateDirectorClarificationRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
   const result = createDirectorClarificationRequestSchema.safeParse(payload);
@@ -32,6 +41,22 @@ const parseCreateDirectorClarificationRequest = async (request: Request) => {
   if (!result.success) {
     return {
       error: buildValidationError("Invalid Director clarification payload"),
+      ok: false as const,
+    };
+  }
+
+  return { data: result.data, ok: true as const };
+};
+
+const parsePatchDirectorClarificationRequest = async (request: Request) => {
+  const payload = await request.json().catch(() => undefined);
+  const result = patchDirectorClarificationRequestSchema.safeParse(payload);
+
+  if (!result.success) {
+    return {
+      error: buildValidationError(
+        "Invalid Director clarification status patch",
+      ),
       ok: false as const,
     };
   }
@@ -129,5 +154,44 @@ export const registerDirectorClarificationRoutes = (
       await getRepository().createDirectorClarification(parsedRequest.data);
 
     return context.json(directorClarification, 201);
+  });
+
+  app.patch(projectDirectorClarificationByIdRoutePath, async (context) => {
+    const projectId = requireProjectId(context.req.param("projectId"));
+    const clarificationId = requireClarificationId(
+      context.req.param("clarificationId"),
+    );
+    const parsedRequest = await parsePatchDirectorClarificationRequest(
+      context.req.raw,
+    );
+
+    if (!parsedRequest.ok) {
+      return context.json(parsedRequest.error, 400);
+    }
+
+    if (!(await getRepository().hasProject(projectId))) {
+      return context.json(
+        buildNotFoundError(`Project ${projectId} was not found`),
+        404,
+      );
+    }
+
+    const directorClarification =
+      await getRepository().patchDirectorClarificationStatus(
+        projectId,
+        clarificationId,
+        parsedRequest.data,
+      );
+
+    if (!directorClarification) {
+      return context.json(
+        buildNotFoundError(
+          `Director clarification ${clarificationId} was not found`,
+        ),
+        404,
+      );
+    }
+
+    return context.json(directorClarification, 200);
   });
 };

@@ -352,10 +352,12 @@ describe("contract package baseline", () => {
       "opencodeModelsPath",
       "opencodeModelsResponseSchema",
       "patchDimensionRequestSchema",
+      "patchDirectorClarificationRequestSchema",
       "patchOpenCodeSessionRequestSchema",
       "patchProjectRequestSchema",
       "patchTaskRequestSchema",
       "projectByIdPath",
+      "projectDirectorClarificationByIdPath",
       "projectDirectorClarificationsPath",
       "projectListResponseSchema",
       "projectOptimizerStatusPath",
@@ -464,6 +466,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.projectDirectorClarificationsPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.projectDirectorClarificationByIdPath
       ],
     ).toBeDefined();
     expect(
@@ -587,6 +594,53 @@ describe("contract package baseline", () => {
         recent_events: [],
       }).success,
     ).toBe(false);
+  });
+
+  it("exports the Director clarification status patch contract", () => {
+    expect(contractModule.projectDirectorClarificationByIdPath).toBe(
+      "/projects/{projectId}/director/clarifications/{clarificationId}",
+    );
+    expect(
+      contractModule.patchDirectorClarificationRequestSchema.parse({
+        status: "addressed",
+      }),
+    ).toEqual({ status: "addressed" });
+    expect(
+      contractModule.patchDirectorClarificationRequestSchema.parse({
+        status: "dismissed",
+      }),
+    ).toEqual({ status: "dismissed" });
+    expect(
+      contractModule.patchDirectorClarificationRequestSchema.safeParse({
+        status: "open",
+      }).success,
+    ).toBe(false);
+
+    const pathItem = contractModule.openApiDocument.paths[
+      contractModule.projectDirectorClarificationByIdPath
+    ] as
+      | {
+          patch?: {
+            requestBody?: {
+              content?: {
+                "application/json"?: {
+                  schema?: Record<string, unknown>;
+                };
+              };
+            };
+            responses: Record<string, unknown>;
+          };
+        }
+      | undefined;
+
+    expect(
+      pathItem?.patch?.requestBody?.content?.["application/json"]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/PatchDirectorClarificationRequest",
+    });
+    expect(pathItem?.patch?.responses["200"]).toBeDefined();
+    expect(pathItem?.patch?.responses["400"]).toBeDefined();
+    expect(pathItem?.patch?.responses["404"]).toBeDefined();
   });
 
   it("exports OpenCode model schemas from the built package boundary", () => {
@@ -2046,6 +2100,84 @@ describe("contract package baseline", () => {
         method: "POST",
         pathname: "/tasks/task-1/reject",
         searchParams: {},
+      },
+    ]);
+  });
+
+  it("creates typed Director clarification status client helpers", async () => {
+    const clarification = {
+      id: "clarification-1",
+      project_id: mainProjectId,
+      dimension_id: null,
+      kind: "clarification",
+      message: "Please clarify the acceptance criteria.",
+      status: "addressed",
+      created_at: "2026-04-20T00:00:00.000Z",
+      updated_at: "2026-04-20T00:01:00.000Z",
+    };
+    const requests: Array<{
+      body: unknown;
+      method: string;
+      pathname: string;
+    }> = [];
+    const fetcher = vi.fn(
+      (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1],
+      ) =>
+        (async () => {
+          const request =
+            input instanceof Request
+              ? input
+              : new Request(
+                  new URL(String(input), "http://contract.test"),
+                  init,
+                );
+          const url = new URL(request.url, "http://contract.test");
+          const bodyText =
+            request.method === "POST" || request.method === "PATCH"
+              ? await request.text()
+              : undefined;
+
+          requests.push({
+            body: bodyText ? JSON.parse(bodyText) : undefined,
+            method: request.method,
+            pathname: url.pathname,
+          });
+
+          if (
+            request.method === "PATCH" &&
+            url.pathname ===
+              `/projects/${mainProjectId}/director/clarifications/clarification-1` &&
+            bodyText === JSON.stringify({ status: "addressed" })
+          ) {
+            return new Response(JSON.stringify(clarification), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            });
+          }
+
+          throw new Error(
+            `unexpected request: ${request.method} ${url.pathname}`,
+          );
+        })(),
+    );
+
+    const client = contractModule.createContractClient({
+      fetch: fetcher,
+    });
+
+    await expect(
+      client.patchDirectorClarificationById(mainProjectId, "clarification-1", {
+        status: "addressed",
+      }),
+    ).resolves.toEqual(clarification);
+
+    expect(requests).toEqual([
+      {
+        body: { status: "addressed" },
+        method: "PATCH",
+        pathname: `/projects/${mainProjectId}/director/clarifications/clarification-1`,
       },
     ]);
   });

@@ -386,6 +386,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/director/clarifications/{clarificationId}:
+    patch:
+      operationId: patchDirectorClarificationById
+      summary: Settle a Director clarification or adjustment request
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPathParameter"
+        - $ref: "#/components/parameters/DirectorClarificationIdPathParameter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchDirectorClarificationRequest"
+      responses:
+        "200":
+          description: Updated Director clarification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectorClarification"
+        "400":
+          description: Invalid Director clarification status patch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project or Director clarification not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tasks:
     post:
       operationId: createTask
@@ -898,6 +930,13 @@ components:
         minLength: 1
     ProjectIdPathParameter:
       name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    DirectorClarificationIdPathParameter:
+      name: clarificationId
       in: path
       required: true
       schema:
@@ -1916,6 +1955,17 @@ components:
           type: string
           minLength: 1
           pattern: ^(?!\s*$).+
+    PatchDirectorClarificationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - addressed
+            - dismissed
     DirectorClarificationListResponse:
       type: object
       additionalProperties: false

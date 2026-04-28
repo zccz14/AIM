@@ -22,6 +22,8 @@ export const projectsPath = "/projects";
 export const projectByIdPath = "/projects/{projectId}";
 export const projectDirectorClarificationsPath =
   "/projects/{projectId}/director/clarifications";
+export const projectDirectorClarificationByIdPath =
+  "/projects/{projectId}/director/clarifications/{clarificationId}";
 export const projectOptimizerStatusPath =
   "/projects/{projectId}/optimizer/status";
 export const tasksPath = "/tasks";
