@@ -24,6 +24,7 @@ import {
   taskList,
   taskListItem,
 } from "./dashboard-styles.js";
+import { DirectorClarificationPanel } from "./director-clarification-panel.js";
 
 const formatCount = (count: number, label: string) => `${count} ${label}`;
 
@@ -259,6 +260,11 @@ export const ProjectDetailPage = ({
           </CardContent>
         </Card>
       </section>
+
+      <DirectorClarificationPanel
+        contextName={project.name}
+        projectId={project.id}
+      />
 
       <section
         aria-label={t("projectOptimizerRuntimeRegion")}
