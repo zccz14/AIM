@@ -181,10 +181,11 @@ export const createAgentSessionLane = (
 
     if (continuationSession?.state === "rejected") {
       lastError = continuationSession.reason ?? "Manager lane session rejected";
+      sessionId = null;
       persistLaneState({
         last_error: lastError,
         last_scan_at: lastScanAt,
-        session_id: continuationSession.session_id,
+        session_id: null,
       });
       throw new Error(lastError);
     }
