@@ -701,6 +701,18 @@ test("opens an OpenCode sessions list page without drilling into session details
             created_at: "2026-04-25T08:00:00.000Z",
             updated_at: "2026-04-25T09:00:00.000Z",
           },
+          {
+            session_id: "ses_prompt_only",
+            state: "resolved",
+            value: null,
+            reason: null,
+            continue_prompt: "Continue the prompt-only session.",
+            provider_id: "anthropic",
+            model_id: "claude-opus-4-5",
+            stale: false,
+            created_at: "2026-04-24T08:00:00.000Z",
+            updated_at: "2026-04-24T09:00:00.000Z",
+          },
         ],
       }),
     });
@@ -722,21 +734,24 @@ test("opens an OpenCode sessions list page without drilling into session details
     sessionsRegion.getByText("1 pending session", { exact: true }),
   ).toBeVisible();
   await expect(
-    sessionsRegion.getByText("1 resolved session", { exact: true }),
+    sessionsRegion.getByText("2 resolved sessions", { exact: true }),
   ).toBeVisible();
   await expect(
     sessionsRegion.getByText("1 rejected session", { exact: true }),
   ).toBeVisible();
-  await expect(
-    sessionsRegion.getByRole("row", { name: /ses_pending_review/ }),
-  ).toBeVisible();
+  const pendingReviewRow = sessionsRegion.getByRole("row", {
+    name: /ses_pending_review/,
+  });
+  await expect(pendingReviewRow).toBeVisible();
   await expect(
     sessionsRegion.getByText("Pending", { exact: true }),
   ).toBeVisible();
   await expect(
     sessionsRegion.getByText("Stale", { exact: true }),
   ).toBeVisible();
-  await expect(sessionsRegion.getByText("Continue prompt ready")).toBeVisible();
+  await expect(
+    pendingReviewRow.getByText("Continue prompt ready"),
+  ).toBeVisible();
   await expect(
     sessionsRegion.getByText("Continue with required checks follow-up."),
   ).toBeVisible();
@@ -773,6 +788,14 @@ test("opens an OpenCode sessions list page without drilling into session details
     sessionsRegion.getByText("Spec no longer matches origin/main."),
   ).toBeVisible();
   await expect(sessionsRegion.getByText("reason-tail-93fd10")).toBeHidden();
+  const promptOnlyRow = sessionsRegion.getByRole("row", {
+    name: /ses_prompt_only/,
+  });
+  await expect(promptOnlyRow).toBeVisible();
+  await expect(
+    promptOnlyRow.getByText("Continue the prompt-only session."),
+  ).toBeVisible();
+  await expect(promptOnlyRow.getByText("None", { exact: true })).toHaveCount(0);
   await sessionsRegion.getByRole("button", { name: /Continue prompt/ }).click();
   await expect(sessionsRegion.getByText("prompt-tail-8f92c7")).toBeVisible();
   await sessionsRegion.getByRole("button", { name: /Value/ }).click();
