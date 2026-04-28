@@ -7,6 +7,7 @@ import type {
   ManagerState,
   ManagerStateInput,
 } from "./manager-state-repository.js";
+import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 const heartbeatIntervalMs = 10_000;
@@ -37,21 +38,12 @@ type ManagerProject = Pick<
   "git_origin_url" | "global_model_id" | "global_provider_id" | "id"
 >;
 
-type ManagerSessionCreator = {
-  createSession(input: {
-    directory: string;
-    model: { modelID: string; providerID: string };
-    prompt: string;
-    title: string;
-  }): Promise<AsyncDisposable & { sessionId: string }>;
-};
-
 type CreateManagerOptions = {
   dimensionRepository: DimensionRepository;
   logger?: ApiLogger;
   managerStateRepository: ManagerStateRepository;
   project: ManagerProject;
-  sessionManager: ManagerSessionCreator;
+  sessionManager: Pick<OpenCodeSessionManager, "createSession">;
 };
 
 type ManagerStatus = {

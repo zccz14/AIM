@@ -1,4 +1,5 @@
 import type { ApiLogger } from "./api-logger.js";
+import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type {
   OptimizerLaneState,
   OptimizerLaneStateInput,
@@ -16,14 +17,7 @@ type ContinuationSessionRepository = {
   getSessionById(sessionId: string): ContinuationSession | null;
 };
 
-type AgentSessionCreator = {
-  createSession(input: {
-    directory: string;
-    model: { modelID: string; providerID: string };
-    prompt: string;
-    title: string;
-  }): Promise<AsyncDisposable & { sessionId: string }>;
-};
+type AgentSessionCreator = Pick<OpenCodeSessionManager, "createSession">;
 
 type OptimizerLaneStateRepository = {
   getLaneState(

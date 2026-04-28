@@ -1,18 +1,12 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
 
-type TaskSessionCreator = {
-  createSession(input: {
-    directory: string;
-    model: { modelID: string; providerID: string };
-    prompt: string;
-    title: string;
-  }): Promise<AsyncDisposable & { sessionId: string }>;
-};
+type TaskSessionCreator = Pick<OpenCodeSessionManager, "createSession">;
 
 type SchedulerTaskRepository = {
   assignSessionIfUnassigned(
