@@ -41,7 +41,10 @@ describe("api package baseline", () => {
       require: "./dist/app.cjs",
       types: "./dist/app.d.mts",
     });
-    expect(Object.keys(apiModule).sort()).toEqual(["createApp"]);
+    expect(Object.keys(apiModule).sort()).toEqual([
+      "createApp",
+      "createOpenCodeSessionManager",
+    ]);
   });
 
   it("returns a healthy response from the contract", async () => {

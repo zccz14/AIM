@@ -13,6 +13,12 @@ import { registerOpenCodeSessionRoutes } from "./routes/opencode-sessions.js";
 import { registerProjectRoutes } from "./routes/projects.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 
+export type {
+  CreateManagedOpenCodeSessionInput,
+  CreateOpenCodeSessionManagerOptions,
+} from "./opencode-session-manager.js";
+export { createOpenCodeSessionManager } from "./opencode-session-manager.js";
+
 type OpenCodeSessionPromptSender = {
   sendPrompt(sessionId: string, prompt: string): Promise<void>;
 };
