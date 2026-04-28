@@ -641,21 +641,31 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    const project = await createProject(repository, "crud");
+    const otherProject = await createProject(repository, "other");
     const firstTask = await createTask(repository, {
+      project_id: project.id,
       task_spec: "keep processing",
       session_id: "session-a",
       status: "processing",
     });
     const secondTask = await createTask(repository, {
+      project_id: project.id,
       task_spec: "complete later",
       session_id: "session-a-pending",
       dependencies: [firstTask.task_id],
       status: "processing",
     });
     const thirdTask = await createTask(repository, {
+      project_id: project.id,
       task_spec: "different session",
       session_id: "session-b",
       status: "rejected",
+    });
+    const otherProjectTask = await createTask(repository, {
+      project_id: otherProject.id,
+      task_spec: "other project",
+      status: "processing",
     });
 
     await expect(repository.getTaskById(secondTask.task_id)).resolves.toEqual(
@@ -670,6 +680,12 @@ describe("task repository", () => {
     await expect(repository.listTasks({ status: "rejected" })).resolves.toEqual(
       [thirdTask],
     );
+    await expect(
+      repository.listTasks({ done: false, project_id: firstTask.project_id }),
+    ).resolves.toEqual([firstTask, secondTask]);
+    await expect(
+      repository.listTasks({ done: false, project_id: otherProject.id }),
+    ).resolves.toEqual([otherProjectTask]);
     await expect(repository.listTasks({ done: true })).resolves.toEqual([
       thirdTask,
     ]);

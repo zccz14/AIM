@@ -1842,10 +1842,43 @@ describe("task routes", () => {
         status: "processing",
       }),
     });
+    const otherProjectResponse = await app.request(
+      contractModule.projectsPath,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          global_model_id: "claude-sonnet-4-5",
+          global_provider_id: "anthropic",
+          name: "Other project",
+          git_origin_url: "https://github.com/example/other.git",
+        }),
+      },
+    );
+    const otherProject = await otherProjectResponse.json();
+    const otherProjectTaskResponse = await app.request(
+      contractModule.tasksPath,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Other task",
+          task_spec: "other project task",
+          project_id: otherProject.id,
+          status: "processing",
+        }),
+      },
+    );
 
     expect(firstCreateResponse.status).toBe(201);
     expect(secondCreateResponse.status).toBe(201);
     expect(thirdCreateResponse.status).toBe(201);
+    expect(otherProjectResponse.status).toBe(201);
+    expect(otherProjectTaskResponse.status).toBe(201);
 
     const statusFilteredResponse = await app.request(
       `${contractModule.tasksPath}?status=processing`,
@@ -1856,23 +1889,29 @@ describe("task routes", () => {
     const sessionFilteredResponse = await app.request(
       `${contractModule.tasksPath}?session_id=session-a`,
     );
+    const projectFilteredResponse = await app.request(
+      `${contractModule.tasksPath}?project_id=${mainProjectId}&done=false`,
+    );
 
     expect(statusFilteredResponse.status).toBe(200);
     expect(doneFilteredResponse.status).toBe(200);
     expect(sessionFilteredResponse.status).toBe(200);
+    expect(projectFilteredResponse.status).toBe(200);
 
     const statusFilteredPayload = await statusFilteredResponse.json();
     const doneFilteredPayload = await doneFilteredResponse.json();
     const sessionFilteredPayload = await sessionFilteredResponse.json();
+    const projectFilteredPayload = await projectFilteredResponse.json();
 
     expect(
       contractModule.taskListResponseSchema.safeParse(statusFilteredPayload)
         .success,
     ).toBe(true);
-    expect(statusFilteredPayload.items).toHaveLength(2);
+    expect(statusFilteredPayload.items).toHaveLength(3);
     expect(statusFilteredPayload.items.map((task) => task.task_spec)).toEqual([
       "keep running",
       "different session",
+      "other project task",
     ]);
     expect(
       statusFilteredPayload.items.every((task) => task.status === "processing"),
@@ -1899,6 +1938,20 @@ describe("task routes", () => {
     expect(
       sessionFilteredPayload.items.every(
         (task) => task.session_id === "session-a",
+      ),
+    ).toBe(true);
+
+    expect(
+      contractModule.taskListResponseSchema.safeParse(projectFilteredPayload)
+        .success,
+    ).toBe(true);
+    expect(projectFilteredPayload.items.map((task) => task.task_spec)).toEqual([
+      "keep running",
+      "different session",
+    ]);
+    expect(
+      projectFilteredPayload.items.every(
+        (task) => task.project_id === mainProjectId && task.done === false,
       ),
     ).toBe(true);
   });

@@ -71,6 +71,7 @@ const unfinishedSessionIndexName = "tasks_unfinished_session_id_unique";
 
 type ListTaskFilters = {
   done?: boolean;
+  project_id?: string;
   session_id?: string;
   status?: TaskStatus;
 };
@@ -823,6 +824,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
     listTasks(filters: ListTaskFilters = {}): Promise<Task[]> {
       if (
         filters.done === undefined &&
+        filters.project_id === undefined &&
         filters.session_id === undefined &&
         filters.status === undefined
       ) {
@@ -842,6 +844,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       if (filters.done !== undefined) {
         whereClauses.push("done = ?");
         parameters.push(Number(filters.done));
+      }
+
+      if (filters.project_id !== undefined) {
+        whereClauses.push("tasks.project_id = ?");
+        parameters.push(filters.project_id);
       }
 
       if (filters.session_id !== undefined) {
@@ -882,9 +889,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       return this.listTasks({ done: false });
     },
     async listRejectedTasksByProject(projectId: string): Promise<Task[]> {
-      const rejectedTasks = await this.listTasks({ status: "rejected" });
-
-      return rejectedTasks.filter((task) => task.project_id === projectId);
+      return this.listTasks({ project_id: projectId, status: "rejected" });
     },
     async assignSessionIfUnassigned(
       taskId: string,

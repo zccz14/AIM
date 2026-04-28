@@ -297,6 +297,7 @@ export type {
   TaskIdPathParameter,
   TaskListResponse,
   TaskListResponseWritable,
+  TaskProjectIdQueryParameter,
   TaskPullRequestFollowupCategory,
   TaskPullRequestStatusResponse,
   TaskPullRequestUrlRequest,
