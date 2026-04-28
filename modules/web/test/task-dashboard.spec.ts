@@ -400,13 +400,27 @@ test("renders a simplified top-level dashboard for projects and dimensions", asy
   await expect(
     page.getByText("Pending 1 / Resolved 1 / Rejected 1"),
   ).toBeVisible();
+  const resultRegion = page.getByRole("region", {
+    name: "Project result quality",
+  });
+  await expect(resultRegion).toBeVisible();
+  await expect(
+    resultRegion.getByText("Task outcome summary", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    resultRegion.getByText("Success Rate", { exact: true }),
+  ).toBeVisible();
+  await expect(resultRegion.getByText("100%", { exact: true })).toBeVisible();
+  await expect(
+    resultRegion.getByText("1 resolved and 0 rejected in completed history."),
+  ).toBeVisible();
+  await expect(resultRegion.getByText("Gap / Blocker Signal")).toBeVisible();
   await expect(page.getByText("OpenCode Pending")).toHaveCount(0);
   await expect(page.getByText("OpenCode Resolved")).toHaveCount(0);
   await expect(page.getByText("OpenCode Rejected")).toHaveCount(0);
 
   for (const removedLabel of [
     "Task Write Bulks",
-    "History Results",
     "Rejected Feedback Signals",
     "Recent Active Tasks",
     "Evidence Ledger",
@@ -415,6 +429,103 @@ test("renders a simplified top-level dashboard for projects and dimensions", asy
   ]) {
     await expect(page.getByText(removedLabel, { exact: true })).toHaveCount(0);
   }
+});
+
+test("shows a clear project overview empty state when no task history exists", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? []
+            : [
+                buildTask({
+                  spec: "Active main task",
+                  taskId: "task-main",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const resultRegion = page.getByRole("region", {
+    name: "Project result quality",
+  });
+  await expect(resultRegion).toBeVisible();
+  await expect(resultRegion.getByText("No history")).toBeVisible();
+  await expect(
+    resultRegion.getByText("No completed task history is available yet."),
+  ).toBeVisible();
+  await expect(
+    resultRegion.getByText(
+      "Result quality will appear here after AIM records a completed task.",
+    ),
+  ).toBeVisible();
+});
+
+test("summarizes mixed resolved and rejected task history in the overview", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? [
+                buildTask({
+                  done: true,
+                  result: "Merged and verified.",
+                  spec: "Completed resolved project task",
+                  status: "resolved",
+                  taskId: "task-resolved",
+                }),
+                buildTask({
+                  done: true,
+                  result:
+                    "Rejected because the spec no longer matched baseline.",
+                  spec: "Completed rejected project task",
+                  status: "rejected",
+                  taskId: "task-rejected",
+                }),
+              ]
+            : [
+                buildTask({
+                  dependencies: ["task-resolved"],
+                  spec: "Active main task",
+                  taskId: "task-main",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const resultRegion = page.getByRole("region", {
+    name: "Project result quality",
+  });
+  await expect(resultRegion.getByText("50%", { exact: true })).toBeVisible();
+  await expect(
+    resultRegion.getByText("1 resolved and 1 rejected in completed history."),
+  ).toBeVisible();
+  await expect(
+    resultRegion.getByText("2 signals", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    resultRegion.getByText(
+      "1 active dependency-linked tasks and 1 rejected history items may need Manager/Coordinator attention.",
+    ),
+  ).toBeVisible();
 });
 
 test("opens project detail with project-scoped dimensions and task pool stats", async ({
