@@ -1,5 +1,7 @@
 import { type Command, execute, settings } from "@oclif/core";
 
+import DirectorClarificationsCreateCommand from "./commands/director/clarifications/create.js";
+import DirectorClarificationsListCommand from "./commands/director/clarifications/list.js";
 import HealthCommand from "./commands/health.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
@@ -10,6 +12,7 @@ import TaskUpdateCommand from "./commands/task/update.js";
 
 const taskCommandNames = new Set(["create", "list", "get", "update", "delete"]);
 const serverCommandNames = new Set(["start"]);
+const directorClarificationsCommandNames = new Set(["create", "list"]);
 
 const normalizeCommandArgs = (args: string[]) => {
   if (args[0] === "server" && serverCommandNames.has(args[1] ?? "")) {
@@ -20,10 +23,20 @@ const normalizeCommandArgs = (args: string[]) => {
     return [`task:${args[1]}`, ...args.slice(2)];
   }
 
+  if (
+    args[0] === "director" &&
+    args[1] === "clarifications" &&
+    directorClarificationsCommandNames.has(args[2] ?? "")
+  ) {
+    return [`director:clarifications:${args[2]}`, ...args.slice(3)];
+  }
+
   return args;
 };
 
 export const commands = {
+  "director:clarifications:create": DirectorClarificationsCreateCommand,
+  "director:clarifications:list": DirectorClarificationsListCommand,
   health: HealthCommand,
   "server:start": ServerStartCommand,
   "task:create": TaskCreateCommand,

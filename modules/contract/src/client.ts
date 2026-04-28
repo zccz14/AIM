@@ -1,5 +1,6 @@
 import { createClient as createGeneratedClient } from "../generated/_client/client/index.js";
 import {
+  createDirectorClarification,
   createProject,
   createTask,
   createTaskBatch,
@@ -8,6 +9,7 @@ import {
   getHealth,
   getProjectOptimizerStatus,
   getTaskById,
+  listDirectorClarifications,
   listOpenCodeModels,
   listProjects,
   listTasks,
@@ -17,6 +19,9 @@ import {
   resolveTaskById,
 } from "../generated/client.js";
 import type {
+  CreateDirectorClarificationError,
+  CreateDirectorClarificationRequest,
+  CreateDirectorClarificationResponse,
   CreateProjectError,
   CreateProjectRequest,
   CreateProjectResponse,
@@ -28,6 +33,8 @@ import type {
   CreateTaskResponse,
   DeleteProjectByIdError,
   DeleteTaskByIdError,
+  DirectorClarification,
+  DirectorClarificationListResponse,
   ErrorResponse,
   GetHealthError,
   GetHealthResponse,
@@ -37,6 +44,8 @@ import type {
   GetTaskByIdResponse,
   HealthError,
   HealthResponse,
+  ListDirectorClarificationsError,
+  ListDirectorClarificationsResponse,
   ListTasksError,
   ListTasksResponse,
   OpenCodeModelsResponse,
@@ -99,6 +108,13 @@ export type ContractClient = {
   getProjectOptimizerStatus(
     projectId: string,
   ): Promise<ProjectOptimizerStatusResponse>;
+  listDirectorClarifications(
+    projectId: string,
+  ): Promise<DirectorClarificationListResponse>;
+  createDirectorClarification(
+    projectId: string,
+    input: CreateDirectorClarificationRequest,
+  ): Promise<DirectorClarification>;
   deleteProjectById(projectId: string): Promise<void>;
   createTaskBatch(input: CreateTaskBatchRequest): Promise<TaskBatchResponse>;
   createTask(input: CreateTaskRequest): Promise<Task>;
@@ -117,6 +133,9 @@ const projectSchema = schemas.Project;
 const projectListResponseSchema = schemas.ProjectListResponse;
 const projectOptimizerStatusResponseSchema =
   schemas.ProjectOptimizerStatusResponse;
+const directorClarificationSchema = schemas.DirectorClarification;
+const directorClarificationListResponseSchema =
+  schemas.DirectorClarificationListResponse;
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskBatchResponseSchema = schemas.TaskBatchResponse;
@@ -336,6 +355,57 @@ export const createContractClient = ({
           taskErrorSchema.parse(result.error satisfies DeleteProjectByIdError),
         );
       }
+    },
+
+    async listDirectorClarifications(projectId) {
+      const result = await listDirectorClarifications({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies ListDirectorClarificationsError,
+          ),
+        );
+      }
+
+      return directorClarificationListResponseSchema.parse(
+        result.data satisfies ListDirectorClarificationsResponse,
+      ) satisfies DirectorClarificationListResponse;
+    },
+
+    async createDirectorClarification(projectId, input) {
+      const result = await createDirectorClarification({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies CreateDirectorClarificationError,
+          ),
+        );
+      }
+
+      return directorClarificationSchema.parse(
+        result.data satisfies CreateDirectorClarificationResponse,
+      ) satisfies DirectorClarification;
     },
 
     async listOpenCodeModels() {

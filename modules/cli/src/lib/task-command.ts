@@ -2,6 +2,8 @@ import {
   type ContractClient,
   ContractClientError,
   createContractClient,
+  type DirectorClarificationKind,
+  directorClarificationKindSchema,
   type HealthError,
   type TaskError,
   type TaskStatus,
@@ -93,6 +95,18 @@ export const parseStatusFlag = (
       "CLI_INVALID_FLAG_VALUE",
       `invalid --status value: ${value}`,
     );
+  }
+
+  return parsed.data;
+};
+
+export const parseDirectorClarificationKindFlag = (
+  value: string,
+): DirectorClarificationKind => {
+  const parsed = directorClarificationKindSchema.safeParse(value);
+
+  if (!parsed.success) {
+    throw cliError("CLI_INVALID_FLAG_VALUE", `invalid --kind value: ${value}`);
   }
 
   return parsed.data;
