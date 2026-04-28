@@ -227,6 +227,16 @@ const messages = {
     projectRegister: "Project Register",
     projectRequestBlocked: "Project request blocked",
     projectRequestFailed: "Project request failed",
+    projectResultCoverage: "Coverage",
+    projectResultFlow: "Flow To History",
+    projectResultGapBlocker: "Gap / Blocker Signal",
+    projectResultNoHistory:
+      "Result quality will appear here after AIM records a completed task.",
+    projectResultSignals: "Task outcome summary",
+    projectResultSignalsDescription:
+      "Success rate, completed outcomes, and blocker signals are derived from the current task dashboard evidence.",
+    projectResultSignalsRegion: "Project result quality",
+    projectResultSuccessRate: "Success Rate",
     projects: "Projects",
     projectSingular: "Project",
     pointAimNavigator:
@@ -517,6 +527,15 @@ const messages = {
     projectRegister: "项目注册表",
     projectRequestBlocked: "项目请求被阻止",
     projectRequestFailed: "项目请求失败",
+    projectResultCoverage: "覆盖",
+    projectResultFlow: "流入历史",
+    projectResultGapBlocker: "差距 / 阻塞信号",
+    projectResultNoHistory: "AIM 记录完成任务后，这里会显示结果质量。",
+    projectResultSignals: "任务结果摘要",
+    projectResultSignalsDescription:
+      "成功率、已完成结果和阻塞信号来自当前任务仪表盘证据。",
+    projectResultSignalsRegion: "项目结果质量",
+    projectResultSuccessRate: "成功率",
     projects: "项目",
     projectSingular: "项目",
     pointAimNavigator: "将 AIM 导航指向要检查的 API 实例。",
