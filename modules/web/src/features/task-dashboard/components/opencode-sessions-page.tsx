@@ -90,12 +90,15 @@ const countSessionsByState = (
   state: OpenCodeSession["state"],
 ) => sessions.filter((session) => session.state === state).length;
 
-const formatSessionStatusBreakdown = (sessions: OpenCodeSession[]) => {
+const formatSessionStatusBreakdown = (
+  sessions: OpenCodeSession[],
+  labels: Record<OpenCodeSession["state"], string>,
+) => {
   const pendingCount = countSessionsByState(sessions, "pending");
   const resolvedCount = countSessionsByState(sessions, "resolved");
   const rejectedCount = countSessionsByState(sessions, "rejected");
 
-  return `Pending ${pendingCount} / Resolved ${resolvedCount} / Rejected ${rejectedCount}`;
+  return `${labels.pending} ${pendingCount} / ${labels.resolved} ${resolvedCount} / ${labels.rejected} ${rejectedCount}`;
 };
 
 const SessionLongTextField = ({
@@ -160,7 +163,11 @@ export const OpenCodeSessionsPage = () => {
     ? sessionsQuery.data.items.filter(canContinue)
     : [];
   const statusBreakdown = sessionsQuery.isSuccess
-    ? formatSessionStatusBreakdown(sessionsQuery.data.items)
+    ? formatSessionStatusBreakdown(sessionsQuery.data.items, {
+        pending: t("openCodeSessionPending"),
+        rejected: t("openCodeSessionRejected"),
+        resolved: t("openCodeSessionResolved"),
+      })
     : null;
 
   return (
