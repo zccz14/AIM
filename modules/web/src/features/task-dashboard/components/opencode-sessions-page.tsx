@@ -90,8 +90,16 @@ const countSessionsByState = (
   state: OpenCodeSession["state"],
 ) => sessions.filter((session) => session.state === state).length;
 
-const formatSessionCount = (count: number, state: OpenCodeSession["state"]) =>
-  `${count} ${state} ${count === 1 ? "session" : "sessions"}`;
+const formatSessionStatusBreakdown = (
+  sessions: OpenCodeSession[],
+  labels: Record<OpenCodeSession["state"], string>,
+) => {
+  const pendingCount = countSessionsByState(sessions, "pending");
+  const resolvedCount = countSessionsByState(sessions, "resolved");
+  const rejectedCount = countSessionsByState(sessions, "rejected");
+
+  return `${labels.pending} ${pendingCount} / ${labels.resolved} ${resolvedCount} / ${labels.rejected} ${rejectedCount}`;
+};
 
 const SessionLongTextField = ({
   id,
@@ -154,15 +162,13 @@ export const OpenCodeSessionsPage = () => {
   const continuableSessions = sessionsQuery.isSuccess
     ? sessionsQuery.data.items.filter(canContinue)
     : [];
-  const statusStats = sessionsQuery.isSuccess
-    ? (["pending", "resolved", "rejected"] as const).map((state) => ({
-        label: `${toStateLabel(state)} Sessions`,
-        value: formatSessionCount(
-          countSessionsByState(sessionsQuery.data.items, state),
-          state,
-        ),
-      }))
-    : [];
+  const statusBreakdown = sessionsQuery.isSuccess
+    ? formatSessionStatusBreakdown(sessionsQuery.data.items, {
+        pending: t("openCodeSessionPending"),
+        rejected: t("openCodeSessionRejected"),
+        resolved: t("openCodeSessionResolved"),
+      })
+    : null;
 
   return (
     <section aria-label={t("openCodeSessionsRegion")} className={pageStack}>
@@ -213,15 +219,11 @@ export const OpenCodeSessionsPage = () => {
 
           {sessionsQuery.isSuccess && sessionsQuery.data.items.length > 0 ? (
             <div className={pageStack}>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {statusStats.map((stat) => (
-                  <div className="border p-4" key={stat.label}>
-                    <p className={eyebrow}>{stat.label}</p>
-                    <p className="m-0 text-2xl font-medium tracking-tight">
-                      {stat.value}
-                    </p>
-                  </div>
-                ))}
+              <div className="border p-4">
+                <p className={eyebrow}>{t("openCodeSessions")}</p>
+                <p className="m-0 text-2xl font-medium tracking-tight">
+                  {statusBreakdown}
+                </p>
               </div>
               <div className="flex justify-end">
                 <Button
