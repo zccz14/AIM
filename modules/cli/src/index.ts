@@ -8,9 +8,17 @@ import TaskCreateCommand from "./commands/task/create.js";
 import TaskDeleteCommand from "./commands/task/delete.js";
 import TaskGetCommand from "./commands/task/get.js";
 import TaskListCommand from "./commands/task/list.js";
+import TaskPrStatusCommand from "./commands/task/pr-status.js";
 import TaskUpdateCommand from "./commands/task/update.js";
 
-const taskCommandNames = new Set(["create", "list", "get", "update", "delete"]);
+const taskCommandNames = new Set([
+  "create",
+  "list",
+  "get",
+  "update",
+  "delete",
+  "pr-status",
+]);
 const serverCommandNames = new Set(["start"]);
 const directorClarificationsCommandNames = new Set(["create", "list"]);
 
@@ -44,6 +52,7 @@ export const commands = {
   "task:get": TaskGetCommand,
   "task:update": TaskUpdateCommand,
   "task:delete": TaskDeleteCommand,
+  "task:pr-status": TaskPrStatusCommand,
 } satisfies Record<string, Command.Class>;
 
 export const run = async (args = process.argv.slice(2)) => {
