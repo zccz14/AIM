@@ -29,6 +29,13 @@ const createBaselineRepository = () => ({
   getLatestBaselineFacts: vi.fn().mockResolvedValue(baselineFacts),
 });
 
+const unknownSourceBaselineFreshness: Task["source_baseline_freshness"] = {
+  current_commit: null,
+  source_commit: null,
+  status: "unknown",
+  summary: "not set",
+};
+
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   created_at: "2026-04-20T00:00:00.000Z",
   dependencies: [],
@@ -38,7 +45,9 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   global_provider_id: "anthropic",
   project_id: "00000000-0000-4000-8000-000000000001",
   pull_request_url: null,
+  result: "",
   session_id: null,
+  source_baseline_freshness: unknownSourceBaselineFreshness,
   source_metadata: {},
   status: "processing",
   task_id: "task-1",
@@ -64,11 +73,17 @@ describe("developer", () => {
   it("immediately scans and binds an unassigned unfinished task", async () => {
     vi.useFakeTimers();
     const initialTask = createTask();
+    const initialTaskWithoutFreshness = {
+      ...initialTask,
+      source_baseline_freshness: undefined,
+    } as unknown as Task;
     const boundTask = createTask({ session_id: "session-1" });
     const repository = {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
       listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
-      listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
+      listUnfinishedTasks: vi
+        .fn()
+        .mockResolvedValue([initialTaskWithoutFreshness]),
     };
     const sessionManager = createSessionManager();
     const baselineRepository = createBaselineRepository();
@@ -85,7 +100,9 @@ describe("developer", () => {
         "session-1",
       );
     });
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(initialTask);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(
+      initialTaskWithoutFreshness,
+    );
     expect(sessionManager.createSession).toHaveBeenCalledWith({
       directory: `/repo/.worktrees/${initialTask.task_id}`,
       model: {
@@ -204,8 +221,16 @@ describe("developer", () => {
     const initialTask = createTask();
     const activeTask = createTask({
       session_id: "session-active",
+      source_baseline_freshness: {
+        current_commit: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
+        source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "stale",
+        summary:
+          "Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d",
+      },
       task_id: "task-active",
       title: "Active overlapping work",
+      worktree_path: "/repo/.worktrees/task-active",
     });
     const rejectedTask = createTask({
       done: true,
@@ -256,7 +281,7 @@ describe("developer", () => {
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining(
-          "- Active overlapping work (task-active) status processing session session-active",
+          "- Active overlapping work (task-active) status processing source_freshness stale source bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb current a9979ba9487edf2d822e10ae7b651c98be3d175d summary Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d; worktree /repo/.worktrees/task-active; PR (not set); session session-active",
         ),
       }),
     );

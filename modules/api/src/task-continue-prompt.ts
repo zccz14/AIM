@@ -12,8 +12,19 @@ export type TaskSessionPromptContext = {
   rejectedTasks: Task[];
 };
 
-const summarizeTask = (task: Task) =>
-  `- ${task.title} (${task.task_id}) status ${task.status} session ${task.session_id ?? "(not set)"}`;
+const getTaskSourceBaselineFreshness = (task: Task) =>
+  task.source_baseline_freshness ?? {
+    current_commit: null,
+    source_commit: null,
+    status: "unknown" as const,
+    summary: "not set",
+  };
+
+const summarizeTask = (task: Task) => {
+  const freshness = getTaskSourceBaselineFreshness(task);
+
+  return `- ${task.title} (${task.task_id}) status ${task.status} source_freshness ${freshness.status} source ${freshness.source_commit ?? "(not set)"} current ${freshness.current_commit ?? "(not set)"} summary ${freshness.summary}; worktree ${task.worktree_path ?? "(not set)"}; PR ${task.pull_request_url ?? "(not set)"}; session ${task.session_id ?? "(not set)"}`;
+};
 
 const summarizeRejectedTask = (task: Task) => {
   const validation = task.source_metadata.task_spec_validation;
