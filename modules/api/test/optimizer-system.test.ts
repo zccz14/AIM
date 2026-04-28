@@ -54,7 +54,6 @@ describe("optimizer system", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const dimensionRepository = {};
-    const laneStateRepository = {};
     const managerStateRepository = {};
     const developer = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -93,7 +92,6 @@ describe("optimizer system", () => {
       },
       dimensionRepository,
       intervalMs: 5_000,
-      laneStateRepository,
       logger,
       managerStateRepository,
       taskRepository,
@@ -148,7 +146,6 @@ describe("optimizer system", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const dimensionRepository = {};
-    const laneStateRepository = {};
     const managerStateRepository = {};
     const developer = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -173,7 +170,6 @@ describe("optimizer system", () => {
       },
       dimensionRepository,
       intervalMs: 5_000,
-      laneStateRepository,
       logger,
       managerStateRepository,
       taskRepository,
@@ -195,7 +191,6 @@ describe("optimizer system", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const dimensionRepository = {};
-    const laneStateRepository = {};
     const managerStateRepository = {};
     const developer = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
@@ -233,7 +228,6 @@ describe("optimizer system", () => {
         },
         dimensionRepository,
         intervalMs: 5_000,
-        laneStateRepository,
         logger,
         managerStateRepository,
         taskRepository,

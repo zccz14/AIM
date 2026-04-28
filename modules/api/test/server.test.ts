@@ -9,7 +9,6 @@ const mockCreateDimensionRepository = vi.fn();
 const mockCreateManagerStateRepository = vi.fn();
 const mockCreateOpenCodeSessionRepository = vi.fn();
 const mockCreateOpenCodeSessionManager = vi.fn();
-const mockCreateOptimizerLaneStateRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
@@ -71,10 +70,6 @@ const createOpenCodeSessionRepositoryMock = () => ({
   [Symbol.asyncDispose]: vi.fn(),
 });
 
-const createOptimizerLaneStateRepositoryMock = () => ({
-  [Symbol.asyncDispose]: vi.fn(),
-});
-
 const createManagerStateRepositoryMock = () => ({
   [Symbol.asyncDispose]: vi.fn(),
   clearManagerState: vi.fn(),
@@ -118,10 +113,6 @@ vi.mock("../src/opencode-session-manager.js", () => ({
   createOpenCodeSessionManager: mockCreateOpenCodeSessionManager,
 }));
 
-vi.mock("../src/optimizer-lane-state-repository.js", () => ({
-  createOptimizerLaneStateRepository: mockCreateOptimizerLaneStateRepository,
-}));
-
 vi.mock("../src/task-repository.js", () => ({
   createTaskRepository: mockCreateTaskRepository,
 }));
@@ -147,9 +138,6 @@ describe("server startup", () => {
       [Symbol.asyncDispose]: vi.fn(),
       createSession: vi.fn(),
     });
-    mockCreateOptimizerLaneStateRepository.mockReturnValue(
-      createOptimizerLaneStateRepositoryMock(),
-    );
     mockCreateManagerStateRepository.mockReturnValue(
       createManagerStateRepositoryMock(),
     );
@@ -448,7 +436,7 @@ describe("server startup", () => {
     expect(mockCreateDeveloper).toHaveBeenCalledOnce();
   });
 
-  it("wires the coordinator component to shared optimizer state", async () => {
+  it("wires the coordinator component to shared optimizer repositories", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -459,8 +447,6 @@ describe("server startup", () => {
       start: vi.fn(),
     };
     const openCodeSessionRepository = createOpenCodeSessionRepositoryMock();
-    const optimizerLaneStateRepository =
-      createOptimizerLaneStateRepositoryMock();
     const taskRepository = createRepositoryMock([optimizerEnabledProject]);
     const dimensionRepository = createDimensionRepositoryMock();
 
@@ -470,9 +456,6 @@ describe("server startup", () => {
     mockCreateDimensionRepository.mockReturnValue(dimensionRepository);
     mockCreateOpenCodeSessionRepository.mockReturnValue(
       openCodeSessionRepository,
-    );
-    mockCreateOptimizerLaneStateRepository.mockReturnValue(
-      optimizerLaneStateRepository,
     );
     mockCreateDeveloper.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
@@ -495,7 +478,6 @@ describe("server startup", () => {
       }),
     );
     expect(openCodeSessionRepository).toBeDefined();
-    expect(optimizerLaneStateRepository).toBeDefined();
   });
 
   it("does not create stale manager evaluation lanes", async () => {
