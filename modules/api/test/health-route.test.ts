@@ -44,6 +44,8 @@ describe("api package baseline", () => {
     expect(Object.keys(apiModule).sort()).toEqual([
       "createApp",
       "createOpenCodeSessionManager",
+      "statTokens",
+      "statTokensBySessionId",
     ]);
   });
 

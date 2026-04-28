@@ -18,6 +18,12 @@ export type {
   CreateOpenCodeSessionManagerOptions,
 } from "./opencode-session-manager.js";
 export { createOpenCodeSessionManager } from "./opencode-session-manager.js";
+export type {
+  MessageTokenStat,
+  TokenStats,
+  TokenUsage,
+} from "./stat-tokens.js";
+export { statTokens, statTokensBySessionId } from "./stat-tokens.js";
 
 type OpenCodeSessionPromptSender = {
   sendPrompt(sessionId: string, prompt: string): Promise<void>;
