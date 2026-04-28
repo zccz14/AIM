@@ -200,7 +200,7 @@ export const createOpenCodeSession = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Push continuation prompts for all pending AIM-controlled OpenCode sessions
+ * Continue all pending sessions
  */
 export const continuePendingOpenCodeSessions = <
   ThrowOnError extends boolean = false,
@@ -245,7 +245,7 @@ export const patchOpenCodeSessionById = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Push a continuation prompt for one pending AIM-controlled OpenCode session
+ * Continue
  */
 export const continueOpenCodeSessionById = <
   ThrowOnError extends boolean = false,
