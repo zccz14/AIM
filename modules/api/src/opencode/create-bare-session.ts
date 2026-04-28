@@ -8,6 +8,7 @@ export type CreateBareOpenCodeSessionOptions = {
 
 export type SendPromptTextOptions = {
   baseUrl: string;
+  model: { modelID: string; providerID: string };
   prompt: string;
   session_id: string;
 };
@@ -29,13 +30,14 @@ export const createBareOpenCodeSession = async ({
 
 export const sendPromptText = async ({
   baseUrl,
+  model,
   prompt,
   session_id,
 }: SendPromptTextOptions): Promise<void> => {
   const client = createOpencodeClient({ baseUrl });
 
   await client.session.promptAsync({
-    body: { parts: [{ text: prompt, type: "text" }] },
+    body: { model, parts: [{ text: prompt, type: "text" }] },
     path: { id: session_id },
     throwOnError: true,
   });
