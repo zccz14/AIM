@@ -81,6 +81,19 @@ const sleep = (milliseconds: number, signal: AbortSignal) =>
     );
   });
 
+const withExplicitSourceBaselineFreshness = (task: Task): Task =>
+  task.source_baseline_freshness
+    ? task
+    : {
+        ...task,
+        source_baseline_freshness: {
+          current_commit: null,
+          source_commit: null,
+          status: "unknown",
+          summary: "not set",
+        },
+      };
+
 export const createDeveloper = ({
   baselineRepository = defaultBaselineRepository,
   logger,
@@ -108,9 +121,9 @@ export const createDeveloper = ({
         baselineRepository.getLatestBaselineFacts(directory),
         taskRepository.listRejectedTasksByProject(task.project_id),
       ]);
-      const activeTasks = unfinishedTasks.filter(
-        (activeTask) => activeTask.project_id === task.project_id,
-      );
+      const activeTasks = unfinishedTasks
+        .filter((activeTask) => activeTask.project_id === task.project_id)
+        .map(withExplicitSourceBaselineFreshness);
       createdSession = await sessionManager.createSession({
         directory,
         model: {
