@@ -54,6 +54,7 @@ describe("createOpenCodeSessionManager", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.resetModules();
+    vi.restoreAllMocks();
   });
 
   it("creates an OpenCode session, stores prompt and model metadata, and returns a disposable handle without sending the prompt", async () => {
@@ -191,6 +192,162 @@ describe("createOpenCodeSessionManager", () => {
     expect(promptAsync).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();
+  });
+
+  it("continues recovering pending sessions after one repository scan fails", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Recover after scan failure.",
+      session_id: "session-after-scan-error",
+    });
+    const listSessions = vi
+      .spyOn(repository, "listSessions")
+      .mockRejectedValueOnce(new Error("temporary repository failure"));
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1001);
+
+    expect(listSessions).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith("OpenCode pending session scan failed", {
+      error: "temporary repository failure",
+    });
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [{ text: "Recover after scan failure.", type: "text" }],
+      },
+      path: { id: "session-after-scan-error" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("continues recovering other pending sessions after one prompt fails", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "First recovery prompt.",
+      session_id: "session-prompt-fails",
+    });
+    await repository.createSession({
+      continue_prompt: "Second recovery prompt.",
+      session_id: "session-prompt-continues",
+    });
+    const promptAsync = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("temporary prompt failure"))
+      .mockResolvedValue({});
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1001);
+
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode pending session recovery failed",
+      {
+        error: "temporary prompt failure",
+        session_id: "session-prompt-fails",
+      },
+    );
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [{ text: "Second recovery prompt.", type: "text" }],
+      },
+      path: { id: "session-prompt-continues" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("does not repeat a stale continuation prompt inside the retry throttle window", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Recover only once for now.",
+      session_id: "session-throttled",
+    });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(promptAsync).toHaveBeenCalledTimes(1);
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("disposes the background recovery loop without leaving active timers", async () => {
+    const repository = createRepository();
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync: vi.fn().mockResolvedValue({}),
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    await manager[Symbol.asyncDispose]();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("pushes explicit continuation prompts with selected model metadata", async () => {
