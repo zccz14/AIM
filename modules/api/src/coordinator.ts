@@ -171,17 +171,17 @@ const buildPrioritySummary = ({
       const hasGap = evidence.includes("gap");
       const hasEmptyPoolSignal =
         activeTasks.length === 0 || evidence.includes("empty pool");
-      const baselineStatus =
-        entry.evaluation.commit_sha === baselineFacts.commitSha
-          ? "current"
-          : `${entry.evaluation.commit_sha} differs from current ${baselineFacts.commitSha}`;
+      const isCurrentBaseline =
+        entry.evaluation.commit_sha === baselineFacts.commitSha;
+      const baselineStatus = isCurrentBaseline
+        ? "current"
+        : `stale/historical: evaluation commit ${entry.evaluation.commit_sha} differs from current ${baselineFacts.commitSha}; do not use independently as create evidence`;
       const rank =
         (hasReadmeAhead ? 100 : 0) +
         (hasConsiderCreate ? 80 : 0) +
         (hasGap ? 40 : 0) +
         (hasEmptyPoolSignal ? 20 : 0) +
-        Math.max(0, 100 - entry.evaluation.score) / 10 +
-        (baselineStatus === "current" ? 0 : 5);
+        Math.max(0, 100 - entry.evaluation.score) / 10;
 
       return {
         baselineStatus,
@@ -190,10 +190,16 @@ const buildPrioritySummary = ({
         hasGap,
         hasReadmeAhead,
         index,
+        isCurrentBaseline,
         rank,
       };
     })
-    .sort((left, right) => right.rank - left.rank || left.index - right.index);
+    .sort(
+      (left, right) =>
+        Number(right.isCurrentBaseline) - Number(left.isCurrentBaseline) ||
+        right.rank - left.rank ||
+        left.index - right.index,
+    );
 
   return rankedEvaluations
     .map(
