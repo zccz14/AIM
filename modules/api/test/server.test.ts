@@ -13,7 +13,6 @@ const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
-const mockCreateAgentSessionLane = vi.fn();
 const mockCreateCoordinator = vi.fn();
 const mockCreateManager = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
@@ -82,10 +81,6 @@ const createManagerStateRepositoryMock = () => ({
   getManagerState: vi.fn(),
   upsertManagerState: vi.fn(),
 });
-
-vi.mock("../src/agent-session-lane.js", () => ({
-  createAgentSessionLane: mockCreateAgentSessionLane,
-}));
 
 vi.mock("../src/coordinator.js", () => ({
   createCoordinator: mockCreateCoordinator,
@@ -226,11 +221,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -259,11 +249,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -290,11 +275,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -327,11 +307,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -465,11 +440,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -480,12 +450,6 @@ describe("server startup", () => {
     );
     expect(mockCreateManager).toHaveBeenCalledWith(
       expect.objectContaining({ project: optimizerEnabledProject }),
-    );
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
-      expect.objectContaining({ laneName: "manager_evaluation" }),
-    );
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
-      expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
     expect(mockCreateCoordinator).toHaveBeenCalledWith(
       optimizerEnabledProject.id,
@@ -523,11 +487,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -565,20 +524,12 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
     startServer();
 
     expect(mockCreateManager).not.toHaveBeenCalled();
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
-      expect.objectContaining({ laneName: "manager_evaluation" }),
-    );
   });
 
   it("defers coordinator AIM-managed workspace creation until the coordinator lane scans", async () => {
@@ -600,11 +551,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
     mockEnsureProjectWorkspace.mockResolvedValue("/aim/projects/main");
 
     const { startServer } = await import("../src/server.js");
@@ -649,11 +595,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
     mockEnsureProjectWorkspace
       .mockResolvedValueOnce("/aim/projects/main")
       .mockResolvedValueOnce("/aim/projects/second")
@@ -728,7 +669,6 @@ describe("server startup", () => {
 
     optimizerRuntime.start();
 
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalled();
     expect(optimizerRuntime.getStatus()).toMatchObject({
       lanes: {
         coordinator_task_pool: {
@@ -766,11 +706,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn(),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -781,9 +716,6 @@ describe("server startup", () => {
       expect.objectContaining({
         projectDirectory: expect.any(Function),
       }),
-    );
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
-      expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
   });
 
@@ -880,11 +812,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 
@@ -1031,11 +958,6 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValue({
-      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
-      start: vi.fn(),
-    });
 
     const { startServer } = await import("../src/server.js");
 

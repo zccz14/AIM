@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockCreateAgentSessionLane = vi.fn();
 const mockCreateCoordinator = vi.fn();
 const mockCreateManager = vi.fn();
 const mockCreateOpenCodeSessionManager = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
 const mockPrepareManagerLaneScanInput = vi.fn();
-
-vi.mock("../src/agent-session-lane.js", () => ({
-  createAgentSessionLane: mockCreateAgentSessionLane,
-}));
 
 vi.mock("../src/coordinator.js", () => ({
   createCoordinator: mockCreateCoordinator,
@@ -69,10 +64,6 @@ describe("optimizer system", () => {
     const coordinator = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
-    const oldCoordinatorLane = {
-      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      start: vi.fn(),
-    };
     const manager = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       getStatus: vi.fn(() => ({
@@ -88,7 +79,6 @@ describe("optimizer system", () => {
     };
     mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
-    mockCreateAgentSessionLane.mockReturnValueOnce(oldCoordinatorLane);
     mockCreateCoordinator.mockReturnValueOnce(coordinator);
     mockEnsureProjectWorkspace.mockResolvedValueOnce("/workspaces/project-1");
     mockCreateManager.mockReturnValueOnce(manager);
@@ -139,8 +129,6 @@ describe("optimizer system", () => {
         taskRepository,
       }),
     );
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalled();
-
     const coordinatorOptions = mockCreateCoordinator.mock.calls[0]?.[1];
     await expect(coordinatorOptions.projectDirectory()).resolves.toBe(
       "/workspaces/project-1",
@@ -205,7 +193,6 @@ describe("optimizer system", () => {
     expect(system.optimizerRuntime.getStatus()).toMatchObject({
       running: false,
     });
-    expect(mockCreateAgentSessionLane).not.toHaveBeenCalled();
     expect(mockCreateManager).not.toHaveBeenCalled();
     expect(scheduler.start).not.toHaveBeenCalled();
 
