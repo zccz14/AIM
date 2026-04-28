@@ -37,44 +37,6 @@ const config: TaskSessionCoordinatorConfig = {
   baseUrl: "http://127.0.0.1:54321",
 };
 
-const createCompletedAssistantMessage = () => ({
-  info: {
-    cost: 0,
-    finish: "stop",
-    id: "assistant-1",
-    mode: "build",
-    modelID: "claude-sonnet-4-5",
-    parentID: "user-1",
-    path: { cwd: "/repo", root: "/repo" },
-    providerID: "anthropic",
-    role: "assistant",
-    sessionID: "session-1",
-    time: { created: 1_000, completed: 2_000 },
-    tokens: {
-      cache: { read: 0, write: 0 },
-      input: 0,
-      output: 0,
-      reasoning: 0,
-    },
-  },
-  parts: [
-    {
-      cost: 0,
-      id: "part-1",
-      messageID: "assistant-1",
-      reason: "stop",
-      sessionID: "session-1",
-      tokens: {
-        cache: { read: 0, write: 0 },
-        input: 0,
-        output: 0,
-        reasoning: 0,
-      },
-      type: "step-finish",
-    },
-  ],
-});
-
 describe("opencode sdk adapter", () => {
   afterEach(() => {
     vi.resetModules();
@@ -174,91 +136,14 @@ describe("opencode sdk adapter", () => {
     });
   });
 
-  it("reads session messages and returns idle for an explicitly completed assistant message", async () => {
-    const messages = vi.fn().mockResolvedValue({
-      data: [createCompletedAssistantMessage()],
-    });
-
-    mockCreateOpencodeClient.mockReturnValue({
-      session: {
-        create: vi.fn(),
-        messages,
-        promptAsync: vi.fn(),
-        status: vi.fn(),
-      },
-    });
-
-    const { createOpenCodeSdkAdapter } = await import(
-      "../src/opencode-sdk-adapter.js"
-    );
-    const adapter = createOpenCodeSdkAdapter(config);
-
-    await expect(
-      adapter.getSessionState("session-1", createTask()),
-    ).resolves.toBe("idle");
-    expect(messages).toHaveBeenCalledWith({
-      path: { id: "session-1" },
-      query: {
-        directory: "/repo",
-      },
-      throwOnError: true,
-    });
-  });
-
-  it("returns running when message payload is ambiguous instead of exposing raw data", async () => {
-    const messages = vi.fn().mockResolvedValue({
-      data: [{ info: { role: "assistant" }, parts: [] }],
-    });
-
-    mockCreateOpencodeClient.mockReturnValue({
-      session: {
-        create: vi.fn(),
-        messages,
-        promptAsync: vi.fn(),
-        status: vi.fn(),
-      },
-    });
-
-    const { createOpenCodeSdkAdapter } = await import(
-      "../src/opencode-sdk-adapter.js"
-    );
-    const adapter = createOpenCodeSdkAdapter(config);
-
-    await expect(
-      adapter.getSessionState("session-1", createTask()),
-    ).resolves.toBe("running");
-  });
-
-  it("rethrows SDK message fetch failures", async () => {
-    const sdkError = new Error("opencode unavailable");
-    const messages = vi.fn().mockRejectedValue(sdkError);
-
-    mockCreateOpencodeClient.mockReturnValue({
-      session: {
-        create: vi.fn(),
-        messages,
-        promptAsync: vi.fn(),
-        status: vi.fn(),
-      },
-    });
-
-    const { createOpenCodeSdkAdapter } = await import(
-      "../src/opencode-sdk-adapter.js"
-    );
-    const adapter = createOpenCodeSdkAdapter(config);
-
-    await expect(
-      adapter.getSessionState("session-1", createTask()),
-    ).rejects.toBe(sdkError);
-  });
-
-  it("sends continue prompts through the SDK without extra behavior", async () => {
+  it("sends explicit session prompts through the SDK without idle polling", async () => {
     const promptAsync = vi.fn().mockResolvedValue({});
+    const messages = vi.fn();
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
-        messages: vi.fn(),
+        messages,
         promptAsync,
         status: vi.fn(),
       },
@@ -270,21 +155,10 @@ describe("opencode sdk adapter", () => {
     const adapter = createOpenCodeSdkAdapter(config);
 
     await expect(
-      adapter.sendPrompt(
-        "session-1",
-        "Continue implementing task 2",
-        createTask({
-          developer_model_id: "gpt-5.5",
-          developer_provider_id: "openai",
-        }),
-      ),
+      adapter.sendSessionPrompt("session-1", "Continue implementing task 2"),
     ).resolves.toBeUndefined();
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
-        model: {
-          modelID: "gpt-5.5",
-          providerID: "openai",
-        },
         parts: [
           {
             text: "Continue implementing task 2",
@@ -295,5 +169,6 @@ describe("opencode sdk adapter", () => {
       path: { id: "session-1" },
       throwOnError: true,
     });
+    expect(messages).not.toHaveBeenCalled();
   });
 });

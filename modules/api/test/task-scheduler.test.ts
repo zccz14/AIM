@@ -12,8 +12,6 @@ const createCoordinator = () => ({
     [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     sessionId: "session-1",
   }),
-  getSessionState: vi.fn().mockResolvedValue("idle"),
-  sendContinuePrompt: vi.fn().mockResolvedValue(undefined),
 });
 
 const createOpenCodeSessionRepository = () => ({
@@ -122,8 +120,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "task_scheduler_task_skipped" }),
       "Task scheduler skipped task",
@@ -233,7 +230,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "task_session_continued" }),
     );
@@ -257,8 +254,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
     expect(logger.info).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "task_session_bound" }),
     );
@@ -290,8 +286,7 @@ describe("task scheduler", () => {
       continue_prompt: buildTaskSessionPrompt(boundTask),
       session_id: "session-1",
     });
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
   });
 
   it("leaves existing task sessions to the OpenCode plugin idle continuation flow", async () => {
@@ -307,8 +302,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
   it("releases created sessions when the scheduler is disposed", async () => {
@@ -344,7 +338,6 @@ describe("task scheduler", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
     };
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: repository,
@@ -353,7 +346,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
   it("does not send continue prompts to existing sessions", async () => {
@@ -369,14 +362,12 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
   it("does not send continue prompts across rounds while session state stays running", async () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -388,16 +379,12 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
-  it("sends only one continue prompt after state changes from running to idle", async () => {
+  it("does not send continue prompts after repeated scans of existing sessions", async () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
-    coordinator.getSessionState
-      .mockResolvedValueOnce("running")
-      .mockResolvedValueOnce("idle");
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -409,8 +396,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
   it("does not write a task spec markdown file before continuing an idle session even when worktree_path is set", async () => {
@@ -463,8 +449,7 @@ describe("task scheduler", () => {
     });
 
     await expect(scheduler.scanOnce()).resolves.toBeUndefined();
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
     expect(logger.error).not.toHaveBeenCalled();
   });
 
@@ -478,12 +463,7 @@ describe("task scheduler", () => {
       session_id: "session-2",
     });
     const events: string[] = [];
-    let releaseFirstSend: (() => void) | undefined;
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockImplementation(async (sessionId) => {
-      events.push(`state:${sessionId}`);
-      return "idle";
-    });
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -494,7 +474,6 @@ describe("task scheduler", () => {
 
     const scanPromise = scheduler.scanOnce();
 
-    releaseFirstSend?.();
     await scanPromise;
 
     expect(events).toEqual([]);
@@ -520,13 +499,6 @@ describe("task scheduler", () => {
         sessionId: `new-${task.task_id}`,
       };
     });
-    coordinator.getSessionState.mockImplementation(async (sessionId) => {
-      events.push(`state:${sessionId}`);
-      return "idle";
-    });
-    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
-      events.push(`send:${sessionId}`);
-    });
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -550,7 +522,7 @@ describe("task scheduler", () => {
     ]);
   });
 
-  it("continues later idle session tasks before starting earlier unassigned tasks", async () => {
+  it("does not continue later session tasks before starting earlier unassigned tasks", async () => {
     const unassignedTask = createTask({ task_id: "task-unassigned" });
     const existingSessionTask = createTask({
       session_id: "session-existing",
@@ -568,13 +540,6 @@ describe("task scheduler", () => {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
         sessionId: "session-new",
       };
-    });
-    coordinator.getSessionState.mockImplementation(async (sessionId) => {
-      events.push(`state:${sessionId}`);
-      return "idle";
-    });
-    coordinator.sendContinuePrompt.mockImplementation(async (sessionId) => {
-      events.push(`send:${sessionId}`);
     });
     const scheduler = createTaskScheduler({
       coordinator,
@@ -595,7 +560,6 @@ describe("task scheduler", () => {
       "create:task-unassigned",
       "assign:task-unassigned",
     ]);
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
   });
 
   it("orders dependency hints within session priority groups after a resolved task", async () => {
@@ -627,10 +591,6 @@ describe("task scheduler", () => {
     });
     const events: string[] = [];
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockImplementation(async (sessionId) => {
-      events.push(`state:${sessionId}`);
-      return "running";
-    });
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -674,8 +634,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(coordinator.createSession).not.toHaveBeenCalled();
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).not.toHaveBeenCalled();
   });
 
   it("does not log task_session_bound when another process assigned a different session", async () => {
@@ -705,8 +664,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
     expect(logger.info).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "task_session_continued" }),
     );
@@ -731,8 +689,7 @@ describe("task scheduler", () => {
 
     await scheduler.scanOnce();
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendContinuePrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
   });
 
   it("starts with an immediate scan and repeated start calls stay idempotent", async () => {
@@ -784,7 +741,6 @@ describe("task scheduler", () => {
         }),
     );
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {
@@ -815,7 +771,6 @@ describe("task scheduler", () => {
         }),
     );
     const coordinator = createCoordinator();
-    coordinator.getSessionState.mockResolvedValue("running");
     const scheduler = createTaskScheduler({
       coordinator,
       taskRepository: {

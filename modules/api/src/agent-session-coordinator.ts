@@ -1,9 +1,5 @@
 import { createOpencodeClient } from "@opencode-ai/sdk";
-import { classifySessionMessageState } from "./session-message-state.js";
-import type {
-  TaskSessionCoordinatorConfig,
-  TaskSessionState,
-} from "./task-session-coordinator.js";
+import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js";
 
 export type AgentSessionInput = {
   modelId: string;
@@ -17,10 +13,6 @@ export type AgentSessionCoordinator = {
   createSession(
     input: AgentSessionInput,
   ): Promise<AsyncDisposable & { sessionId: string }>;
-  getSessionState(
-    sessionId: string,
-    projectDirectory: string,
-  ): Promise<TaskSessionState>;
   sendPrompt(sessionId: string, input: AgentSessionInput): Promise<void>;
 };
 
@@ -49,18 +41,6 @@ export const createAgentSessionCoordinator = (
         },
         sessionId: session.data.id,
       };
-    },
-    async getSessionState(sessionId, projectDirectory) {
-      const response = await client.session.messages({
-        path: { id: sessionId },
-        query: { directory: projectDirectory },
-        throwOnError: true,
-      });
-
-      return classifySessionMessageState(response.data, {
-        idleFallbackTimeoutMs: config.sessionIdleFallbackTimeoutMs,
-        nowMs: Date.now(),
-      });
     },
     async sendPrompt(sessionId, input) {
       await client.session.promptAsync({

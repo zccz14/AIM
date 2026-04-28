@@ -264,22 +264,7 @@ export const createAgentSessionLane = (
         return;
       }
 
-      if (usesPersistedContinuation) {
-        return;
-      }
-
-      const state = await options.coordinator.getSessionState(
-        sessionId,
-        scanInput.projectDirectory,
-      );
-
-      if (state === "idle") {
-        await options.coordinator.sendPrompt(sessionId, scanInput);
-        options.logger?.info(
-          { lane: options.laneName, session_id: sessionId },
-          "Optimizer lane session continued",
-        );
-      }
+      return;
     })().finally(() => {
       scanPromise = null;
     });

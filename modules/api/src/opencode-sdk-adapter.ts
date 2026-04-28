@@ -1,19 +1,13 @@
 import type { OpenCodeModelsResponse, Task } from "@aim-ai/contract";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import { ensureProjectWorkspace } from "./project-workspace.js";
-import { classifySessionMessageState } from "./session-message-state.js";
 import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
-import type {
-  TaskSessionCoordinatorConfig,
-  TaskSessionState,
-} from "./task-session-coordinator.js";
+import type { TaskSessionCoordinatorConfig } from "./task-session-coordinator.js";
 
 export type OpenCodeSdkAdapter = {
   createSession(task: Task): Promise<AsyncDisposable & { id: string }>;
-  getSessionState(sessionId: string, task: Task): Promise<TaskSessionState>;
   listSupportedModels(): Promise<OpenCodeModelsResponse>;
   sendSessionPrompt(sessionId: string, prompt: string): Promise<void>;
-  sendPrompt(sessionId: string, prompt: string, task: Task): Promise<void>;
 };
 
 export const createOpenCodeSdkAdapter = (
@@ -57,19 +51,6 @@ export const createOpenCodeSdkAdapter = (
         id: session.data.id,
       };
     },
-    async getSessionState(sessionId, task) {
-      const workspacePath = await ensureProjectWorkspace(task);
-      const response = await client.session.messages({
-        path: { id: sessionId },
-        query: { directory: workspacePath },
-        throwOnError: true,
-      });
-
-      return classifySessionMessageState(response.data, {
-        idleFallbackTimeoutMs: config.sessionIdleFallbackTimeoutMs,
-        nowMs: Date.now(),
-      });
-    },
     async listSupportedModels() {
       const response = await client.provider.list({ throwOnError: true });
 
@@ -87,19 +68,6 @@ export const createOpenCodeSdkAdapter = (
     async sendSessionPrompt(sessionId, prompt) {
       await client.session.promptAsync({
         body: {
-          parts: [{ text: prompt, type: "text" }],
-        },
-        path: { id: sessionId },
-        throwOnError: true,
-      });
-    },
-    async sendPrompt(sessionId, prompt, task) {
-      await client.session.promptAsync({
-        body: {
-          model: {
-            modelID: task.developer_model_id,
-            providerID: task.developer_provider_id,
-          },
           parts: [{ text: prompt, type: "text" }],
         },
         path: { id: sessionId },

@@ -33,12 +33,8 @@ describe("task session coordinator default adapter", () => {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       id: "session-1",
     });
-    const getSessionState = vi.fn().mockResolvedValue("running");
-
     mockCreateOpenCodeSdkAdapter.mockReturnValue({
       createSession,
-      getSessionState,
-      sendPrompt: vi.fn(),
     });
 
     const { createTaskSessionCoordinator } = await import(
@@ -79,33 +75,5 @@ describe("task session coordinator default adapter", () => {
       providerId: "anthropic",
     });
     expect(createSession).toHaveBeenCalledOnce();
-
-    await expect(
-      coordinator.getSessionState("session-1", {
-        created_at: "2026-04-20T00:00:00.000Z",
-        dependencies: [],
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
-        done: false,
-        git_origin_url: "https://github.com/example/repo.git",
-        project_id: "00000000-0000-4000-8000-000000000001",
-        pull_request_url: null,
-        result: "",
-        session_id: null,
-        source_metadata: {},
-        status: "processing",
-        task_id: "task-1",
-        task_spec: "Implement the OpenCode SDK coordinator.",
-        title: "OpenCode SDK coordinator",
-        updated_at: "2026-04-20T00:00:00.000Z",
-        worktree_path: "/repo/.worktrees/task-1",
-      }),
-    ).resolves.toBe("running");
-    expect(getSessionState).toHaveBeenCalledWith(
-      "session-1",
-      expect.objectContaining({
-        project_id: "00000000-0000-4000-8000-000000000001",
-      }),
-    );
   });
 });

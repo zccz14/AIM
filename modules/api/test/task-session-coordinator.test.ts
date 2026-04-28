@@ -47,8 +47,6 @@ describe("task session coordinator", () => {
   it("returns a disposable session with the injected session id", async () => {
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn().mockResolvedValue(createAdapterSession()),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(),
     });
 
     const session = await coordinator.createSession(createTask());
@@ -61,8 +59,6 @@ describe("task session coordinator", () => {
     const adapterSession = createAdapterSession();
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn().mockResolvedValue(adapterSession),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(),
     });
 
     const session = await coordinator.createSession(createTask());
@@ -75,8 +71,6 @@ describe("task session coordinator", () => {
     const createSession = vi.fn().mockResolvedValue(createAdapterSession());
     const coordinator = createTaskSessionCoordinator(config, {
       createSession,
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(),
     });
 
     await coordinator.createSession(
@@ -98,8 +92,6 @@ describe("task session coordinator", () => {
     const adapterError = new Error("adapter blew up");
     const coordinator = createTaskSessionCoordinator(config, {
       createSession: vi.fn().mockRejectedValue(adapterError),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(),
     });
 
     await expect(coordinator.createSession(createTask())).rejects.toMatchObject(
@@ -116,8 +108,6 @@ describe("task session coordinator", () => {
       createSession: vi.fn(() => {
         throw adapterError;
       }),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(),
     });
 
     await expect(coordinator.createSession(createTask())).rejects.toMatchObject(
@@ -126,126 +116,5 @@ describe("task session coordinator", () => {
         message: "Task session coordinator failed during createSession",
       },
     );
-  });
-
-  it("passes through idle session state from the adapter", async () => {
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", createTask()),
-    ).resolves.toBe("idle");
-  });
-
-  it("passes through running session state from the adapter", async () => {
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockResolvedValue("running"),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", createTask()),
-    ).resolves.toBe("running");
-  });
-
-  it("wraps adapter getSessionState failures with coordinator context", async () => {
-    const adapterError = new Error("adapter blew up");
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn().mockRejectedValue(adapterError),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", createTask()),
-    ).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during getSessionState",
-    });
-  });
-
-  it("wraps synchronous getSessionState throws with coordinator context", async () => {
-    const adapterError = new Error("sync adapter blew up");
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn(() => {
-        throw adapterError;
-      }),
-      sendPrompt: vi.fn(),
-    });
-
-    await expect(
-      coordinator.getSessionState("session-1", createTask()),
-    ).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during getSessionState",
-    });
-  });
-  it("delegates continue prompts and resolves without a payload", async () => {
-    const sendPrompt = vi.fn().mockResolvedValue({ ok: true });
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn(),
-      sendPrompt,
-    });
-
-    await expect(
-      coordinator.sendContinuePrompt(
-        "session-1",
-        "Continue implementing task 2",
-        createTask(),
-      ),
-    ).resolves.toBeUndefined();
-    expect(sendPrompt).toHaveBeenCalledWith(
-      "session-1",
-      "Continue implementing task 2",
-      expect.objectContaining({ task_id: "task-1" }),
-    );
-  });
-
-  it("wraps adapter sendContinuePrompt failures with coordinator context", async () => {
-    const adapterError = new Error("adapter blew up");
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn().mockRejectedValue(adapterError),
-    });
-
-    await expect(
-      coordinator.sendContinuePrompt(
-        "session-1",
-        "Continue implementing task 2",
-        createTask(),
-      ),
-    ).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during sendContinuePrompt",
-    });
-  });
-
-  it("wraps synchronous sendPrompt throws with coordinator context", async () => {
-    const adapterError = new Error("sync adapter blew up");
-    const coordinator = createTaskSessionCoordinator(config, {
-      createSession: vi.fn(),
-      getSessionState: vi.fn(),
-      sendPrompt: vi.fn(() => {
-        throw adapterError;
-      }),
-    });
-
-    await expect(
-      coordinator.sendContinuePrompt(
-        "session-1",
-        "Continue implementing task 2",
-        createTask(),
-      ),
-    ).rejects.toMatchObject({
-      cause: adapterError,
-      message: "Task session coordinator failed during sendContinuePrompt",
-    });
   });
 });

@@ -3,12 +3,7 @@ import type { Task } from "@aim-ai/contract";
 import type { ApiLogger } from "./api-logger.js";
 import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
-import type {
-  TaskSessionCoordinator,
-  TaskSessionState,
-} from "./task-session-coordinator.js";
-
-export type SessionState = TaskSessionState;
+import type { TaskSessionCoordinator } from "./task-session-coordinator.js";
 
 type SchedulerTaskRepository = {
   assignSessionIfUnassigned(
