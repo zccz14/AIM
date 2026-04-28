@@ -202,6 +202,7 @@ export type CreateTaskBatchOperation = {
 export type DeleteTaskBatchOperation = {
   type: "delete";
   task_id: string;
+  delete_reason: string;
 };
 
 export type TaskBatchOperation =

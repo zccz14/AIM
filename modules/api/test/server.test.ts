@@ -819,6 +819,15 @@ describe("server startup", () => {
       "validation evidence cannot replace dependency or conflict planning evidence",
     );
     expect(coordinatorLaneConfig?.prompt).toContain(
+      "current_task_pool_coverage, dependency_rationale, conflict_duplicate_assessment, and unfinished_task_non_conflict_rationale",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "delete_reason with stale/conflict/baseline absorbed rationale and worktree/PR classification",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
+      "keep/noop decisions must retain an explicit rationale",
+    );
+    expect(coordinatorLaneConfig?.prompt).toContain(
       "blocking assumptions or failed validation reason",
     );
     expect(coordinatorLaneConfig?.prompt).toContain(

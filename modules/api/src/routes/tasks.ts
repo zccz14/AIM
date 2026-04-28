@@ -166,6 +166,17 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
 
   for (const operation of result.data.operations) {
     if (operation.type === "create") {
+      const planningError = normalizeCoordinatorPlanningEvidence(
+        operation.task,
+      );
+
+      if (planningError) {
+        return {
+          error: buildValidationError(planningError),
+          ok: false as const,
+        };
+      }
+
       const validationError = normalizeTaskSpecValidation(operation.task);
 
       if (validationError) {
@@ -174,6 +185,17 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
           ok: false as const,
         };
       }
+
+      continue;
+    }
+
+    if (!getNonEmptyString(operation, "delete_reason")) {
+      return {
+        error: buildValidationError(
+          "Task batch delete requires delete_reason planning evidence explaining stale/conflict/baseline absorbed rationale and worktree/PR classification",
+        ),
+        ok: false as const,
+      };
     }
   }
 
@@ -270,6 +292,35 @@ const normalizeTaskSpecValidation = (
       "failed Task Spec validation cannot enter POST /tasks/batch",
       taskSpecValidation.failure_reason,
     );
+  }
+
+  return null;
+};
+
+const normalizeCoordinatorPlanningEvidence = (
+  task: Extract<
+    ParsedCreateTaskBatchRequest["operations"][number],
+    { type: "create" }
+  >["task"],
+) => {
+  const sourceMetadata = task.source_metadata;
+
+  if (!sourceMetadata) {
+    return "Task batch create requires source_metadata Coordinator planning evidence independent from task_spec_validation";
+  }
+
+  const requiredFields = [
+    "current_task_pool_coverage",
+    "dependency_rationale",
+    "conflict_duplicate_assessment",
+    "unfinished_task_non_conflict_rationale",
+  ];
+  const missingFields = requiredFields.filter(
+    (field) => !getNonEmptyString(sourceMetadata, field),
+  );
+
+  if (missingFields.length > 0) {
+    return `Task batch create requires source_metadata Coordinator planning evidence independent from task_spec_validation: ${missingFields.join(", ")}`;
   }
 
   return null;
