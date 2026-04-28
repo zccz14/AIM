@@ -9,6 +9,7 @@ import {
   getHealth,
   getProjectOptimizerStatus,
   getTaskById,
+  getTaskPullRequestStatusById,
   listDirectorClarifications,
   listOpenCodeModels,
   listProjects,
@@ -42,6 +43,8 @@ import type {
   GetProjectOptimizerStatusResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
+  GetTaskPullRequestStatusByIdError,
+  GetTaskPullRequestStatusByIdResponse,
   HealthError,
   HealthResponse,
   ListDirectorClarificationsError,
@@ -63,6 +66,7 @@ import type {
   Task,
   TaskBatchResponse,
   TaskListResponse,
+  TaskPullRequestStatusResponse,
   TaskResultRequest,
 } from "../generated/types.js";
 import { schemas } from "../generated/zod.js";
@@ -119,6 +123,9 @@ export type ContractClient = {
   createTaskBatch(input: CreateTaskBatchRequest): Promise<TaskBatchResponse>;
   createTask(input: CreateTaskRequest): Promise<Task>;
   getTaskById(taskId: string): Promise<Task>;
+  getTaskPullRequestStatusById(
+    taskId: string,
+  ): Promise<TaskPullRequestStatusResponse>;
   patchTaskById(taskId: string, input: PatchTaskRequest): Promise<Task>;
   deleteTaskById(taskId: string): Promise<void>;
   resolveTaskById(taskId: string, input: TaskResultRequest): Promise<void>;
@@ -139,6 +146,8 @@ const directorClarificationListResponseSchema =
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskBatchResponseSchema = schemas.TaskBatchResponse;
+const taskPullRequestStatusResponseSchema =
+  schemas.TaskPullRequestStatusResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
 const taskErrorSchema = schemas.ErrorResponse;
 
@@ -491,6 +500,31 @@ export const createContractClient = ({
       return taskSchema.parse(
         result.data satisfies GetTaskByIdResponse,
       ) satisfies Task;
+    },
+
+    async getTaskPullRequestStatusById(taskId) {
+      const result = await getTaskPullRequestStatusById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          taskId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies GetTaskPullRequestStatusByIdError,
+          ),
+        );
+      }
+
+      return taskPullRequestStatusResponseSchema.parse(
+        result.data satisfies GetTaskPullRequestStatusByIdResponse,
+      ) satisfies TaskPullRequestStatusResponse;
     },
 
     async patchTaskById(taskId, input) {

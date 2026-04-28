@@ -78,6 +78,14 @@ const startTaskServer = async () => {
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
+  const taskPullRequestStatus = {
+    category: "waiting_checks",
+    summary: "Pull request checks are still running.",
+    recovery_action: "Wait for checks to complete.",
+    task_status: "processing",
+    task_done: false,
+    pull_request_url: "https://example.test/pr/2",
+  };
   const server = createServer(async (request, response) => {
     const chunks: Buffer[] = [];
 
@@ -121,6 +129,15 @@ const startTaskServer = async () => {
     if (request.method === "GET" && path === "/api/tasks/task-1") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(task));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === "/api/tasks/task-1/pull_request_status"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(taskPullRequestStatus));
       return;
     }
 
@@ -316,6 +333,38 @@ describe("task cli command baseline", () => {
       data: {
         task_id: "task-1",
         task_spec: "write spec",
+      },
+    });
+  });
+
+  it("registers task pr-status and prints follow-up status", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "task",
+      "pr-status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--task-id",
+      "task-1",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]?.path).toBe(
+      "/api/tasks/task-1/pull_request_status",
+    );
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        category: "waiting_checks",
+        summary: "Pull request checks are still running.",
+        recovery_action: "Wait for checks to complete.",
+        task_status: "processing",
+        task_done: false,
+        pull_request_url: "https://example.test/pr/2",
       },
     });
   });
@@ -625,6 +674,7 @@ describe("task cli command baseline", () => {
     expect(indexSource).toContain('"task:get"');
     expect(indexSource).toContain('"task:update"');
     expect(indexSource).toContain('"task:delete"');
+    expect(indexSource).toContain('"task:pr-status"');
     expect(indexSource).not.toContain("manager-report");
     expect(indexSource).not.toContain("contract/generated");
     expect(helperSource).toContain("@aim-ai/contract");
