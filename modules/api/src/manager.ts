@@ -39,20 +39,19 @@ type ManagerProject = Pick<
 
 type ManagerSessionCreator = {
   createSession(input: {
-    modelId: string;
-    projectDirectory: string;
+    directory: string;
+    model: { modelID: string; providerID: string };
     prompt: string;
-    providerId: string;
     title: string;
   }): Promise<AsyncDisposable & { sessionId: string }>;
 };
 
 type CreateManagerOptions = {
-  coordinator: ManagerSessionCreator;
   dimensionRepository: DimensionRepository;
   logger?: ApiLogger;
   managerStateRepository: ManagerStateRepository;
   project: ManagerProject;
+  sessionManager: ManagerSessionCreator;
 };
 
 type ManagerStatus = {
@@ -107,17 +106,18 @@ Evaluate only these dimension_id values for this baseline commit: ${quoteDimensi
 Do not evaluate dimensions outside that explicit list.`;
 
 export const createManager = ({
-  coordinator,
   dimensionRepository,
   logger,
   managerStateRepository,
   project,
+  sessionManager,
 }: CreateManagerOptions): Manager => {
   const stack = new AsyncDisposableStack();
   const sessions = new AsyncDisposableStack();
   stack.use(sessions);
 
   let disposed = false;
+  let disposePromise: Promise<void> | null = null;
   let running = true;
   let lastError: null | string = null;
   let lastScanAt: null | string = null;
@@ -232,15 +232,17 @@ export const createManager = ({
     );
 
     try {
-      const session = await coordinator.createSession({
-        modelId: project.global_model_id,
-        projectDirectory,
+      const session = await sessionManager.createSession({
+        directory: projectDirectory,
+        model: {
+          modelID: project.global_model_id,
+          providerID: project.global_provider_id,
+        },
         prompt: evaluationPrompt(
           project,
           commitSha,
           canonicalMissingDimensionIds,
         ),
-        providerId: project.global_provider_id,
         title: `AIM Manager evaluation (${project.id})`,
       });
       sessions.use(session);
@@ -346,7 +348,8 @@ export const createManager = ({
 
   return {
     async [Symbol.asyncDispose]() {
-      await stack[Symbol.asyncDispose]();
+      disposePromise ??= stack[Symbol.asyncDispose]();
+      await disposePromise;
     },
     getStatus() {
       return { last_error: lastError, last_scan_at: lastScanAt, running };

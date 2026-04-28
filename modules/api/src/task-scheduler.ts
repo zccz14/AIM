@@ -1,10 +1,17 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import { ensureProjectWorkspace } from "./project-workspace.js";
+import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { buildTaskLogFields } from "./task-log-fields.js";
 
 type TaskSessionCreator = {
-  createSession(task: Task): Promise<AsyncDisposable & { sessionId: string }>;
+  createSession(input: {
+    directory: string;
+    model: { modelID: string; providerID: string };
+    prompt: string;
+    title: string;
+  }): Promise<AsyncDisposable & { sessionId: string }>;
 };
 
 type SchedulerTaskRepository = {
@@ -16,8 +23,8 @@ type SchedulerTaskRepository = {
 };
 
 type CreateTaskSchedulerOptions = {
-  coordinator: TaskSessionCreator;
   logger?: ApiLogger;
+  sessionManager: TaskSessionCreator;
   taskRepository: SchedulerTaskRepository;
 };
 
@@ -143,7 +150,16 @@ export const createTaskScheduler = (options: CreateTaskSchedulerOptions) => {
       let boundInRound = false;
 
       if (!latestTask.session_id) {
-        createdSession = await options.coordinator.createSession(latestTask);
+        const directory = await ensureProjectWorkspace(latestTask);
+        createdSession = await options.sessionManager.createSession({
+          directory,
+          model: {
+            modelID: latestTask.developer_model_id,
+            providerID: latestTask.developer_provider_id,
+          },
+          prompt: buildTaskSessionPrompt(latestTask),
+          title: `AIM Developer: ${latestTask.title}`,
+        });
         const { sessionId } = createdSession;
         const assignedTask =
           await options.taskRepository.assignSessionIfUnassigned(

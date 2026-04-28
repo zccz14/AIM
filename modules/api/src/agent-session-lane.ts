@@ -17,9 +17,12 @@ type ContinuationSessionRepository = {
 };
 
 type AgentSessionCreator = {
-  createSession(
-    input: AgentSessionLaneInput,
-  ): Promise<AsyncDisposable & { sessionId: string }>;
+  createSession(input: {
+    directory: string;
+    model: { modelID: string; providerID: string };
+    prompt: string;
+    title: string;
+  }): Promise<AsyncDisposable & { sessionId: string }>;
 };
 
 type OptimizerLaneStateRepository = {
@@ -244,7 +247,15 @@ export const createAgentSessionLane = (
       }
 
       if (!sessionId) {
-        session = await options.coordinator.createSession(scanInput);
+        session = await options.coordinator.createSession({
+          directory: scanInput.projectDirectory,
+          model: {
+            modelID: scanInput.modelId,
+            providerID: scanInput.providerId,
+          },
+          prompt: scanInput.prompt,
+          title: scanInput.title,
+        });
         sessionId = session.sessionId;
         if (usesPersistedContinuation) {
           persistLaneState({

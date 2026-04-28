@@ -2,6 +2,7 @@ import type { Project, Task } from "@aim-ai/contract";
 
 import { createAgentSessionLane } from "./agent-session-lane.js";
 import type { ApiLogger } from "./api-logger.js";
+import { createManager } from "./manager.js";
 import type {
   ManagerState,
   ManagerStateInput,
@@ -16,7 +17,6 @@ import {
   type OptimizerRuntime,
 } from "./optimizer-runtime.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
-import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 import { createTaskScheduler } from "./task-scheduler.js";
 
 const coordinatorPrompt = `FOLLOW the aim-coordinator-guide SKILL.
@@ -53,6 +53,7 @@ type ContinuationSession = {
 };
 
 type ContinuationSessionRepository = {
+  [Symbol.asyncDispose](): Promise<void>;
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
@@ -121,15 +122,19 @@ Project scope: project_id "${project.id}". Only act on this configured Project a
 export const createOptimizerSystem = ({
   continuationSessionRepository,
   coordinatorConfig,
+  dimensionRepository,
   intervalMs,
   laneStateRepository,
   logger,
+  managerStateRepository,
   taskRepository,
 }: CreateOptimizerSystemOptions): OptimizerSystem => {
   const stack = new AsyncDisposableStack();
   const configuredProjects = taskRepository
     .listProjects()
     .filter(isConfiguredProject);
+  const enabledConfiguredProjects =
+    configuredProjects.filter(isOptimizerEnabled);
   const openCodeSessionManager = stack.use(
     createOpenCodeSessionManager({
       baseUrl: coordinatorConfig.baseUrl,
@@ -137,63 +142,56 @@ export const createOptimizerSystem = ({
     }),
   );
   const scheduler = createTaskScheduler({
-    coordinator: {
-      async createSession(task) {
-        const directory = await ensureProjectWorkspace(task);
-
-        return openCodeSessionManager.createSession({
-          directory,
-          model: {
-            modelID: task.developer_model_id,
-            providerID: task.developer_provider_id,
-          },
-          prompt: buildTaskSessionPrompt(task),
-          title: `AIM Developer: ${task.title}`,
-        });
-      },
-    },
     logger,
+    sessionManager: openCodeSessionManager,
     taskRepository,
   });
-  const agentCoordinator = {
-    createSession(input: {
-      modelId: string;
-      projectDirectory: string;
-      prompt: string;
-      providerId: string;
-      title: string;
-    }) {
-      return openCodeSessionManager.createSession({
-        directory: input.projectDirectory,
-        model: { modelID: input.modelId, providerID: input.providerId },
-        prompt: input.prompt,
-        title: input.title,
-      });
-    },
-  };
-  const coordinatorLanes = configuredProjects.map((project) =>
-    createAgentSessionLane({
-      continuationSessionRepository,
-      coordinator: agentCoordinator,
-      laneName: "coordinator_task_pool",
-      laneStateRepository,
-      logger,
-      modelId: project.global_model_id,
-      projectDirectory: () =>
-        ensureProjectWorkspace({
-          git_origin_url: project.git_origin_url,
-          project_id: project.id,
+  const managerLanes: ReturnType<typeof createManager>[] = [];
+  const coordinatorLanes: ReturnType<typeof createAgentSessionLane>[] = [];
+
+  for (const project of enabledConfiguredProjects) {
+    managerLanes.push(
+      stack.use(
+        createManager({
+          dimensionRepository,
+          logger,
+          managerStateRepository,
+          project,
+          sessionManager: openCodeSessionManager,
         }),
-      prompt: createProjectScopedPrompt(coordinatorPrompt, project),
-      providerId: project.global_provider_id,
-      projectId: project.id,
-      title: `AIM Coordinator task-pool lane (${project.id})`,
-    }),
-  );
+      ),
+    );
+    coordinatorLanes.push(
+      stack.use(
+        createAgentSessionLane({
+          continuationSessionRepository,
+          coordinator: openCodeSessionManager,
+          laneName: "coordinator_task_pool",
+          laneStateRepository,
+          logger,
+          modelId: project.global_model_id,
+          projectDirectory: () =>
+            ensureProjectWorkspace({
+              git_origin_url: project.git_origin_url,
+              project_id: project.id,
+            }),
+          prompt: createProjectScopedPrompt(coordinatorPrompt, project),
+          providerId: project.global_provider_id,
+          projectId: project.id,
+          title: `AIM Coordinator task-pool lane (${project.id})`,
+        }),
+      ),
+    );
+  }
+
   const optimizerRuntime = stack.use(
     createOptimizerRuntime({
       intervalMs,
       lanes: [
+        ...managerLanes.map((lane) => ({
+          lane,
+          name: "manager_evaluation" as const,
+        })),
         ...coordinatorLanes.map((lane) => ({
           lane,
           name: "coordinator_task_pool" as const,
@@ -204,7 +202,7 @@ export const createOptimizerSystem = ({
     }),
   );
 
-  if (configuredProjects.some(isOptimizerEnabled)) {
+  if (enabledConfiguredProjects.length > 0) {
     optimizerRuntime.start();
   }
 

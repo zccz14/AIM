@@ -553,7 +553,7 @@ describe("agent session lane", () => {
 
     expect(resolveProjectDirectory).toHaveBeenCalledTimes(2);
     expect(coordinator.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ projectDirectory: "/repo/first" }),
+      expect.objectContaining({ directory: "/repo/first" }),
     );
     expect(coordinator.createSession).toHaveBeenCalledOnce();
     expect(lane.getStatus()).toMatchObject({ last_error: null });
