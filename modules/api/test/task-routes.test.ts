@@ -1823,6 +1823,182 @@ describe("task routes", () => {
     });
   });
 
+  it("classifies processing tasks without pull requests by assignment, session, and worktree state", async () => {
+    const projectRoot = await useProjectRoot(
+      "pull-request-status-no-pr-states",
+    );
+
+    const app = createTaskRouteApp();
+
+    const unassignedResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Waiting task",
+        task_spec: "wait for assignment",
+        project_id: mainProjectId,
+        status: "processing",
+      }),
+    });
+
+    expect(unassignedResponse.status).toBe(201);
+
+    const unassignedTask = await unassignedResponse.json();
+    const unassignedStatusResponse = await app.request(
+      resolveTaskPullRequestStatusPath(unassignedTask.task_id),
+    );
+
+    expect(unassignedStatusResponse.status).toBe(200);
+    await expect(unassignedStatusResponse.json()).resolves.toMatchObject({
+      category: "waiting_for_assignment",
+      pull_request_url: null,
+      task_status: "processing",
+      recovery_action:
+        "Assign a developer session before expecting PR follow-up; no PR exists yet.",
+      summary: "Task is processing without an assigned OpenCode session or PR.",
+    });
+
+    const staleSessionResponse = await app.request(
+      contractModule.openCodeSessionsPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: "session-stale-no-pr",
+          continue_prompt: "Continue the stale no-PR task.",
+        }),
+      },
+    );
+
+    expect(staleSessionResponse.status).toBe(201);
+
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    database
+      .prepare(
+        "UPDATE opencode_sessions SET updated_at = ? WHERE session_id = ?",
+      )
+      .run("2020-01-01T00:00:00.000Z", "session-stale-no-pr");
+    database.close();
+
+    const staleTaskResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Stale session task",
+        task_spec: "recover stale session",
+        project_id: mainProjectId,
+        session_id: "session-stale-no-pr",
+        status: "processing",
+      }),
+    });
+
+    expect(staleTaskResponse.status).toBe(201);
+
+    const staleTask = await staleTaskResponse.json();
+    const staleStatusResponse = await app.request(
+      resolveTaskPullRequestStatusPath(staleTask.task_id),
+    );
+
+    expect(staleStatusResponse.status).toBe(200);
+    await expect(staleStatusResponse.json()).resolves.toMatchObject({
+      category: "session_pending_stale",
+      recovery_action:
+        "Continue or restart the stale OpenCode session, then create and record a PR when work is ready.",
+      summary:
+        "Task has a stale pending OpenCode session and no pull_request_url.",
+    });
+
+    const worktreePath =
+      "/Users/alice/Projects/AIM/.worktrees/sensitive-task-worktree";
+    const worktreeTaskResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Worktree task",
+        task_spec: "continue worktree task",
+        project_id: mainProjectId,
+        session_id: "missing-session-no-pr",
+        worktree_path: worktreePath,
+        status: "processing",
+      }),
+    });
+
+    expect(worktreeTaskResponse.status).toBe(201);
+
+    const worktreeTask = await worktreeTaskResponse.json();
+    const worktreeStatusResponse = await app.request(
+      resolveTaskPullRequestStatusPath(worktreeTask.task_id),
+    );
+
+    expect(worktreeStatusResponse.status).toBe(200);
+
+    const worktreePayload = await worktreeStatusResponse.json();
+
+    expect(worktreePayload).toMatchObject({
+      category: "worktree_created_no_pr",
+      recovery_action:
+        "Inspect the task worktree, continue development there if still valid, then create and record pull_request_url.",
+      summary: "Task has a recorded worktree but no pull_request_url.",
+    });
+    expect(worktreePayload.summary).not.toContain(worktreePath);
+    expect(worktreePayload.recovery_action).not.toContain(worktreePath);
+  });
+
+  it("classifies active no-PR processing tasks as needing developer continuation", async () => {
+    await useProjectRoot("pull-request-status-no-pr-active-session");
+
+    const app = createTaskRouteApp();
+    const sessionResponse = await app.request(
+      contractModule.openCodeSessionsPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: "session-active-no-pr",
+          continue_prompt: "Continue active task.",
+        }),
+      },
+    );
+
+    expect(sessionResponse.status).toBe(201);
+
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "Active session task",
+        task_spec: "continue active session",
+        project_id: mainProjectId,
+        session_id: "session-active-no-pr",
+        status: "processing",
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const response = await app.request(
+      resolveTaskPullRequestStatusPath(createdTask.task_id),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      category: "needs_developer_continue",
+      recovery_action:
+        "Continue the assigned OpenCode session until work is ready for PR, then record pull_request_url.",
+      summary:
+        "Task has an active assigned OpenCode session and no pull_request_url.",
+    });
+  });
+
   it("updates dependencies through its dedicated field endpoint with patch validation", async () => {
     await useProjectRoot("puts-dependencies");
 
