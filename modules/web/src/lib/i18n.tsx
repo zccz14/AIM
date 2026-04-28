@@ -211,6 +211,9 @@ const messages = {
     projectOptimizerDescription:
       "Persist whether this project should start AIM optimizer lanes.",
     projectOptimizerRecentEvent: "Recent event",
+    projectOptimizerRecentEvents: "Recent lane events",
+    projectOptimizerRecentEventsEmpty:
+      "No recent optimizer lane events recorded.",
     projectOptimizerRecentScan: "Recent scan",
     projectOptimizerRuntime: "Runtime",
     projectOptimizerRuntimeActive: "Runtime active",
@@ -495,6 +498,8 @@ const messages = {
     projectOptimizerConfigEnabled: "配置已启用",
     projectOptimizerDescription: "持久化此项目是否应启动 AIM optimizer lanes。",
     projectOptimizerRecentEvent: "最近事件",
+    projectOptimizerRecentEvents: "最近 lane 事件",
+    projectOptimizerRecentEventsEmpty: "尚未记录最近 optimizer lane 事件。",
     projectOptimizerRecentScan: "最近扫描",
     projectOptimizerRuntime: "运行态",
     projectOptimizerRuntimeActive: "运行态活跃",

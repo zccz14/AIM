@@ -3,6 +3,7 @@ import type { Task } from "@aim-ai/contract";
 import type { ApiLogger } from "./api-logger.js";
 import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
+import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import {
   type BaselineFacts,
@@ -27,6 +28,7 @@ type DeveloperTaskRepository = {
 type CreateDeveloperOptions = {
   baselineRepository?: BaselineRepository;
   logger?: ApiLogger;
+  onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   sessionManager: DeveloperSessionCreator;
   taskRepository: DeveloperTaskRepository;
 };
@@ -82,6 +84,7 @@ const sleep = (milliseconds: number, signal: AbortSignal) =>
 export const createDeveloper = ({
   baselineRepository = defaultBaselineRepository,
   logger,
+  onLaneEvent,
   sessionManager,
   taskRepository,
 }: CreateDeveloperOptions): AsyncDisposable => {
@@ -93,6 +96,13 @@ export const createDeveloper = ({
     let createdSession: ManagedDeveloperSession | null = null;
 
     try {
+      onLaneEvent?.({
+        event: "start",
+        lane_name: "developer",
+        project_id: task.project_id,
+        summary: `Developer lane started session assignment for task ${task.task_id}.`,
+        task_id: task.task_id,
+      });
       const directory = await ensureProjectWorkspace(task);
       const [baselineFacts, rejectedTasks] = await Promise.all([
         baselineRepository.getLatestBaselineFacts(directory),
@@ -125,11 +135,27 @@ export const createDeveloper = ({
         !assignedTask.done
       ) {
         activeSessions.set(createdSession.sessionId, createdSession);
+        onLaneEvent?.({
+          event: "success",
+          lane_name: "developer",
+          project_id: task.project_id,
+          session_id: createdSession.sessionId,
+          summary: `Developer lane assigned task ${task.task_id} to session ${createdSession.sessionId}.`,
+          task_id: task.task_id,
+        });
         createdSession = null;
         return;
       }
 
       await createdSession[Symbol.asyncDispose]();
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: createdSession.sessionId,
+        summary: `Developer lane skipped task ${task.task_id}: another session already claimed it or the task finished.`,
+        task_id: task.task_id,
+      });
       createdSession = null;
     } catch (error) {
       if (createdSession) {
@@ -145,6 +171,18 @@ export const createDeveloper = ({
     const unassignedTasks = tasks.filter(
       (task) => !task.done && task.session_id === null,
     );
+    const activeProjectIds = [...new Set(tasks.map((task) => task.project_id))];
+
+    if (unassignedTasks.length === 0) {
+      for (const projectId of activeProjectIds) {
+        onLaneEvent?.({
+          event: "idle",
+          lane_name: "developer",
+          project_id: projectId,
+          summary: "Developer lane idle: no unassigned unfinished tasks.",
+        });
+      }
+    }
 
     for (const task of unassignedTasks) {
       if (abortController.signal.aborted) {
@@ -163,6 +201,13 @@ export const createDeveloper = ({
           },
           `Developer failed while assigning task ${task.task_id}`,
         );
+        onLaneEvent?.({
+          event: "failure",
+          lane_name: "developer",
+          project_id: task.project_id,
+          summary: `Developer lane failed for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry assignment.`,
+          task_id: task.task_id,
+        });
       }
     }
   };

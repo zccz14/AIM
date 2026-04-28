@@ -16,6 +16,7 @@ import type {
   ManagerStateInput,
 } from "./manager-state-repository.js";
 import { createOpenCodeSessionManager } from "./opencode-session-manager.js";
+import { createOptimizerLaneEventRecorder } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
@@ -82,7 +83,7 @@ type ManagerStateRepository = {
 
 export type OptimizerProjectStatus = Pick<
   ProjectOptimizerStatusResponse,
-  "blocker_summary"
+  "blocker_summary" | "recent_events"
 >;
 
 export type OptimizerSystem = AsyncDisposable & {
@@ -136,6 +137,7 @@ export const createOptimizerSystem = async ({
   const enabledConfiguredProjects =
     configuredProjects.filter(isOptimizerEnabled);
   const managersByProjectId = new Map<string, Manager>();
+  const laneEvents = createOptimizerLaneEventRecorder();
   const startupContext = {
     configured_project_count: configuredProjects.length,
     enabled_configured_project_count: enabledConfiguredProjects.length,
@@ -168,6 +170,7 @@ export const createOptimizerSystem = async ({
     stack.use(
       createDeveloper({
         logger,
+        onLaneEvent: laneEvents.record,
         sessionManager: openCodeSessionManager,
         taskRepository,
       }),
@@ -198,6 +201,7 @@ export const createOptimizerSystem = async ({
           dimensionRepository,
           logger,
           managerStateRepository,
+          onLaneEvent: laneEvents.record,
           project,
           sessionManager: openCodeSessionManager,
         }),
@@ -221,6 +225,7 @@ export const createOptimizerSystem = async ({
         createCoordinator(project.id, {
           continuationSessionRepository,
           dimensionRepository,
+          onLaneEvent: laneEvents.record,
           projectDirectory: () =>
             ensureProjectWorkspace({
               git_origin_url: project.git_origin_url,
@@ -256,6 +261,7 @@ export const createOptimizerSystem = async ({
       if (!manager) {
         return {
           blocker_summary: "Optimizer lane inactive",
+          recent_events: laneEvents.list(projectId),
         };
       }
 
@@ -269,6 +275,7 @@ export const createOptimizerSystem = async ({
             : status.running
               ? "Manager lane active; no recent scan yet"
               : "Manager lane inactive",
+        recent_events: laneEvents.list(projectId),
       };
     },
   };

@@ -160,6 +160,7 @@ export const ProjectDetailPage = ({
       ? t("projectOptimizerRuntimeActive")
       : t("projectOptimizerRuntimeInactive")
     : t("projectOptimizerRuntimeUnknown");
+  const recentOptimizerEvents = optimizerStatus?.recent_events ?? [];
 
   return (
     <section className={pageStack}>
@@ -300,6 +301,48 @@ export const ProjectDetailPage = ({
             <div className={panelStack}>
               <p className={eyebrow}>{t("projectOptimizerBlocker")}</p>
               <strong>{optimizerStatus?.blocker_summary ?? t("none")}</strong>
+            </div>
+            <div className={`${panelStack} md:col-span-2`}>
+              <p className={eyebrow}>{t("projectOptimizerRecentEvents")}</p>
+              {recentOptimizerEvents.length > 0 ? (
+                <div className={taskList}>
+                  {recentOptimizerEvents.map((event) => (
+                    <div
+                      className={taskListItem}
+                      key={`${event.lane_name}-${event.timestamp}-${event.summary}`}
+                    >
+                      <div className={panelStack}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant={
+                              event.event === "failure"
+                                ? "destructive"
+                                : event.event === "success"
+                                  ? "default"
+                                  : "outline"
+                            }
+                          >
+                            {`${event.lane_name} ${event.event}`}
+                          </Badge>
+                          <span className={tableMeta}>{event.timestamp}</span>
+                        </div>
+                        <p className={sectionCopy}>{event.summary}</p>
+                        {event.task_id || event.session_id ? (
+                          <p className={tableMeta}>
+                            {[event.task_id, event.session_id]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={sectionCopy}>
+                  {t("projectOptimizerRecentEventsEmpty")}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

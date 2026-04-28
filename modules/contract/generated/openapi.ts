@@ -1871,6 +1871,7 @@ export const openApiDocument = {
           "optimizer_enabled",
           "runtime_active",
           "blocker_summary",
+          "recent_events",
         ],
         properties: {
           project_id: {
@@ -1895,6 +1896,46 @@ export const openApiDocument = {
             minLength: 1,
             description:
               "Current origin/main baseline commit when the project workspace is available.",
+          },
+          recent_events: {
+            type: "array",
+            description:
+              "Bounded recent optimizer lane events for this project, newest first.",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["lane_name", "event", "timestamp", "summary"],
+              properties: {
+                lane_name: {
+                  type: "string",
+                  enum: ["manager", "coordinator", "developer"],
+                },
+                project_id: {
+                  type: "string",
+                  minLength: 1,
+                },
+                event: {
+                  type: "string",
+                  enum: ["start", "success", "failure", "idle", "noop"],
+                },
+                timestamp: {
+                  type: "string",
+                  format: "date-time",
+                },
+                summary: {
+                  type: "string",
+                  minLength: 1,
+                },
+                task_id: {
+                  type: "string",
+                  minLength: 1,
+                },
+                session_id: {
+                  type: "string",
+                  minLength: 1,
+                },
+              },
+            },
           },
         },
       },

@@ -633,6 +633,23 @@ test("shows project optimizer config and runtime observability separately", asyn
         runtime_active: false,
         blocker_summary:
           "Optimizer lane developer_follow_up error: gh failed with token [REDACTED]. Check optimizer logs and fix the lane blocker before expecting new scans.",
+        recent_events: [
+          {
+            event: "failure",
+            lane_name: "developer",
+            summary:
+              "Developer lane failed for task task-lane-history: gh failed. Fix the task session blocker and retry assignment.",
+            task_id: "task-lane-history",
+            timestamp: "2026-04-29T10:00:00.000Z",
+          },
+          {
+            event: "idle",
+            lane_name: "coordinator",
+            summary:
+              "Coordinator lane idle: coordinator session already active.",
+            timestamp: "2026-04-29T09:59:00.000Z",
+          },
+        ],
       }),
     });
   });
@@ -651,6 +668,15 @@ test("shows project optimizer config and runtime observability separately", asyn
   await expect(optimizerRegion.getByText("Triggers")).toHaveCount(0);
   await expect(optimizerRegion.getByText("Recent event")).toHaveCount(0);
   await expect(optimizerRegion.getByText("Recent scan")).toHaveCount(0);
+  await expect(optimizerRegion.getByText("Recent lane events")).toBeVisible();
+  await expect(optimizerRegion.getByText("developer failure")).toBeVisible();
+  await expect(optimizerRegion.getByText("coordinator idle")).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("Fix the task session blocker"),
+  ).toBeVisible();
+  await expect(
+    optimizerRegion.getByText("task-lane-history", { exact: true }),
+  ).toBeVisible();
   await expect(optimizerRegion.getByText("Check optimizer logs")).toBeVisible();
   await expect(optimizerRegion.getByText("[REDACTED]")).toBeVisible();
   await expect(optimizerRegion.getByText("ghp_1234567890")).toHaveCount(0);

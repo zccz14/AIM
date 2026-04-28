@@ -200,6 +200,7 @@ export const registerProjectRoutes = (
               runtimeActive,
             })
           : optimizerStatus.blocker_summary,
+      recent_events: optimizerStatus?.recent_events ?? [],
     });
 
     return context.json(response, 200);

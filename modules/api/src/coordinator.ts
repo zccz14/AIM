@@ -7,6 +7,7 @@ import type {
 
 import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
+import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
   optimizer_enabled?: boolean | number;
@@ -54,6 +55,7 @@ type CreateCoordinatorOptions = {
   continuationSessionRepository?: ContinuationSessionRepository;
   dimensionRepository: DimensionRepository;
   heartbeatMs?: number;
+  onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   projectDirectory: string | (() => Promise<string> | string);
   sessionManager: Pick<OpenCodeSessionManager, "createSession">;
   taskRepository: TaskRepository;
@@ -394,6 +396,13 @@ export const createCoordinator = (
   const scanOnce = async () => {
     const project = await options.taskRepository.getProjectById(projectId);
     if (!project) {
+      options.onLaneEvent?.({
+        event: "idle",
+        lane_name: "coordinator",
+        project_id: projectId,
+        summary:
+          "Coordinator lane skipped scan because the project was not found.",
+      });
       return;
     }
 
@@ -403,6 +412,14 @@ export const createCoordinator = (
     const activeCoordinatorSession =
       sessionCreationPending || (await hasActiveSession());
     if (activeTasks.length >= threshold || activeCoordinatorSession) {
+      options.onLaneEvent?.({
+        event: "idle",
+        lane_name: "coordinator",
+        project_id: projectId,
+        summary: activeCoordinatorSession
+          ? "Coordinator lane idle: coordinator session already active."
+          : `Coordinator lane idle: active task pool has ${activeTasks.length} unfinished tasks.`,
+      });
       return;
     }
 
@@ -429,6 +446,12 @@ export const createCoordinator = (
       await baselineRepository.getLatestBaselineFacts(directory);
 
     sessionCreationPending = true;
+    options.onLaneEvent?.({
+      event: "start",
+      lane_name: "coordinator",
+      project_id: projectId,
+      summary: "Coordinator lane started task-pool planning session creation.",
+    });
     try {
       activeSession = await options.sessionManager.createSession({
         directory,
@@ -447,6 +470,13 @@ export const createCoordinator = (
         }),
         title: `AIM Coordinator task-pool session (${project.id})`,
       });
+      options.onLaneEvent?.({
+        event: "success",
+        lane_name: "coordinator",
+        project_id: projectId,
+        session_id: activeSession.sessionId,
+        summary: `Coordinator lane created planning session ${activeSession.sessionId}.`,
+      });
     } finally {
       sessionCreationPending = false;
     }
@@ -457,6 +487,12 @@ export const createCoordinator = (
       try {
         await scanOnce();
       } catch (error) {
+        options.onLaneEvent?.({
+          event: "failure",
+          lane_name: "coordinator",
+          project_id: projectId,
+          summary: `Coordinator lane failed: ${summarizeError(error)}. Review task-pool planning inputs and recover the lane blocker before expecting new Tasks.`,
+        });
         console.warn("Coordinator heartbeat failed", {
           error: summarizeError(error),
           project_id: projectId,
