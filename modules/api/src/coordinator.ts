@@ -154,6 +154,20 @@ const summarizeRejectedTask = (task: Task) => {
   return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${task.result || "no result"}. ${validationSummary}`;
 };
 
+const summarizeEvaluation = (
+  dimension: Dimension,
+  evaluation: DimensionEvaluation,
+  baselineFacts: BaselineFacts,
+) => {
+  const matchesCurrentBaseline =
+    evaluation.commit_sha === baselineFacts.commitSha;
+  const baselineStatus = matchesCurrentBaseline
+    ? `matches current origin/main baseline ${baselineFacts.commitSha}`
+    : `stale: evaluation commit ${evaluation.commit_sha} differs from current origin/main baseline ${baselineFacts.commitSha}; treat as historical signal only and do not use it independently as current baseline evidence for creating Tasks`;
+
+  return `- ${dimension.name} (${dimension.id}) score ${evaluation.score} at ${evaluation.created_at}; commit ${evaluation.commit_sha} (${baselineStatus}): ${evaluation.evaluation}`;
+};
+
 const buildPrompt = ({
   activeTasks,
   baselineFacts,
@@ -172,9 +186,8 @@ const buildPrompt = ({
   threshold: number;
 }) => {
   const evaluationSummary = evaluations
-    .map(
-      ({ dimension, evaluation }) =>
-        `- ${dimension.name} (${dimension.id}) score ${evaluation.score} at ${evaluation.created_at}: ${evaluation.evaluation}`,
+    .map(({ dimension, evaluation }) =>
+      summarizeEvaluation(dimension, evaluation, baselineFacts),
     )
     .join("\n");
   const poolSummary = activeTasks
