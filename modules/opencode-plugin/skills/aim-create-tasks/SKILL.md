@@ -153,13 +153,11 @@ The conflict scenario between Value 3 and Value 4, and why Value 3 is preferred 
 
 - `title`
 - `project_id`
-- `developer_provider_id`
-- `developer_model_id`
 - 可选的 `dependencies`
 
 `title` 是 Task Schema 的独立字段，必须从 Task Spec 的标题提炼为同一个基线增量目标；不要只把标题埋在 `task_spec` Markdown 里。
 
-`developer_provider_id` 与 `developer_model_id` 必须来自目标 Project 的 `global_provider_id` 与 `global_model_id`。创建前先读取 Project 信息（例如通过 `GET ${SERVER_BASE_URL:-http://localhost:8192}/projects` 后按 `project_id` 匹配），不得猜测、沿用记忆值或在 skill 中嵌入固定 provider / model。
+创建前先读取 Project 信息（例如通过 `GET ${SERVER_BASE_URL:-http://localhost:8192}/projects` 后按 `project_id` 匹配），确认目标 Project 已配置 `global_provider_id` 与 `global_model_id`；创建请求只提交 `project_id`，不得在 Task 上复制 provider / model。
 
 五段写法必须遵循 `docs/task-spec.md` 的语义：
 
@@ -257,14 +255,12 @@ curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks" \
     "title": "Custom Task Title",
     "task_spec": "# Title\n\n## Assumptions\n...",
     "project_id": "00000000-0000-4000-8000-000000000001",
-    "developer_provider_id": "<project.global_provider_id>",
-    "developer_model_id": "<project.global_model_id>",
     "dependencies": ["task-id-a"]
   }'
 ```
 
-- `title`、`task_spec`、`project_id`、`developer_provider_id` 和 `developer_model_id` 是创建必需字段。
-- `developer_provider_id` 必须填入 Project 的 `global_provider_id`；`developer_model_id` 必须填入同一 Project 的 `global_model_id`。
+- `title`、`task_spec` 和 `project_id` 是创建必需字段。
+- provider / model 只从目标 Project 的 `global_provider_id` 与 `global_model_id` 读取，不写入 Task 创建请求。
 - `dependencies` 只是软提示，不是调度门禁。
 - 如果没有可靠的依赖提示，可以传空数组，或在服务端契约允许时省略该字段。
 - 创建成功后，要把每个新建 Task 的标识返回给用户。

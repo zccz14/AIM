@@ -1860,8 +1860,8 @@ export const openApiDocument = {
           "task_spec",
           "project_id",
           "git_origin_url",
-          "developer_provider_id",
-          "developer_model_id",
+          "global_provider_id",
+          "global_model_id",
           "result",
           "session_id",
           "worktree_path",
@@ -1895,11 +1895,11 @@ export const openApiDocument = {
             type: "string",
             minLength: 1,
           },
-          developer_provider_id: {
+          global_provider_id: {
             type: "string",
             minLength: 1,
           },
-          developer_model_id: {
+          global_model_id: {
             type: "string",
             minLength: 1,
           },

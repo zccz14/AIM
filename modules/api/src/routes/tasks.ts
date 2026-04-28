@@ -78,7 +78,7 @@ const buildOpenCodeModelsUnavailableError = () =>
   taskErrorSchema.parse({
     code: "OPENCODE_MODELS_UNAVAILABLE",
     message:
-      "Cannot validate developer_provider_id and developer_model_id because OpenCode models are unavailable",
+      "Cannot validate project global_provider_id and global_model_id because OpenCode models are unavailable",
   });
 
 const requireTaskId = (taskId: string | undefined) => taskId ?? "task-unknown";

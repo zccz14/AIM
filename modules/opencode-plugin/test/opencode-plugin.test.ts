@@ -919,10 +919,11 @@ describe("opencode plugin package baseline", () => {
     expect(pluginCreateTasksSkillText).toContain("`task_spec`");
     expect(pluginCreateTasksSkillText).toContain("`project_id`");
     expect(pluginCreateTasksSkillText).toContain("`title`");
-    expect(pluginCreateTasksSkillText).toContain("`developer_provider_id`");
-    expect(pluginCreateTasksSkillText).toContain("`developer_model_id`");
     expect(pluginCreateTasksSkillText).toContain(
-      "`title`、`task_spec`、`project_id`、`developer_provider_id` 和 `developer_model_id` 是创建必需字段。",
+      "`title`、`task_spec` 和 `project_id` 是创建必需字段。",
+    );
+    expect(pluginCreateTasksSkillText).toContain(
+      "provider / model 只从目标 Project 的 `global_provider_id` 与 `global_model_id` 读取，不写入 Task 创建请求。",
     );
     expect(pluginCreateTasksSkillText).toContain("`dependencies` 只是软提示");
     expect(pluginCreateTasksSkillText).toContain(

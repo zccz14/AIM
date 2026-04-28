@@ -641,8 +641,8 @@ describe("contract package baseline", () => {
     });
     expect(
       contractModule.taskSchema.parse({
-        developer_model_id: "claude-sonnet-4-5",
-        developer_provider_id: "anthropic",
+        global_model_id: "claude-sonnet-4-5",
+        global_provider_id: "anthropic",
         project_id: mainProjectId,
         task_id: "task-1",
         task_spec: "Ship contract",
@@ -668,8 +668,8 @@ describe("contract package baseline", () => {
       contractModule.taskListResponseSchema.parse({
         items: [
           {
-            developer_model_id: "claude-sonnet-4-5",
-            developer_provider_id: "anthropic",
+            global_model_id: "claude-sonnet-4-5",
+            global_provider_id: "anthropic",
             project_id: mainProjectId,
             task_id: "task-1",
             task_spec: "Ship contract",
@@ -1789,8 +1789,8 @@ describe("contract package baseline", () => {
       task_spec: "write spec",
       project_id: mainProjectId,
       git_origin_url: "https://github.com/example/repo.git",
-      developer_provider_id: "anthropic",
-      developer_model_id: "claude-sonnet-4-5",
+      global_provider_id: "anthropic",
+      global_model_id: "claude-sonnet-4-5",
       result: "",
       session_id: null,
       worktree_path: null,

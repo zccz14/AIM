@@ -14,10 +14,10 @@ const project = {
 const createTask = (index: number, projectId = project.id) => ({
   created_at: "2026-04-27T00:00:00.000Z",
   dependencies: [],
-  developer_model_id: "claude-sonnet-4-5",
-  developer_provider_id: "anthropic",
   done: false,
   git_origin_url: "https://github.com/example/project.git",
+  global_model_id: project.global_model_id,
+  global_provider_id: project.global_provider_id,
   opencode_session: null,
   project_id: projectId,
   pull_request_url: null,

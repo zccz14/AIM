@@ -22,10 +22,10 @@ import {
 
 type TaskRow = {
   created_at: string;
-  developer_model_id: string;
-  developer_provider_id: string;
   dependencies: string;
   done: number;
+  global_model_id: string;
+  global_provider_id: string;
   pull_request_url: null | string;
   git_origin_url: string;
   project_id: string;
@@ -84,8 +84,6 @@ const requiredColumns = [
   { name: "title", notnull: 1, pk: 0, type: "TEXT" },
   { name: "task_spec", notnull: 1, pk: 0, type: "TEXT" },
   { name: "project_id", notnull: 1, pk: 0, type: "TEXT" },
-  { name: "developer_provider_id", notnull: 1, pk: 0, type: "TEXT" },
-  { name: "developer_model_id", notnull: 1, pk: 0, type: "TEXT" },
   { name: "session_id", notnull: 0, pk: 0, type: "TEXT" },
   { name: "worktree_path", notnull: 0, pk: 0, type: "TEXT" },
   { name: "pull_request_url", notnull: 0, pk: 0, type: "TEXT" },
@@ -220,8 +218,8 @@ const mapTaskRow = (row: TaskRow) =>
     task_spec: row.task_spec,
     project_id: row.project_id,
     git_origin_url: row.git_origin_url,
-    developer_provider_id: row.developer_provider_id,
-    developer_model_id: row.developer_model_id,
+    global_provider_id: row.global_provider_id,
+    global_model_id: row.global_model_id,
     session_id: row.session_id,
     worktree_path: row.worktree_path,
     pull_request_url: row.pull_request_url,
@@ -375,8 +373,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       title,
       task_spec,
       project_id,
-      developer_provider_id,
-      developer_model_id,
       session_id,
       worktree_path,
       pull_request_url,
@@ -387,7 +383,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getProjectByIdStatement = database.prepare(`
     SELECT
@@ -448,8 +444,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.task_spec,
       tasks.project_id,
       projects.git_origin_url AS git_origin_url,
-      tasks.developer_provider_id,
-      tasks.developer_model_id,
+      projects.global_provider_id AS global_provider_id,
+      projects.global_model_id AS global_model_id,
       tasks.session_id,
       tasks.worktree_path,
       tasks.pull_request_url,
@@ -471,8 +467,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.task_spec,
       tasks.project_id,
       projects.git_origin_url AS git_origin_url,
-      tasks.developer_provider_id,
-      tasks.developer_model_id,
+      projects.global_provider_id AS global_provider_id,
+      projects.global_model_id AS global_model_id,
       tasks.session_id,
       tasks.worktree_path,
       tasks.pull_request_url,
@@ -512,8 +508,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.task_spec,
       tasks.project_id,
       projects.git_origin_url AS git_origin_url,
-      tasks.developer_provider_id,
-      tasks.developer_model_id,
+      projects.global_provider_id AS global_provider_id,
+      projects.global_model_id AS global_model_id,
       tasks.session_id,
       tasks.worktree_path,
       tasks.pull_request_url,
@@ -653,8 +649,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task_spec: input.task_spec,
         project_id: project.id,
         git_origin_url: project.git_origin_url,
-        developer_provider_id: project.global_provider_id,
-        developer_model_id: project.global_model_id,
+        global_provider_id: project.global_provider_id,
+        global_model_id: project.global_model_id,
         session_id: input.session_id ?? null,
         worktree_path: input.worktree_path ?? null,
         pull_request_url: input.pull_request_url ?? null,
@@ -672,8 +668,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         task.title,
         task.task_spec,
         task.project_id,
-        task.developer_provider_id,
-        task.developer_model_id,
         task.session_id,
         task.worktree_path,
         task.pull_request_url,
@@ -747,8 +741,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               task_spec: operation.task.spec,
               project_id: project.id,
               git_origin_url: project.git_origin_url,
-              developer_provider_id: project.global_provider_id,
-              developer_model_id: project.global_model_id,
+              global_provider_id: project.global_provider_id,
+              global_model_id: project.global_model_id,
               session_id: operation.task.session_id ?? null,
               worktree_path: operation.task.worktree_path ?? null,
               pull_request_url: operation.task.pull_request_url ?? null,
@@ -766,8 +760,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               task.title,
               task.task_spec,
               task.project_id,
-              task.developer_provider_id,
-              task.developer_model_id,
               task.session_id,
               task.worktree_path,
               task.pull_request_url,
@@ -858,8 +850,8 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             tasks.task_spec,
             tasks.project_id,
             projects.git_origin_url AS git_origin_url,
-            tasks.developer_provider_id,
-            tasks.developer_model_id,
+            projects.global_provider_id AS global_provider_id,
+            projects.global_model_id AS global_model_id,
             tasks.session_id,
             tasks.worktree_path,
             tasks.pull_request_url,
