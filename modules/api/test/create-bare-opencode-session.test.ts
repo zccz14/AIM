@@ -65,6 +65,7 @@ describe("sendPromptText", () => {
     await expect(
       sendPromptText({
         baseUrl: "http://127.0.0.1:54321",
+        model: { modelID: "gpt-5.5", providerID: "openai" },
         prompt: "Summarize the task",
         session_id: "session-bare-1",
       }),
@@ -74,7 +75,10 @@ describe("sendPromptText", () => {
       baseUrl: "http://127.0.0.1:54321",
     });
     expect(promptAsync).toHaveBeenCalledWith({
-      body: { parts: [{ text: "Summarize the task", type: "text" }] },
+      body: {
+        model: { modelID: "gpt-5.5", providerID: "openai" },
+        parts: [{ text: "Summarize the task", type: "text" }],
+      },
       path: { id: "session-bare-1" },
       throwOnError: true,
     });
