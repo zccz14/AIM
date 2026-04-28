@@ -16,6 +16,7 @@ import { useI18n } from "../../../lib/i18n.js";
 import type { DashboardDimensionReportItem } from "../model/task-dashboard-view-model.js";
 import {
   eyebrow,
+  MarkdownContent,
   pageStack,
   pageTitle,
   sectionCopy,
@@ -145,9 +146,7 @@ export const DimensionDetailsPage = ({
                   />
                 </p>
               </div>
-              <p className="m-0 text-sm/relaxed text-foreground">
-                {latestEvaluation.evaluation}
-              </p>
+              <MarkdownContent>{latestEvaluation.evaluation}</MarkdownContent>
             </section>
           ) : null}
 

@@ -850,6 +850,46 @@ test("highlights the latest dimension evaluation and links GitHub commit evidenc
   ).toHaveAttribute("href", "https://github.com/example/main/commit/1111111");
 });
 
+test("renders latest dimension evaluation Markdown with prose styling", async ({
+  page,
+}) => {
+  const dimension = buildDimension();
+  const markdownEvaluation =
+    "Latest **evidence** identifies the intervention path.\n\n- Preserve Director focus";
+
+  await page.route("**/dimensions", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [dimension] }),
+    });
+  });
+
+  await page.route("**/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({
+            dimensionId: dimension.id,
+            evaluation: markdownEvaluation,
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto(`/#/dimensions/${dimension.id}`);
+
+  const latest = page.getByRole("region", { name: "Latest evaluation" });
+  const renderedEvaluation = latest.locator(".prose");
+
+  await expect(renderedEvaluation).toHaveClass(/(^|\s)prose(\s|$)/);
+  await expect(renderedEvaluation.locator("strong")).toHaveText("evidence");
+  await expect(renderedEvaluation.locator("li")).toHaveText(
+    "Preserve Director focus",
+  );
+});
+
 test("renders the AIM brand mark and global controls without optimizer controls", async ({
   page,
 }) => {
