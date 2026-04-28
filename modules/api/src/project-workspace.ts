@@ -2,19 +2,20 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Task } from "@aim-ai/contract";
 
 const resolveAimHome = () => process.env.AIM_HOME ?? join(homedir(), ".aim");
+const projectWorkspaceCommandCwd = process.cwd();
 
 export const resolveProjectWorkspacePath = (projectId: string) =>
   join(resolveAimHome(), "projects", projectId);
 
-const runGit = (args: string[]) =>
+const runGit = (args: string[], cwd = projectWorkspaceCommandCwd) =>
   new Promise<string>((resolve, reject) => {
-    execFile("git", args, (error, stdout) => {
+    execFile("git", args, { cwd }, (error, stdout) => {
       if (error) {
         reject(error);
         return;
@@ -28,12 +29,15 @@ const cloneGitOrigin = async (gitOriginUrl: string, workspacePath: string) => {
   await runGit(["clone", gitOriginUrl, workspacePath]);
 };
 
+const resolveLocalGitOriginPath = (gitOriginUrl: string) =>
+  resolve(projectWorkspaceCommandCwd, gitOriginUrl);
+
 const isLocalGitOrigin = (gitOriginUrl: string) => {
   try {
     const parsed = new URL(gitOriginUrl);
     return parsed.protocol === "file:";
   } catch {
-    return existsSync(gitOriginUrl);
+    return existsSync(resolveLocalGitOriginPath(gitOriginUrl));
   }
 };
 
@@ -42,7 +46,7 @@ const localGitOriginPath = (gitOriginUrl: string) => {
     const parsed = new URL(gitOriginUrl);
     return parsed.protocol === "file:" ? fileURLToPath(parsed) : gitOriginUrl;
   } catch {
-    return gitOriginUrl;
+    return resolveLocalGitOriginPath(gitOriginUrl);
   }
 };
 
@@ -52,13 +56,10 @@ const resolveRealGitOrigin = async (gitOriginUrl: string) => {
   }
 
   try {
-    const realOrigin = await runGit([
-      "-C",
+    const realOrigin = await runGit(
+      ["remote", "get-url", "origin"],
       localGitOriginPath(gitOriginUrl),
-      "remote",
-      "get-url",
-      "origin",
-    ]);
+    );
     return realOrigin.trim() || gitOriginUrl;
   } catch {
     return gitOriginUrl;
@@ -73,21 +74,14 @@ const repairWorkspaceOrigin = async (
 
   try {
     currentOrigin = (
-      await runGit(["-C", workspacePath, "remote", "get-url", "origin"])
+      await runGit(["remote", "get-url", "origin"], workspacePath)
     ).trim();
   } catch {
     return;
   }
 
   if (currentOrigin !== gitOriginUrl) {
-    await runGit([
-      "-C",
-      workspacePath,
-      "remote",
-      "set-url",
-      "origin",
-      gitOriginUrl,
-    ]);
+    await runGit(["remote", "set-url", "origin", gitOriginUrl], workspacePath);
   }
 };
 

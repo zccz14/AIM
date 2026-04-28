@@ -1,5 +1,5 @@
 import { mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,25 +13,39 @@ const tempRoot = join(process.cwd(), ".tmp", "modules-api-project-workspace");
 const aimHome = join(tempRoot, "aim-home");
 const sourceRepoPath = join(tempRoot, "source-repo");
 const realRemoteUrl = "git@github.com:zccz14/AIM.git";
+const originalCwd = process.cwd();
 
 const mockGit = (workspaceOrigin = sourceRepoPath) => {
   execFileMock.mockImplementation(
     (
       command: string,
       args: string[],
-      callback: (error: Error | null, stdout?: string) => void,
+      optionsOrCallback:
+        | { cwd?: string }
+        | ((error: Error | null, stdout?: string) => void),
+      maybeCallback?: (error: Error | null, stdout?: string) => void,
     ) => {
+      const callback =
+        typeof optionsOrCallback === "function"
+          ? optionsOrCallback
+          : maybeCallback;
+      const options =
+        typeof optionsOrCallback === "function" ? undefined : optionsOrCallback;
+
+      if (!callback) {
+        throw new Error("missing execFile callback");
+      }
+
       if (command !== "git") {
         callback(new Error(`unexpected command: ${command}`));
         return;
       }
 
       if (
-        args[0] === "-C" &&
-        args[1] === sourceRepoPath &&
-        args[2] === "remote" &&
-        args[3] === "get-url" &&
-        args[4] === "origin"
+        options?.cwd === sourceRepoPath &&
+        args[0] === "remote" &&
+        args[1] === "get-url" &&
+        args[2] === "origin"
       ) {
         callback(null, `${realRemoteUrl}\n`);
         return;
@@ -43,20 +57,18 @@ const mockGit = (workspaceOrigin = sourceRepoPath) => {
       }
 
       if (
-        args[0] === "-C" &&
-        args[2] === "remote" &&
-        args[3] === "get-url" &&
-        args[4] === "origin"
+        args[0] === "remote" &&
+        args[1] === "get-url" &&
+        args[2] === "origin"
       ) {
         callback(null, `${workspaceOrigin}\n`);
         return;
       }
 
       if (
-        args[0] === "-C" &&
-        args[2] === "remote" &&
-        args[3] === "set-url" &&
-        args[4] === "origin"
+        args[0] === "remote" &&
+        args[1] === "set-url" &&
+        args[2] === "origin"
       ) {
         callback(null, "");
         return;
@@ -76,6 +88,7 @@ describe("project workspace", () => {
   });
 
   afterEach(async () => {
+    process.chdir(originalCwd);
     delete process.env.AIM_HOME;
     await rm(tempRoot, { force: true, recursive: true });
     execFileMock.mockReset();
@@ -95,6 +108,29 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["clone", realRemoteUrl, workspacePath],
+      { cwd: originalCwd },
+      expect.any(Function),
+    );
+  });
+
+  it("resolves relative local origins from the stable project workspace command cwd", async () => {
+    const { ensureProjectWorkspace } = await import(
+      "../src/project-workspace.js"
+    );
+    const otherCwd = join(tempRoot, "other-cwd");
+    await mkdir(otherCwd, { recursive: true });
+    process.chdir(otherCwd);
+    mockGit();
+
+    const workspacePath = await ensureProjectWorkspace({
+      git_origin_url: relative(originalCwd, sourceRepoPath),
+      project_id: "project-1",
+    });
+
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["clone", realRemoteUrl, workspacePath],
+      { cwd: originalCwd },
       expect.any(Function),
     );
   });
@@ -113,7 +149,8 @@ describe("project workspace", () => {
 
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
-      ["-C", workspacePath, "remote", "set-url", "origin", realRemoteUrl],
+      ["remote", "set-url", "origin", realRemoteUrl],
+      { cwd: workspacePath },
       expect.any(Function),
     );
   });
@@ -133,11 +170,13 @@ describe("project workspace", () => {
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
       ["clone", remoteUrl, workspacePath],
+      { cwd: originalCwd },
       expect.any(Function),
     );
     expect(execFileMock).not.toHaveBeenCalledWith(
       "git",
-      ["-C", sourceRepoPath, "remote", "get-url", "origin"],
+      ["remote", "get-url", "origin"],
+      { cwd: sourceRepoPath },
       expect.any(Function),
     );
   });
