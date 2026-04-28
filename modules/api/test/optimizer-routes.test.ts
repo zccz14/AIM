@@ -87,13 +87,10 @@ describe("optimizer routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    await expect(response.json()).resolves.toEqual({
       project_id: project.id,
       optimizer_enabled: false,
       runtime_active: false,
-      enabled_triggers: [],
-      recent_event: null,
-      recent_scan_at: null,
       blocker_summary: "Optimizer disabled for project",
     });
   });
@@ -109,13 +106,10 @@ describe("optimizer routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    await expect(response.json()).resolves.toEqual({
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: false,
-      enabled_triggers: [],
-      recent_event: null,
-      recent_scan_at: null,
       blocker_summary: "Optimizer runtime inactive",
     });
   });
@@ -133,13 +127,10 @@ describe("optimizer routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    await expect(response.json()).resolves.toEqual({
       project_id: project.id,
       optimizer_enabled: true,
       runtime_active: true,
-      enabled_triggers: [],
-      recent_event: null,
-      recent_scan_at: null,
       blocker_summary: null,
     });
   });

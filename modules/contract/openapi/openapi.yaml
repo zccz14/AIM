@@ -1040,10 +1040,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Project"
-    OptimizerTriggerSource:
-      type: string
-      enum:
-        - task_resolved
     OpenCodeSessionState:
       type: string
       enum:
@@ -1204,21 +1200,6 @@ components:
           type: string
         reason:
           type: string
-    ProjectOptimizerRecentEvent:
-      type: object
-      additionalProperties: false
-      required:
-        - task_id
-        - triggered_scan
-        - type
-      properties:
-        task_id:
-          type: string
-          minLength: 1
-        triggered_scan:
-          type: boolean
-        type:
-          $ref: "#/components/schemas/OptimizerTriggerSource"
     ProjectOptimizerStatusResponse:
       type: object
       additionalProperties: false
@@ -1226,9 +1207,6 @@ components:
         - project_id
         - optimizer_enabled
         - runtime_active
-        - enabled_triggers
-        - recent_event
-        - recent_scan_at
         - blocker_summary
       properties:
         project_id:
@@ -1240,19 +1218,6 @@ components:
         runtime_active:
           type: boolean
           description: True only when project config is enabled and the optimizer runtime is running.
-        enabled_triggers:
-          type: array
-          items:
-            $ref: "#/components/schemas/OptimizerTriggerSource"
-        recent_event:
-          anyOf:
-            - $ref: "#/components/schemas/ProjectOptimizerRecentEvent"
-            - type: "null"
-        recent_scan_at:
-          type:
-            - string
-            - "null"
-          format: date-time
         blocker_summary:
           type:
             - string

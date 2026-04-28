@@ -340,13 +340,6 @@ test("shows project optimizer config and runtime observability separately", asyn
         project_id: "00000000-0000-4000-8000-000000000010",
         optimizer_enabled: true,
         runtime_active: false,
-        enabled_triggers: ["task_resolved"],
-        recent_event: {
-          task_id: "task-resolved",
-          triggered_scan: false,
-          type: "task_resolved",
-        },
-        recent_scan_at: "2026-04-27T10:00:00.000Z",
         blocker_summary:
           "Optimizer lane developer_follow_up error: gh failed with token [REDACTED]. Check optimizer logs and fix the lane blocker before expecting new scans.",
       }),
@@ -364,12 +357,9 @@ test("shows project optimizer config and runtime observability separately", asyn
   await expect(
     optimizerRegion.getByText("Runtime inactive", { exact: true }),
   ).toBeVisible();
-  await expect(
-    optimizerRegion.getByText("task_resolved", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    optimizerRegion.getByText("2026-04-27T10:00:00.000Z"),
-  ).toBeVisible();
+  await expect(optimizerRegion.getByText("Triggers")).toHaveCount(0);
+  await expect(optimizerRegion.getByText("Recent event")).toHaveCount(0);
+  await expect(optimizerRegion.getByText("Recent scan")).toHaveCount(0);
   await expect(optimizerRegion.getByText("Check optimizer logs")).toBeVisible();
   await expect(optimizerRegion.getByText("[REDACTED]")).toBeVisible();
   await expect(optimizerRegion.getByText("ghp_1234567890")).toHaveCount(0);

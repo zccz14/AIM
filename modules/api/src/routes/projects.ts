@@ -157,9 +157,6 @@ export const registerProjectRoutes = (
       project_id: projectId,
       optimizer_enabled: optimizerEnabled,
       runtime_active: runtimeActive,
-      enabled_triggers: [],
-      recent_event: null,
-      recent_scan_at: null,
       blocker_summary: getOptimizerBlockerSummary({
         optimizerEnabled,
         runtimeActive,

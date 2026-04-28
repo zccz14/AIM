@@ -537,6 +537,19 @@ describe("contract package baseline", () => {
         project_id: mainProjectId,
         optimizer_enabled: true,
         runtime_active: true,
+        blocker_summary: null,
+      }),
+    ).toEqual({
+      project_id: mainProjectId,
+      optimizer_enabled: true,
+      runtime_active: true,
+      blocker_summary: null,
+    });
+    expect(
+      contractModule.projectOptimizerStatusResponseSchema.safeParse({
+        project_id: mainProjectId,
+        optimizer_enabled: true,
+        runtime_active: true,
         enabled_triggers: ["task_resolved"],
         recent_event: {
           task_id: "task-1",
@@ -545,20 +558,8 @@ describe("contract package baseline", () => {
         },
         recent_scan_at: "2026-04-27T10:00:00.000Z",
         blocker_summary: null,
-      }),
-    ).toEqual({
-      project_id: mainProjectId,
-      optimizer_enabled: true,
-      runtime_active: true,
-      enabled_triggers: ["task_resolved"],
-      recent_event: {
-        task_id: "task-1",
-        triggered_scan: true,
-        type: "task_resolved",
-      },
-      recent_scan_at: "2026-04-27T10:00:00.000Z",
-      blocker_summary: null,
-    });
+      }).success,
+    ).toBe(false);
   });
 
   it("exports OpenCode model schemas from the built package boundary", () => {

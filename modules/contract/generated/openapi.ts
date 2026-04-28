@@ -1692,10 +1692,6 @@ export const openApiDocument = {
           },
         },
       },
-      OptimizerTriggerSource: {
-        type: "string",
-        enum: ["task_resolved"],
-      },
       OpenCodeSessionState: {
         type: "string",
         enum: ["pending", "resolved", "rejected"],
@@ -1867,23 +1863,6 @@ export const openApiDocument = {
           },
         },
       },
-      ProjectOptimizerRecentEvent: {
-        type: "object",
-        additionalProperties: false,
-        required: ["task_id", "triggered_scan", "type"],
-        properties: {
-          task_id: {
-            type: "string",
-            minLength: 1,
-          },
-          triggered_scan: {
-            type: "boolean",
-          },
-          type: {
-            $ref: "#/components/schemas/OptimizerTriggerSource",
-          },
-        },
-      },
       ProjectOptimizerStatusResponse: {
         type: "object",
         additionalProperties: false,
@@ -1891,9 +1870,6 @@ export const openApiDocument = {
           "project_id",
           "optimizer_enabled",
           "runtime_active",
-          "enabled_triggers",
-          "recent_event",
-          "recent_scan_at",
           "blocker_summary",
         ],
         properties: {
@@ -1909,26 +1885,6 @@ export const openApiDocument = {
             type: "boolean",
             description:
               "True only when project config is enabled and the optimizer runtime is running.",
-          },
-          enabled_triggers: {
-            type: "array",
-            items: {
-              $ref: "#/components/schemas/OptimizerTriggerSource",
-            },
-          },
-          recent_event: {
-            anyOf: [
-              {
-                $ref: "#/components/schemas/ProjectOptimizerRecentEvent",
-              },
-              {
-                type: "null",
-              },
-            ],
-          },
-          recent_scan_at: {
-            type: ["string", "null"],
-            format: "date-time",
           },
           blocker_summary: {
             type: ["string", "null"],

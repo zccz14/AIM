@@ -159,9 +159,6 @@ export const ProjectDetailPage = ({
       ? t("projectOptimizerRuntimeActive")
       : t("projectOptimizerRuntimeInactive")
     : t("projectOptimizerRuntimeUnknown");
-  const recentEventText = optimizerStatus?.recent_event
-    ? `${optimizerStatus.recent_event.type} (${optimizerStatus.recent_event.task_id})`
-    : t("none");
 
   return (
     <section className={pageStack}>
@@ -275,7 +272,7 @@ export const ProjectDetailPage = ({
           </p>
         </div>
         <Card>
-          <CardContent className="grid gap-3 md:grid-cols-3">
+          <CardContent className="grid gap-3 md:grid-cols-2">
             <div className={panelStack}>
               <p className={eyebrow}>{t("projectOptimizerConfig")}</p>
               <Badge variant={configEnabled ? "default" : "secondary"}>
@@ -293,20 +290,6 @@ export const ProjectDetailPage = ({
               >
                 {runtimeLabel}
               </Badge>
-            </div>
-            <div className={panelStack}>
-              <p className={eyebrow}>{t("projectOptimizerTriggers")}</p>
-              <strong>
-                {optimizerStatus?.enabled_triggers.join(", ") || t("none")}
-              </strong>
-            </div>
-            <div className={panelStack}>
-              <p className={eyebrow}>{t("projectOptimizerRecentEvent")}</p>
-              <strong>{recentEventText}</strong>
-            </div>
-            <div className={panelStack}>
-              <p className={eyebrow}>{t("projectOptimizerRecentScan")}</p>
-              <strong>{optimizerStatus?.recent_scan_at ?? t("none")}</strong>
             </div>
             <div className={panelStack}>
               <p className={eyebrow}>{t("projectOptimizerBlocker")}</p>
