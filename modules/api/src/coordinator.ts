@@ -154,6 +154,65 @@ const summarizeRejectedTask = (task: Task) => {
   return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${task.result || "no result"}. ${validationSummary}`;
 };
 
+const buildPrioritySummary = ({
+  activeTasks,
+  baselineFacts,
+  evaluations,
+}: {
+  activeTasks: Task[];
+  baselineFacts: BaselineFacts;
+  evaluations: Array<{ dimension: Dimension; evaluation: DimensionEvaluation }>;
+}) => {
+  const rankedEvaluations = evaluations
+    .map((entry, index) => {
+      const evidence = entry.evaluation.evaluation.toLowerCase();
+      const hasReadmeAhead = evidence.includes("readme_ahead");
+      const hasConsiderCreate = evidence.includes("consider_create");
+      const hasGap = evidence.includes("gap");
+      const hasEmptyPoolSignal =
+        activeTasks.length === 0 || evidence.includes("empty pool");
+      const baselineStatus =
+        entry.evaluation.commit_sha === baselineFacts.commitSha
+          ? "current"
+          : `${entry.evaluation.commit_sha} differs from current ${baselineFacts.commitSha}`;
+      const rank =
+        (hasReadmeAhead ? 100 : 0) +
+        (hasConsiderCreate ? 80 : 0) +
+        (hasGap ? 40 : 0) +
+        (hasEmptyPoolSignal ? 20 : 0) +
+        Math.max(0, 100 - entry.evaluation.score) / 10 +
+        (baselineStatus === "current" ? 0 : 5);
+
+      return {
+        baselineStatus,
+        entry,
+        hasConsiderCreate,
+        hasGap,
+        hasReadmeAhead,
+        index,
+        rank,
+      };
+    })
+    .sort((left, right) => right.rank - left.rank || left.index - right.index);
+
+  return rankedEvaluations
+    .map(
+      (
+        { baselineStatus, entry, hasConsiderCreate, hasGap, hasReadmeAhead },
+        index,
+      ) => {
+        const signals = [
+          hasReadmeAhead ? "readme_ahead" : null,
+          hasConsiderCreate ? "consider_create" : null,
+          hasGap ? "gap" : null,
+        ].filter(Boolean);
+
+        return `${index + 1}. ${entry.dimension.name} (${entry.dimension.id}) priority signals: ${signals.join(", ") || "none explicit"}; score: ${entry.evaluation.score}; active_pool: ${activeTasks.length === 0 ? "empty" : `${activeTasks.length} unfinished`}; baseline: ${baselineStatus}; evidence: ${entry.evaluation.evaluation}`;
+      },
+    )
+    .join("\n");
+};
+
 const buildPrompt = ({
   activeTasks,
   baselineFacts,
@@ -181,6 +240,11 @@ const buildPrompt = ({
     .map((task) => `- ${task.title} (${task.task_id}) status ${task.status}`)
     .join("\n");
   const rejectedSummary = rejectedTasks.map(summarizeRejectedTask).join("\n");
+  const prioritySummary = buildPrioritySummary({
+    activeTasks,
+    baselineFacts,
+    evaluations,
+  });
 
   return `You are the AIM Coordinator for project_id "${project.id}".
 
@@ -200,6 +264,9 @@ POST /tasks/batch planning and validation guardrails:
 
 Dimensions:
 ${dimensions.map((dimension) => `- ${dimension.name} (${dimension.id}): ${dimension.goal}`).join("\n") || "- none"}
+
+Priority summary for candidate signals:
+${prioritySummary || "- none"}
 
 Latest dimension_evaluations:
 ${evaluationSummary || "- none"}
