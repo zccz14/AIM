@@ -104,6 +104,7 @@ export type CoordinatorProposalOperation =
     });
 
 export type CoordinatorProposalDryRunInput = {
+  currentBaselineCommit?: string;
   evaluations: EvaluationGap[];
   rejectedTasks?: TaskPoolItem[];
   staleTaskFeedback?: StaleTaskFeedback[];
@@ -129,6 +130,22 @@ const matchesSource = (task: TaskPoolItem, evaluation: EvaluationGap) =>
     evaluation.source_dimension.id &&
   getStringMetadata(task.source_metadata, "dimension_evaluation_id") ===
     evaluation.source_evaluation.id;
+
+const matchesCurrentBaseline = (
+  task: TaskPoolItem,
+  currentBaselineCommit: null | string,
+) => {
+  if (!currentBaselineCommit) {
+    return true;
+  }
+
+  const sourceBaseline = getStringMetadata(
+    task.source_metadata,
+    "latest_origin_main_commit",
+  );
+
+  return !sourceBaseline || sourceBaseline === currentBaselineCommit;
+};
 
 const isUnfinished = (task: TaskPoolItem) =>
   task.done !== true &&
@@ -219,6 +236,38 @@ const buildTaskSpecDraft = (evaluation: EvaluationGap): TaskSpecDraft => ({
   ].join("\n"),
 });
 
+const buildCreateBaselinePlanningFeedback = (
+  evaluation: EvaluationGap,
+  currentBaselineCommit: null | string,
+): null | PlanningFeedback => {
+  const sourceBaseline = evaluation.source_evaluation.commit_sha;
+
+  if (!currentBaselineCommit) {
+    return {
+      blocked: true,
+      reason:
+        "Create candidate baseline freshness is unknown because current origin/main baseline is unavailable; fetch origin/main before validation.",
+    };
+  }
+
+  if (!sourceBaseline) {
+    return {
+      blocked: true,
+      reason:
+        "Create candidate baseline freshness is unknown because source evaluation baseline is missing; refresh the Task Spec from current baseline before validation.",
+    };
+  }
+
+  if (sourceBaseline !== currentBaselineCommit) {
+    return {
+      blocked: true,
+      reason: `Create candidate source baseline ${sourceBaseline} differs from current origin/main baseline ${currentBaselineCommit}; refresh the Task Spec from current baseline before validation.`,
+    };
+  }
+
+  return null;
+};
+
 const buildBaseOperation = (
   evaluation: EvaluationGap,
   coveredTask: null | TaskPoolItem,
@@ -247,16 +296,21 @@ const buildBaseOperation = (
 });
 
 export const buildCoordinatorProposalDryRun = ({
+  currentBaselineCommit,
   evaluations,
   rejectedTasks = [],
   staleTaskFeedback = [],
   taskPool,
 }: CoordinatorProposalDryRunInput): CoordinatorProposalDryRun => {
+  const comparableCurrentBaseline = currentBaselineCommit?.trim() || null;
   const operations: CoordinatorProposalOperation[] = [];
 
   for (const evaluation of evaluations) {
     const coveredTask = taskPool.find(
-      (task) => isUnfinished(task) && matchesSource(task, evaluation),
+      (task) =>
+        isUnfinished(task) &&
+        matchesSource(task, evaluation) &&
+        matchesCurrentBaseline(task, comparableCurrentBaseline),
     );
     const baseOperation = buildBaseOperation(evaluation, coveredTask ?? null);
 
@@ -268,6 +322,22 @@ export const buildCoordinatorProposalDryRun = ({
         planning_feedback: null,
         requires_task_spec_validation: false,
         task_id: coveredTask.task_id,
+        task_spec_draft: null,
+      });
+
+      continue;
+    }
+
+    const baselinePlanningFeedback = buildCreateBaselinePlanningFeedback(
+      evaluation,
+      comparableCurrentBaseline,
+    );
+
+    if (baselinePlanningFeedback) {
+      operations.push({
+        ...baseOperation,
+        decision: "create",
+        planning_feedback: baselinePlanningFeedback,
         task_spec_draft: null,
       });
 
