@@ -29,10 +29,7 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../api-logger.js";
-import {
-  createOpenCodeSdkAdapter,
-  type OpenCodeSdkAdapter,
-} from "../opencode-sdk-adapter.js";
+import { listSupportedModels } from "../opencode/list-supported-models.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import type { OptimizerEvent } from "../optimizer-runtime.js";
 import { buildTaskLogFields } from "../task-log-fields.js";
@@ -715,7 +712,9 @@ const parseTaskDependenciesRequest = async (request: Request) => {
 type RegisterTaskRoutesOptions = {
   logger?: ApiLogger;
   onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
-  openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
+  openCodeModelsAdapter?: {
+    listSupportedModels(): ReturnType<typeof listSupportedModels>;
+  };
   resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
@@ -739,9 +738,12 @@ export const registerTaskRoutes = (
     return repository;
   };
   const getOpenCodeModelsAdapter = () => {
-    openCodeModelsAdapter ??= createOpenCodeSdkAdapter({
-      baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-    });
+    openCodeModelsAdapter ??= {
+      listSupportedModels: () =>
+        listSupportedModels({
+          baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+        }),
+    };
 
     return openCodeModelsAdapter;
   };
@@ -789,7 +791,7 @@ export const registerTaskRoutes = (
       return context.json(input.error, 400);
     }
 
-    let models: Awaited<ReturnType<OpenCodeSdkAdapter["listSupportedModels"]>>;
+    let models: Awaited<ReturnType<typeof listSupportedModels>>;
     const projectId = input.data.project_id;
 
     try {

@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 import type { ApiLogger } from "./api-logger.js";
-import type { OpenCodeSdkAdapter } from "./opencode-sdk-adapter.js";
+import type { listSupportedModels } from "./opencode/list-supported-models.js";
 import type { OptimizerEvent, OptimizerRuntime } from "./optimizer-runtime.js";
 import { registerDbRoutes } from "./routes/db.js";
 import { registerDimensionRoutes } from "./routes/dimensions.js";
@@ -23,10 +23,14 @@ type OpenCodeSessionPromptSender = {
   sendPrompt(sessionId: string, prompt: string): Promise<void>;
 };
 
+type OpenCodeModelsAdapter = {
+  listSupportedModels(): ReturnType<typeof listSupportedModels>;
+};
+
 type CreateAppOptions = {
   logger?: ApiLogger;
   onTaskResolved?: (event: OptimizerEvent) => Promise<void> | void;
-  openCodeModelsAdapter?: Pick<OpenCodeSdkAdapter, "listSupportedModels">;
+  openCodeModelsAdapter?: OpenCodeModelsAdapter;
   openCodeSessionsAdapter?: OpenCodeSessionPromptSender;
   optimizerRuntime?: OptimizerRuntime;
 };

@@ -7,6 +7,7 @@ const mockCreateApiLogger = vi.fn();
 const mockCreateDimensionRepository = vi.fn();
 const mockCreateManagerStateRepository = vi.fn();
 const mockCreateOpenCodeSessionRepository = vi.fn();
+const mockCreateOpenCodeSessionManager = vi.fn();
 const mockCreateOptimizerLaneStateRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
@@ -81,10 +82,6 @@ const createManagerStateRepositoryMock = () => ({
   upsertManagerState: vi.fn(),
 });
 
-vi.mock("../src/agent-session-coordinator.js", () => ({
-  createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
-}));
-
 vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
 }));
@@ -117,6 +114,10 @@ vi.mock("../src/opencode-session-repository.js", () => ({
   createOpenCodeSessionRepository: mockCreateOpenCodeSessionRepository,
 }));
 
+vi.mock("../src/opencode-session-manager.js", () => ({
+  createOpenCodeSessionManager: mockCreateOpenCodeSessionManager,
+}));
+
 vi.mock("../src/optimizer-lane-state-repository.js", () => ({
   createOptimizerLaneStateRepository: mockCreateOptimizerLaneStateRepository,
 }));
@@ -127,10 +128,6 @@ vi.mock("../src/task-repository.js", () => ({
 
 vi.mock("../src/task-scheduler.js", () => ({
   createTaskScheduler: mockCreateTaskScheduler,
-}));
-
-vi.mock("../src/task-session-coordinator.js", () => ({
-  createTaskSessionCoordinator: mockCreateTaskSessionCoordinator,
 }));
 
 vi.mock("../src/project-workspace.js", () => ({
@@ -146,6 +143,10 @@ describe("server startup", () => {
     mockCreateOpenCodeSessionRepository.mockReturnValue(
       createOpenCodeSessionRepositoryMock(),
     );
+    mockCreateOpenCodeSessionManager.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
+      createSession: vi.fn(),
+    });
     mockCreateOptimizerLaneStateRepository.mockReturnValue(
       createOptimizerLaneStateRepositoryMock(),
     );
@@ -227,13 +228,9 @@ describe("server startup", () => {
 
     startServer();
 
-    expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
+    expect(mockCreateOpenCodeSessionManager).toHaveBeenCalledWith({
       baseUrl: "http://127.0.0.1:54321",
-      sessionIdleFallbackTimeoutMs: 60000,
-    });
-    expect(mockCreateAgentSessionCoordinator).toHaveBeenCalledWith({
-      baseUrl: "http://127.0.0.1:54321",
-      sessionIdleFallbackTimeoutMs: 60000,
+      repository: expect.any(Object),
     });
   });
 
@@ -263,9 +260,9 @@ describe("server startup", () => {
     const { startServer } = await import("../src/server.js");
 
     expect(() => startServer()).not.toThrow();
-    expect(mockCreateTaskSessionCoordinator).toHaveBeenCalledWith({
+    expect(mockCreateOpenCodeSessionManager).toHaveBeenCalledWith({
       baseUrl: "http://localhost:4096",
-      sessionIdleFallbackTimeoutMs: undefined,
+      repository: expect.any(Object),
     });
   });
 
@@ -568,7 +565,6 @@ describe("server startup", () => {
     const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const dimensionRepository = createDimensionRepositoryMock();
     const managerStateRepository = createManagerStateRepositoryMock();
-    const agentCoordinator = {};
 
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue(createAppMock());
@@ -577,8 +573,6 @@ describe("server startup", () => {
     mockCreateDimensionRepository.mockReturnValue(dimensionRepository);
     mockCreateManagerStateRepository.mockReturnValue(managerStateRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
-    mockCreateTaskSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionCoordinator.mockReturnValue(agentCoordinator);
     mockCreateAgentSessionLane.mockReturnValue({
       [Symbol.asyncDispose]: vi.fn(),
       scanOnce: vi.fn(),
@@ -590,7 +584,9 @@ describe("server startup", () => {
     startServer();
 
     expect(mockCreateManager).toHaveBeenCalledWith({
-      coordinator: agentCoordinator,
+      coordinator: expect.objectContaining({
+        createSession: expect.any(Function),
+      }),
       dimensionRepository,
       logger,
       managerStateRepository,

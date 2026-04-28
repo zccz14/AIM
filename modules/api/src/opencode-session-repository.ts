@@ -16,7 +16,9 @@ import {
 type OpenCodeSessionRow = {
   continue_prompt: null | string;
   created_at: string;
+  model_id: null | string;
   reason: null | string;
+  provider_id: null | string;
   session_id: string;
   state: OpenCodeSessionState;
   updated_at: string;
@@ -61,6 +63,8 @@ const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
   openCodeSessionSchema.parse({
     continue_prompt: row.continue_prompt,
     created_at: row.created_at,
+    model_id: row.model_id,
+    provider_id: row.provider_id,
     reason: row.reason,
     session_id: row.session_id,
     stale: isStalePendingSession(row),
@@ -89,22 +93,24 @@ export const createOpenCodeSessionRepository = (
       value,
       reason,
       continue_prompt,
+      provider_id,
+      model_id,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getByIdStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
     FROM ${tableName}
     WHERE session_id = ?
   `);
   const listStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
     FROM ${tableName}
     ORDER BY created_at ASC, session_id ASC
   `);
   const listByStateStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
     FROM ${tableName}
     WHERE state = ?
     ORDER BY created_at ASC, session_id ASC
@@ -129,6 +135,8 @@ export const createOpenCodeSessionRepository = (
       const session = mapOpenCodeSessionRow({
         continue_prompt: input.continue_prompt ?? null,
         created_at: timestamp,
+        model_id: input.model_id ?? null,
+        provider_id: input.provider_id ?? null,
         reason: null,
         session_id: input.session_id,
         state: "pending",
@@ -142,6 +150,8 @@ export const createOpenCodeSessionRepository = (
         session.value,
         session.reason,
         session.continue_prompt,
+        session.provider_id,
+        session.model_id,
         session.created_at,
         session.updated_at,
       );

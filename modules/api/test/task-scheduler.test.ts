@@ -14,10 +14,6 @@ const createCoordinator = () => ({
   }),
 });
 
-const createOpenCodeSessionRepository = () => ({
-  createSession: vi.fn(),
-});
-
 const tempRoot = join(process.cwd(), ".tmp", "modules-api-task-scheduler");
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
@@ -260,10 +256,9 @@ describe("task scheduler", () => {
     );
   });
 
-  it("creates and binds a session for an unbound unfinished task, then registers the pending OpenCode continuation", async () => {
+  it("creates and binds a session for an unbound unfinished task", async () => {
     const initialTask = createTask();
     const boundTask = createTask({ session_id: "session-1" });
-    const openCodeSessionRepository = createOpenCodeSessionRepository();
     const repository = {
       assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
       listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
@@ -271,7 +266,6 @@ describe("task scheduler", () => {
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
       coordinator,
-      continuationSessionRepository: openCodeSessionRepository,
       taskRepository: repository,
     });
 
@@ -282,10 +276,6 @@ describe("task scheduler", () => {
       initialTask.task_id,
       "session-1",
     );
-    expect(openCodeSessionRepository.createSession).toHaveBeenCalledWith({
-      continue_prompt: buildTaskSessionPrompt(boundTask),
-      session_id: "session-1",
-    });
     expect(coordinator.createSession).toHaveBeenCalledOnce();
   });
 
@@ -860,13 +850,9 @@ describe("task scheduler", () => {
     vi.useRealTimers();
   });
 
-  it("keeps OpenCode integration behind task-session-coordinator", () => {
+  it("keeps OpenCode integration outside the task scheduler", () => {
     const schedulerSource = readFileSync(
       new URL("../src/task-scheduler.ts", import.meta.url),
-      "utf8",
-    );
-    const coordinatorSource = readFileSync(
-      new URL("../src/task-session-coordinator.ts", import.meta.url),
       "utf8",
     );
 
@@ -880,7 +866,6 @@ describe("task scheduler", () => {
     expect(schedulerSource).not.toMatch(/\.aim/i);
     expect(schedulerSource).not.toMatch(/task-specs/i);
     expect(schedulerSource).not.toContain("worktree_path");
-    expect(coordinatorSource).toContain("createTaskSessionCoordinator");
   });
 
   it("continue prompt contains task metadata and API-based spec lookup instructions", () => {

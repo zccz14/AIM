@@ -30,16 +30,15 @@ describe("opencode models", () => {
       provider: { list },
     });
 
-    const { createOpenCodeSdkAdapter } = await import(
-      "../src/opencode-sdk-adapter.js"
+    const { listSupportedModels } = await import(
+      "../src/opencode/list-supported-models.js"
     );
-    const adapter = createOpenCodeSdkAdapter({
-      baseUrl: "http://127.0.0.1:54321",
-      modelId: "claude-sonnet-4-5",
-      providerId: "anthropic",
-    });
 
-    await expect(adapter.listSupportedModels()).resolves.toEqual({
+    await expect(
+      listSupportedModels({
+        baseUrl: "http://127.0.0.1:54321",
+      }),
+    ).resolves.toEqual({
       items: [
         {
           model_id: "claude-sonnet-4-5",

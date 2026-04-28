@@ -5,17 +5,23 @@ type OpenCodeSessionState = "pending" | "rejected" | "resolved";
 type OpenCodeSessionRepository = Partial<AsyncDisposable> & {
   createSession(input: {
     continue_prompt?: null | string;
+    model_id?: null | string;
+    provider_id?: null | string;
     session_id: string;
   }): Promise<unknown> | unknown;
   listSessions(filter: { state?: OpenCodeSessionState }):
     | Array<{
         continue_prompt: null | string;
+        model_id?: null | string;
+        provider_id?: null | string;
         session_id: string;
         state: OpenCodeSessionState;
       }>
     | Promise<
         Array<{
           continue_prompt: null | string;
+          model_id?: null | string;
+          provider_id?: null | string;
           session_id: string;
           state: OpenCodeSessionState;
         }>
@@ -29,7 +35,20 @@ export type CreateOpenCodeSessionManagerOptions = {
 
 export type CreateManagedOpenCodeSessionInput = {
   directory: string;
+  model?: OpenCodeSessionModel;
   prompt: string;
+  title: string;
+};
+
+type OpenCodeSessionModel = {
+  modelID: string;
+  providerID: string;
+};
+
+export type PushOpenCodeSessionContinuationInput = {
+  model?: OpenCodeSessionModel;
+  prompt: string;
+  sessionId: string;
 };
 
 const staleAfterMilliseconds = 30 * 60 * 1000;
@@ -71,7 +90,12 @@ export const createOpenCodeSessionManager = ({
   baseUrl,
   repository,
 }: CreateOpenCodeSessionManagerOptions): AsyncDisposable & {
-  createSession(input: CreateManagedOpenCodeSessionInput): Promise<string>;
+  createSession(
+    input: CreateManagedOpenCodeSessionInput,
+  ): Promise<AsyncDisposable & { sessionId: string }>;
+  pushContinuationPrompt(
+    input: PushOpenCodeSessionContinuationInput,
+  ): Promise<void>;
 } => {
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
@@ -99,8 +123,16 @@ export const createOpenCodeSessionManager = ({
           );
 
           if (Date.now() - latestMessageTime >= staleAfterMilliseconds) {
+            const model =
+              session.provider_id && session.model_id
+                ? {
+                    modelID: session.model_id,
+                    providerID: session.provider_id,
+                  }
+                : undefined;
+
             await client.session.promptAsync({
-              body: { parts: [{ text: prompt, type: "text" }] },
+              body: { model, parts: [{ text: prompt, type: "text" }] },
               path: { id: session.session_id },
               throwOnError: true,
             });
@@ -123,19 +155,37 @@ export const createOpenCodeSessionManager = ({
     async [Symbol.asyncDispose]() {
       await stack.disposeAsync();
     },
-    async createSession({ directory, prompt }) {
+    async createSession({ directory, model, prompt, title }) {
       const session = await client.session.create({
-        body: { title: "AIM OpenCode Session" },
+        body: { title },
         query: { directory },
         throwOnError: true,
       });
 
       await repository.createSession({
         continue_prompt: prompt,
+        model_id: model?.modelID ?? null,
+        provider_id: model?.providerID ?? null,
         session_id: session.data.id,
       });
 
-      return session.data.id;
+      return {
+        async [Symbol.asyncDispose]() {
+          await client.session.abort({
+            path: { id: session.data.id },
+            query: { directory },
+            throwOnError: true,
+          });
+        },
+        sessionId: session.data.id,
+      };
+    },
+    async pushContinuationPrompt({ model, prompt, sessionId }) {
+      await client.session.promptAsync({
+        body: { model, parts: [{ text: prompt, type: "text" }] },
+        path: { id: sessionId },
+        throwOnError: true,
+      });
     },
   };
 };

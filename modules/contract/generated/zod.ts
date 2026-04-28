@@ -50,6 +50,8 @@ const OpenCodeSession = z
     value: z.union([z.string(), z.null()]),
     reason: z.union([z.string(), z.null()]),
     continue_prompt: z.union([z.string(), z.null()]),
+    provider_id: z.union([z.string(), z.null()]),
+    model_id: z.union([z.string(), z.null()]),
     stale: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
@@ -62,6 +64,8 @@ const CreateOpenCodeSessionRequest = z
   .object({
     session_id: z.string().min(1),
     continue_prompt: z.union([z.string(), z.null()]).optional(),
+    provider_id: z.union([z.string(), z.null()]).optional(),
+    model_id: z.union([z.string(), z.null()]).optional(),
   })
   .strict();
 const OpenCodeSessionContinueCounts = z

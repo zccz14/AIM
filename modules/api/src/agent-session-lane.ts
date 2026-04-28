@@ -1,4 +1,3 @@
-import type { AgentSessionCoordinator } from "./agent-session-coordinator.js";
 import type { ApiLogger } from "./api-logger.js";
 import type {
   OptimizerLaneState,
@@ -14,11 +13,13 @@ type ContinuationSession = {
 };
 
 type ContinuationSessionRepository = {
-  createSession(input: {
-    continue_prompt?: null | string;
-    session_id: string;
-  }): Promise<ContinuationSession>;
   getSessionById(sessionId: string): ContinuationSession | null;
+};
+
+type AgentSessionCreator = {
+  createSession(
+    input: AgentSessionLaneInput,
+  ): Promise<AsyncDisposable & { sessionId: string }>;
 };
 
 type OptimizerLaneStateRepository = {
@@ -31,7 +32,7 @@ type OptimizerLaneStateRepository = {
 
 type CreateAgentSessionLaneOptions = {
   continuationSessionRepository?: ContinuationSessionRepository;
-  coordinator: AgentSessionCoordinator;
+  coordinator: AgentSessionCreator;
   laneName: Exclude<OptimizerLaneName, "developer_follow_up">;
   laneStateRepository?: OptimizerLaneStateRepository;
   logger?: ApiLogger;
@@ -59,7 +60,7 @@ type StartOptions = {
 };
 
 type ManagedAgentSession = Awaited<
-  ReturnType<AgentSessionCoordinator["createSession"]>
+  ReturnType<AgentSessionCreator["createSession"]>
 >;
 
 export const createAgentSessionLane = (
@@ -246,10 +247,6 @@ export const createAgentSessionLane = (
         session = await options.coordinator.createSession(scanInput);
         sessionId = session.sessionId;
         if (usesPersistedContinuation) {
-          void options.continuationSessionRepository?.createSession({
-            continue_prompt: scanInput.prompt,
-            session_id: sessionId,
-          });
           persistLaneState({
             last_error: null,
             last_scan_at: lastScanAt,

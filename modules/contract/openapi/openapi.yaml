@@ -1010,6 +1010,8 @@ components:
         - value
         - reason
         - continue_prompt
+        - provider_id
+        - model_id
         - stale
         - created_at
         - updated_at
@@ -1028,6 +1030,14 @@ components:
             - string
             - "null"
         continue_prompt:
+          type:
+            - string
+            - "null"
+        provider_id:
+          type:
+            - string
+            - "null"
+        model_id:
           type:
             - string
             - "null"
@@ -1116,6 +1126,14 @@ components:
           type: string
           minLength: 1
         continue_prompt:
+          type:
+            - string
+            - "null"
+        provider_id:
+          type:
+            - string
+            - "null"
+        model_id:
           type:
             - string
             - "null"

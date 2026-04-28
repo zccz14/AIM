@@ -1,16 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
 const mockCreateManager = vi.fn();
+const mockCreateOpenCodeSessionManager = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
-const mockCreateTaskSessionCoordinator = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
 const mockPrepareManagerLaneScanInput = vi.fn();
-
-vi.mock("../src/agent-session-coordinator.js", () => ({
-  createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
-}));
 
 vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
@@ -24,8 +19,8 @@ vi.mock("../src/task-scheduler.js", () => ({
   createTaskScheduler: mockCreateTaskScheduler,
 }));
 
-vi.mock("../src/task-session-coordinator.js", () => ({
-  createTaskSessionCoordinator: mockCreateTaskSessionCoordinator,
+vi.mock("../src/opencode-session-manager.js", () => ({
+  createOpenCodeSessionManager: mockCreateOpenCodeSessionManager,
 }));
 
 vi.mock("../src/project-workspace.js", () => ({
@@ -75,8 +70,11 @@ describe("optimizer system", () => {
       start: vi.fn(),
     };
 
-    mockCreateTaskSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionCoordinator.mockReturnValue({});
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
     mockCreateManager.mockReturnValue(managerLane);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
@@ -106,7 +104,9 @@ describe("optimizer system", () => {
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(mockCreateManager).toHaveBeenCalledWith(
       expect.objectContaining({
-        coordinator: {},
+        coordinator: expect.objectContaining({
+          createSession: expect.any(Function),
+        }),
         dimensionRepository,
         logger,
         managerStateRepository,
@@ -133,5 +133,6 @@ describe("optimizer system", () => {
     expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(managerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 });

@@ -1624,6 +1624,8 @@ export const openApiDocument = {
           "value",
           "reason",
           "continue_prompt",
+          "provider_id",
+          "model_id",
           "stale",
           "created_at",
           "updated_at",
@@ -1643,6 +1645,12 @@ export const openApiDocument = {
             type: ["string", "null"],
           },
           continue_prompt: {
+            type: ["string", "null"],
+          },
+          provider_id: {
+            type: ["string", "null"],
+          },
+          model_id: {
             type: ["string", "null"],
           },
           stale: {
@@ -1742,6 +1750,12 @@ export const openApiDocument = {
             minLength: 1,
           },
           continue_prompt: {
+            type: ["string", "null"],
+          },
+          provider_id: {
+            type: ["string", "null"],
+          },
+          model_id: {
             type: ["string", "null"],
           },
         },
