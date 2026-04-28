@@ -93,6 +93,7 @@ describe("optimizer routes", () => {
       runtime_active: false,
       current_baseline_commit_sha: null,
       blocker_summary: "Optimizer disabled for project",
+      recent_events: [],
     });
   });
 
@@ -113,6 +114,7 @@ describe("optimizer routes", () => {
       runtime_active: false,
       current_baseline_commit_sha: null,
       blocker_summary: "Optimizer runtime inactive",
+      recent_events: [],
     });
   });
 
@@ -135,6 +137,7 @@ describe("optimizer routes", () => {
       runtime_active: true,
       current_baseline_commit_sha: null,
       blocker_summary: null,
+      recent_events: [],
     });
   });
 
@@ -146,7 +149,19 @@ describe("optimizer routes", () => {
     const app = createApp({
       optimizerSystem: {
         [Symbol.asyncDispose]: async () => undefined,
-        getProjectStatus: () => ({ blocker_summary: blockerSummary }),
+        getProjectStatus: () => ({
+          blocker_summary: blockerSummary,
+          recent_events: [
+            {
+              event: "failure",
+              lane_name: "manager",
+              project_id: project.id,
+              summary:
+                "Manager lane failed: git fetch failed. Check workspace access and retry after clearing the blocker.",
+              timestamp: "2026-04-29T10:16:30.000Z",
+            },
+          ],
+        }),
       },
     });
     const project = await createProject(app, true);
@@ -161,6 +176,13 @@ describe("optimizer routes", () => {
       optimizer_enabled: true,
       runtime_active: true,
       blocker_summary: blockerSummary,
+      recent_events: [
+        expect.objectContaining({
+          event: "failure",
+          lane_name: "manager",
+          summary: expect.stringContaining("clearing the blocker"),
+        }),
+      ],
     });
   });
 });

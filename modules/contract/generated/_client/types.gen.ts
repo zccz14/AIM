@@ -129,6 +129,18 @@ export type ProjectOptimizerStatusResponse = {
    * Current origin/main baseline commit when the project workspace is available.
    */
   current_baseline_commit_sha?: string | null;
+  /**
+   * Bounded recent optimizer lane events for this project, newest first.
+   */
+  recent_events: Array<{
+    lane_name: "manager" | "coordinator" | "developer";
+    project_id?: string;
+    event: "start" | "success" | "failure" | "idle" | "noop";
+    timestamp: string;
+    summary: string;
+    task_id?: string;
+    session_id?: string;
+  }>;
 };
 
 export type Task = {

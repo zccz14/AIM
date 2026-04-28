@@ -137,6 +137,19 @@ const ProjectOptimizerStatusResponse = z
     runtime_active: z.boolean(),
     blocker_summary: z.union([z.string(), z.null()]),
     current_baseline_commit_sha: z.union([z.string(), z.null()]).optional(),
+    recent_events: z.array(
+      z
+        .object({
+          lane_name: z.enum(["manager", "coordinator", "developer"]),
+          project_id: z.string().min(1).optional(),
+          event: z.enum(["start", "success", "failure", "idle", "noop"]),
+          timestamp: z.string().datetime({ offset: true }),
+          summary: z.string().min(1),
+          task_id: z.string().min(1).optional(),
+          session_id: z.string().min(1).optional(),
+        })
+        .strict()
+    ),
   })
   .strict();
 const DirectorClarificationKind = z.enum(["clarification", "adjustment"]);

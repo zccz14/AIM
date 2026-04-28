@@ -7,6 +7,7 @@ import type {
   ManagerStateInput,
 } from "./manager-state-repository.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
+import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 const heartbeatIntervalMs = 10_000;
@@ -41,6 +42,7 @@ type CreateManagerOptions = {
   dimensionRepository: DimensionRepository;
   logger?: ApiLogger;
   managerStateRepository: ManagerStateRepository;
+  onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   project: ManagerProject;
   sessionManager: Pick<OpenCodeSessionManager, "createSession">;
 };
@@ -91,6 +93,7 @@ export const createManager = ({
   dimensionRepository,
   logger,
   managerStateRepository,
+  onLaneEvent,
   project,
   sessionManager,
 }: CreateManagerOptions): Manager => {
@@ -125,6 +128,12 @@ export const createManager = ({
     });
 
   const heartbeat = async () => {
+    onLaneEvent?.({
+      event: "start",
+      lane_name: "manager",
+      project_id: project.id,
+      summary: "Manager lane started a heartbeat scan.",
+    });
     logger?.info(
       { event: "manager_heartbeat_started", project_id: project.id },
       "Manager heartbeat started",
@@ -168,6 +177,13 @@ export const createManager = ({
         },
         "Manager heartbeat idle",
       );
+      onLaneEvent?.({
+        event: "idle",
+        lane_name: "manager",
+        project_id: project.id,
+        summary:
+          "Manager lane idle: no missing evaluations for current baseline.",
+      });
       return;
     }
 
@@ -188,6 +204,13 @@ export const createManager = ({
         },
         "Manager heartbeat idle",
       );
+      onLaneEvent?.({
+        event: "idle",
+        lane_name: "manager",
+        project_id: project.id,
+        summary:
+          "Manager lane idle: matching evaluation session already in progress.",
+      });
       return;
     }
 
@@ -212,6 +235,12 @@ export const createManager = ({
       { event: "manager_session_started", project_id: project.id },
       "Manager session started",
     );
+    onLaneEvent?.({
+      event: "start",
+      lane_name: "manager",
+      project_id: project.id,
+      summary: `Manager lane started evaluation for ${canonicalMissingDimensionIds.length} dimension${canonicalMissingDimensionIds.length === 1 ? "" : "s"}.`,
+    });
 
     try {
       const session = await sessionManager.createSession({
@@ -252,6 +281,13 @@ export const createManager = ({
         },
         "Manager session succeeded",
       );
+      onLaneEvent?.({
+        event: "success",
+        lane_name: "manager",
+        project_id: project.id,
+        session_id: session.sessionId,
+        summary: `Manager lane created evaluation session ${session.sessionId}.`,
+      });
     } catch (err) {
       managerStateRepository.upsertManagerState({
         commit_sha: commitSha,
@@ -265,6 +301,12 @@ export const createManager = ({
         { err, event: "manager_session_failed", project_id: project.id },
         "Manager session failed",
       );
+      onLaneEvent?.({
+        event: "failure",
+        lane_name: "manager",
+        project_id: project.id,
+        summary: `Manager lane failed: ${errorMessage(err)}. Check manager session setup and retry after clearing the lane blocker.`,
+      });
       throw err;
     }
   };

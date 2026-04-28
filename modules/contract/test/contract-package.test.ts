@@ -544,12 +544,32 @@ describe("contract package baseline", () => {
         optimizer_enabled: true,
         runtime_active: true,
         blocker_summary: null,
+        recent_events: [
+          {
+            event: "failure",
+            lane_name: "developer",
+            summary:
+              "Developer lane failed for task task-1. Fix the blocker and retry.",
+            task_id: "task-1",
+            timestamp: "2026-04-29T10:00:00.000Z",
+          },
+        ],
       }),
     ).toEqual({
       project_id: mainProjectId,
       optimizer_enabled: true,
       runtime_active: true,
       blocker_summary: null,
+      recent_events: [
+        {
+          event: "failure",
+          lane_name: "developer",
+          summary:
+            "Developer lane failed for task task-1. Fix the blocker and retry.",
+          task_id: "task-1",
+          timestamp: "2026-04-29T10:00:00.000Z",
+        },
+      ],
     });
     expect(
       contractModule.projectOptimizerStatusResponseSchema.safeParse({
@@ -564,6 +584,7 @@ describe("contract package baseline", () => {
         },
         recent_scan_at: "2026-04-27T10:00:00.000Z",
         blocker_summary: null,
+        recent_events: [],
       }).success,
     ).toBe(false);
   });
