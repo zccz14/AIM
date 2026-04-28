@@ -14,6 +14,7 @@ const LOCALE_STORAGE_KEY = "aim.web.locale";
 const messages = {
   en: {
     activeUnfinishedTasks: "Active Unfinished Tasks",
+    actions: "Actions",
     aimDimensionReport: "AIM Dimension Report",
     aimDimensionReportAria: "AIM Dimension report",
     aimDimensionReportDescription:
@@ -37,6 +38,8 @@ const messages = {
     connection: "Connection",
     contractStatus: "Contract Status",
     coordinatorInput: "Coordinator Input",
+    continue: "Continue",
+    continueAllPendingSessions: "Continue all pending sessions",
     continuePromptReady: "Continue prompt ready",
     createTask: "Create Task",
     createProject: "Create Project",
@@ -261,6 +264,7 @@ const messages = {
   },
   zh: {
     activeUnfinishedTasks: "活跃未完成任务",
+    actions: "操作",
     aimDimensionReport: "AIM Dimension 报告",
     aimDimensionReportAria: "AIM Dimension 报告",
     aimDimensionReportDescription:
@@ -284,6 +288,8 @@ const messages = {
     connection: "连接",
     contractStatus: "契约状态",
     coordinatorInput: "Coordinator 输入",
+    continue: "Continue",
+    continueAllPendingSessions: "Continue all pending sessions",
     continuePromptReady: "继续提示已就绪",
     createTask: "创建任务",
     createProject: "创建项目",

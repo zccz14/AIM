@@ -2,6 +2,8 @@ import type {
   Dimension,
   DimensionEvaluation,
   OpenCodeModelsResponse,
+  OpenCodeSessionContinueBulkResponse,
+  OpenCodeSessionContinueResult,
   OpenCodeSessionListResponse,
   Project,
   ProjectListResponse,
@@ -135,3 +137,18 @@ export const listOpenCodeSessions =
 
     return client.listOpenCodeSessions();
   };
+
+export const continuePendingOpenCodeSessions =
+  async (): Promise<OpenCodeSessionContinueBulkResponse> => {
+    const client = createWebApiClient();
+
+    return client.continuePendingOpenCodeSessions();
+  };
+
+export const continueOpenCodeSession = async (
+  sessionId: string,
+): Promise<OpenCodeSessionContinueResult> => {
+  const client = createWebApiClient();
+
+  return client.continueOpenCodeSession(sessionId);
+};
