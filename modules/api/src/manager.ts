@@ -60,6 +60,9 @@ const git = (projectDirectory: string, args: string[]) =>
 const quoteDimensionIds = (dimensionIds: string[]) =>
   dimensionIds.map((dimensionId) => `"${dimensionId}"`).join(", ");
 
+const evaluationKey = (commitSha: string, dimensionIds: string[]) =>
+  `${commitSha}:${[...dimensionIds].sort().join("\0")}`;
+
 const projectScopedPrompt = (
   prompt: string,
   project: ManagerProject,
@@ -91,6 +94,7 @@ export const createManager = ({
   let running = true;
   let lastError: null | string = null;
   let lastScanAt: null | string = null;
+  let activeEvaluationKey: null | string = null;
   let sleepTimer: NodeJS.Timeout | undefined;
   let wakeSleep: (() => void) | undefined;
   let loopPromise: Promise<void> | null = null;
@@ -145,12 +149,28 @@ export const createManager = ({
     );
 
     if (dimensionIds.length === 0) {
+      activeEvaluationKey = null;
       logger?.info(
         {
           commit_sha: commitSha,
           event: "manager_idle",
           project_id: project.id,
           reason: "no_missing_evaluations",
+        },
+        "Manager heartbeat idle",
+      );
+      return;
+    }
+
+    const missingEvaluationKey = evaluationKey(commitSha, dimensionIds);
+    if (activeEvaluationKey === missingEvaluationKey) {
+      logger?.info(
+        {
+          commit_sha: commitSha,
+          dimension_ids: dimensionIds,
+          event: "manager_idle",
+          project_id: project.id,
+          reason: "evaluation_already_in_progress",
         },
         "Manager heartbeat idle",
       );
@@ -166,6 +186,7 @@ export const createManager = ({
       },
       "Manager missing evaluations found",
     );
+    activeEvaluationKey = missingEvaluationKey;
     logger?.info(
       { event: "manager_session_started", project_id: project.id },
       "Manager session started",
@@ -197,6 +218,9 @@ export const createManager = ({
         "Manager session succeeded",
       );
     } catch (err) {
+      if (activeEvaluationKey === missingEvaluationKey) {
+        activeEvaluationKey = null;
+      }
       logger?.error(
         { err, event: "manager_session_failed", project_id: project.id },
         "Manager session failed",
