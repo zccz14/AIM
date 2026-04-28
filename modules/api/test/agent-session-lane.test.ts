@@ -11,8 +11,6 @@ const createLane = (overrides = {}) =>
   createAgentSessionLane({
     coordinator: {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     },
     laneName: "manager_evaluation",
     modelId: "claude-sonnet-4-5",
@@ -47,8 +45,6 @@ describe("agent session lane", () => {
       createSession: vi
         .fn()
         .mockResolvedValue(createSession("manager-session-1")),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       continuationSessionRepository,
@@ -83,8 +79,6 @@ describe("agent session lane", () => {
       },
       coordinator: {
         createSession: vi.fn().mockResolvedValue(session),
-        getSessionState: vi.fn().mockResolvedValue("idle"),
-        sendPrompt: vi.fn().mockResolvedValue(undefined),
       },
       laneStateRepository: {
         getLaneState: vi.fn().mockReturnValue(null),
@@ -122,8 +116,6 @@ describe("agent session lane", () => {
     };
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       continuationSessionRepository,
@@ -135,8 +127,6 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).not.toHaveBeenCalled();
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
     expect(continuationSessionRepository.createSession).not.toHaveBeenCalled();
     expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
@@ -208,8 +198,6 @@ describe("agent session lane", () => {
     };
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       continuationSessionRepository,
@@ -252,8 +240,6 @@ describe("agent session lane", () => {
       createSession: vi
         .fn()
         .mockResolvedValue(createSession("coordinator-session-1")),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       ...coordinatorLaneOptions,
@@ -303,8 +289,6 @@ describe("agent session lane", () => {
     };
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       ...coordinatorLaneOptions,
@@ -317,8 +301,6 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).not.toHaveBeenCalled();
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
     expect(continuationSessionRepository.createSession).not.toHaveBeenCalled();
     expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
@@ -347,8 +329,6 @@ describe("agent session lane", () => {
     };
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       ...coordinatorLaneOptions,
@@ -399,8 +379,6 @@ describe("agent session lane", () => {
     };
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       ...coordinatorLaneOptions,
@@ -449,8 +427,6 @@ describe("agent session lane", () => {
             releaseCreate = () => resolve(createSession());
           }),
       ),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       coordinator,
@@ -523,8 +499,6 @@ describe("agent session lane", () => {
     vi.useFakeTimers();
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lanePromise = (async () => {
       await using lane = createLane({ coordinator });
@@ -539,16 +513,13 @@ describe("agent session lane", () => {
 
     await expect(lanePromise).resolves.toBeDefined();
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
   });
 
   it("allows repeated lane async disposal without restarting stop behavior", async () => {
     vi.useFakeTimers();
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({ coordinator });
 
@@ -561,16 +532,13 @@ describe("agent session lane", () => {
     await expect(lane[Symbol.asyncDispose]()).resolves.toBeUndefined();
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
   });
 
   it("releases the created agent session when the lane is disposed", async () => {
     const session = createSession();
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(session),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({ coordinator });
 
@@ -583,11 +551,9 @@ describe("agent session lane", () => {
     expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("resolves the project directory before creating or continuing a lane session", async () => {
+  it("does not poll or continue an existing non-persisted lane session", async () => {
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const resolveProjectDirectory = vi
       .fn()
@@ -605,21 +571,13 @@ describe("agent session lane", () => {
     expect(coordinator.createSession).toHaveBeenCalledWith(
       expect.objectContaining({ projectDirectory: "/repo/first" }),
     );
-    expect(coordinator.getSessionState).toHaveBeenCalledWith(
-      "session-1",
-      "/repo/current",
-    );
-    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
-      "session-1",
-      expect.objectContaining({ projectDirectory: "/repo/current" }),
-    );
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
 
   it("skips OpenCode interaction when scan input preparation returns null", async () => {
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       coordinator,
@@ -629,15 +587,11 @@ describe("agent session lane", () => {
     await lane.scanOnce();
 
     expect(coordinator.createSession).not.toHaveBeenCalled();
-    expect(coordinator.getSessionState).not.toHaveBeenCalled();
-    expect(coordinator.sendPrompt).not.toHaveBeenCalled();
   });
 
-  it("uses prepared scan input when creating and continuing an OpenCode session", async () => {
+  it("uses prepared scan input only when creating an OpenCode session", async () => {
     const coordinator = {
       createSession: vi.fn().mockResolvedValue(createSession()),
-      getSessionState: vi.fn().mockResolvedValue("idle"),
-      sendPrompt: vi.fn().mockResolvedValue(undefined),
     };
     const lane = createLane({
       coordinator,
@@ -669,18 +623,8 @@ describe("agent session lane", () => {
         prompt: expect.stringContaining('"dimension-api", "dimension-docs"'),
       }),
     );
-    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
-      "session-1",
-      expect.objectContaining({
-        prompt: expect.stringContaining('"dimension-docs"'),
-      }),
-    );
-    expect(coordinator.sendPrompt).toHaveBeenCalledWith(
-      "session-1",
-      expect.objectContaining({
-        prompt: expect.not.stringContaining("dimension-api"),
-      }),
-    );
+    expect(coordinator.createSession).toHaveBeenCalledOnce();
+    expect(lane.getStatus()).toMatchObject({ last_error: null });
   });
 
   it("exposes scan errors and successful scan timestamps for optimizer status", async () => {
@@ -697,8 +641,6 @@ describe("agent session lane", () => {
           .fn()
           .mockRejectedValueOnce(new Error("manager session failed"))
           .mockResolvedValueOnce(createSession()),
-        getSessionState: vi.fn().mockResolvedValue("idle"),
-        sendPrompt: vi.fn().mockResolvedValue(undefined),
       },
       logger,
     });
