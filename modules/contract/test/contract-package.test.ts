@@ -1126,6 +1126,8 @@ describe("contract package baseline", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Stale unfinished task has no active worktree or PR and is superseded by baseline coverage.",
             task_id: "22222222-2222-4222-8222-222222222222",
           },
         ],

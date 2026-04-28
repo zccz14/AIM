@@ -57,6 +57,16 @@ describe("coordinator proposal dry-run", () => {
           "No unfinished same-source coverage found; verify no dependency conflict before approval.",
         dependency_draft: [],
       },
+      source_metadata_planning_evidence: {
+        conflict_duplicate_assessment:
+          "No duplicate same-source unfinished Task Pool coverage was found before approval.",
+        current_task_pool_coverage:
+          "No unfinished Task Pool item covers dimension dimension-api evaluation evaluation-1.",
+        dependency_rationale:
+          "No current unfinished same-source Task must be completed before this candidate can start.",
+        unfinished_task_non_conflict_rationale:
+          "The create candidate does not cover or conflict with existing unfinished same-source Tasks.",
+      },
       task_spec_draft: {
         title: "Close API completeness gap from evaluation evaluation-1",
         spec: expect.stringContaining(
@@ -96,6 +106,8 @@ describe("coordinator proposal dry-run", () => {
       expect.objectContaining({
         decision: "keep",
         dry_run_only: true,
+        keep_reason:
+          "Retain unfinished coverage task task-existing; worktree=none; pr=none; it already covers the current dimension evaluation and should not be duplicated.",
         must_not_write_directly: true,
         requires_task_spec_validation: false,
         task_id: "task-existing",
@@ -174,6 +186,8 @@ describe("coordinator proposal dry-run", () => {
     expect(dryRun.operations).toEqual([
       expect.objectContaining({
         decision: "delete",
+        delete_reason:
+          "Superseded by accepted dependency plan.; worktree=none; pr=none; delete because stale/conflict/baseline absorbed coverage should not remain in the unfinished Task Pool.",
         dry_run_only: true,
         must_not_write_directly: true,
         requires_task_spec_validation: false,

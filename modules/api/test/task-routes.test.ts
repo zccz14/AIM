@@ -92,6 +92,12 @@ const buildPassingCoordinatorSourceMetadata = (
   dimensionId = "33333333-3333-4333-8333-333333333333",
   dimensionEvaluationId = "44444444-4444-4444-8444-444444444444",
 ) => ({
+  conflict_duplicate_assessment:
+    "No duplicate unfinished Task covers this dimension evaluation.",
+  current_task_pool_coverage:
+    "Current Task Pool has no unfinished same-source coverage.",
+  dependency_rationale:
+    "No prerequisite Task must complete before this candidate can start.",
   dimension_evaluation_id: dimensionEvaluationId,
   dimension_id: dimensionId,
   task_spec_validation: {
@@ -101,6 +107,8 @@ const buildPassingCoordinatorSourceMetadata = (
     validation_session_id: `validation-${dimensionEvaluationId}`,
     validation_source: "aim-verify-task-spec",
   },
+  unfinished_task_non_conflict_rationale:
+    "The candidate does not cover or conflict with existing unfinished Tasks.",
 });
 
 let previousProjectRoot: string | undefined;
@@ -674,9 +682,8 @@ describe("task routes", () => {
               spec: "write batch route",
               status: "processing",
               source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
                 coordinator_session_id: "session-1",
-                dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
-                dimension_id: "33333333-3333-4333-8333-333333333333",
                 task_spec_validation: {
                   conclusion_summary:
                     "aim-verify-task-spec returned pass for the source gap",
@@ -690,6 +697,8 @@ describe("task routes", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Stale unfinished task has no worktree or PR and is superseded by this batch.",
             task_id: existingTask.task_id,
           },
         ],
@@ -751,6 +760,7 @@ describe("task routes", () => {
               title: "Create with validation evidence",
               spec: "validated task spec",
               source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
                 dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
                 dimension_id: "33333333-3333-4333-8333-333333333333",
                 task_spec_validation: {
@@ -818,6 +828,7 @@ describe("task routes", () => {
               title: "Blocked create",
               spec: "must not be persisted",
               source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
                 dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
                 dimension_id: "33333333-3333-4333-8333-333333333333",
                 task_spec_validation: {
@@ -865,6 +876,7 @@ describe("task routes", () => {
               title: "Blocked create",
               spec: "must not be persisted",
               source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
                 dimension_evaluation_id: "44444444-4444-4444-8444-444444444444",
                 dimension_id: "33333333-3333-4333-8333-333333333333",
                 task_spec_validation: {
@@ -935,7 +947,7 @@ describe("task routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "TASK_VALIDATION_ERROR",
       message:
-        "Task batch create requires top-level dimension_id and dimension_evaluation_id planning evidence separate from task_spec_validation",
+        "Task batch create requires source_metadata Coordinator planning evidence independent from task_spec_validation: current_task_pool_coverage, dependency_rationale, conflict_duplicate_assessment, unfinished_task_non_conflict_rationale",
     });
     expect(await app.request(resolveTaskByIdPath(taskId))).toMatchObject({
       status: 404,
@@ -968,6 +980,8 @@ describe("task routes", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Stale task has no active worktree or PR and must be deleted atomically.",
             task_id: "22222222-2222-4222-8222-222222222222",
           },
         ],
@@ -1137,6 +1151,8 @@ describe("task routes", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Missing stale task has no worktree or PR and should prove rollback behavior.",
             task_id: missingTaskId,
           },
         ],
@@ -1178,6 +1194,8 @@ describe("task routes", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Conflicting same-batch delete has no worktree or PR classification.",
             task_id: taskId,
           },
         ],
@@ -1233,6 +1251,8 @@ describe("task routes", () => {
           },
           {
             type: "delete",
+            delete_reason:
+              "Conflicting duplicate operation has no worktree or PR classification.",
             task_id: taskId,
           },
         ],
@@ -1250,6 +1270,8 @@ describe("task routes", () => {
           operations: [
             {
               type: "delete",
+              delete_reason:
+                "Terminal task has no active worktree or PR but cannot be deleted.",
               task_id: resolvedTask.task_id,
             },
           ],

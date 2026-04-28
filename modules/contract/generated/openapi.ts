@@ -2084,7 +2084,7 @@ export const openApiDocument = {
       DeleteTaskBatchOperation: {
         type: "object",
         additionalProperties: false,
-        required: ["type", "task_id"],
+        required: ["type", "task_id", "delete_reason"],
         properties: {
           type: {
             type: "string",
@@ -2093,6 +2093,10 @@ export const openApiDocument = {
           task_id: {
             type: "string",
             format: "uuid",
+          },
+          delete_reason: {
+            type: "string",
+            minLength: 1,
           },
         },
       },

@@ -248,7 +248,11 @@ const CreateTaskBatchOperation = z
   .object({ type: z.literal("create"), task: CreateTaskBatchTask })
   .strict();
 const DeleteTaskBatchOperation = z
-  .object({ type: z.literal("delete"), task_id: z.string().uuid() })
+  .object({
+    type: z.literal("delete"),
+    task_id: z.string().uuid(),
+    delete_reason: z.string().min(1),
+  })
   .strict();
 const TaskBatchOperation = z.discriminatedUnion("type", [
   CreateTaskBatchOperation,

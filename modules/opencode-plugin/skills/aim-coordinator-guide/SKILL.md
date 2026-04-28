@@ -51,6 +51,10 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 - `dependencies`：候选 Task 创建时应携带的 Task 依赖；如果没有依赖，写空列表。
 - `source_metadata`：来源信息，例如 Manager 评估、Coordinator session 或 rejected 反馈；每个 `create` operation 必须先经过最小 Coordinator Task Spec validation entrypoint，取得 `pass` / `waiting_assumptions` / `failed` 之一的独立 Task Spec validation 结论，并把可持久化证据保存在 `source_metadata.task_spec_validation`。
 - `source_metadata.dimension_id` 与 `source_metadata.dimension_evaluation_id`：用于依赖、冲突、重复覆盖判断的规划证据。它们必须与 validation evidence 分开保留；`source_metadata.task_spec_validation` 里的 source gap 不能替代这类 planning evidence。
+- `source_metadata.current_task_pool_coverage`：当前 Task Pool 是否已有未完成覆盖，以及覆盖/未覆盖的依据。
+- `source_metadata.dependency_rationale`：候选 Task 与现有未完成 Task 的依赖关系；无依赖时也要说明为什么无依赖。
+- `source_metadata.conflict_duplicate_assessment`：候选 Task 与现有未完成 Task 是否重复、冲突或覆盖重叠的判断。
+- `source_metadata.unfinished_task_non_conflict_rationale`：为什么该候选不会覆盖或冲突于现有未完成 Tasks。
 
 `source_metadata.task_spec_validation` 必须至少保留：
 
@@ -65,7 +69,7 @@ Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划
 `Delete` 条目还必须包含：
 
 - `task_id`：要删除的未完成 Task UUID。
-- `delete_reason`：删除依据，例如已被最新基线吸收、被更清晰的替代 Task 覆盖、与当前 README 或 Manager 方向冲突、或已不可执行。
+- `delete_reason`：删除依据，例如已被最新基线吸收、被更清晰的替代 Task 覆盖、与当前 README 或 Manager 方向冲突、或已不可执行；必须包含未完成 Task 的 worktree/PR 分类，以及 stale、conflict 或 baseline absorbed 判断。保留 / noop 的候选也必须保留明确 rationale。
 
 ## Batch 规则
 
@@ -134,7 +138,7 @@ rejected Task 的失败原因是新的基线规划输入。Coordinator 必须先
 用户批准 `POST /tasks/batch` operations 后：
 
 1. 对每个 `create`，先进入最小 Coordinator Task Spec validation orchestration：用 `aim-verify-task-spec` 校验 `task.spec`，并把候选归类为 `pass`、`waiting_assumptions` 或 `failed`。
-2. `pass`：生成或规范化 `source_metadata.task_spec_validation`，至少包含 validation source、validated_at 或 validation_session_id、`conclusion = pass`、conclusion_summary、dimension_evaluation/source gap；同时保留独立的顶层 `dimension_id` / `dimension_evaluation_id` planning evidence。
+2. `pass`：生成或规范化 `source_metadata.task_spec_validation`，至少包含 validation source、validated_at 或 validation_session_id、`conclusion = pass`、conclusion_summary、dimension_evaluation/source gap；同时保留独立的顶层 `dimension_id` / `dimension_evaluation_id`、`current_task_pool_coverage`、`dependency_rationale`、`conflict_duplicate_assessment`、`unfinished_task_non_conflict_rationale` planning evidence。
 3. `waiting_assumptions`：不得构造或提交包含该候选的 `POST /tasks/batch`；把 `blocking_assumptions` 作为 Coordinator planning feedback。
 4. `failed`：不得构造或提交包含该候选的 `POST /tasks/batch`；把 `failure_reason` 作为 Coordinator planning feedback。
 5. 只有所有 `create` 校验结论均为 `pass` 且已写入 `source_metadata.task_spec_validation` 时，才提交 `POST /tasks/batch`。
@@ -161,12 +165,12 @@ Coordinator 不得在这个阶段接管 Developer 生命周期；已创建的 Ta
 - [ ] 每个 operation 都是 `create` 或 `delete`。
 - [ ] 每个 `create` 都有调用方生成的 UUID 和完整五段式候选 Task Spec。
 - [ ] 每个 `create` 都有独立 Task Spec validation `pass` 结论，并已在 `source_metadata.task_spec_validation` 保留 validation_source、validated_at 或 validation_session_id、`conclusion = pass`、conclusion_summary 与 dimension_evaluation/source gap。
-- [ ] 每个 `create` 都在 `source_metadata` 顶层保留独立 planning evidence；没有用 `task_spec_validation` 替代 dependency/conflict planning evidence。
+- [ ] 每个 `create` 都在 `source_metadata` 顶层保留独立 planning evidence：`dimension_id`、`dimension_evaluation_id`、`current_task_pool_coverage`、`dependency_rationale`、`conflict_duplicate_assessment`、`unfinished_task_non_conflict_rationale`；没有用 `task_spec_validation` 替代 dependency/conflict planning evidence。
 - [ ] 没有直接调用 `POST /tasks` 逐条写入，也没有跳过用户批准。
 - [ ] validation 失败或 `waiting_assumptions` 的候选 `create` 不得进入 `POST /tasks/batch`，失败原因已作为 rejected/planning feedback 输入下一轮规划。
 - [ ] delete-only batch 不要求 Task Spec validation。
 - [ ] 不得把泛化 optimizer-loop placeholder 当作 validation evidence。
-- [ ] 每个 `delete` 都有明确 `task_id` 和 `delete_reason`。
+- [ ] 每个 `delete` 都有明确 `task_id` 和 `delete_reason`，并保留 worktree/PR 分类、stale/conflict/baseline absorbed 理由；每个 keep/noop 都有明确保留 rationale。
 - [ ] rejected Task 失败原因已被纳入后续规划。
 - [ ] README 或 Manager 输出不清晰且会影响目标、范围、验收、边界或优先级时，已升级 Director 澄清。
 - [ ] 没有修改 Developer 生命周期规则，也没有把 Coordinator Guide 扩展成调度器或执行器。
