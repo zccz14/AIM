@@ -54,6 +54,7 @@ describe("optimizer system", () => {
     const continuationSessionRepository = {};
     const dimensionRepository = {};
     const laneStateRepository = {};
+    const managerStateRepository = {};
     const scheduler = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
@@ -94,6 +95,7 @@ describe("optimizer system", () => {
       intervalMs: 5_000,
       laneStateRepository,
       logger,
+      managerStateRepository,
       taskRepository,
     });
 
@@ -107,6 +109,7 @@ describe("optimizer system", () => {
         coordinator: {},
         dimensionRepository,
         logger,
+        managerStateRepository,
         project: configuredProject,
       }),
     );

@@ -25,6 +25,47 @@ const createCoordinator = () => ({
   }),
 });
 
+const createManagerStateRepository = () => {
+  let state: null | {
+    commit_sha: string;
+    created_at: string;
+    dimension_ids_json: string;
+    last_error: null | string;
+    project_id: string;
+    session_id: null | string;
+    state: string;
+    updated_at: string;
+  } = null;
+
+  return {
+    clearManagerState: vi.fn(() => {
+      state = null;
+      return true;
+    }),
+    getManagerState: vi.fn(() => state),
+    upsertManagerState: vi.fn(
+      (input: {
+        commit_sha: string;
+        dimension_ids_json: string;
+        last_error?: null | string;
+        project_id: string;
+        session_id?: null | string;
+        state: string;
+      }) => {
+        state = {
+          created_at: state?.created_at ?? "2026-04-26T12:00:00.000Z",
+          updated_at: "2026-04-26T12:00:00.000Z",
+          ...input,
+          last_error: input.last_error ?? null,
+          session_id: input.session_id ?? null,
+        };
+
+        return state;
+      },
+    ),
+  };
+};
+
 const mockGit = (commitSha = "abc1234") => {
   execFileMock.mockImplementation(
     (
@@ -64,6 +105,7 @@ describe("manager", () => {
       coordinator,
       dimensionRepository,
       logger,
+      managerStateRepository: createManagerStateRepository(),
       project,
     });
 
@@ -156,6 +198,7 @@ describe("manager", () => {
     const manager = createManager({
       coordinator: createCoordinator(),
       dimensionRepository: { listUnevaluatedDimensionIds: vi.fn() },
+      managerStateRepository: createManagerStateRepository(),
       project,
     });
 
@@ -192,6 +235,7 @@ describe("manager", () => {
     const manager = createManager({
       coordinator,
       dimensionRepository,
+      managerStateRepository: createManagerStateRepository(),
       project,
     });
 
@@ -207,6 +251,54 @@ describe("manager", () => {
       ).toHaveBeenCalledTimes(2);
     });
     expect(coordinator.createSession).toHaveBeenCalledOnce();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("does not create a duplicate OpenCode session after restart when matching missing evaluations are already claimed", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGit("abc1234");
+    const coordinator = createCoordinator();
+    const dimensionRepository = {
+      listUnevaluatedDimensionIds: vi
+        .fn()
+        .mockResolvedValue([
+          "dimension-docs",
+          "dimension-api",
+          "dimension-docs",
+        ]),
+    };
+    const managerStateRepository = {
+      clearManagerState: vi.fn(),
+      getManagerState: vi.fn().mockReturnValue({
+        commit_sha: "abc1234",
+        created_at: "2026-04-26T12:00:00.000Z",
+        dimension_ids_json: JSON.stringify(["dimension-api", "dimension-docs"]),
+        last_error: null,
+        project_id: project.id,
+        session_id: "session-existing",
+        state: "evaluating",
+        updated_at: "2026-04-26T12:00:00.000Z",
+      }),
+      upsertManagerState: vi.fn(),
+    };
+    const { createManager } = await import("../src/manager.js");
+    const manager = createManager({
+      coordinator,
+      dimensionRepository,
+      managerStateRepository,
+      project,
+    });
+
+    await vi.waitFor(() => {
+      expect(managerStateRepository.getManagerState).toHaveBeenCalledWith(
+        project.id,
+      );
+    });
+
+    expect(coordinator.createSession).not.toHaveBeenCalled();
+    expect(managerStateRepository.upsertManagerState).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();
   });
@@ -228,6 +320,7 @@ describe("manager", () => {
       coordinator: createCoordinator(),
       dimensionRepository,
       logger,
+      managerStateRepository: createManagerStateRepository(),
       project,
     });
 
@@ -270,6 +363,7 @@ describe("manager", () => {
         listUnevaluatedDimensionIds: vi.fn().mockResolvedValue([]),
       },
       logger,
+      managerStateRepository: createManagerStateRepository(),
       project,
     });
 

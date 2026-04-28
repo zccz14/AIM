@@ -5,6 +5,7 @@ const mockServe = vi.fn();
 const mockCreateApp = vi.fn();
 const mockCreateApiLogger = vi.fn();
 const mockCreateDimensionRepository = vi.fn();
+const mockCreateManagerStateRepository = vi.fn();
 const mockCreateOpenCodeSessionRepository = vi.fn();
 const mockCreateOptimizerLaneStateRepository = vi.fn();
 const mockCreateTaskRepository = vi.fn();
@@ -73,6 +74,13 @@ const createOptimizerLaneStateRepositoryMock = () => ({
   [Symbol.asyncDispose]: vi.fn(),
 });
 
+const createManagerStateRepositoryMock = () => ({
+  [Symbol.asyncDispose]: vi.fn(),
+  clearManagerState: vi.fn(),
+  getManagerState: vi.fn(),
+  upsertManagerState: vi.fn(),
+});
+
 vi.mock("../src/agent-session-coordinator.js", () => ({
   createAgentSessionCoordinator: mockCreateAgentSessionCoordinator,
 }));
@@ -99,6 +107,10 @@ vi.mock("../src/logger.js", () => ({
 
 vi.mock("../src/dimension-repository.js", () => ({
   createDimensionRepository: mockCreateDimensionRepository,
+}));
+
+vi.mock("../src/manager-state-repository.js", () => ({
+  createManagerStateRepository: mockCreateManagerStateRepository,
 }));
 
 vi.mock("../src/opencode-session-repository.js", () => ({
@@ -136,6 +148,9 @@ describe("server startup", () => {
     );
     mockCreateOptimizerLaneStateRepository.mockReturnValue(
       createOptimizerLaneStateRepositoryMock(),
+    );
+    mockCreateManagerStateRepository.mockReturnValue(
+      createManagerStateRepositoryMock(),
     );
     mockCreateManager.mockReturnValue({
       [Symbol.asyncDispose]: vi.fn(),
@@ -552,6 +567,7 @@ describe("server startup", () => {
     };
     const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const dimensionRepository = createDimensionRepositoryMock();
+    const managerStateRepository = createManagerStateRepositoryMock();
     const agentCoordinator = {};
 
     mockCreateApiLogger.mockReturnValue(logger);
@@ -559,6 +575,7 @@ describe("server startup", () => {
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
     mockCreateDimensionRepository.mockReturnValue(dimensionRepository);
+    mockCreateManagerStateRepository.mockReturnValue(managerStateRepository);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue(agentCoordinator);
@@ -576,6 +593,7 @@ describe("server startup", () => {
       coordinator: agentCoordinator,
       dimensionRepository,
       logger,
+      managerStateRepository,
       project: configuredProject,
     });
     expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(

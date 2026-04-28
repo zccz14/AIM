@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { createDimensionRepository } from "./dimension-repository.js";
 import { createApiLogger } from "./logger.js";
+import { createManagerStateRepository } from "./manager-state-repository.js";
 import { createOpenCodeSessionRepository } from "./opencode-session-repository.js";
 import { createOptimizerLaneStateRepository } from "./optimizer-lane-state-repository.js";
 import { createOptimizerSystem } from "./optimizer-system.js";
@@ -52,6 +53,10 @@ export const startServer = (): AsyncDisposable => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(optimizerLaneStateRepository);
+  const managerStateRepository = createManagerStateRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
+  });
+  scope.use(managerStateRepository);
   const dimensionRepository = createDimensionRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
@@ -64,6 +69,7 @@ export const startServer = (): AsyncDisposable => {
       intervalMs: schedulerIntervalMs,
       laneStateRepository: optimizerLaneStateRepository,
       logger,
+      managerStateRepository,
       taskRepository,
     }),
   );

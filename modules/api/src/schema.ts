@@ -57,7 +57,12 @@ const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
   for (const project of legacyProjects) {
     const nextProjectId = randomUUID();
 
-    for (const tableName of ["tasks", "dimensions", "dimension_evaluations"]) {
+    for (const tableName of [
+      "tasks",
+      "dimensions",
+      "dimension_evaluations",
+      "manager_states",
+    ]) {
       const columns = tableColumns(database, tableName);
 
       if (columns.has("project_id")) {
