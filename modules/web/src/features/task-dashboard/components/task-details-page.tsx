@@ -1,6 +1,14 @@
+import type { TaskPullRequestStatusResponse } from "@aim-ai/contract";
+import { useQuery } from "@tanstack/react-query";
+
 import { Card } from "../../../components/ui/card.js";
 import { useI18n } from "../../../lib/i18n.js";
+import { cn } from "../../../lib/utils.js";
 import type { DashboardTask } from "../model/task-dashboard-view-model.js";
+import {
+  getTaskPullRequestStatusErrorMessage,
+  taskPullRequestStatusQueryOptions,
+} from "../queries.js";
 import {
   Checkmark,
   Chip,
@@ -25,8 +33,33 @@ import {
 } from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
+const getPullRequestStatusClassName = (
+  category: TaskPullRequestStatusResponse["category"],
+) => {
+  if (category === "ready_to_merge") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+
+  if (
+    category === "failed_checks" ||
+    category === "review_blocked" ||
+    category === "merge_conflict"
+  ) {
+    return "border-destructive/25 bg-destructive/10 text-destructive";
+  }
+
+  if (category === "no_pull_request" || category === "closed_abandoned") {
+    return "border-muted bg-muted text-muted-foreground";
+  }
+
+  return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300";
+};
+
 export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
   const { t } = useI18n();
+  const pullRequestStatusQuery = useQuery(
+    taskPullRequestStatusQueryOptions(task?.id ?? null),
+  );
 
   if (!task) {
     return (
@@ -144,6 +177,56 @@ export const TaskDetailsPage = ({ task }: { task: DashboardTask | null }) => {
             ) : (
               <span className={mutedText}>{t("pullRequestNone")}</span>
             )}
+            <section
+              aria-label={t("pullRequestStatus")}
+              className="flex flex-col gap-2 rounded-md border bg-muted/20 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Kicker>{t("pullRequestStatus")}</Kicker>
+                {pullRequestStatusQuery.data ? (
+                  <Chip
+                    className={cn(
+                      "border font-mono text-[0.68rem]",
+                      getPullRequestStatusClassName(
+                        pullRequestStatusQuery.data.category,
+                      ),
+                    )}
+                  >
+                    {pullRequestStatusQuery.data.category}
+                  </Chip>
+                ) : null}
+              </div>
+              {pullRequestStatusQuery.isPending ? (
+                <Muted>{t("pullRequestStatusLoading")}</Muted>
+              ) : pullRequestStatusQuery.isError ? (
+                <Muted>
+                  {getTaskPullRequestStatusErrorMessage(
+                    pullRequestStatusQuery.error,
+                  )}
+                </Muted>
+              ) : pullRequestStatusQuery.data ? (
+                <dl className={metadataList}>
+                  <div className={metadataRow}>
+                    <dt className={metadataLabel}>{t("pullRequestSummary")}</dt>
+                    <dd className="m-0 text-sm/relaxed">
+                      {pullRequestStatusQuery.data.summary}
+                    </dd>
+                  </div>
+                  <div className={metadataRow}>
+                    <dt className={metadataLabel}>
+                      {t("pullRequestRecoveryAction")}
+                    </dt>
+                    <dd className="m-0 text-sm/relaxed">
+                      {pullRequestStatusQuery.data.recovery_action}
+                    </dd>
+                  </div>
+                  {pullRequestStatusQuery.data.category ===
+                  "no_pull_request" ? (
+                    <Muted>{t("pullRequestStatusNoPullRequest")}</Muted>
+                  ) : null}
+                </dl>
+              ) : null}
+            </section>
           </DetailCard>
         </div>
       </div>

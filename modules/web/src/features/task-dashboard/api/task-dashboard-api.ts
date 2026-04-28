@@ -12,6 +12,7 @@ import type {
   ProjectListResponse,
   ProjectOptimizerStatusResponse,
   TaskListResponse,
+  TaskPullRequestStatusResponse,
 } from "@aim-ai/contract";
 
 import { createWebApiClient } from "../../../lib/api-client.js";
@@ -165,6 +166,14 @@ export const listDirectorClarifications = async (
   const client = createWebApiClient();
 
   return client.listDirectorClarifications(projectId);
+};
+
+export const getTaskPullRequestStatus = async (
+  taskId: string,
+): Promise<TaskPullRequestStatusResponse> => {
+  const client = createWebApiClient();
+
+  return client.getTaskPullRequestStatus(taskId);
 };
 
 export const createDirectorClarification = async (

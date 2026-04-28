@@ -232,6 +232,11 @@ const messages = {
     pointAimNavigator:
       "Point AIM Navigator at the API instance you want to inspect.",
     pullRequestNone: "Pull Request: None",
+    pullRequestRecoveryAction: "Recovery Action",
+    pullRequestStatus: "Pull Request Status",
+    pullRequestStatusLoading: "Loading pull request status",
+    pullRequestStatusNoPullRequest: "No pull request is linked to this task.",
+    pullRequestSummary: "Summary",
     refreshForEvidence:
       "Refresh the configured server to collect convergence evidence.",
     noRejectedFeedbackMatches: "No rejected feedback matches filters.",
@@ -516,6 +521,11 @@ const messages = {
     projectSingular: "项目",
     pointAimNavigator: "将 AIM 导航指向要检查的 API 实例。",
     pullRequestNone: "Pull Request：无",
+    pullRequestRecoveryAction: "恢复动作",
+    pullRequestStatus: "Pull Request 状态",
+    pullRequestStatusLoading: "正在加载 Pull Request 状态",
+    pullRequestStatusNoPullRequest: "此任务尚未关联 Pull Request。",
+    pullRequestSummary: "摘要",
     refreshForEvidence: "刷新已配置服务器以收集收敛证据。",
     noRejectedFeedbackMatches: "没有符合筛选条件的拒绝反馈。",
     noRejectedFeedbackRecorded: "尚无拒绝反馈记录。",
