@@ -3,6 +3,7 @@ import type { Task, TaskStatus } from "@aim-ai/contract";
 import type { TaskDashboardResponse } from "../api/task-dashboard-api.js";
 import type {
   DashboardClosureCue,
+  DashboardDimensionFreshness,
   DashboardRejectedFeedbackSignal,
   DashboardStatus,
   DashboardTask,
@@ -42,6 +43,37 @@ const formatSessionStatusBreakdown = ({
 
 const isActiveTask = (task: DashboardTask) =>
   task.dashboardStatus === "processing";
+
+const buildDimensionFreshness = ({
+  currentBaselineCommitSha,
+  evaluationCommitSha,
+}: {
+  currentBaselineCommitSha: null | string | undefined;
+  evaluationCommitSha: null | string;
+}): DashboardDimensionFreshness => {
+  if (!currentBaselineCommitSha) {
+    return {
+      status: "unknown",
+      currentBaselineCommitSha: null,
+      evaluationCommitSha,
+    };
+  }
+
+  if (!evaluationCommitSha) {
+    return {
+      status: "missing",
+      currentBaselineCommitSha,
+      evaluationCommitSha,
+    };
+  }
+
+  return {
+    status:
+      evaluationCommitSha === currentBaselineCommitSha ? "current" : "stale",
+    currentBaselineCommitSha,
+    evaluationCommitSha,
+  };
+};
 
 export const summarizeTaskSpec = (taskSpec: string) => {
   const [firstLine = ""] = taskSpec
@@ -247,13 +279,21 @@ export const adaptTaskDashboard = (
   const dimensionReports = response.dimensions
     .map((dimension) => {
       const evaluations = evaluationsByDimensionId.get(dimension.id) ?? [];
+      const latestEvaluation = evaluations[0] ?? null;
+      const optimizerStatus =
+        response.projectOptimizerStatuses[dimension.project_id];
 
       return {
         dimension,
         evaluations: [...evaluations].sort((left, right) =>
           left.created_at.localeCompare(right.created_at),
         ),
-        latestEvaluation: evaluations[0] ?? null,
+        freshness: buildDimensionFreshness({
+          currentBaselineCommitSha:
+            optimizerStatus?.current_baseline_commit_sha,
+          evaluationCommitSha: latestEvaluation?.commit_sha ?? null,
+        }),
+        latestEvaluation,
       };
     })
     .sort((left, right) => {

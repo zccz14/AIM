@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+const currentBaselineCommitSha = "10c965007a9682b212c6531f148a30f98cad3d2c";
 
 const buildTask = ({
   dependencies = [],
@@ -151,6 +153,28 @@ const buildDirectorClarification = ({
   created_at: createdAt,
   updated_at: createdAt,
 });
+
+const routeProjectOptimizerStatus = async (
+  page: Page,
+  currentBaseline: string | null,
+) => {
+  await page.route("**/api/projects/*/optimizer/status", async (route) => {
+    const projectId =
+      new URL(route.request().url()).pathname.split("/").at(3) ??
+      "00000000-0000-4000-8000-000000000010";
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        project_id: projectId,
+        optimizer_enabled: true,
+        runtime_active: true,
+        blocker_summary: null,
+        current_baseline_commit_sha: currentBaseline,
+      }),
+    });
+  });
+};
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -752,6 +776,135 @@ test("exposes the visible dimension evaluation path for the current gap", async 
   await expect(
     cockpit.getByRole("link", { name: "Review README Fit gap path" }),
   ).toHaveAttribute("href", "#/dimensions/dimension-readme-fit");
+});
+
+test("labels a dimension evaluation as current when it matches the baseline", async ({
+  page,
+}) => {
+  await routeProjectOptimizerStatus(page, currentBaselineCommitSha);
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({ commitSha: currentBaselineCommitSha }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  const report = page.getByRole("region", { name: "AIM Dimension report" });
+
+  await expect(report.getByText("Current baseline evaluated")).toBeVisible();
+  await expect(
+    report.getByText("Evaluation commit: 10c965007a96"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "README Fit" }).click();
+
+  const freshness = page.getByRole("region", {
+    name: "Current baseline evaluated",
+  });
+
+  await expect(freshness).toBeVisible();
+  await expect(
+    freshness.getByText(
+      "Latest evaluation matches the current origin/main baseline.",
+    ),
+  ).toBeVisible();
+  await expect(
+    freshness.getByRole("link", { name: currentBaselineCommitSha }).first(),
+  ).toHaveAttribute(
+    "href",
+    `https://github.com/example/main/commit/${currentBaselineCommitSha}`,
+  );
+});
+
+test("labels a dimension evaluation as stale when it is behind the baseline", async ({
+  page,
+}) => {
+  await routeProjectOptimizerStatus(page, currentBaselineCommitSha);
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [buildDimensionEvaluation({ commitSha: "abc1234" })],
+      }),
+    });
+  });
+
+  await page.goto("/#/dimensions/dimension-readme-fit");
+
+  const freshness = page.getByRole("region", {
+    name: "Stale baseline evaluation",
+  });
+
+  await expect(freshness).toBeVisible();
+  await expect(
+    freshness.getByText("10c965007a9682b212c6531f148a30f98cad3d2c"),
+  ).toBeVisible();
+  await expect(freshness.getByText("abc1234")).toBeVisible();
+  await expect(
+    freshness.getByText("should be treated as historical signal only"),
+  ).toBeVisible();
+
+  const trend = page.getByRole("figure", { name: "README Fit score trend" });
+
+  await expect(
+    trend.getByRole("link", { name: "abc1234" }).first(),
+  ).toHaveAttribute("href", "https://github.com/example/main/commit/abc1234");
+});
+
+test("labels a dimension as missing when the current baseline has no evaluation", async ({
+  page,
+}) => {
+  await routeProjectOptimizerStatus(page, currentBaselineCommitSha);
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+
+  await page.goto("/#/dimensions/dimension-readme-fit");
+
+  const freshness = page.getByRole("region", {
+    name: "No current baseline evaluation",
+  });
+
+  await expect(freshness).toBeVisible();
+  await expect(freshness.getByText(currentBaselineCommitSha)).toBeVisible();
+  await expect(freshness.getByText("Evaluation commit: None")).toBeVisible();
+  await expect(
+    freshness.getByText("this dimension has no evaluation for it yet"),
+  ).toBeVisible();
+});
+
+test("labels dimension freshness as unknown when the baseline is unavailable", async ({
+  page,
+}) => {
+  await routeProjectOptimizerStatus(page, null);
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [buildDimensionEvaluation({ commitSha: "abc1234" })],
+      }),
+    });
+  });
+
+  await page.goto("/#/dimensions/dimension-readme-fit");
+
+  const freshness = page.getByRole("region", { name: "Unknown baseline" });
+
+  await expect(freshness).toBeVisible();
+  await expect(freshness.getByText("Current baseline: None")).toBeVisible();
+  await expect(freshness.getByText("abc1234")).toBeVisible();
+  await expect(
+    freshness.getByText("evaluation freshness cannot be classified"),
+  ).toBeVisible();
 });
 
 test("keeps project management available on the Projects page", async ({

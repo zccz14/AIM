@@ -1890,6 +1890,12 @@ export const openApiDocument = {
             type: ["string", "null"],
             minLength: 1,
           },
+          current_baseline_commit_sha: {
+            type: ["string", "null"],
+            minLength: 1,
+            description:
+              "Current origin/main baseline commit when the project workspace is available.",
+          },
         },
       },
       Task: {

@@ -136,6 +136,7 @@ const ProjectOptimizerStatusResponse = z
     optimizer_enabled: z.boolean(),
     runtime_active: z.boolean(),
     blocker_summary: z.union([z.string(), z.null()]),
+    current_baseline_commit_sha: z.union([z.string(), z.null()]).optional(),
   })
   .strict();
 const DirectorClarificationKind = z.enum(["clarification", "adjustment"]);
