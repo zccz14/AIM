@@ -2,6 +2,7 @@ import type {
   Dimension,
   DimensionEvaluation,
   OpenCodeModelsResponse,
+  OpenCodeSessionListResponse,
   Project,
   ProjectListResponse,
   ProjectOptimizerStatusResponse,
@@ -127,3 +128,10 @@ export const getOpenCodeModels = async (): Promise<OpenCodeModelsResponse> => {
 
   return client.listOpenCodeModels();
 };
+
+export const listOpenCodeSessions =
+  async (): Promise<OpenCodeSessionListResponse> => {
+    const client = createWebApiClient();
+
+    return client.listOpenCodeSessions();
+  };
