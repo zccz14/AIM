@@ -37,6 +37,8 @@ import { buildTaskLogFields } from "../task-log-fields.js";
 import { createTaskRepository } from "../task-repository.js";
 
 type SourceBaselineFreshness = Task["source_baseline_freshness"];
+type CurrentBaselineFacts = { commit: null | string };
+type CurrentBaselineFactsProvider = () => Promise<CurrentBaselineFacts>;
 
 const taskByIdRoutePath = taskByIdPath.replace("{taskId}", ":taskId");
 const tasksBatchRoutePath = tasksBatchPath;
@@ -84,6 +86,36 @@ const buildOpenCodeModelsUnavailableError = () =>
       "Cannot validate project global_provider_id and global_model_id because OpenCode models are unavailable",
   });
 
+const createGitCurrentBaselineFactsProvider =
+  (projectRoot: string | undefined): CurrentBaselineFactsProvider =>
+  async () => {
+    const commit =
+      (projectRoot ? await readOriginMainCommit(projectRoot) : null) ??
+      (await readOriginMainCommit(process.cwd()));
+
+    return { commit };
+  };
+
+const readOriginMainCommit = (cwd: string) =>
+  new Promise<null | string>((resolve) => {
+    execFile(
+      "git",
+      ["rev-parse", "origin/main"],
+      { cwd, encoding: "utf8" },
+      (error, stdout) => {
+        if (error) {
+          resolve(null);
+
+          return;
+        }
+
+        const commit = stdout.trim();
+
+        resolve(commit.length > 0 ? commit : null);
+      },
+    );
+  });
+
 const requireTaskId = (taskId: string | undefined) => taskId ?? "task-unknown";
 
 const parseListFilters = (request: Request) => {
@@ -125,7 +157,10 @@ const parseCreateTaskRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
-const parseCreateTaskBatchRequest = async (request: Request) => {
+const parseCreateTaskBatchRequest = async (
+  request: Request,
+  currentBaselineFactsProvider: CurrentBaselineFactsProvider,
+) => {
   const payload = await request.json().catch(() => undefined);
   const result = createTaskBatchRequestSchema.safeParse(payload);
 
@@ -164,6 +199,13 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
     taskIds.set(taskId, operation.type);
   }
 
+  const hasCreateOperation = result.data.operations.some(
+    (operation) => operation.type === "create",
+  );
+  const currentBaselineFacts = hasCreateOperation
+    ? await currentBaselineFactsProvider()
+    : null;
+
   for (const operation of result.data.operations) {
     if (operation.type === "create") {
       const planningError = normalizeCoordinatorPlanningEvidence(
@@ -182,6 +224,18 @@ const parseCreateTaskBatchRequest = async (request: Request) => {
       if (validationError) {
         return {
           error: buildValidationError(validationError),
+          ok: false as const,
+        };
+      }
+
+      const baselineFreshnessError = validateTaskBatchCreateBaselineFreshness(
+        operation.task,
+        currentBaselineFacts?.commit ?? null,
+      );
+
+      if (baselineFreshnessError) {
+        return {
+          error: buildValidationError(baselineFreshnessError),
           ok: false as const,
         };
       }
@@ -337,6 +391,56 @@ const normalizeTaskSpecValidation = (
   }
 
   return null;
+};
+
+const validateTaskBatchCreateBaselineFreshness = (
+  task: Extract<
+    ParsedCreateTaskBatchRequest["operations"][number],
+    { type: "create" }
+  >["task"],
+  currentCommit: null | string,
+) => {
+  if (!currentCommit) {
+    return "Task batch create cannot confirm current origin/main baseline. Fetch origin/main or configure baseline facts lookup, then retry POST /tasks/batch.";
+  }
+
+  const sourceMetadata = task.source_metadata;
+  const taskSpecValidation = isRecord(sourceMetadata?.task_spec_validation)
+    ? sourceMetadata.task_spec_validation
+    : null;
+  const sourceCommit = sourceMetadata
+    ? getNonEmptyString(sourceMetadata, "latest_origin_main_commit")
+    : null;
+  const validatedCommit = taskSpecValidation
+    ? getNonEmptyString(taskSpecValidation, "validated_baseline_commit")
+    : null;
+  const missingFields = [
+    sourceCommit ? null : "source_metadata.latest_origin_main_commit",
+    validatedCommit
+      ? null
+      : "source_metadata.task_spec_validation.validated_baseline_commit",
+  ].filter((field): field is string => field !== null);
+  const mismatchedFields = [
+    sourceCommit && sourceCommit !== currentCommit
+      ? `source_metadata.latest_origin_main_commit=${redactSensitiveErrorDetail(sourceCommit)}`
+      : null,
+    validatedCommit && validatedCommit !== currentCommit
+      ? `source_metadata.task_spec_validation.validated_baseline_commit=${redactSensitiveErrorDetail(validatedCommit)}`
+      : null,
+  ].filter((field): field is string => field !== null);
+
+  if (missingFields.length === 0 && mismatchedFields.length === 0) {
+    return null;
+  }
+
+  const detailParts = [
+    missingFields.length > 0 ? `missing ${missingFields.join(", ")}` : null,
+    mismatchedFields.length > 0
+      ? `mismatched ${mismatchedFields.join(", ")}`
+      : null,
+  ].filter((part): part is string => part !== null);
+
+  return `Task batch create requires current baseline metadata matching origin/main ${currentCommit}: ${detailParts.join("; ")}. Expected/current commit is ${currentCommit}. Refresh the Task Spec from current origin/main, rerun task_spec_validation, and retry POST /tasks/batch.`;
 };
 
 const normalizeCoordinatorPlanningEvidence = (
@@ -776,6 +880,7 @@ const parseTaskDependenciesRequest = async (request: Request) => {
 };
 
 type RegisterTaskRoutesOptions = {
+  currentBaselineFactsProvider?: CurrentBaselineFactsProvider;
   logger?: ApiLogger;
   openCodeModelsAdapter?: {
     listSupportedModels(): ReturnType<typeof listSupportedModels>;
@@ -789,6 +894,9 @@ export const registerTaskRoutes = (
 ) => {
   const logger = options.logger;
   const projectRoot = process.env.AIM_PROJECT_ROOT;
+  const currentBaselineFactsProvider =
+    options.currentBaselineFactsProvider ??
+    createGitCurrentBaselineFactsProvider(projectRoot);
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
   let dimensionRepository: null | ReturnType<typeof createDimensionRepository> =
     null;
@@ -950,7 +1058,10 @@ export const registerTaskRoutes = (
   });
 
   app.post(tasksBatchRoutePath, async (context) => {
-    const input = await parseCreateTaskBatchRequest(context.req.raw);
+    const input = await parseCreateTaskBatchRequest(
+      context.req.raw,
+      currentBaselineFactsProvider,
+    );
 
     if (!input.ok) {
       return context.json(input.error, 400);

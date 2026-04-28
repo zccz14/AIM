@@ -35,7 +35,10 @@ type OpenCodeModelsAdapter = {
   listSupportedModels(): ReturnType<typeof listSupportedModels>;
 };
 
+type CurrentBaselineFactsProvider = () => Promise<{ commit: null | string }>;
+
 type CreateAppOptions = {
+  currentBaselineFactsProvider?: CurrentBaselineFactsProvider;
   logger?: ApiLogger;
   openCodeModelsAdapter?: OpenCodeModelsAdapter;
   openCodeSessionsAdapter?: OpenCodeSessionPromptSender;
@@ -70,6 +73,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerDimensionRoutes(app, { resourceScope });
   registerDirectorClarificationRoutes(app, { resourceScope });
   registerTaskRoutes(app, {
+    currentBaselineFactsProvider: _options.currentBaselineFactsProvider,
     logger: _options.logger,
     openCodeModelsAdapter: _options.openCodeModelsAdapter,
     resourceScope,
