@@ -38,8 +38,8 @@ import {
 const toStateLabel = (state: OpenCodeSession["state"]) =>
   state.charAt(0).toUpperCase() + state.slice(1);
 
-const getOutcome = (session: OpenCodeSession) =>
-  session.value ?? session.reason ?? session.continue_prompt ?? "None";
+const getOutcome = (session: OpenCodeSession, fallback: string) =>
+  session.value ?? session.reason ?? session.continue_prompt ?? fallback;
 
 export const OpenCodeSessionsPage = () => {
   const { t } = useI18n();
@@ -138,7 +138,7 @@ export const OpenCodeSessionsPage = () => {
                             </Badge>
                           ) : null}
                           <p className="m-0 max-w-xl text-sm/relaxed">
-                            {getOutcome(session)}
+                            {getOutcome(session, t("none"))}
                           </p>
                         </div>
                       </td>
