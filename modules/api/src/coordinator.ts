@@ -144,6 +144,61 @@ const summarizeRejectedTask = (task: Task) => {
   return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${task.result || "no result"}. ${validationSummary}`;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const getNonEmptyString = (source: Record<string, unknown>, field: string) => {
+  const value = source[field];
+
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
+const getTaskValidatedBaseline = (task: Task) => {
+  const validation = task.source_metadata.task_spec_validation;
+
+  return isRecord(validation)
+    ? getNonEmptyString(validation, "latest_origin_main_commit")
+    : null;
+};
+
+const getTaskFreshnessStatus = ({
+  currentBaseline,
+  sourceBaseline,
+  validatedBaseline,
+}: {
+  currentBaseline: string;
+  sourceBaseline: null | string;
+  validatedBaseline: null | string;
+}) => {
+  if (!sourceBaseline && !validatedBaseline) {
+    return "missing_baseline_metadata";
+  }
+
+  if (!currentBaseline || !sourceBaseline || !validatedBaseline) {
+    return "unknown";
+  }
+
+  return sourceBaseline === currentBaseline &&
+    validatedBaseline === currentBaseline
+    ? "current"
+    : "stale";
+};
+
+const summarizeActiveTask = (task: Task, baselineFacts: BaselineFacts) => {
+  const sourceBaseline = getNonEmptyString(
+    task.source_metadata,
+    "latest_origin_main_commit",
+  );
+  const validatedBaseline = getTaskValidatedBaseline(task);
+  const freshness = getTaskFreshnessStatus({
+    currentBaseline: baselineFacts.commitSha,
+    sourceBaseline,
+    validatedBaseline,
+  });
+
+  return `- ${task.title} (${task.task_id}) status ${task.status}; source baseline ${sourceBaseline ?? "(missing)"}; validated baseline ${validatedBaseline ?? "(missing)"}; freshness ${freshness}; PR ${task.pull_request_url ?? "(not set)"}; worktree ${task.worktree_path ?? "(not set)"}; session ${task.session_id ?? "(not set)"}`;
+};
+
 const buildPrioritySummary = ({
   activeTasks,
   baselineFacts,
@@ -246,7 +301,7 @@ const buildPrompt = ({
     )
     .join("\n");
   const poolSummary = activeTasks
-    .map((task) => `- ${task.title} (${task.task_id}) status ${task.status}`)
+    .map((task) => summarizeActiveTask(task, baselineFacts))
     .join("\n");
   const rejectedSummary = rejectedTasks.map(summarizeRejectedTask).join("\n");
   const prioritySummary = buildPrioritySummary({
@@ -282,6 +337,8 @@ ${evaluationSummary || "- none"}
 
 Current Active Task Pool:
 ${poolSummary || "- none"}
+
+Stale active tasks are only historical/conceptual coverage candidates and cannot independently prove current baseline coverage.
 
 Rejected Task feedback for this project:
 ${rejectedSummary || "- none"}`;
