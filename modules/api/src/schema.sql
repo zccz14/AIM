@@ -69,6 +69,22 @@ ON dimension_evaluations (project_id);
 CREATE UNIQUE INDEX IF NOT EXISTS dimension_evaluations_project_commit_dimension_unique
 ON dimension_evaluations (project_id, commit_sha, dimension_id);
 
+CREATE TABLE IF NOT EXISTS director_clarifications (
+  id TEXT NOT NULL PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  dimension_id TEXT,
+  kind TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (dimension_id) REFERENCES dimensions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS director_clarifications_project_id_index
+ON director_clarifications (project_id);
+
 CREATE TABLE IF NOT EXISTS manager_states (
   project_id TEXT PRIMARY KEY,
   commit_sha TEXT NOT NULL,
