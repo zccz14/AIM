@@ -14,6 +14,7 @@ const mockCreateTaskScheduler = vi.fn();
 const mockCreateTaskSessionCoordinator = vi.fn();
 const mockCreateAgentSessionCoordinator = vi.fn();
 const mockCreateAgentSessionLane = vi.fn();
+const mockCreateCoordinator = vi.fn();
 const mockCreateManager = vi.fn();
 const mockEnsureProjectWorkspace = vi.fn();
 
@@ -84,6 +85,10 @@ const createManagerStateRepositoryMock = () => ({
 
 vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
+}));
+
+vi.mock("../src/coordinator.js", () => ({
+  createCoordinator: mockCreateCoordinator,
 }));
 
 vi.mock("../src/manager.js", () => ({
@@ -160,6 +165,9 @@ describe("server startup", () => {
         last_scan_at: null,
         running: true,
       })),
+    });
+    mockCreateCoordinator.mockReturnValue({
+      [Symbol.asyncDispose]: vi.fn(),
     });
   });
 
@@ -375,7 +383,7 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -421,7 +429,7 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -476,13 +484,17 @@ describe("server startup", () => {
     expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "manager_evaluation" }),
     );
-    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "coordinator_task_pool" }),
+    );
+    expect(mockCreateCoordinator).toHaveBeenCalledWith(
+      optimizerEnabledProject.id,
+      expect.objectContaining({ taskRepository: expect.any(Object) }),
     );
     expect(scheduler.start).toHaveBeenCalledOnce();
   });
 
-  it("wires the coordinator lane to persisted plugin continuation state", async () => {
+  it("wires the coordinator component to shared optimizer state", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -495,12 +507,13 @@ describe("server startup", () => {
     const openCodeSessionRepository = createOpenCodeSessionRepositoryMock();
     const optimizerLaneStateRepository =
       createOptimizerLaneStateRepositoryMock();
+    const taskRepository = createRepositoryMock([optimizerEnabledProject]);
+    const dimensionRepository = createDimensionRepositoryMock();
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(
-      createRepositoryMock([optimizerEnabledProject]),
-    );
+    mockCreateTaskRepository.mockReturnValue(taskRepository);
+    mockCreateDimensionRepository.mockReturnValue(dimensionRepository);
     mockCreateOpenCodeSessionRepository.mockReturnValue(
       openCodeSessionRepository,
     );
@@ -520,25 +533,20 @@ describe("server startup", () => {
 
     startServer();
 
-    const coordinatorLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
-      ([config]) => config.laneName === "coordinator_task_pool",
-    )?.[0];
+    const openCodeSessionManager =
+      mockCreateOpenCodeSessionManager.mock.results[0]?.value;
 
-    expect(coordinatorLaneConfig).toMatchObject({
-      continuationSessionRepository: openCodeSessionRepository,
-      laneName: "coordinator_task_pool",
-      laneStateRepository: optimizerLaneStateRepository,
-      projectId: configuredProject.id,
-    });
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Write Task Pool operations through AIM API Server",
+    expect(mockCreateCoordinator).toHaveBeenCalledWith(
+      optimizerEnabledProject.id,
+      expect.objectContaining({
+        dimensionRepository,
+        projectDirectory: expect.any(Function),
+        sessionManager: openCodeSessionManager,
+        taskRepository,
+      }),
     );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Resolve or reject only to terminate the OpenCode session promise",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "do not put Task Pool operations or other Coordinator business output in the resolved value",
-    );
+    expect(openCodeSessionRepository).toBeDefined();
+    expect(optimizerLaneStateRepository).toBeDefined();
   });
 
   it("does not create stale manager evaluation lanes", async () => {
@@ -605,11 +613,11 @@ describe("server startup", () => {
 
     expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
 
-    const laneConfigs = mockCreateAgentSessionLane.mock.calls.map(
-      ([config]) => config,
+    const coordinatorConfigs = mockCreateCoordinator.mock.calls.map(
+      ([, config]) => config,
     );
 
-    await laneConfigs[0].projectDirectory();
+    await coordinatorConfigs[0].projectDirectory();
 
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(1);
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
@@ -656,35 +664,18 @@ describe("server startup", () => {
 
     startServer();
 
-    const laneConfigs = mockCreateAgentSessionLane.mock.calls.map(
-      ([config]) => config,
+    const coordinatorConfigs = mockCreateCoordinator.mock.calls.map(
+      ([projectId, config]) => ({ config, projectId }),
     );
 
-    expect(laneConfigs.map((config) => config.laneName)).toEqual([
-      "coordinator_task_pool",
-      "coordinator_task_pool",
-    ]);
-    expect(laneConfigs.map((config) => config.providerId)).toEqual([
-      optimizerEnabledProject.global_provider_id,
-      secondConfiguredProject.global_provider_id,
-    ]);
-    expect(laneConfigs.map((config) => config.modelId)).toEqual([
-      optimizerEnabledProject.global_model_id,
-      secondConfiguredProject.global_model_id,
+    expect(coordinatorConfigs.map(({ projectId }) => projectId)).toEqual([
+      optimizerEnabledProject.id,
+      secondConfiguredProject.id,
     ]);
     expect(mockCreateManager).toHaveBeenCalledTimes(2);
-    for (const project of [optimizerEnabledProject, secondConfiguredProject]) {
-      expect(
-        laneConfigs.some(
-          (config) =>
-            config.prompt.includes(`project_id "${project.id}"`) &&
-            config.title.includes(project.id),
-        ),
-      ).toBe(true);
-    }
 
-    for (const laneConfig of laneConfigs) {
-      await laneConfig.projectDirectory();
+    for (const { config } of coordinatorConfigs) {
+      await config.projectDirectory();
     }
 
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(2);
@@ -756,7 +747,7 @@ describe("server startup", () => {
     await serverRuntime[Symbol.asyncDispose]();
   });
 
-  it("instructs the coordinator lane to use concrete task batch operations instead of optimizer-loop placeholders", async () => {
+  it("wires the coordinator component instead of the legacy task-pool lane", async () => {
     const server = {
       close: vi.fn(),
       once: vi.fn(),
@@ -785,64 +776,14 @@ describe("server startup", () => {
 
     startServer();
 
-    const coordinatorLaneConfig = mockCreateAgentSessionLane.mock.calls.find(
-      ([config]) => config.laneName === "coordinator_task_pool",
-    )?.[0];
-
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "form concrete POST /tasks/batch operations",
+    expect(mockCreateCoordinator).toHaveBeenCalledWith(
+      optimizerEnabledProject.id,
+      expect.objectContaining({
+        projectDirectory: expect.any(Function),
+      }),
     );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Reject or record feedback for generic optimizer-loop Tasks",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      'Do not create a "Continue AIM optimizer loop"',
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Do not bypass POST /tasks/batch approval or independent Task Spec validation",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Persist normalized Task Spec validation evidence in each passing create operation's source_metadata.task_spec_validation",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "classify each candidate as pass, waiting_assumptions, or failed",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "source_metadata.task_spec_validation",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain("conclusion = pass");
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "validation evidence cannot replace dependency or conflict planning evidence",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "current_task_pool_coverage, dependency_rationale, conflict_duplicate_assessment, and unfinished_task_non_conflict_rationale",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "delete_reason with stale/conflict/baseline absorbed rationale and worktree/PR classification",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "keep/noop decisions must retain an explicit rationale",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "blocking assumptions or failed validation reason",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "If validation fails or waits on assumptions, do not call POST /tasks/batch",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Delete-only batches do not require Task Spec validation",
-    );
-    expect(coordinatorLaneConfig?.prompt).toContain(
-      "Generic optimizer-loop placeholders are not validation evidence",
-    );
-    expect(coordinatorLaneConfig?.prompt).toMatch(
-      /Developer lane[\s\S]*actionable Tasks/i,
-    );
-    expect(coordinatorLaneConfig?.prompt).toMatch(
-      /dimensions[\s\S]*dimension_evaluations[\s\S]*planning signal/i,
-    );
-    expect(coordinatorLaneConfig?.prompt).toMatch(
-      /one dimension at a time[\s\S]*dimension source[\s\S]*priority/i,
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
+      expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
   });
 
@@ -900,7 +841,7 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -991,7 +932,7 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 
@@ -1049,7 +990,7 @@ describe("server startup", () => {
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinatorLane);
 
     const { startServer } = await import("../src/server.js");
 

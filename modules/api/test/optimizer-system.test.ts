@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCreateAgentSessionLane = vi.fn();
+const mockCreateCoordinator = vi.fn();
 const mockCreateManager = vi.fn();
 const mockCreateOpenCodeSessionManager = vi.fn();
 const mockCreateTaskScheduler = vi.fn();
@@ -9,6 +10,10 @@ const mockPrepareManagerLaneScanInput = vi.fn();
 
 vi.mock("../src/agent-session-lane.js", () => ({
   createAgentSessionLane: mockCreateAgentSessionLane,
+}));
+
+vi.mock("../src/coordinator.js", () => ({
+  createCoordinator: mockCreateCoordinator,
 }));
 
 vi.mock("../src/manager.js", () => ({
@@ -61,9 +66,11 @@ describe("optimizer system", () => {
       scanOnce: vi.fn(),
       start: vi.fn(),
     };
-    const coordinatorLane = {
+    const coordinator = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
+    };
+    const oldCoordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       start: vi.fn(),
     };
     const manager = {
@@ -81,7 +88,9 @@ describe("optimizer system", () => {
     };
     mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
-    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+    mockCreateAgentSessionLane.mockReturnValueOnce(oldCoordinatorLane);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+    mockEnsureProjectWorkspace.mockResolvedValueOnce("/workspaces/project-1");
     mockCreateManager.mockReturnValueOnce(manager);
 
     const { createOptimizerSystem } = await import(
@@ -105,7 +114,6 @@ describe("optimizer system", () => {
     expect(system.optimizerRuntime.getStatus()).toMatchObject({
       running: true,
     });
-    expect(coordinatorLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -122,15 +130,25 @@ describe("optimizer system", () => {
         sessionManager: openCodeSessionManager,
       }),
     );
-    expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
+    expect(mockCreateCoordinator).toHaveBeenCalledWith(
+      configuredProject.id,
       expect.objectContaining({
-        coordinator: openCodeSessionManager,
-        continuationSessionRepository,
-        laneName: "coordinator_task_pool",
-        laneStateRepository,
-        projectId: configuredProject.id,
+        dimensionRepository,
+        projectDirectory: expect.any(Function),
+        sessionManager: openCodeSessionManager,
+        taskRepository,
       }),
     );
+    expect(mockCreateAgentSessionLane).not.toHaveBeenCalled();
+
+    const coordinatorOptions = mockCreateCoordinator.mock.calls[0]?.[1];
+    await expect(coordinatorOptions.projectDirectory()).resolves.toBe(
+      "/workspaces/project-1",
+    );
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
+      git_origin_url: configuredProject.git_origin_url,
+      project_id: configuredProject.id,
+    });
 
     await system[Symbol.asyncDispose]();
 
@@ -138,7 +156,7 @@ describe("optimizer system", () => {
       running: false,
     });
     expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
-    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalled();
+    expect(coordinator[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(manager[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
