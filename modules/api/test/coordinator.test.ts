@@ -236,63 +236,78 @@ describe("coordinator", () => {
     expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("adds a stable priority summary before raw evaluation evidence without replacing guardrails", async () => {
+  it("prioritizes current-baseline signals over stale historical priority candidates without replacing guardrails", async () => {
     const dimensions = [
       createNamedDimension(
-        "director-gui",
-        "Director GUI clarification",
-        "Clarify GUI scope",
+        "current-readme-ahead",
+        "Current README-ahead autonomy",
+        "Reduce README ahead drift on the current baseline",
       ),
       createNamedDimension(
-        "readme-ahead",
-        "README-ahead autonomy",
-        "Reduce README ahead drift",
+        "current-baseline-evidence",
+        "Current baseline evidence",
+        "Keep current baseline evidence ahead of stale candidates",
       ),
       createNamedDimension(
-        "optimizer-depth",
-        "optimizer-depth",
-        "Improve optimizer depth",
+        "stale-readme-ahead",
+        "Stale README-ahead autonomy",
+        "Track historical README ahead drift",
+      ),
+      createNamedDimension(
+        "stale-consider-create",
+        "Stale create candidate",
+        "Track historical create candidates",
       ),
     ];
     const evaluations = {
-      "director-gui": {
-        commit_sha: "baseline-123",
-        created_at: "2026-04-28T09:00:00.000Z",
-        dimension_id: "director-gui",
-        evaluation:
-          "Director GUI clarification: consider_create after missing confirmation path.",
-        evaluator_model: "claude-sonnet-4-5",
-        id: "evaluation-director-gui",
-        project_id: project.id,
-        score: 55,
-      },
-      "optimizer-depth": {
+      "current-baseline-evidence": {
         commit_sha: "baseline-123",
         created_at: "2026-04-28T11:00:00.000Z",
-        dimension_id: "optimizer-depth",
-        evaluation:
-          "Optimizer-depth needs deeper evidence but no explicit gap.",
+        dimension_id: "current-baseline-evidence",
+        evaluation: "Current baseline evidence still shows an optimizer gap.",
         evaluator_model: "claude-sonnet-4-5",
-        id: "evaluation-optimizer-depth",
-        project_id: project.id,
-        score: 20,
-      },
-      "readme-ahead": {
-        commit_sha: "older-baseline",
-        created_at: "2026-04-28T10:00:00.000Z",
-        dimension_id: "readme-ahead",
-        evaluation:
-          "README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
-        evaluator_model: "claude-sonnet-4-5",
-        id: "evaluation-readme-ahead",
+        id: "evaluation-current-baseline-evidence",
         project_id: project.id,
         score: 80,
+      },
+      "current-readme-ahead": {
+        commit_sha: "baseline-123",
+        created_at: "2026-04-28T12:00:00.000Z",
+        dimension_id: "current-readme-ahead",
+        evaluation:
+          "Current README-ahead autonomy: readme_ahead gap; consider_create.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-current-readme-ahead",
+        project_id: project.id,
+        score: 60,
+      },
+      "stale-consider-create": {
+        commit_sha: "older-baseline",
+        created_at: "2026-04-28T09:00:00.000Z",
+        dimension_id: "stale-consider-create",
+        evaluation:
+          "Stale create candidate: consider_create based on prior baseline.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-stale-consider-create",
+        project_id: project.id,
+        score: 10,
+      },
+      "stale-readme-ahead": {
+        commit_sha: "older-baseline",
+        created_at: "2026-04-28T10:00:00.000Z",
+        dimension_id: "stale-readme-ahead",
+        evaluation:
+          "Stale README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
+        evaluator_model: "claude-sonnet-4-5",
+        id: "evaluation-stale-readme-ahead",
+        project_id: project.id,
+        score: 1,
       },
     };
     const taskRepository = {
       getProjectById: vi.fn(() => project),
       listRejectedTasksByProject: vi.fn(async () => [createRejectedTask(1)]),
-      listUnfinishedTasks: vi.fn(async () => []),
+      listUnfinishedTasks: vi.fn(async () => [createTask(1)]),
     };
     const dimensionRepository = {
       listDimensionEvaluations: vi.fn(
@@ -331,25 +346,34 @@ describe("coordinator", () => {
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
     expect(prompt).toContain("Priority summary for candidate signals");
     expect(prompt).toMatch(
-      /1\. README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: empty.*baseline: older-baseline differs from current baseline-123/s,
+      /1\. Current README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: 1 unfinished.*baseline: current/s,
     );
     expect(prompt).toMatch(
-      /2\. Director GUI clarification.*consider_create.*score: 55.*active_pool: empty/s,
+      /2\. Current baseline evidence.*gap.*score: 80.*active_pool: 1 unfinished.*baseline: current/s,
     );
     expect(prompt).toMatch(
-      /3\. optimizer-depth.*score: 20.*baseline: current/s,
+      /3\. Stale README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: 1 unfinished.*baseline: stale\/historical: evaluation commit older-baseline differs from current baseline-123; do not use independently as create evidence/s,
+    );
+    expect(prompt).toMatch(
+      /4\. Stale create candidate.*consider_create.*active_pool: 1 unfinished.*baseline: stale\/historical: evaluation commit older-baseline differs from current baseline-123; do not use independently as create evidence/s,
     );
     expect(
       prompt.indexOf("Priority summary for candidate signals"),
     ).toBeLessThan(prompt.indexOf("Latest dimension_evaluations"));
     expect(prompt).toContain(
-      "README-ahead autonomy (readme-ahead) score 80 at 2026-04-28T10:00:00.000Z; commit older-baseline",
+      "Stale README-ahead autonomy (stale-readme-ahead) score 1 at 2026-04-28T10:00:00.000Z; commit older-baseline",
     );
     expect(prompt).toContain(
-      "README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
+      "Stale README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
     );
+    expect(prompt).toContain(
+      "Current README-ahead autonomy: readme_ahead gap; consider_create.",
+    );
+    expect(prompt).toContain("Stale create candidate: consider_create");
     expect(prompt).toContain("Rejected Task feedback for this project");
     expect(prompt).toContain("rejected-project-1-1");
+    expect(prompt).toContain("latest origin/main baseline facts");
+    expect(prompt).toContain("current Active Task Pool");
     expect(prompt).toContain("source_metadata.task_spec_validation");
     expect(prompt).toContain("Never submit waiting_assumptions");
     expect(prompt).toContain("failed Task Spec validation");
