@@ -150,6 +150,7 @@ export const createOptimizerSystem = ({
       coordinators.push(
         stack.use(
           createCoordinator(project.id, {
+            continuationSessionRepository,
             dimensionRepository,
             projectDirectory: () =>
               ensureProjectWorkspace({

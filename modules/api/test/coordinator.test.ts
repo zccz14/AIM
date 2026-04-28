@@ -59,6 +59,25 @@ const createDimension = (id: string) => ({
   updated_at: "2026-04-27T00:00:00.000Z",
 });
 
+const createBelowThresholdRepositories = () => ({
+  baselineRepository: {
+    getLatestBaselineFacts: vi.fn(async () => ({
+      commitSha: "baseline-retry",
+      fetchedAt: "2026-04-28T12:00:00.000Z",
+      summary: "Retry baseline",
+    })),
+  },
+  dimensionRepository: {
+    listDimensionEvaluations: vi.fn(async () => []),
+    listDimensions: vi.fn(async () => []),
+  },
+  taskRepository: {
+    getProjectById: vi.fn(() => project),
+    listRejectedTasksByProject: vi.fn(async () => []),
+    listUnfinishedTasks: vi.fn(async () => []),
+  },
+});
+
 describe("coordinator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -251,5 +270,166 @@ describe("coordinator", () => {
     expect(sessionManager.createSession).toHaveBeenCalledOnce();
 
     await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("does not start a second Coordinator session while one is pending, then starts another after settlement", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const sessions = new Map<
+      string,
+      { session_id: string; state: "pending" | "rejected" | "resolved" }
+    >();
+    const sessionHandles = [
+      {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: "coordinator-session-1",
+      },
+      {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: "coordinator-session-2",
+      },
+    ];
+    const sessionManager = {
+      createSession: vi.fn(async () => {
+        const session = sessionHandles[sessions.size];
+        if (!session) {
+          throw new Error("unexpected session create");
+        }
+
+        sessions.set(session.sessionId, {
+          session_id: session.sessionId,
+          state: "pending",
+        });
+        return session;
+      }),
+    };
+    const continuationSessionRepository = {
+      getSessionById: vi.fn((sessionId: string) => sessions.get(sessionId)),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      continuationSessionRepository,
+      heartbeatMs: 100,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(continuationSessionRepository.getSessionById).toHaveBeenCalledWith(
+      "coordinator-session-1",
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
+
+    const firstSession = sessions.get("coordinator-session-1");
+    expect(firstSession).toBeDefined();
+    if (firstSession) {
+      firstSession.state = "resolved";
+    }
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(2);
+    expect(sessions.get("coordinator-session-2")?.state).toBe("pending");
+
+    await coordinator[Symbol.asyncDispose]();
+
+    expect(sessionHandles[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(sessionHandles[1][Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("does not permanently stall the Coordinator lane after createSession fails", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-after-create-failure",
+    };
+    const sessionManager = {
+      createSession: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("OpenCode create failed"))
+        .mockResolvedValue(sessionHandle),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      heartbeatMs: 100,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "Coordinator heartbeat failed",
+      expect.objectContaining({ error: "OpenCode create failed" }),
+    );
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(2);
+
+    await coordinator[Symbol.asyncDispose]();
+    expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("clears the active Coordinator session after settlement observation fails", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const sessionHandles = [
+      {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: "coordinator-session-observation-fails",
+      },
+      {
+        [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+        sessionId: "coordinator-session-after-observation-failure",
+      },
+    ];
+    let sessionsCreated = 0;
+    const sessionManager = {
+      createSession: vi.fn(async () => {
+        const session = sessionHandles[sessionsCreated++];
+        if (!session) {
+          throw new Error("unexpected session create");
+        }
+
+        return session;
+      }),
+    };
+    const continuationSessionRepository = {
+      getSessionById: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("settlement lookup failed")),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      continuationSessionRepository,
+      heartbeatMs: 100,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(warn).toHaveBeenCalledWith(
+      "Coordinator heartbeat failed",
+      expect.objectContaining({ error: "settlement lookup failed" }),
+    );
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sessionManager.createSession).toHaveBeenCalledTimes(2);
+
+    await coordinator[Symbol.asyncDispose]();
+
+    expect(sessionHandles[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
+    expect(sessionHandles[1][Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 });

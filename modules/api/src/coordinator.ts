@@ -38,9 +38,21 @@ type DimensionRepository = {
   ): Promise<DimensionEvaluation[]> | DimensionEvaluation[];
 };
 
+type ContinuationSession = {
+  session_id: string;
+  state: "pending" | "rejected" | "resolved";
+};
+
+type ContinuationSessionRepository = {
+  getSessionById(
+    sessionId: string,
+  ): null | ContinuationSession | Promise<null | ContinuationSession>;
+};
+
 type CreateCoordinatorOptions = {
   activeTaskThreshold?: number;
   baselineRepository?: BaselineRepository;
+  continuationSessionRepository?: ContinuationSessionRepository;
   dimensionRepository: DimensionRepository;
   heartbeatMs?: number;
   projectDirectory: string | (() => Promise<string> | string);
@@ -210,6 +222,41 @@ export const createCoordinator = (
   const baselineRepository =
     options.baselineRepository ?? defaultBaselineRepository;
   let activeSession: ManagedSession | null = null;
+  let sessionCreationPending = false;
+
+  const hasActiveSession = async () => {
+    if (!activeSession) {
+      return false;
+    }
+
+    if (!options.continuationSessionRepository) {
+      return true;
+    }
+
+    const { sessionId } = activeSession;
+    let continuationSession: null | ContinuationSession;
+    try {
+      continuationSession =
+        await options.continuationSessionRepository.getSessionById(sessionId);
+    } catch (error) {
+      activeSession = null;
+      throw error;
+    }
+
+    if (!continuationSession) {
+      activeSession = null;
+      throw new Error(
+        `Coordinator session ${sessionId} was not found during settlement observation`,
+      );
+    }
+
+    if (continuationSession.state === "pending") {
+      return true;
+    }
+
+    activeSession = null;
+    return false;
+  };
 
   const scanOnce = async () => {
     const project = await options.taskRepository.getProjectById(projectId);
@@ -220,7 +267,9 @@ export const createCoordinator = (
     const activeTasks = (
       await options.taskRepository.listUnfinishedTasks()
     ).filter((task) => task.project_id === projectId);
-    if (activeTasks.length >= threshold || activeSession) {
+    const activeCoordinatorSession =
+      sessionCreationPending || (await hasActiveSession());
+    if (activeTasks.length >= threshold || activeCoordinatorSession) {
       return;
     }
 
@@ -246,23 +295,28 @@ export const createCoordinator = (
     const baselineFacts =
       await baselineRepository.getLatestBaselineFacts(directory);
 
-    activeSession = await options.sessionManager.createSession({
-      directory,
-      model: {
-        modelID: project.global_model_id,
-        providerID: project.global_provider_id,
-      },
-      prompt: buildPrompt({
-        activeTasks,
-        baselineFacts,
-        dimensions,
-        evaluations,
-        project,
-        rejectedTasks,
-        threshold,
-      }),
-      title: `AIM Coordinator task-pool session (${project.id})`,
-    });
+    sessionCreationPending = true;
+    try {
+      activeSession = await options.sessionManager.createSession({
+        directory,
+        model: {
+          modelID: project.global_model_id,
+          providerID: project.global_provider_id,
+        },
+        prompt: buildPrompt({
+          activeTasks,
+          baselineFacts,
+          dimensions,
+          evaluations,
+          project,
+          rejectedTasks,
+          threshold,
+        }),
+        title: `AIM Coordinator task-pool session (${project.id})`,
+      });
+    } finally {
+      sessionCreationPending = false;
+    }
   };
 
   const loop = (async () => {
