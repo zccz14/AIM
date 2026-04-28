@@ -647,6 +647,139 @@ describe("task routes", () => {
     );
   });
 
+  it("reports current, stale, and unknown task source baseline freshness", async () => {
+    await useProjectRoot("reports-task-source-baseline-freshness");
+
+    const app = createTaskRouteApp();
+    const currentCommit = "fc284b9aa5ff780228c625011d4714f9e6771622";
+    const staleCommit = "45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13";
+    const dimensionResponse = await app.request(contractModule.dimensionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        name: "Baseline freshness",
+        goal: "Expose task source baseline freshness.",
+        evaluation_method: "Compare task source commits with current baseline.",
+      }),
+    });
+
+    expect(dimensionResponse.status).toBe(201);
+
+    const dimension = await dimensionResponse.json();
+    const evaluationResponse = await app.request(
+      contractModule.dimensionEvaluationsPath.replace(
+        "{dimensionId}",
+        dimension.id,
+      ),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          project_id: mainProjectId,
+          commit_sha: currentCommit,
+          evaluator_model: "gpt-5.5",
+          score: 80,
+          evaluation: "Current independent origin/main evaluation.",
+        }),
+      },
+    );
+
+    expect(evaluationResponse.status).toBe(201);
+
+    const batchResponse = await app.request(contractModule.tasksBatchPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        operations: [
+          {
+            type: "create",
+            task: {
+              task_id: "11111111-1111-4111-8111-111111111111",
+              title: "Current source task",
+              spec: "Task planned from current baseline.",
+              source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
+                latest_origin_main_commit: currentCommit,
+              },
+            },
+          },
+          {
+            type: "create",
+            task: {
+              task_id: "22222222-2222-4222-8222-222222222222",
+              title: "Stale source task",
+              spec: "Task planned from stale baseline.",
+              source_metadata: {
+                ...buildPassingCoordinatorSourceMetadata(),
+                latest_origin_main_commit: staleCommit,
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(batchResponse.status).toBe(200);
+
+    const missingMetadataResponse = await app.request(
+      contractModule.tasksPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: "Missing source metadata task",
+          task_spec: "Task without source baseline metadata.",
+          project_id: mainProjectId,
+        }),
+      },
+    );
+
+    expect(missingMetadataResponse.status).toBe(201);
+
+    const listResponse = await app.request(contractModule.tasksPath);
+
+    expect(listResponse.status).toBe(200);
+
+    const listPayload = await listResponse.json();
+
+    expect(
+      contractModule.taskListResponseSchema.safeParse(listPayload).success,
+    ).toBe(true);
+
+    const tasksByTitle = new Map(
+      listPayload.items.map((task: contractModule.Task) => [task.title, task]),
+    );
+
+    expect(
+      tasksByTitle.get("Current source task")?.source_baseline_freshness,
+    ).toEqual({
+      current_commit: currentCommit,
+      source_commit: currentCommit,
+      status: "current",
+      summary: `Task source baseline matches current origin/main ${currentCommit}`,
+    });
+    expect(
+      tasksByTitle.get("Stale source task")?.source_baseline_freshness,
+    ).toEqual({
+      current_commit: currentCommit,
+      source_commit: staleCommit,
+      status: "stale",
+      summary: `Task source baseline ${staleCommit} differs from current origin/main ${currentCommit}`,
+    });
+    expect(
+      tasksByTitle.get("Missing source metadata task")
+        ?.source_baseline_freshness,
+    ).toEqual({
+      current_commit: currentCommit,
+      source_commit: null,
+      status: "unknown",
+      summary:
+        "Task source baseline metadata is missing latest_origin_main_commit",
+    });
+  });
+
   it("applies POST /tasks/batch create operations with validation evidence and delete operations atomically in order", async () => {
     await useProjectRoot("creates-task-batch");
 

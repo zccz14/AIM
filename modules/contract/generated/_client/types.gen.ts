@@ -139,6 +139,12 @@ export type Task = {
   source_metadata: {
     [key: string]: unknown;
   };
+  source_baseline_freshness: {
+    status: "current" | "stale" | "unknown";
+    source_commit: string | null;
+    current_commit: string | null;
+    summary: string;
+  };
   opencode_session?: OpenCodeSession | null;
   session_id: string | null;
   worktree_path: string | null;
@@ -420,6 +426,12 @@ export type TaskWritable = {
   result: string;
   source_metadata: {
     [key: string]: unknown;
+  };
+  source_baseline_freshness: {
+    status: "current" | "stale" | "unknown";
+    source_commit: string | null;
+    current_commit: string | null;
+    summary: string;
   };
   opencode_session?: OpenCodeSessionWritable | null;
   session_id: string | null;

@@ -1911,6 +1911,7 @@ export const openApiDocument = {
           "done",
           "status",
           "source_metadata",
+          "source_baseline_freshness",
           "created_at",
           "updated_at",
         ],
@@ -1950,6 +1951,27 @@ export const openApiDocument = {
           source_metadata: {
             type: "object",
             additionalProperties: true,
+          },
+          source_baseline_freshness: {
+            type: "object",
+            additionalProperties: false,
+            required: ["status", "source_commit", "current_commit", "summary"],
+            properties: {
+              status: {
+                type: "string",
+                enum: ["current", "stale", "unknown"],
+              },
+              source_commit: {
+                type: ["string", "null"],
+              },
+              current_commit: {
+                type: ["string", "null"],
+              },
+              summary: {
+                type: "string",
+                minLength: 1,
+              },
+            },
           },
           opencode_session: {
             anyOf: [

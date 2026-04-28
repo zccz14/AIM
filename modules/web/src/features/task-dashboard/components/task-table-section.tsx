@@ -31,6 +31,15 @@ import {
 } from "./dashboard-styles.js";
 import { TaskStatusBadge } from "./task-status-badge.js";
 
+const sourceBaselineClassName = (
+  status: DashboardTask["sourceBaselineFreshness"]["status"],
+) =>
+  status === "current"
+    ? "text-primary"
+    : status === "stale"
+      ? "text-destructive"
+      : "text-muted-foreground";
+
 const filterTask = (task: DashboardTask, filterValue: string) => {
   const normalizedFilter = filterValue.trim().toLowerCase();
 
@@ -72,6 +81,20 @@ export const TaskTableSection = ({
         header: t("tableStatus"),
         cell: ({ row }) => (
           <TaskStatusBadge status={row.original.dashboardStatus} />
+        ),
+      },
+      {
+        accessorFn: (task) => task.sourceBaselineFreshness.status,
+        id: "sourceBaseline",
+        header: t("tableSourceBaseline"),
+        cell: ({ row }) => (
+          <span
+            className={sourceBaselineClassName(
+              row.original.sourceBaselineFreshness.status,
+            )}
+          >
+            {row.original.sourceBaselineFreshness.status}
+          </span>
         ),
       },
       {

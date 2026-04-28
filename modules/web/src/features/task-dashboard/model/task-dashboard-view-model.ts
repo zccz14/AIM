@@ -19,11 +19,19 @@ export type DashboardTask = {
   sessionId: string | null;
   worktreePath: string | null;
   pullRequestUrl: string | null;
+  sourceBaselineFreshness: DashboardSourceBaselineFreshness;
   closureChecklist: DashboardClosureCue[];
   dependencies: string[];
   createdAt: string;
   updatedAt: string;
   isDone: boolean;
+};
+
+export type DashboardSourceBaselineFreshness = {
+  status: "current" | "stale" | "unknown";
+  sourceCommit: string | null;
+  currentCommit: string | null;
+  summary: string;
 };
 
 export type DashboardClosureCue = {

@@ -6,6 +6,12 @@ const buildTask = ({
   gitOriginUrl = "https://github.com/example/main.git",
   projectId = "00000000-0000-4000-8000-000000000010",
   result = "",
+  sourceBaselineFreshness = {
+    current_commit: "abc1234",
+    source_commit: "abc1234",
+    status: "current",
+    summary: "Task source baseline matches current origin/main abc1234",
+  },
   spec,
   status = "processing",
   taskId,
@@ -16,6 +22,12 @@ const buildTask = ({
   gitOriginUrl?: string;
   projectId?: string;
   result?: string;
+  sourceBaselineFreshness?: {
+    current_commit: string | null;
+    source_commit: string | null;
+    status: "current" | "stale" | "unknown";
+    summary: string;
+  };
   spec: string;
   status?: string;
   taskId: string;
@@ -34,6 +46,7 @@ const buildTask = ({
   dependencies,
   result,
   source_metadata: {},
+  source_baseline_freshness: sourceBaselineFreshness,
   done,
   status,
   created_at: "2026-04-19T00:00:00.000Z",
@@ -505,6 +518,70 @@ test("shows actionable API errors and keeps the Director clarification panel mob
       ),
     )
     .toBe(true);
+});
+
+test("shows task source baseline freshness for current, stale, and missing metadata", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? []
+            : [
+                buildTask({
+                  spec: "Current source baseline task",
+                  taskId: "task-current-source",
+                }),
+                buildTask({
+                  sourceBaselineFreshness: {
+                    current_commit: "fc284b9aa5ff780228c625011d4714f9e6771622",
+                    source_commit: "45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13",
+                    status: "stale",
+                    summary:
+                      "Task source baseline 45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13 differs from current origin/main fc284b9aa5ff780228c625011d4714f9e6771622",
+                  },
+                  spec: "Stale source baseline task",
+                  taskId: "task-stale-source",
+                }),
+                buildTask({
+                  sourceBaselineFreshness: {
+                    current_commit: "fc284b9aa5ff780228c625011d4714f9e6771622",
+                    source_commit: null,
+                    status: "unknown",
+                    summary:
+                      "Task source baseline metadata is missing latest_origin_main_commit",
+                  },
+                  spec: "Missing source baseline task",
+                  taskId: "task-missing-source",
+                }),
+              ],
+      }),
+    });
+  });
+
+  await page.goto("/#/tasks/task-current-source");
+  await expect(page.getByText("Source Baseline: current")).toBeVisible();
+
+  await page.goto("/#/tasks/task-stale-source");
+  await expect(page.getByText("Source Baseline: stale")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task source baseline 45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13 differs from current origin/main fc284b9aa5ff780228c625011d4714f9e6771622",
+    ),
+  ).toBeVisible();
+
+  await page.goto("/#/tasks/task-missing-source");
+  await expect(page.getByText("Source Baseline: unknown")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Task source baseline metadata is missing latest_origin_main_commit",
+    ),
+  ).toBeVisible();
 });
 
 test("shows project optimizer config and runtime observability separately", async ({

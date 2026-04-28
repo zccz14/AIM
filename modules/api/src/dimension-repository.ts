@@ -231,6 +231,12 @@ export const createDimensionRepository = (
     WHERE evaluations.dimension_id = ?
     ORDER BY evaluations.created_at ASC, evaluations.rowid ASC
   `);
+  const listProjectDimensionEvaluationsStatement = database.prepare(`
+    SELECT evaluations.id, evaluations.dimension_id, evaluations.project_id, evaluations.commit_sha, evaluations.evaluator_model, evaluations.score, evaluations.evaluation, evaluations.created_at
+    FROM ${dimensionEvaluationsTableName} AS evaluations
+    WHERE evaluations.project_id = ?
+    ORDER BY evaluations.created_at ASC, evaluations.rowid ASC
+  `);
   const listUnevaluatedDimensionIdsStatement = database.prepare(`
     SELECT dimensions.id
     FROM ${dimensionsTableName} AS dimensions
@@ -364,6 +370,15 @@ export const createDimensionRepository = (
     ): Promise<DimensionEvaluation[]> {
       const rows = listDimensionEvaluationsStatement.all(
         dimensionId,
+      ) as DimensionEvaluationRow[];
+
+      return Promise.resolve(rows.map(mapDimensionEvaluationRow));
+    },
+    listProjectDimensionEvaluations(
+      projectId: string,
+    ): Promise<DimensionEvaluation[]> {
+      const rows = listProjectDimensionEvaluationsStatement.all(
+        projectId,
       ) as DimensionEvaluationRow[];
 
       return Promise.resolve(rows.map(mapDimensionEvaluationRow));

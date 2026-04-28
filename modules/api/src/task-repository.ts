@@ -226,6 +226,13 @@ const mapTaskRow = (row: TaskRow) =>
     dependencies: JSON.parse(row.dependencies) as string[],
     result: row.result,
     source_metadata: JSON.parse(row.source_metadata) as Record<string, unknown>,
+    source_baseline_freshness: {
+      status: "unknown",
+      source_commit: null,
+      current_commit: null,
+      summary:
+        "Task source baseline metadata is missing latest_origin_main_commit",
+    },
     opencode_session: null,
     done: Boolean(row.done),
     status: row.status,

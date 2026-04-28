@@ -193,6 +193,14 @@ const Task = z
     global_model_id: z.string().min(1),
     result: z.string(),
     source_metadata: z.object({}).partial().strict().passthrough(),
+    source_baseline_freshness: z
+      .object({
+        status: z.enum(["current", "stale", "unknown"]),
+        source_commit: z.union([z.string(), z.null()]),
+        current_commit: z.union([z.string(), z.null()]),
+        summary: z.string().min(1),
+      })
+      .strict(),
     opencode_session: z.union([OpenCodeSession, z.null()]).optional(),
     session_id: z.union([z.string(), z.null()]),
     worktree_path: z.union([z.string(), z.null()]),

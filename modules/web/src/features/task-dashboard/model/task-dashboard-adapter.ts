@@ -217,6 +217,12 @@ export const adaptDashboardTask = (task: Task): DashboardTask => ({
   sessionId: task.session_id,
   worktreePath: task.worktree_path,
   pullRequestUrl: task.pull_request_url,
+  sourceBaselineFreshness: {
+    currentCommit: task.source_baseline_freshness.current_commit,
+    sourceCommit: task.source_baseline_freshness.source_commit,
+    status: task.source_baseline_freshness.status,
+    summary: task.source_baseline_freshness.summary,
+  },
   closureChecklist: buildClosureChecklist(task),
   dependencies: task.dependencies,
   createdAt: task.created_at,
