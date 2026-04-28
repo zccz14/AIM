@@ -18,6 +18,7 @@ const createRepository = () => {
   const sessions: StoredSession[] = [];
 
   return {
+    [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     async createSession(input: {
       continue_prompt?: null | string;
       model_id?: null | string;
@@ -112,6 +113,8 @@ describe("createOpenCodeSessionManager", () => {
     });
 
     await manager[Symbol.asyncDispose]();
+
+    expect(repository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("sends the stored prompt with persisted model when a pending session has no messages for 30 minutes", async () => {

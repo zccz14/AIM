@@ -2,7 +2,7 @@ import { createOpencodeClient } from "@opencode-ai/sdk";
 
 type OpenCodeSessionState = "pending" | "rejected" | "resolved";
 
-type OpenCodeSessionRepository = Partial<AsyncDisposable> & {
+type OpenCodeSessionRepository = AsyncDisposable & {
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
@@ -108,9 +108,7 @@ export const createOpenCodeSessionManager = ({
     string,
     { attemptedAt: number; latestMessageTime: number }
   >();
-  if (Symbol.asyncDispose in repository) {
-    stack.use(repository as AsyncDisposable);
-  }
+  stack.use(repository);
 
   const watchPendingSessions = async () => {
     while (!abortController.signal.aborted) {

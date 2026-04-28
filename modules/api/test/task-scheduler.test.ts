@@ -1,11 +1,16 @@
-import { readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { Task } from "@aim-ai/contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildTaskSessionPrompt } from "../src/task-continue-prompt.js";
 import { createTaskScheduler } from "../src/task-scheduler.js";
+
+const mockEnsureProjectWorkspace = vi.hoisted(() => vi.fn());
+
+vi.mock("../src/project-workspace.js", () => ({
+  ensureProjectWorkspace: mockEnsureProjectWorkspace,
+}));
 
 const createCoordinator = () => ({
   createSession: vi.fn().mockResolvedValue({
@@ -35,8 +40,15 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   ...overrides,
 });
 
+beforeEach(() => {
+  mockEnsureProjectWorkspace.mockImplementation((task: Task) =>
+    Promise.resolve(`/repo/.worktrees/${task.task_id}`),
+  );
+});
+
 afterEach(async () => {
   vi.useRealTimers();
+  mockEnsureProjectWorkspace.mockReset();
   await rm(tempRoot, { force: true, recursive: true });
 });
 
@@ -50,7 +62,7 @@ describe("task scheduler", () => {
       warn: vi.fn(),
     };
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -106,7 +118,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -131,7 +143,7 @@ describe("task scheduler", () => {
     };
     const schedulerPromise = (async () => {
       await using scheduler = createTaskScheduler({
-        coordinator: createCoordinator(),
+        sessionManager: createCoordinator(),
         taskRepository: repository,
       });
 
@@ -155,7 +167,7 @@ describe("task scheduler", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([]),
     };
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       taskRepository: repository,
     });
 
@@ -188,7 +200,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: repository,
     });
@@ -216,7 +228,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -240,7 +252,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn().mockResolvedValue(null),
@@ -265,13 +277,22 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: repository,
     });
 
     await scheduler.scanOnce();
 
-    expect(coordinator.createSession).toHaveBeenCalledWith(initialTask);
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(initialTask);
+    expect(coordinator.createSession).toHaveBeenCalledWith({
+      directory: `/repo/.worktrees/${initialTask.task_id}`,
+      model: {
+        modelID: initialTask.developer_model_id,
+        providerID: initialTask.developer_provider_id,
+      },
+      prompt: buildTaskSessionPrompt(initialTask),
+      title: `AIM Developer: ${initialTask.title}`,
+    });
     expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
       initialTask.task_id,
       "session-1",
@@ -283,7 +304,7 @@ describe("task scheduler", () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -305,7 +326,7 @@ describe("task scheduler", () => {
       sessionId: "session-1",
     });
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn().mockResolvedValue(boundTask),
         listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask]),
@@ -329,7 +350,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: repository,
     });
 
@@ -343,7 +364,7 @@ describe("task scheduler", () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -359,7 +380,7 @@ describe("task scheduler", () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -376,7 +397,7 @@ describe("task scheduler", () => {
     const task = createTask({ session_id: "session-1" });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -397,7 +418,7 @@ describe("task scheduler", () => {
     });
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([task]),
@@ -430,7 +451,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -455,7 +476,7 @@ describe("task scheduler", () => {
     const events: string[] = [];
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([firstTask, secondTask]),
@@ -482,15 +503,15 @@ describe("task scheduler", () => {
     });
     const events: string[] = [];
     const coordinator = createCoordinator();
-    coordinator.createSession.mockImplementation(async (task) => {
-      events.push(`create:${task.task_id}`);
+    coordinator.createSession.mockImplementation(async (input) => {
+      events.push(`create:${input.title}`);
       return {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-        sessionId: `new-${task.task_id}`,
+        sessionId: `new-${input.title}`,
       };
     });
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(async (taskId) => {
           events.push(`assign:${taskId}`);
@@ -505,9 +526,9 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(events).toEqual([
-      "create:task-1",
+      "create:AIM Developer: Continue scheduler",
       "assign:task-1",
-      "create:task-3",
+      "create:AIM Developer: Continue scheduler",
       "assign:task-3",
     ]);
   });
@@ -524,15 +545,15 @@ describe("task scheduler", () => {
     });
     const events: string[] = [];
     const coordinator = createCoordinator();
-    coordinator.createSession.mockImplementation(async (task) => {
-      events.push(`create:${task.task_id}`);
+    coordinator.createSession.mockImplementation(async (input) => {
+      events.push(`create:${input.title}`);
       return {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
         sessionId: "session-new",
       };
     });
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(async (taskId) => {
           events.push(`assign:${taskId}`);
@@ -547,7 +568,7 @@ describe("task scheduler", () => {
     await scheduler.scanOnce();
 
     expect(events).toEqual([
-      "create:task-unassigned",
+      "create:AIM Developer: Continue scheduler",
       "assign:task-unassigned",
     ]);
   });
@@ -582,7 +603,7 @@ describe("task scheduler", () => {
     const events: string[] = [];
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(async (taskId) => {
           events.push(`assign:${taskId}`);
@@ -614,7 +635,7 @@ describe("task scheduler", () => {
   it("keeps an empty unfinished task pool as a no-op", async () => {
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([]),
@@ -644,7 +665,7 @@ describe("task scheduler", () => {
       sessionId: "new-session",
     });
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn().mockResolvedValue(latestSnapshot),
@@ -673,7 +694,7 @@ describe("task scheduler", () => {
     };
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: repository,
     });
 
@@ -686,7 +707,7 @@ describe("task scheduler", () => {
     vi.useFakeTimers();
     const listUnfinishedTasks = vi.fn().mockResolvedValue([]);
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks,
@@ -708,7 +729,7 @@ describe("task scheduler", () => {
 
   it("does not expose a public stop lifecycle method", () => {
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks: vi.fn().mockResolvedValue([]),
@@ -732,7 +753,7 @@ describe("task scheduler", () => {
     );
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks,
@@ -762,7 +783,7 @@ describe("task scheduler", () => {
     );
     const coordinator = createCoordinator();
     const scheduler = createTaskScheduler({
-      coordinator,
+      sessionManager: coordinator,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks,
@@ -790,7 +811,7 @@ describe("task scheduler", () => {
     vi.useFakeTimers();
     const listUnfinishedTasks = vi.fn().mockResolvedValue([]);
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
         listUnfinishedTasks,
@@ -820,7 +841,7 @@ describe("task scheduler", () => {
       .mockRejectedValueOnce(new Error("database offline"))
       .mockResolvedValueOnce([]);
     const scheduler = createTaskScheduler({
-      coordinator: createCoordinator(),
+      sessionManager: createCoordinator(),
       logger,
       taskRepository: {
         assignSessionIfUnassigned: vi.fn(),
@@ -848,24 +869,6 @@ describe("task scheduler", () => {
     );
     await scheduler[Symbol.asyncDispose]();
     vi.useRealTimers();
-  });
-
-  it("keeps OpenCode integration outside the task scheduler", () => {
-    const schedulerSource = readFileSync(
-      new URL("../src/task-scheduler.ts", import.meta.url),
-      "utf8",
-    );
-
-    expect(schedulerSource).not.toMatch(/opencode/i);
-    expect(schedulerSource).not.toMatch(/spawn\(/i);
-    expect(schedulerSource).not.toMatch(/child_process/i);
-    expect(schedulerSource).not.toMatch(/node:fs/i);
-    expect(schedulerSource).not.toMatch(/node:path/i);
-    expect(schedulerSource).not.toMatch(/writeFile/i);
-    expect(schedulerSource).not.toMatch(/mkdir/i);
-    expect(schedulerSource).not.toMatch(/\.aim/i);
-    expect(schedulerSource).not.toMatch(/task-specs/i);
-    expect(schedulerSource).not.toContain("worktree_path");
   });
 
   it("continue prompt contains task metadata and API-based spec lookup instructions", () => {

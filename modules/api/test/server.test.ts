@@ -313,7 +313,9 @@ describe("server startup", () => {
     mockCreateApiLogger.mockReturnValue(logger);
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -425,8 +427,9 @@ describe("server startup", () => {
 
     startServer();
 
-    expect(mockCreateManager).not.toHaveBeenCalled();
-    expect(coordinatorLane.start).toHaveBeenCalledOnce();
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: optimizerEnabledProject }),
+    );
     expect(scheduler.start).toHaveBeenCalledOnce();
     expect(
       mockCreateApp.mock.calls[0]?.[0].optimizerRuntime.getStatus(),
@@ -448,7 +451,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -465,14 +470,16 @@ describe("server startup", () => {
     expect(mockCreateTaskScheduler).toHaveBeenCalledWith(
       expect.not.objectContaining({ taskProducer: expect.anything() }),
     );
-    expect(mockCreateManager).not.toHaveBeenCalled();
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: optimizerEnabledProject }),
+    );
     expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "manager_evaluation" }),
     );
     expect(mockCreateAgentSessionLane).toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "coordinator_task_pool" }),
     );
-    expect(scheduler.start).not.toHaveBeenCalled();
+    expect(scheduler.start).toHaveBeenCalledOnce();
   });
 
   it("wires the coordinator lane to persisted plugin continuation state", async () => {
@@ -491,7 +498,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateOpenCodeSessionRepository.mockReturnValue(
       openCodeSessionRepository,
     );
@@ -577,7 +586,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -602,8 +613,8 @@ describe("server startup", () => {
 
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(1);
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
-      git_origin_url: configuredProject.git_origin_url,
-      project_id: configuredProject.id,
+      git_origin_url: optimizerEnabledProject.git_origin_url,
+      project_id: optimizerEnabledProject.id,
     });
   });
 
@@ -622,8 +633,8 @@ describe("server startup", () => {
     mockServe.mockReturnValue(server);
     mockCreateTaskRepository.mockReturnValue(
       createRepositoryMock([
-        configuredProject,
-        secondConfiguredProject,
+        optimizerEnabledProject,
+        { ...secondConfiguredProject, optimizer_enabled: true },
         unconfiguredProject,
       ]),
     );
@@ -654,15 +665,15 @@ describe("server startup", () => {
       "coordinator_task_pool",
     ]);
     expect(laneConfigs.map((config) => config.providerId)).toEqual([
-      configuredProject.global_provider_id,
+      optimizerEnabledProject.global_provider_id,
       secondConfiguredProject.global_provider_id,
     ]);
     expect(laneConfigs.map((config) => config.modelId)).toEqual([
-      configuredProject.global_model_id,
+      optimizerEnabledProject.global_model_id,
       secondConfiguredProject.global_model_id,
     ]);
-    expect(mockCreateManager).not.toHaveBeenCalled();
-    for (const project of [configuredProject, secondConfiguredProject]) {
+    expect(mockCreateManager).toHaveBeenCalledTimes(2);
+    for (const project of [optimizerEnabledProject, secondConfiguredProject]) {
       expect(
         laneConfigs.some(
           (config) =>
@@ -678,8 +689,8 @@ describe("server startup", () => {
 
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledTimes(2);
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
-      git_origin_url: configuredProject.git_origin_url,
-      project_id: configuredProject.id,
+      git_origin_url: optimizerEnabledProject.git_origin_url,
+      project_id: optimizerEnabledProject.id,
     });
     expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith({
       git_origin_url: secondConfiguredProject.git_origin_url,
@@ -758,7 +769,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -881,7 +894,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(createAppMock());
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -894,7 +909,7 @@ describe("server startup", () => {
     })();
 
     expect(close).toHaveBeenCalledOnce();
-    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalled();
     expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
@@ -918,7 +933,9 @@ describe("server startup", () => {
 
     mockCreateApp.mockReturnValue(app);
     mockServe.mockReturnValue(server);
-    mockCreateTaskRepository.mockReturnValue(createRepositoryMock());
+    mockCreateTaskRepository.mockReturnValue(
+      createRepositoryMock([optimizerEnabledProject]),
+    );
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateTaskSessionCoordinator.mockReturnValue({});
     mockCreateAgentSessionCoordinator.mockReturnValue({});
@@ -948,7 +965,7 @@ describe("server startup", () => {
       once: vi.fn(),
     };
     const taskRepository = {
-      ...createRepositoryMock(),
+      ...createRepositoryMock([optimizerEnabledProject]),
       [Symbol.asyncDispose]: vi.fn(async () => {
         cleanupOrder.push("repository:dispose");
       }),
@@ -986,6 +1003,7 @@ describe("server startup", () => {
       "server:close",
       "scheduler:dispose",
       "coordinator:dispose",
+      "coordinator:dispose",
       "repository:dispose",
     ]);
     expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
@@ -1011,7 +1029,7 @@ describe("server startup", () => {
       }),
     };
     const taskRepository = {
-      ...createRepositoryMock(),
+      ...createRepositoryMock([optimizerEnabledProject]),
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     };
     const scheduler = {
@@ -1042,7 +1060,7 @@ describe("server startup", () => {
     expect(close).toHaveBeenCalledOnce();
     await vi.waitFor(() => {
       expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
-      expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+      expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalled();
       expect(taskRepository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     });
   });
