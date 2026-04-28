@@ -55,15 +55,6 @@ describe("optimizer system", () => {
       scanOnce: vi.fn(),
       start: vi.fn(),
     };
-    const managerLane = {
-      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      scanOnce: vi.fn(),
-      getStatus: vi.fn(() => ({
-        last_error: null,
-        last_scan_at: null,
-        running: true,
-      })),
-    };
     const coordinatorLane = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
       scanOnce: vi.fn(),
@@ -75,7 +66,6 @@ describe("optimizer system", () => {
       createSession: vi.fn(),
     };
     mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
-    mockCreateManager.mockReturnValue(managerLane);
     mockCreateTaskScheduler.mockReturnValue(scheduler);
     mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
 
@@ -102,17 +92,7 @@ describe("optimizer system", () => {
     });
     expect(coordinatorLane.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
     expect(scheduler.start).toHaveBeenCalledWith({ intervalMs: 5_000 });
-    expect(mockCreateManager).toHaveBeenCalledWith(
-      expect.objectContaining({
-        coordinator: expect.objectContaining({
-          createSession: expect.any(Function),
-        }),
-        dimensionRepository,
-        logger,
-        managerStateRepository,
-        project: configuredProject,
-      }),
-    );
+    expect(mockCreateManager).not.toHaveBeenCalled();
     expect(mockCreateAgentSessionLane).not.toHaveBeenCalledWith(
       expect.objectContaining({ laneName: "manager_evaluation" }),
     );
@@ -131,7 +111,64 @@ describe("optimizer system", () => {
       running: false,
     });
     expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
-    expect(managerLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("disposes created optimizer lanes even when the optimizer is configured but disabled", async () => {
+    const disabledProject = { ...configuredProject, optimizer_enabled: false };
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = { listProjects: vi.fn(() => [disabledProject]) };
+    const continuationSessionRepository = {};
+    const dimensionRepository = {};
+    const laneStateRepository = {};
+    const managerStateRepository = {};
+    const scheduler = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+    const coordinatorLane = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      scanOnce: vi.fn(),
+      start: vi.fn(),
+    };
+
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateTaskScheduler.mockReturnValue(scheduler);
+    mockCreateAgentSessionLane.mockReturnValueOnce(coordinatorLane);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      laneStateRepository,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    expect(system.optimizerRuntime.getStatus()).toMatchObject({
+      running: false,
+    });
+    expect(coordinatorLane.start).not.toHaveBeenCalled();
+    expect(scheduler.start).not.toHaveBeenCalled();
+
+    await system[Symbol.asyncDispose]();
+
+    expect(scheduler[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(coordinatorLane[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });

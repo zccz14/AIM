@@ -60,6 +60,7 @@ export const createOptimizerRuntime = ({
   logger?: ApiLogger;
 }): OptimizerRuntime => {
   let running = false;
+  let disposed = false;
   let lastEvent: OptimizerStatus["last_event"] = null;
   let lastScanAt: OptimizerStatus["last_scan_at"] = null;
   let stopPromise: Promise<void> | null = null;
@@ -118,7 +119,7 @@ export const createOptimizerRuntime = ({
       return;
     }
 
-    if (!running) {
+    if (disposed) {
       return;
     }
 
@@ -132,6 +133,7 @@ export const createOptimizerRuntime = ({
         await lane[Symbol.asyncDispose]();
         state.running = false;
       }
+      disposed = true;
     })()
       .then(() => {
         logger?.info(
