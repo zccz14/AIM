@@ -1,4 +1,6 @@
 import type {
+  CoordinatorProposalDryRunResponse,
+  CreateCoordinatorProposalDryRunRequest,
   CreateDirectorClarificationRequest,
   Dimension,
   DimensionEvaluation,
@@ -200,4 +202,12 @@ export const patchDirectorClarificationStatus = async (
   return client.patchDirectorClarificationStatus(projectId, clarificationId, {
     status,
   });
+};
+
+export const createCoordinatorProposalDryRun = async (
+  input: CreateCoordinatorProposalDryRunRequest,
+): Promise<CoordinatorProposalDryRunResponse> => {
+  const client = createWebApiClient();
+
+  return client.createCoordinatorProposalDryRun(input);
 };

@@ -52,6 +52,24 @@ const messages = {
     connection: "Connection",
     contractStatus: "Contract Status",
     coordinatorInput: "Coordinator Input",
+    coordinatorDryRunBlocked: "Blocked",
+    coordinatorDryRunCreate: "Create",
+    coordinatorDryRunDelete: "Delete",
+    coordinatorDryRunDescription:
+      "Server-side dry-run evidence previews how Coordinator would classify current Manager gaps, active Task Pool, and rejected feedback.",
+    coordinatorDryRunKeep: "Keep",
+    coordinatorDryRunLoading: "Loading Coordinator dry-run proposal.",
+    coordinatorDryRunMissingBaseline:
+      "Current baseline is unknown. Refresh project optimizer status before running Coordinator preflight.",
+    coordinatorDryRunMissingEvaluations:
+      "Current dimension evaluation evidence is missing. Refresh project-scoped dimension evaluations before running Coordinator preflight.",
+    coordinatorDryRunRetry:
+      "Refresh project-scoped dashboard evidence and retry Coordinator preflight.",
+    coordinatorDryRunSafety:
+      "Read-only dry-run evidence only: candidates still require Task Spec validation and approved POST /tasks/batch outside the GUI.",
+    coordinatorDryRunSummary: "Coordinator dry-run proposal summary",
+    coordinatorDryRunSummaryRegion: "Coordinator dry-run proposal summary",
+    coordinatorDryRunUnavailable: "Coordinator dry-run unavailable",
     currentCommit: "Current Commit",
     continue: "Continue",
     continueAllPendingSessions: "Continue all pending sessions",
@@ -373,6 +391,24 @@ const messages = {
     connection: "连接",
     contractStatus: "契约状态",
     coordinatorInput: "Coordinator 输入",
+    coordinatorDryRunBlocked: "阻断",
+    coordinatorDryRunCreate: "创建",
+    coordinatorDryRunDelete: "删除",
+    coordinatorDryRunDescription:
+      "服务端 dry-run 证据预览 Coordinator 会如何分类当前 Manager gap、活跃 Task Pool 与 rejected feedback。",
+    coordinatorDryRunKeep: "保留",
+    coordinatorDryRunLoading: "正在加载 Coordinator dry-run proposal。",
+    coordinatorDryRunMissingBaseline:
+      "当前基线未知。请先刷新项目 optimizer 状态，再运行 Coordinator 预检。",
+    coordinatorDryRunMissingEvaluations:
+      "当前 dimension evaluation 证据缺失。请先刷新项目范围内的 dimension evaluations，再运行 Coordinator 预检。",
+    coordinatorDryRunRetry:
+      "刷新项目范围 dashboard 证据后重试 Coordinator 预检。",
+    coordinatorDryRunSafety:
+      "仅展示只读 dry-run 证据：候选仍需要 Task Spec validation，并且只能在 GUI 外经批准的 POST /tasks/batch 写入。",
+    coordinatorDryRunSummary: "Coordinator dry-run proposal 摘要",
+    coordinatorDryRunSummaryRegion: "Coordinator dry-run proposal 摘要",
+    coordinatorDryRunUnavailable: "Coordinator dry-run 不可用",
     currentCommit: "当前 Commit",
     continue: "Continue",
     continueAllPendingSessions: "Continue all pending sessions",

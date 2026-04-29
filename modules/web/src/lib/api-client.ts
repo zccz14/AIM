@@ -1,7 +1,12 @@
 import {
   ContractClientError,
+  type CoordinatorProposalDryRunResponse,
+  type CreateCoordinatorProposalDryRunRequest,
   type CreateDirectorClarificationRequest,
+  coordinatorProposalDryRunPath,
+  coordinatorProposalDryRunResponseSchema,
   createContractClient,
+  createCoordinatorProposalDryRunRequestSchema,
   createDirectorClarificationRequestSchema,
   type DimensionEvaluationListResponse,
   type DimensionListResponse,
@@ -157,6 +162,9 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     clarificationId: string,
     input: PatchDirectorClarificationRequest,
   ): Promise<DirectorClarification>;
+  createCoordinatorProposalDryRun(
+    input: CreateCoordinatorProposalDryRunRequest,
+  ): Promise<CoordinatorProposalDryRunResponse>;
 };
 
 const buildTaskListPath = (query?: {
@@ -501,6 +509,35 @@ export const createWebApiClient = (
 
       return directorClarificationSchema.parse(
         (await response.json()) as DirectorClarification,
+      );
+    },
+
+    async createCoordinatorProposalDryRun(input) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        coordinatorProposalDryRunPath,
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(
+            createCoordinatorProposalDryRunRequestSchema.parse(input),
+          ),
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return coordinatorProposalDryRunResponseSchema.parse(
+        (await response.json()) as CoordinatorProposalDryRunResponse,
       );
     },
   };
