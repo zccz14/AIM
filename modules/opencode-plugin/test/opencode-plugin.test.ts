@@ -153,10 +153,28 @@ async function loadPluginHooks() {
 }
 
 async function loadSourcePluginHooks(input: Partial<PluginInput> = {}) {
+  const inputClient = input.client as
+    | { session?: Record<string, unknown> }
+    | undefined;
+
   return AIMOpenCodePlugin({
     client: {
       session: {
+        messages: vi.fn().mockResolvedValue({
+          data: [
+            {
+              info: {
+                id: "user-message-1",
+                role: "user",
+                sessionID: "session-1",
+                time: { created: 0 },
+              },
+              parts: [{ text: "Please continue", type: "text" }],
+            },
+          ],
+        }),
         promptAsync: vi.fn().mockResolvedValue({}),
+        ...inputClient?.session,
       },
     },
     directory: "/repo",
@@ -165,11 +183,14 @@ async function loadSourcePluginHooks(input: Partial<PluginInput> = {}) {
     serverUrl: new URL("http://127.0.0.1:4096"),
     worktree: "/repo",
     $: vi.fn(),
-    ...input,
+    ...Object.fromEntries(
+      Object.entries(input).filter(([key]) => key !== "client"),
+    ),
   } as unknown as PluginInput);
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -1132,6 +1153,236 @@ describe("opencode plugin package baseline", () => {
     expect(promptText).toContain("aim_session_resolve");
     expect(promptText).toContain("aim_session_reject");
     expect(promptText).toMatch(/loop will not end/i);
+  });
+
+  it("waits until five minutes after the latest OpenCode user message before continuing", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-27T00:00:00.000Z"));
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "pending",
+            continue_prompt: "Continue the standalone session.",
+            value: null,
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:00:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      ),
+    );
+    const messages = vi.fn().mockResolvedValue({
+      data: [
+        {
+          info: {
+            id: "user-message-1",
+            role: "user",
+            sessionID: "session-1",
+            time: { created: Date.parse("2026-04-27T00:00:00.000Z") },
+          },
+          parts: [{ text: "Please continue", type: "text" }],
+        },
+      ],
+    });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { messages, promptAsync } },
+    } as unknown as PluginInput);
+
+    const idle = hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 1);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await idle;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(messages).toHaveBeenCalledTimes(2);
+    expect(messages).toHaveBeenCalledWith({
+      path: { id: "session-1" },
+      throwOnError: true,
+    });
+    expect(promptAsync).toHaveBeenCalledOnce();
+  });
+
+  it("re-checks the latest OpenCode user message after the delay before prompting", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-27T00:00:00.000Z"));
+
+    const sessionResponse = {
+      session_id: "session-1",
+      state: "pending",
+      continue_prompt: "Continue the standalone session.",
+      value: null,
+      reason: null,
+      created_at: "2026-04-27T00:00:00.000Z",
+      updated_at: "2026-04-27T00:00:00.000Z",
+    };
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(sessionResponse), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        }),
+      ),
+    );
+    const messages = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: [
+          {
+            info: {
+              id: "user-message-1",
+              role: "user",
+              sessionID: "session-1",
+              time: { created: Date.parse("2026-04-27T00:00:00.000Z") },
+            },
+            parts: [{ text: "Please continue", type: "text" }],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            info: {
+              id: "user-message-2",
+              role: "user",
+              sessionID: "session-1",
+              time: { created: Date.parse("2026-04-27T00:04:59.000Z") },
+            },
+            parts: [{ text: "One more detail", type: "text" }],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            info: {
+              id: "user-message-2",
+              role: "user",
+              sessionID: "session-1",
+              time: { created: Date.parse("2026-04-27T00:04:59.000Z") },
+            },
+            parts: [{ text: "One more detail", type: "text" }],
+          },
+        ],
+      });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { messages, promptAsync } },
+    } as unknown as PluginInput);
+
+    const idle = hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000 + 58 * 1000);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await idle;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(messages).toHaveBeenCalledTimes(3);
+    expect(promptAsync).toHaveBeenCalledOnce();
+  });
+
+  it("re-checks AIM session state after the delay before prompting", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-27T00:00:00.000Z"));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "pending",
+            continue_prompt: "Continue the standalone session.",
+            value: null,
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:00:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            session_id: "session-1",
+            state: "resolved",
+            continue_prompt: "Do not send.",
+            value: "done",
+            reason: null,
+            created_at: "2026-04-27T00:00:00.000Z",
+            updated_at: "2026-04-27T00:01:00.000Z",
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      );
+    const messages = vi.fn().mockResolvedValue({
+      data: [
+        {
+          info: {
+            id: "user-message-1",
+            role: "user",
+            sessionID: "session-1",
+            time: { created: Date.parse("2026-04-27T00:00:00.000Z") },
+          },
+          parts: [{ text: "Please continue", type: "text" }],
+        },
+      ],
+    });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("AIM_API_BASE_URL", "http://aim.test");
+
+    const hooks = await loadSourcePluginHooks({
+      client: { session: { messages, promptAsync } },
+    } as unknown as PluginInput);
+
+    const idle = hooks.event?.({
+      event: {
+        properties: { sessionID: "session-1" },
+        type: "session.idle",
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    await idle;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(messages).toHaveBeenCalledTimes(1);
+    expect(promptAsync).not.toHaveBeenCalled();
   });
 
   it("deduplicates concurrent idle continuations for one session while allowing a later continuation", async () => {
