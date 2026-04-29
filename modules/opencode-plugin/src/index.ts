@@ -15,8 +15,17 @@ type OpenCodeSession = {
   continue_prompt: null | string;
   state: "pending" | "rejected" | "resolved";
 };
+type OpenCodeMessage = {
+  info?: {
+    role?: string;
+    time?: {
+      created?: number;
+    };
+  };
+};
 
 const maxAimApiErrorDetailLength = 500;
+const idleContinuationDelayMilliseconds = 5 * 60 * 1000;
 
 const continuationTerminalInstructions = `
 
@@ -32,6 +41,11 @@ const getAimApiBaseUrl = () =>
     .replace(/\/+$/, "");
 
 const buildAimApiUrl = (path: string) => `${getAimApiBaseUrl()}${path}`;
+
+const sleep = (milliseconds: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 
 const sanitizeAimApiErrorDetail = (value: string) =>
   value
@@ -137,6 +151,20 @@ const settleOpenCodeSession = async (
 export const AIMOpenCodePlugin: Plugin = async (ctx) => {
   const idleContinuationInFlight = new Set<string>();
 
+  const fetchLastUserMessageCreatedTime = async (sessionId: string) => {
+    const response = await ctx.client.session.messages({
+      path: { id: sessionId },
+      throwOnError: true,
+    });
+    const messages = response.data as OpenCodeMessage[];
+    const lastUserMessage = messages.findLast(
+      (message) => message.info?.role === "user",
+    );
+    const created = lastUserMessage?.info?.time?.created;
+
+    return typeof created === "number" ? created : null;
+  };
+
   return {
     config: async (config) => {
       const configWithSkills = config as typeof config & ConfigWithSkills;
@@ -163,25 +191,43 @@ export const AIMOpenCodePlugin: Plugin = async (ctx) => {
         idleContinuationInFlight.add(sessionId);
 
         try {
-          const session = await fetchOpenCodeSession(sessionId);
-          const continuePrompt = session?.continue_prompt?.trim();
+          while (true) {
+            const session = await fetchOpenCodeSession(sessionId);
+            const continuePrompt = session?.continue_prompt?.trim();
 
-          if (session?.state !== "pending" || !continuePrompt) {
+            if (session?.state !== "pending" || !continuePrompt) {
+              return;
+            }
+
+            const lastUserMessageCreatedTime =
+              await fetchLastUserMessageCreatedTime(sessionId);
+
+            if (lastUserMessageCreatedTime !== null) {
+              const promptAfter =
+                lastUserMessageCreatedTime + idleContinuationDelayMilliseconds;
+              const delayMilliseconds = promptAfter - Date.now();
+
+              if (delayMilliseconds > 0) {
+                await sleep(delayMilliseconds);
+                continue;
+              }
+            }
+
+            await ctx.client.session.promptAsync({
+              body: {
+                parts: [
+                  {
+                    text: `${continuePrompt}${continuationTerminalInstructions}`,
+                    type: "text",
+                  },
+                ],
+              },
+              path: { id: sessionId },
+              throwOnError: true,
+            });
+
             return;
           }
-
-          await ctx.client.session.promptAsync({
-            body: {
-              parts: [
-                {
-                  text: `${continuePrompt}${continuationTerminalInstructions}`,
-                  type: "text",
-                },
-              ],
-            },
-            path: { id: sessionId },
-            throwOnError: true,
-          });
         } finally {
           idleContinuationInFlight.delete(sessionId);
         }
