@@ -8,12 +8,16 @@ import {
   projectOptimizerStatusPath,
   projectOptimizerStatusResponseSchema,
   projectsPath,
+  projectTokenUsagePath,
+  projectTokenUsageResponseSchema,
+  type Task,
   taskErrorSchema,
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
 import type { OptimizerSystem } from "../optimizer-system.js";
 import { resolveProjectWorkspacePath } from "../project-workspace.js";
+import { statTokensBySessionId, type TokenStats } from "../stat-tokens.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const projectByIdRoutePath = projectByIdPath.replace(
@@ -21,6 +25,10 @@ const projectByIdRoutePath = projectByIdPath.replace(
   ":projectId",
 );
 const projectOptimizerStatusRoutePath = projectOptimizerStatusPath.replace(
+  "{projectId}",
+  ":projectId",
+);
+const projectTokenUsageRoutePath = projectTokenUsagePath.replace(
   "{projectId}",
   ":projectId",
 );
@@ -67,6 +75,73 @@ const parsePatchProjectRequest = async (request: Request) => {
 
 const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
+
+const zeroTokenUsageTotals = () => ({
+  cache: { read: 0, write: 0 },
+  cost: 0,
+  input: 0,
+  messages: 0,
+  output: 0,
+  reasoning: 0,
+  total: 0,
+});
+
+const addTokenUsageTotals = (
+  target: ReturnType<typeof zeroTokenUsageTotals>,
+  source: ReturnType<typeof zeroTokenUsageTotals>,
+) => {
+  target.cache.read += source.cache.read;
+  target.cache.write += source.cache.write;
+  target.cost += source.cost;
+  target.input += source.input;
+  target.messages += source.messages;
+  target.output += source.output;
+  target.reasoning += source.reasoning;
+  target.total += source.total;
+};
+
+const toTokenUsageTotals = (stats: TokenStats) => ({
+  cache: {
+    read: stats.totals.cache.read,
+    write: stats.totals.cache.write,
+  },
+  cost: stats.totals.cost,
+  input: stats.totals.input,
+  messages: stats.totals.messages,
+  output: stats.totals.output,
+  reasoning: stats.totals.reasoning,
+  total: stats.totals.total,
+});
+
+const redactSensitiveErrorDetail = (message: string) =>
+  message.replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]");
+
+const buildOpenCodeMessagesFailure = ({
+  error,
+  rootSessionId,
+  taskId,
+}: {
+  error: unknown;
+  rootSessionId: string;
+  taskId: string;
+}) => {
+  const detail =
+    error instanceof Error
+      ? ` Detail: ${redactSensitiveErrorDetail(error.message)}`
+      : "";
+
+  return {
+    code: "OPENCODE_MESSAGES_UNAVAILABLE" as const,
+    message: `Could not fetch OpenCode messages for root session ${rootSessionId}. Verify OpenCode is reachable and retry the project token usage request.${detail}`,
+    root_session_id: rootSessionId,
+    task_id: taskId,
+  };
+};
+
+const taskHasRootSession = (
+  task: Task,
+): task is Task & { session_id: string } =>
+  typeof task.session_id === "string" && task.session_id.trim().length > 0;
 
 type RegisterProjectRoutesOptions = {
   optimizerSystem?: OptimizerSystem;
@@ -201,6 +276,80 @@ export const registerProjectRoutes = (
             })
           : optimizerStatus.blocker_summary,
       recent_events: optimizerStatus?.recent_events ?? [],
+    });
+
+    return context.json(response, 200);
+  });
+
+  app.get(projectTokenUsageRoutePath, async (context) => {
+    const projectId = requireProjectId(context.req.param("projectId"));
+    const project = await getRepository().getProjectById(projectId);
+
+    if (!project) {
+      return context.json(buildNotFoundError(projectId), 404);
+    }
+
+    const baseUrl = process.env.OPENCODE_BASE_URL ?? "http://localhost:4096";
+    const tasks = (await getRepository().listTasks({ project_id: projectId }))
+      .filter(taskHasRootSession)
+      .sort((left, right) => left.created_at.localeCompare(right.created_at));
+    const totals = zeroTokenUsageTotals();
+    const taskUsages = [];
+    const sessionUsages = [];
+    const failures = [];
+
+    for (const task of tasks) {
+      try {
+        const stats = await statTokensBySessionId(baseUrl, task.session_id);
+        const taskTotals = toTokenUsageTotals(stats);
+
+        addTokenUsageTotals(totals, taskTotals);
+        taskUsages.push({
+          failures: [],
+          session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+        sessionUsages.push({
+          failure: null,
+          root_session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+      } catch (error) {
+        const failure = buildOpenCodeMessagesFailure({
+          error,
+          rootSessionId: task.session_id,
+          taskId: task.task_id,
+        });
+        const taskTotals = zeroTokenUsageTotals();
+
+        failures.push(failure);
+        taskUsages.push({
+          failures: [failure],
+          session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+        sessionUsages.push({
+          failure,
+          root_session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+      }
+    }
+
+    const response = projectTokenUsageResponseSchema.parse({
+      failures,
+      project_id: projectId,
+      sessions: sessionUsages,
+      tasks: taskUsages,
+      totals,
     });
 
     return context.json(response, 200);

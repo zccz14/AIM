@@ -152,6 +152,54 @@ const ProjectOptimizerStatusResponse = z
     ),
   })
   .strict();
+const ProjectTokenUsageTotals = z
+  .object({
+    input: z.number().gte(0),
+    output: z.number().gte(0),
+    reasoning: z.number().gte(0),
+    cache: z
+      .object({ read: z.number().gte(0), write: z.number().gte(0) })
+      .strict(),
+    total: z.number().gte(0),
+    cost: z.number().gte(0),
+    messages: z.number().int().gte(0),
+  })
+  .strict();
+const ProjectTokenUsageFailure = z
+  .object({
+    code: z.literal("OPENCODE_MESSAGES_UNAVAILABLE"),
+    message: z.string().min(1),
+    root_session_id: z.string().min(1),
+    task_id: z.string().min(1),
+  })
+  .strict();
+const ProjectTokenUsageTask = z
+  .object({
+    task_id: z.string().min(1),
+    title: z.string().min(1),
+    session_id: z.string().min(1),
+    totals: ProjectTokenUsageTotals,
+    failures: z.array(ProjectTokenUsageFailure),
+  })
+  .strict();
+const ProjectTokenUsageSession = z
+  .object({
+    root_session_id: z.string().min(1),
+    task_id: z.string().min(1),
+    title: z.string().min(1),
+    totals: ProjectTokenUsageTotals,
+    failure: z.union([ProjectTokenUsageFailure, z.null()]),
+  })
+  .strict();
+const ProjectTokenUsageResponse = z
+  .object({
+    project_id: z.string().uuid(),
+    totals: ProjectTokenUsageTotals,
+    tasks: z.array(ProjectTokenUsageTask),
+    sessions: z.array(ProjectTokenUsageSession),
+    failures: z.array(ProjectTokenUsageFailure),
+  })
+  .strict();
 const DirectorClarificationKind = z.enum(["clarification", "adjustment"]);
 const DirectorClarificationStatus = z.enum(["open", "addressed", "dismissed"]);
 const DirectorClarification = z
@@ -533,6 +581,11 @@ export const schemas = {
   ProjectListResponse,
   PatchProjectRequest,
   ProjectOptimizerStatusResponse,
+  ProjectTokenUsageTotals,
+  ProjectTokenUsageFailure,
+  ProjectTokenUsageTask,
+  ProjectTokenUsageSession,
+  ProjectTokenUsageResponse,
   DirectorClarificationKind,
   DirectorClarificationStatus,
   DirectorClarification,

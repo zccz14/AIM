@@ -134,11 +134,17 @@ type _generatedClientExportsTaskCrud = Assert<
     HasExport<GeneratedClientModule, "patchTaskById"> &
     HasExport<GeneratedClientModule, "deleteTaskById">
 >;
+type _generatedClientExportsProjectTokenUsage = Assert<
+  HasExport<GeneratedClientModule, "getProjectTokenUsage">
+>;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
     HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
     HasExport<GeneratedTypesModule, "TaskListResponse">
+>;
+type _generatedTypesExportProjectTokenUsage = Assert<
+  HasExport<GeneratedTypesModule, "ProjectTokenUsageResponse">
 >;
 
 const assertBuiltEntry = async () => {
@@ -363,6 +369,8 @@ describe("contract package baseline", () => {
       "projectOptimizerStatusPath",
       "projectOptimizerStatusResponseSchema",
       "projectSchema",
+      "projectTokenUsagePath",
+      "projectTokenUsageResponseSchema",
       "projectsPath",
       "taskBatchOperationResultSchema",
       "taskBatchOperationSchema",
@@ -458,6 +466,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.projectOptimizerStatusPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.projectTokenUsagePath
       ],
     ).toBeDefined();
     expect(

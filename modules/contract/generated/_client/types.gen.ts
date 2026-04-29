@@ -143,6 +143,50 @@ export type ProjectOptimizerStatusResponse = {
   }>;
 };
 
+export type ProjectTokenUsageTotals = {
+  input: number;
+  output: number;
+  reasoning: number;
+  cache: {
+    read: number;
+    write: number;
+  };
+  total: number;
+  cost: number;
+  messages: number;
+};
+
+export type ProjectTokenUsageFailure = {
+  code: "OPENCODE_MESSAGES_UNAVAILABLE";
+  message: string;
+  root_session_id: string;
+  task_id: string;
+};
+
+export type ProjectTokenUsageTask = {
+  task_id: string;
+  title: string;
+  session_id: string;
+  totals: ProjectTokenUsageTotals;
+  failures: Array<ProjectTokenUsageFailure>;
+};
+
+export type ProjectTokenUsageSession = {
+  root_session_id: string;
+  task_id: string;
+  title: string;
+  totals: ProjectTokenUsageTotals;
+  failure: ProjectTokenUsageFailure | null;
+};
+
+export type ProjectTokenUsageResponse = {
+  project_id: string;
+  totals: ProjectTokenUsageTotals;
+  tasks: Array<ProjectTokenUsageTask>;
+  sessions: Array<ProjectTokenUsageSession>;
+  failures: Array<ProjectTokenUsageFailure>;
+};
+
 export type Task = {
   readonly task_id: string;
   task_spec: string;
@@ -1086,6 +1130,35 @@ export type GetProjectOptimizerStatusResponses = {
 
 export type GetProjectOptimizerStatusResponse =
   GetProjectOptimizerStatusResponses[keyof GetProjectOptimizerStatusResponses];
+
+export type GetProjectTokenUsageData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/token-usage";
+};
+
+export type GetProjectTokenUsageErrors = {
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetProjectTokenUsageError =
+  GetProjectTokenUsageErrors[keyof GetProjectTokenUsageErrors];
+
+export type GetProjectTokenUsageResponses = {
+  /**
+   * Project token usage aggregated by task and session
+   */
+  200: ProjectTokenUsageResponse;
+};
+
+export type GetProjectTokenUsageResponse =
+  GetProjectTokenUsageResponses[keyof GetProjectTokenUsageResponses];
 
 export type ListDirectorClarificationsData = {
   body?: never;
