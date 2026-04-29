@@ -27,6 +27,9 @@ describe("api sqlite schema source", () => {
 
     expect(tasksDdl).toBeDefined();
     expect(tasksDdl).not.toMatch(/\b(done|status)\b/i);
+    expect(tasksDdl).toMatch(
+      /FOREIGN KEY \(session_id\) REFERENCES opencode_sessions\(session_id\) ON DELETE SET NULL/i,
+    );
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS dimensions/i);
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS dimension_evaluations/i,

@@ -658,6 +658,8 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const project = await createProject(repository, "crud");
     const otherProject = await createProject(repository, "other");
+    insertOpenCodeSession(projectRoot, "session-a", "pending");
+    insertOpenCodeSession(projectRoot, "session-a-pending", "pending");
     insertOpenCodeSession(projectRoot, "session-b", "rejected");
     const firstTask = await createTask(repository, {
       project_id: project.id,
@@ -836,6 +838,42 @@ describe("task repository", () => {
     });
   });
 
+  it("clears a task session binding when AIM stops tracking the opencode session", async () => {
+    const projectRoot = await createProjectRoot("session-delete-clears-task");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    const project = await createProject(repository, "session-delete");
+    insertOpenCodeSession(projectRoot, "session-forget", "pending");
+    const task = await createTask(repository, {
+      project_id: project.id,
+      result: "preserve result",
+      session_id: "session-forget",
+      task_spec: "forget session but keep task",
+      title: "Forget managed session",
+      worktree_path: "/repo/.worktrees/session-forget",
+    });
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database.exec("PRAGMA foreign_keys = ON");
+    database
+      .prepare("DELETE FROM opencode_sessions WHERE session_id = ?")
+      .run("session-forget");
+    database.close();
+
+    await expect(repository.getTaskById(task.task_id)).resolves.toMatchObject({
+      project_id: project.id,
+      result: "preserve result",
+      session_id: null,
+      status: "pending",
+      task_id: task.task_id,
+      task_spec: "forget session but keep task",
+      title: "Forget managed session",
+      worktree_path: "/repo/.worktrees/session-forget",
+    });
+  });
+
   it("lists only unfinished tasks for the scheduler", async () => {
     const projectRoot = await createProjectRoot("lists-unfinished-tasks");
 
@@ -869,6 +907,7 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "session-a", "pending");
     const task = await createTask(repository, {
       task_spec: "claim me once",
       status: "pending",
@@ -899,6 +938,7 @@ describe("task repository", () => {
       task_spec: "race me",
       status: "pending",
     });
+    insertOpenCodeSession(projectRoot, "winning-session", "pending");
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
     database
@@ -922,6 +962,7 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "shared-session", "pending");
     await createTask(repository, {
       task_spec: "already claimed elsewhere",
       session_id: "shared-session",
@@ -973,6 +1014,7 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "shared-session", "pending");
     await createTask(repository, {
       task_spec: "first shared session task",
       session_id: "shared-session",
@@ -994,6 +1036,7 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "reusable-session", "resolved");
     const firstTask = await createTask(repository, {
       task_spec: "finish before reuse",
       session_id: "reusable-session",
@@ -1020,6 +1063,7 @@ describe("task repository", () => {
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "shared-session", "pending");
     await createTask(repository, {
       task_spec: "session owner",
       session_id: "shared-session",

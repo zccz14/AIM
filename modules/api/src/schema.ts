@@ -27,6 +27,13 @@ const dimensionEvaluationUniqueIndexName =
 
 type TableInfoRow = { name: string };
 
+type ForeignKeyListRow = {
+  from: string;
+  on_delete: string;
+  table: string;
+  to: string;
+};
+
 type ProjectIdentityRow = {
   id: string;
 };
@@ -57,7 +64,8 @@ const createCurrentTasksTableSql = `
     source_metadata TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES opencode_sessions(session_id) ON DELETE SET NULL
   )
 `;
 
@@ -122,6 +130,57 @@ const migrateTasksWithoutPersistedLifecycleColumns = (
     FROM tasks_legacy_lifecycle
   `);
   database.exec("DROP TABLE tasks_legacy_lifecycle");
+};
+
+const taskSessionForeignKeyReferencesOpenCodeSessions = (
+  database: DatabaseSync,
+) => {
+  const foreignKeys = database
+    .prepare("PRAGMA foreign_key_list(tasks)")
+    .all() as ForeignKeyListRow[];
+
+  return foreignKeys.some(
+    (foreignKey) =>
+      foreignKey.from === "session_id" &&
+      foreignKey.table === "opencode_sessions" &&
+      foreignKey.to === "session_id" &&
+      foreignKey.on_delete.toUpperCase() === "SET NULL",
+  );
+};
+
+const migrateTasksWithoutOpenCodeSessionForeignKey = (
+  database: DatabaseSync,
+) => {
+  const taskColumns = tableColumns(database, "tasks");
+
+  if (
+    !taskColumns.has("task_id") ||
+    !taskColumns.has("title") ||
+    !taskColumns.has("task_spec") ||
+    !taskColumns.has("project_id") ||
+    !taskColumns.has("session_id") ||
+    !taskColumns.has("worktree_path") ||
+    !taskColumns.has("pull_request_url") ||
+    !taskColumns.has("dependencies") ||
+    !taskColumns.has("result") ||
+    !taskColumns.has("created_at") ||
+    !taskColumns.has("updated_at") ||
+    taskSessionForeignKeyReferencesOpenCodeSessions(database)
+  ) {
+    return;
+  }
+
+  const sourceMetadataExpression = taskColumns.has("source_metadata")
+    ? "source_metadata"
+    : "'{}'";
+  database.exec("ALTER TABLE tasks RENAME TO tasks_legacy_session_fk");
+  database.exec(createCurrentTasksTableSql);
+  database.exec(`
+    INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, created_at, updated_at)
+    SELECT task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, ${sourceMetadataExpression}, created_at, updated_at
+    FROM tasks_legacy_session_fk
+  `);
+  database.exec("DROP TABLE tasks_legacy_session_fk");
 };
 
 const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
@@ -321,6 +380,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
 
     migrateTasksWithoutDeveloperModelColumns(database);
     migrateTasksWithoutPersistedLifecycleColumns(database);
+    migrateTasksWithoutOpenCodeSessionForeignKey(database);
 
     const openCodeSessionColumns = tableColumns(database, "opencode_sessions");
     if (

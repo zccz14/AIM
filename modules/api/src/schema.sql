@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   source_metadata TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (session_id) REFERENCES opencode_sessions(session_id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS tasks_project_id_index

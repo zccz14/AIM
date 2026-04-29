@@ -181,6 +181,16 @@ const createTaskRouteApp = (
     ...options,
   });
 
+const registerOpenCodeSession = async (
+  app: ReturnType<typeof createTaskRouteApp>,
+  sessionId: string,
+) =>
+  app.request(contractModule.openCodeSessionsPath, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+
 const useProjectRoot = async (
   name: string,
   options = { seedProject: true },
@@ -385,6 +395,7 @@ describe("task routes", () => {
     await useProjectRoot("persists-developer-model-fields");
 
     const app = createTaskRouteApp();
+    await registerOpenCodeSession(app, "session-1");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -528,6 +539,7 @@ describe("task routes", () => {
     await useProjectRoot("persists-create-and-read");
 
     const app = createTaskRouteApp();
+    await registerOpenCodeSession(app, "session-1");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -1841,6 +1853,7 @@ describe("task routes", () => {
 
     const logger = createLogger();
     const app = createTaskRouteApp({ logger });
+    await registerOpenCodeSession(app, "session-1");
     const response = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -1900,6 +1913,8 @@ describe("task routes", () => {
     await useProjectRoot("filters-list");
 
     const app = createTaskRouteApp();
+    await registerOpenCodeSession(app, "session-a");
+    await registerOpenCodeSession(app, "session-b");
     await app.request(contractModule.openCodeSessionsPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -2073,6 +2088,7 @@ describe("task routes", () => {
     await useProjectRoot("patches-task");
 
     const app = createTaskRouteApp();
+    await registerOpenCodeSession(app, "session-7");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -2139,6 +2155,7 @@ describe("task routes", () => {
     await useProjectRoot("patches-nullable-fields");
 
     const app = createTaskRouteApp();
+    await registerOpenCodeSession(app, "session-9");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -2488,6 +2505,7 @@ describe("task routes", () => {
 
     const worktreePath =
       "/Users/alice/Projects/AIM/.worktrees/sensitive-task-worktree";
+    await registerOpenCodeSession(app, "missing-session-no-pr");
     const worktreeTaskResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
