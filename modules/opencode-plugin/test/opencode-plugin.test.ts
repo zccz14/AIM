@@ -815,13 +815,10 @@ describe("opencode plugin package baseline", () => {
       /成功终态只能使用 OpenCode session tool `aim_session_resolve\(\{ value \}\)`。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。/,
+      /Task 的完成状态由 bound OpenCode session 的终态派生；不要把内部步骤改写成 task status。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /失败终态只能使用 OpenCode session tool `aim_session_reject\(\{ reason \}\)`。/,
-    );
-    expect(pluginDeveloperGuideSkillText).toMatch(
-      /除非用户明确指示，否则不要在 tool 调用失败后回退到直接 Task terminal API。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /终态成功的 `value` 必须是非空字符串。/,
@@ -833,17 +830,12 @@ describe("opencode plugin package baseline", () => {
       /任务失败：工作本身失败，因此应通过 `aim_session_reject\(\{ reason \}\)` 发送带非空 `reason` 的终态失败结算。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /上报失败：PATCH、字段级 PUT 请求或 terminal session tool 调用因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败，也不要回退到直接 Task terminal API，除非用户明确指示。/,
+      /上报失败：字段级 PUT 请求或 terminal session tool 调用因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
     );
 
     for (const requiredFragment of [
-      '"status": "processing"',
-      "resolved",
-      "rejected",
       "aim_session_resolve({ value })",
       "aim_session_reject({ reason })",
-      `POST /tasks/\${task_id}/resolve`,
-      `POST /tasks/\${task_id}/reject`,
       `PUT /tasks/\${task_id}/worktree_path`,
       `PUT /tasks/\${task_id}/pull_request_url`,
       `PUT /tasks/\${task_id}/dependencies`,
@@ -854,6 +846,13 @@ describe("opencode plugin package baseline", () => {
 
     expect(pluginDeveloperGuideSkillText).not.toContain("TODO");
     expect(pluginDeveloperGuideSkillText).not.toContain("TBD");
+    expect(pluginDeveloperGuideSkillText).not.toContain(
+      `POST /tasks/\${task_id}/resolve`,
+    );
+    expect(pluginDeveloperGuideSkillText).not.toContain(
+      `POST /tasks/\${task_id}/reject`,
+    );
+    expect(pluginDeveloperGuideSkillText).not.toContain("Task terminal API");
   });
 
   it("documents coordinator guide task batch rules", () => {

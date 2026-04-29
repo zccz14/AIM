@@ -733,7 +733,7 @@ const buildPullRequestFollowupStatus = (
       ...base,
       category: "merged_but_not_resolved",
       recovery_action:
-        "Report the final result with POST /tasks/{taskId}/resolve now that the pull request is merged.",
+        "Call aim_session_resolve with the final result now that the pull request is merged.",
       summary: "Pull request is merged, but the AIM task is still processing.",
     });
   }
