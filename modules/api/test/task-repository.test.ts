@@ -73,6 +73,22 @@ const createTask = async (
   });
 };
 
+const insertOpenCodeSession = (
+  projectRoot: string,
+  sessionId: string,
+  state: "pending" | "rejected" | "resolved",
+) => {
+  const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+  const now = new Date().toISOString();
+
+  database
+    .prepare(
+      "INSERT INTO opencode_sessions (session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)",
+    )
+    .run(sessionId, state, now, now);
+  database.close();
+};
+
 afterEach(async () => {
   delete process.env.AIM_PROJECT_ROOT;
   await rm(tempRoot, { force: true, recursive: true });
@@ -139,7 +155,6 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const createdTask = await createTask(repository, {
       task_spec: "bootstrap repository schema",
-      status: "resolved",
     });
     const tasks = await repository.listTasks();
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -150,12 +165,12 @@ describe("task repository", () => {
       | TableInfoRow
       | undefined;
     const persistedRow = database
-      .prepare("SELECT done, result FROM tasks WHERE task_id = ?")
-      .get(createdTask.task_id) as undefined | { done: number; result: string };
+      .prepare("SELECT result FROM tasks WHERE task_id = ?")
+      .get(createdTask.task_id) as undefined | { result: string };
     database.close();
 
     expect(taskSchema.safeParse(createdTask).success).toBe(true);
-    expect(createdTask.done).toBe(true);
+    expect(createdTask.done).toBe(false);
     expect(createdTask.git_origin_url).toContain("bootstrap");
     expect(createdTask.result).toBe("");
     expect(resultColumn).toMatchObject({
@@ -165,7 +180,7 @@ describe("task repository", () => {
       pk: 0,
       type: "TEXT",
     });
-    expect(persistedRow).toEqual({ done: 1, result: "" });
+    expect(persistedRow).toEqual({ result: "" });
     expect(tasks).toEqual([createdTask]);
   });
 
@@ -643,6 +658,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const project = await createProject(repository, "crud");
     const otherProject = await createProject(repository, "other");
+    insertOpenCodeSession(projectRoot, "session-b", "rejected");
     const firstTask = await createTask(repository, {
       project_id: project.id,
       task_spec: "keep pending",
@@ -692,7 +708,6 @@ describe("task repository", () => {
 
     const updatedTask = await repository.updateTask(secondTask.task_id, {
       pull_request_url: "https://example.test/pr/2",
-      status: "resolved",
       task_spec: "complete now",
     });
 
@@ -702,8 +717,8 @@ describe("task repository", () => {
     expect(updatedTask.session_id).toBe("session-a-pending");
     expect(updatedTask.dependencies).toEqual([firstTask.task_id]);
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/2");
-    expect(updatedTask.status).toBe("resolved");
-    expect(updatedTask.done).toBe(true);
+    expect(updatedTask.status).toBe("pending");
+    expect(updatedTask.done).toBe(false);
     expect(Date.parse(updatedTask.updated_at)).toBeGreaterThanOrEqual(
       Date.parse(secondTask.updated_at),
     );
@@ -713,9 +728,9 @@ describe("task repository", () => {
     );
     const doneTasks = await repository.listTasks({ done: true });
 
-    expect(doneTasks).toHaveLength(2);
+    expect(doneTasks).toHaveLength(1);
     expect(doneTasks.map((task) => task.task_id).sort()).toEqual(
-      [updatedTask.task_id, thirdTask.task_id].sort(),
+      [thirdTask.task_id].sort(),
     );
 
     await expect(repository.deleteTask(firstTask.task_id)).resolves.toBe(true);
@@ -736,14 +751,13 @@ describe("task repository", () => {
     });
 
     const updatedTask = await repository.updateTask(task.task_id, {
-      status: "resolved",
       task_spec: "preserve existing result",
     });
 
     expect(updatedTask).toMatchObject({
-      done: true,
+      done: false,
       result: "keep me",
-      status: "resolved",
+      status: "pending",
       task_id: task.task_id,
     });
   });
@@ -771,23 +785,27 @@ describe("task repository", () => {
     });
   });
 
-  it("resolves and rejects tasks while persisting their terminal result", async () => {
+  it("derives terminal task state from bound sessions while persisting result", async () => {
     const projectRoot = await createProjectRoot("terminal-result-helpers");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
     const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "session-resolved", "resolved");
+    insertOpenCodeSession(projectRoot, "session-rejected", "rejected");
     const resolvedTask = await createTask(repository, {
+      session_id: "session-resolved",
       status: "pending",
       task_spec: "resolve me",
     });
     const rejectedTask = await createTask(repository, {
+      session_id: "session-rejected",
       status: "pending",
       task_spec: "reject me",
     });
 
     await expect(
-      repository.resolveTask(resolvedTask.task_id, "ship it"),
+      repository.updateTask(resolvedTask.task_id, { result: "ship it" }),
     ).resolves.toMatchObject({
       done: true,
       result: "ship it",
@@ -795,7 +813,9 @@ describe("task repository", () => {
       task_id: resolvedTask.task_id,
     });
     await expect(
-      repository.rejectTask(rejectedTask.task_id, "needs more work"),
+      repository.updateTask(rejectedTask.task_id, {
+        result: "needs more work",
+      }),
     ).resolves.toMatchObject({
       done: true,
       result: "needs more work",
@@ -832,13 +852,13 @@ describe("task repository", () => {
     });
     await createTask(repository, {
       task_spec: "already done",
-      status: "resolved",
+      status: "pending",
     });
 
-    await expect(repository.listUnfinishedTasks()).resolves.toEqual([
-      processingTask,
-      queuedTask,
-    ]);
+    await expect(repository.listUnfinishedTasks()).resolves.toHaveLength(3);
+    await expect(repository.listUnfinishedTasks()).resolves.toEqual(
+      expect.arrayContaining([processingTask, queuedTask]),
+    );
   });
 
   it("binds a session only when the task is still unassigned", async () => {
@@ -891,35 +911,6 @@ describe("task repository", () => {
     ).resolves.toMatchObject({
       task_id: task.task_id,
       session_id: "winning-session",
-    });
-  });
-
-  it("does not bind a session after the task finishes during the assignment race", async () => {
-    const projectRoot = await createProjectRoot(
-      "assignment-race-with-done-task",
-    );
-
-    process.env.AIM_PROJECT_ROOT = projectRoot;
-
-    const repository = createTaskRepository();
-    const task = await createTask(repository, {
-      task_spec: "finish before binding",
-      status: "pending",
-    });
-    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
-
-    database
-      .prepare("UPDATE tasks SET done = 1, status = ? WHERE task_id = ?")
-      .run("resolved", task.task_id);
-    database.close();
-
-    await expect(
-      repository.assignSessionIfUnassigned(task.task_id, "late-session"),
-    ).resolves.toMatchObject({
-      task_id: task.task_id,
-      done: true,
-      session_id: null,
-      status: "resolved",
     });
   });
 
@@ -977,9 +968,7 @@ describe("task repository", () => {
   });
 
   it("rejects a second unfinished task with the same non-null session_id", async () => {
-    const projectRoot = await createProjectRoot(
-      "rejects-duplicate-unfinished-session",
-    );
+    const projectRoot = await createProjectRoot("rejects-duplicate-session");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
@@ -999,8 +988,8 @@ describe("task repository", () => {
     ).rejects.toThrow(/unique|constraint/i);
   });
 
-  it("reuses a session_id after the earlier task is done", async () => {
-    const projectRoot = await createProjectRoot("reuses-finished-session-id");
+  it("rejects reusing a session_id because session state is task lifecycle", async () => {
+    const projectRoot = await createProjectRoot("rejects-session-id-reuse");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
@@ -1012,25 +1001,15 @@ describe("task repository", () => {
     });
 
     await expect(
-      repository.updateTask(firstTask.task_id, { status: "resolved" }),
-    ).resolves.toMatchObject({
-      done: true,
-      session_id: "reusable-session",
-      status: "resolved",
-      task_id: firstTask.task_id,
-    });
-
-    await expect(
       createTask(repository, {
-        task_spec: "reuse after completion",
+        task_spec: "reuse blocked",
         session_id: "reusable-session",
         status: "pending",
       }),
-    ).resolves.toMatchObject({
-      done: false,
-      session_id: "reusable-session",
-      status: "pending",
-    });
+    ).rejects.toThrow(/unique|constraint/i);
+    await expect(repository.getTaskById(firstTask.task_id)).resolves.toEqual(
+      firstTask,
+    );
   });
 
   it("rejects updating an unfinished task to a conflicting session_id", async () => {
@@ -1133,7 +1112,7 @@ describe("task repository", () => {
       )
     `);
     database.exec(`
-      CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
+      CREATE UNIQUE INDEX tasks_session_id_unique
       ON tasks (session_id)
       WHERE (session_id IS NOT NULL) AND (0 = done)
     `);
@@ -1178,7 +1157,7 @@ describe("task repository", () => {
       )
     `);
     database.exec(`
-      CREATE UNIQUE INDEX tasks_unfinished_session_id_unique
+      CREATE UNIQUE INDEX tasks_session_id_unique
       ON tasks (session_id)
       WHERE done = 0 OR session_id IS NOT NULL
     `);
@@ -1191,10 +1170,8 @@ describe("task repository", () => {
     await expect(repository.listTasks()).resolves.toEqual([]);
   });
 
-  it("creates a partial unique index for unfinished non-null sessions", async () => {
-    const projectRoot = await createProjectRoot(
-      "creates-unfinished-session-index",
-    );
+  it("creates a partial unique index for session sessions", async () => {
+    const projectRoot = await createProjectRoot("creates-session-index");
 
     process.env.AIM_PROJECT_ROOT = projectRoot;
 
@@ -1207,29 +1184,26 @@ describe("task repository", () => {
       .prepare("PRAGMA index_list(tasks)")
       .all()
       .find(
-        (row) =>
-          (row as IndexListRow).name === "tasks_unfinished_session_id_unique",
+        (row) => (row as IndexListRow).name === "tasks_session_id_unique",
       ) as IndexListRow | undefined;
     const indexColumns = database
-      .prepare("PRAGMA index_info(tasks_unfinished_session_id_unique)")
+      .prepare("PRAGMA index_info(tasks_session_id_unique)")
       .all() as Array<{ name: string }>;
     const indexSql = database
       .prepare(
         "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
       )
-      .get("tasks_unfinished_session_id_unique") as { sql: string } | undefined;
+      .get("tasks_session_id_unique") as { sql: string } | undefined;
     database.close();
 
     expect(index).toMatchObject({
-      name: "tasks_unfinished_session_id_unique",
+      name: "tasks_session_id_unique",
       partial: 1,
       unique: 1,
     });
     expect(indexColumns).toHaveLength(1);
     expect(indexColumns[0]).toMatchObject({ name: "session_id" });
-    expect(indexSql?.sql).toContain(
-      "WHERE done = 0 AND session_id IS NOT NULL",
-    );
+    expect(indexSql?.sql).toContain("WHERE session_id IS NOT NULL");
   });
 
   it("bootstraps the session index onto a compatible existing schema", async () => {
@@ -1271,13 +1245,12 @@ describe("task repository", () => {
       .prepare("PRAGMA index_list(tasks)")
       .all()
       .find(
-        (row) =>
-          (row as IndexListRow).name === "tasks_unfinished_session_id_unique",
+        (row) => (row as IndexListRow).name === "tasks_session_id_unique",
       ) as IndexListRow | undefined;
     bootstrappedDatabase.close();
 
     expect(index).toMatchObject({
-      name: "tasks_unfinished_session_id_unique",
+      name: "tasks_session_id_unique",
       partial: 1,
       unique: 1,
     });
