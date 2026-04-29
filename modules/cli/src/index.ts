@@ -1,5 +1,7 @@
 import { type Command, execute, settings } from "@oclif/core";
 
+import DimensionEvaluationsListCommand from "./commands/dimension/evaluations/list.js";
+import DimensionListCommand from "./commands/dimension/list.js";
 import DirectorClarificationsCreateCommand from "./commands/director/clarifications/create.js";
 import DirectorClarificationsListCommand from "./commands/director/clarifications/list.js";
 import HealthCommand from "./commands/health.js";
@@ -21,6 +23,8 @@ const taskCommandNames = new Set([
   "pr-status",
 ]);
 const serverCommandNames = new Set(["start"]);
+const dimensionCommandNames = new Set(["list"]);
+const dimensionEvaluationsCommandNames = new Set(["list"]);
 const directorClarificationsCommandNames = new Set(["create", "list"]);
 
 const normalizeCommandArgs = (args: string[]) => {
@@ -30,6 +34,18 @@ const normalizeCommandArgs = (args: string[]) => {
 
   if (args[0] === "task" && taskCommandNames.has(args[1] ?? "")) {
     return [`task:${args[1]}`, ...args.slice(2)];
+  }
+
+  if (
+    args[0] === "dimension" &&
+    args[1] === "evaluations" &&
+    dimensionEvaluationsCommandNames.has(args[2] ?? "")
+  ) {
+    return [`dimension:evaluations:${args[2]}`, ...args.slice(3)];
+  }
+
+  if (args[0] === "dimension" && dimensionCommandNames.has(args[1] ?? "")) {
+    return [`dimension:${args[1]}`, ...args.slice(2)];
   }
 
   if (
@@ -52,6 +68,8 @@ const normalizeCommandArgs = (args: string[]) => {
 };
 
 export const commands = {
+  "dimension:evaluations:list": DimensionEvaluationsListCommand,
+  "dimension:list": DimensionListCommand,
   "director:clarifications:create": DirectorClarificationsCreateCommand,
   "director:clarifications:list": DirectorClarificationsListCommand,
   health: HealthCommand,

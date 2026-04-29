@@ -6,10 +6,13 @@ import {
   createTaskBatch,
   deleteProjectById,
   deleteTaskById,
+  getDimensionById,
   getHealth,
   getProjectOptimizerStatus,
   getTaskById,
   getTaskPullRequestStatusById,
+  listDimensionEvaluations,
+  listDimensions,
   listDirectorClarifications,
   listOpenCodeModels,
   listProjects,
@@ -33,9 +36,14 @@ import type {
   CreateTaskResponse,
   DeleteProjectByIdError,
   DeleteTaskByIdError,
+  Dimension,
+  DimensionEvaluationListResponse,
+  DimensionListResponse,
   DirectorClarification,
   DirectorClarificationListResponse,
   ErrorResponse,
+  GetDimensionByIdError,
+  GetDimensionByIdResponse,
   GetHealthError,
   GetHealthResponse,
   GetProjectOptimizerStatusError,
@@ -46,6 +54,10 @@ import type {
   GetTaskPullRequestStatusByIdResponse,
   HealthError,
   HealthResponse,
+  ListDimensionEvaluationsError,
+  ListDimensionEvaluationsResponse,
+  ListDimensionsError,
+  ListDimensionsResponse,
   ListDirectorClarificationsError,
   ListDirectorClarificationsResponse,
   ListTasksError,
@@ -97,6 +109,11 @@ export class ContractClientError extends Error {
 export type ContractClient = {
   getHealth(): Promise<HealthResponse>;
   listOpenCodeModels(): Promise<OpenCodeModelsResponse>;
+  listDimensions(projectId: string): Promise<DimensionListResponse>;
+  getDimensionById(dimensionId: string): Promise<Dimension>;
+  listDimensionEvaluations(
+    dimensionId: string,
+  ): Promise<DimensionEvaluationListResponse>;
   listTasks(query?: {
     status?: Task["status"];
     done?: boolean;
@@ -139,6 +156,10 @@ const generatedBaseUrl = "http://contract.internal";
 const generatedBaseOrigin = new URL(generatedBaseUrl).origin;
 const healthResponseSchema = schemas.HealthResponse;
 const healthErrorSchema = schemas.HealthError;
+const dimensionSchema = schemas.Dimension;
+const dimensionListResponseSchema = schemas.DimensionListResponse;
+const dimensionEvaluationListResponseSchema =
+  schemas.DimensionEvaluationListResponse;
 const projectSchema = schemas.Project;
 const projectListResponseSchema = schemas.ProjectListResponse;
 const projectOptimizerStatusResponseSchema =
@@ -265,6 +286,77 @@ export const createContractClient = ({
       return taskListResponseSchema.parse(
         result.data satisfies ListTasksResponse,
       ) satisfies TaskListResponse;
+    },
+
+    async listDimensions(projectId) {
+      const result = await listDimensions({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        query: {
+          project_id: projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies ListDimensionsError),
+        );
+      }
+
+      return dimensionListResponseSchema.parse(
+        result.data satisfies ListDimensionsResponse,
+      ) satisfies DimensionListResponse;
+    },
+
+    async getDimensionById(dimensionId) {
+      const result = await getDimensionById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          dimensionId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies GetDimensionByIdError),
+        );
+      }
+
+      return dimensionSchema.parse(
+        result.data satisfies GetDimensionByIdResponse,
+      ) satisfies Dimension;
+    },
+
+    async listDimensionEvaluations(dimensionId) {
+      const result = await listDimensionEvaluations({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          dimensionId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies ListDimensionEvaluationsError,
+          ),
+        );
+      }
+
+      return dimensionEvaluationListResponseSchema.parse(
+        result.data satisfies ListDimensionEvaluationsResponse,
+      ) satisfies DimensionEvaluationListResponse;
     },
 
     async listProjects() {
