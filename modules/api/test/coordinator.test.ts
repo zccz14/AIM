@@ -283,6 +283,80 @@ describe("coordinator", () => {
     expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
+  it("instructs Coordinator planning to use proposal dry-run evidence before batch writes", async () => {
+    const dimension = createDimension("dimension-dry-run");
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(async (projectId: string) => [
+        createRejectedTask(1, projectId),
+      ]),
+      listUnfinishedTasks: vi.fn(async () => [createTask(1)]),
+    };
+    const dimensionRepository = {
+      listDimensionEvaluations: vi.fn(async (dimensionId: string) => [
+        {
+          commit_sha: "baseline-dry-run",
+          created_at: "2026-04-28T10:00:00.000Z",
+          dimension_id: dimensionId,
+          evaluation: "readme_ahead gap; consider_create a Coordinator task.",
+          evaluator_model: "claude-sonnet-4-5",
+          id: "evaluation-dry-run",
+          project_id: project.id,
+          score: 41,
+        },
+      ]),
+      listDimensions: vi.fn(async () => [dimension]),
+    };
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-dry-run",
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const baselineRepository = {
+      getLatestBaselineFacts: vi.fn(async () => ({
+        commitSha: "baseline-dry-run",
+        fetchedAt: "2026-04-28T12:00:00.000Z",
+        summary: "Add coordinator proposal dry-run API (#296)",
+      })),
+    };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      baselineRepository,
+      dimensionRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("POST /coordinator/proposals/dry-run");
+    expect(prompt).toMatch(
+      /POST \/coordinator\/proposals\/dry-run[\s\S]*before[\s\S]*POST \/tasks\/batch/i,
+    );
+    expect(prompt).toContain("current Manager evaluations");
+    expect(prompt).toContain("current Active Task Pool");
+    expect(prompt).toContain("rejected Task feedback");
+    expect(prompt).toContain("baseline commit");
+    expect(prompt).toContain("dry_run_only");
+    expect(prompt).toContain("planning evidence only");
+    expect(prompt).toMatch(/blocked create/i);
+    expect(prompt).toMatch(/covered keep/i);
+    expect(prompt).toMatch(/stale delete/i);
+    expect(prompt).toMatch(
+      /blocked proposals? must not enter POST \/tasks\/batch/i,
+    );
+    expect(prompt).toMatch(
+      /dry-run[\s\S]*must not[\s\S]*replace[\s\S]*source_metadata\.task_spec_validation/i,
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
   it("summarizes active task pool baseline freshness and delivery state for current, stale, and missing metadata", async () => {
     const currentTask = {
       ...createTask(1),
