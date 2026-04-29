@@ -109,7 +109,7 @@ export class ContractClientError extends Error {
 export type ContractClient = {
   getHealth(): Promise<HealthResponse>;
   listOpenCodeModels(): Promise<OpenCodeModelsResponse>;
-  listDimensions(projectId: string): Promise<DimensionListResponse>;
+  listDimensions(query: { project_id: string }): Promise<DimensionListResponse>;
   getDimensionById(dimensionId: string): Promise<Dimension>;
   listDimensionEvaluations(
     dimensionId: string,
@@ -288,15 +288,13 @@ export const createContractClient = ({
       ) satisfies TaskListResponse;
     },
 
-    async listDimensions(projectId) {
+    async listDimensions(query) {
       const result = await listDimensions({
         client,
         headers: {
           accept: "application/json",
         },
-        query: {
-          project_id: projectId,
-        },
+        query,
       });
 
       if (result.error) {

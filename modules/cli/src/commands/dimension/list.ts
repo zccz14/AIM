@@ -32,9 +32,9 @@ export default class DimensionListCommand extends Command {
       const client = createAimContractClient(
         requireFlag(flags["base-url"], "base-url"),
       );
-      const dimensions = await client.listDimensions(
-        requireFlag(flags["project-id"], "project-id"),
-      );
+      const dimensions = await client.listDimensions({
+        project_id: requireFlag(flags["project-id"], "project-id"),
+      });
       const items = await Promise.all(
         dimensions.items.map(async (dimension): Promise<DimensionSummary> => {
           const evaluations = await client.listDimensionEvaluations(
