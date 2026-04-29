@@ -389,6 +389,14 @@ Maintain the Active Task Pool for this single project only. The current threshol
 
 Analyze the latest dimension_evaluations, current Active Task Pool, rejected Task feedback, and latest baseline facts, then append Tasks through the AIM API only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
 
+Before considering POST /tasks/batch, run POST /coordinator/proposals/dry-run using the current Manager evaluations, current Active Task Pool, rejected Task feedback, and baseline commit below. Treat the dry_run_only output as planning evidence only: it must not write directly, must not bypass POST /tasks/batch, and must not replace source_metadata.task_spec_validation.
+
+Use dry-run results to plan conservatively:
+- Blocked create output means the blocked proposal must not enter POST /tasks/batch.
+- Covered keep output means existing Active Task Pool coverage should be kept instead of duplicated.
+- Stale delete output is only a delete candidate; verify the Task is stale, unneeded, and safe before including any delete operation.
+- Only create drafts that survive dry-run and independent Task Spec validation with conclusion "pass" may enter POST /tasks/batch.
+
 Current baseline facts:
 - origin/main commit "${baselineFacts.commitSha}" fetched at ${baselineFacts.fetchedAt}: ${baselineFacts.summary}
 
