@@ -701,6 +701,14 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-rejected",
+        continue_prompt: "Continue until rejected.",
+      }),
+    });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -748,6 +756,14 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-idempotent",
+        continue_prompt: "Continue until rejected once.",
+      }),
+    });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -811,6 +827,14 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-resolve-no-pr",
+        continue_prompt: "Continue until resolved.",
+      }),
+    });
     await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -855,6 +879,14 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-missing-result",
+        continue_prompt: "Continue until settled.",
+      }),
+    });
     await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -897,6 +929,14 @@ describe("opencode session routes", () => {
     mockGhPullRequestOutput(ghMergedPullRequestOutput);
     const app = createRouteApp();
 
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-task-resolved",
+        continue_prompt: "Continue until resolved.",
+      }),
+    });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -945,6 +985,14 @@ describe("opencode session routes", () => {
     mockGhPullRequestOutput(ghMergedPullRequestOutput);
     const app = createRouteApp();
 
+    const createSessionResponse = await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "developer-session-1",
+        continue_prompt: "Continue the registered Developer task.",
+      }),
+    });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -958,15 +1006,6 @@ describe("opencode session routes", () => {
       }),
     });
     const createdTask = await taskResponse.json();
-
-    const createSessionResponse = await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        session_id: "developer-session-1",
-        continue_prompt: "Continue the registered Developer task.",
-      }),
-    });
 
     expect(createSessionResponse.status).toBe(201);
     await expect(
