@@ -33,15 +33,52 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 });
 
 describe("buildTaskSessionPrompt", () => {
-  it("includes current baseline facts, active pool, rejected feedback, and spec verification guardrails", () => {
+  it("bootstraps the developer with only mandatory identifiers and fetch instructions", () => {
+    const prompt = buildTaskSessionPrompt(
+      createTask({ session_id: "session-1" }),
+    );
+
+    expect(prompt).toContain("You are the AIM developer");
+    expect(prompt).toContain("aim-developer-guide");
+    expect(prompt).toContain("http://localhost:8192");
+    expect(prompt).toContain("task_id: task-1");
+    expect(prompt).toContain(
+      "project_id: 00000000-0000-4000-8000-000000000001",
+    );
+    expect(prompt).toContain("session_id: session-1");
+    expect(prompt).toContain("GET /tasks/task-1");
+    expect(prompt).toContain("GET /tasks/task-1/spec");
+    expect(prompt).toMatch(/before acting/i);
+    expect(prompt).toContain("worktree_path: not recorded");
+    expect(prompt).toContain("pull_request_url: not recorded");
+    expect(prompt).not.toContain("Current baseline facts");
+    expect(prompt).not.toContain("Current Active Task Pool");
+    expect(prompt).not.toContain("Rejected Task feedback");
+    expect(prompt).not.toContain("git_origin_url");
+    expect(prompt).not.toContain("status: pending");
+  });
+
+  it("keeps recorded worktree and PR lifecycle facts visible with a no-recreate warning", () => {
+    const prompt = buildTaskSessionPrompt(
+      createTask({
+        pull_request_url: "https://github.com/example/repo/pull/12",
+        worktree_path: "/repo/.worktrees/task-1",
+      }),
+    );
+
+    expect(prompt).toContain("worktree_path: /repo/.worktrees/task-1");
+    expect(prompt).toContain(
+      "pull_request_url: https://github.com/example/repo/pull/12",
+    );
+    expect(prompt).toMatch(/do not recreate[^\n]*worktree/i);
+    expect(prompt).toMatch(/do not recreate[^\n]*PR/i);
+    expect(prompt).toMatch(/continue the existing lifecycle/i);
+  });
+
+  it("does not serialize provided baseline, active pool, or rejected feedback into the developer prompt", () => {
     const prompt = buildTaskSessionPrompt(createTask(), {
       activeTasks: [
-        createTask({
-          session_id: "session-active",
-          status: "pending",
-          task_id: "task-active",
-          title: "Active overlapping work",
-        }),
+        createTask({ task_id: "task-active", title: "Active work" }),
       ],
       baselineFacts: {
         commitSha: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
@@ -49,110 +86,15 @@ describe("buildTaskSessionPrompt", () => {
         summary: "Refactor optimizer system startup lifecycle (#258)",
       },
       rejectedTasks: [
-        createTask({
-          done: true,
-          result:
-            "Rejected because the task used stale origin/main assumptions.",
-          source_metadata: {
-            task_spec_validation: {
-              conclusion: "fail",
-              failure_reason: "baseline changed before execution",
-            },
-          },
-          status: "rejected",
-          task_id: "task-rejected",
-          title: "Stale task",
-          updated_at: "2026-04-21T00:00:00.000Z",
-        }),
+        createTask({ task_id: "task-rejected", title: "Rejected work" }),
       ],
     });
 
-    expect(prompt).toContain("Current baseline facts:");
-    expect(prompt).toContain(
-      'origin/main commit "a9979ba9487edf2d822e10ae7b651c98be3d175d" fetched at 2026-04-28T17:13:03.000Z: Refactor optimizer system startup lifecycle (#258)',
-    );
-    expect(prompt).toContain("Current Active Task Pool:");
-    expect(prompt).toContain(
-      "- Active overlapping work (task-active) status pending source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session session-active",
-    );
-    expect(prompt).toContain("Rejected Task feedback for this project:");
-    expect(prompt).toContain(
-      "- Stale task (task-rejected) rejected at 2026-04-21T00:00:00.000Z: Rejected because the task used stale origin/main assumptions. conclusion: fail; failure_reason: baseline changed before execution",
-    );
-    expect(prompt).toContain(
-      "Before creating or using a worktree, read GET /tasks/task-1/spec and verify its assumptions against the current baseline facts, Active Task Pool, and rejected feedback below.",
-    );
-    expect(prompt).toContain(
-      "Reject the Task if the spec is stale, self-overlaps with unfinished work, conflicts with rejected feedback, or its verification assumptions fail.",
-    );
-  });
-
-  it("summarizes active task freshness, source/current commits, worktree, PR, and session compactly", () => {
-    const prompt = buildTaskSessionPrompt(createTask(), {
-      activeTasks: [
-        createTask({
-          pull_request_url: "https://github.com/example/repo/pull/12",
-          session_id: "session-current",
-          source_baseline_freshness: {
-            current_commit: "1111111111111111111111111111111111111111",
-            source_commit: "1111111111111111111111111111111111111111",
-            status: "current",
-            summary:
-              "Task source baseline matches current origin/main 1111111111111111111111111111111111111111",
-          },
-          task_id: "task-current",
-          title: "Current active work",
-          worktree_path: "/repo/.worktrees/task-current",
-        }),
-        createTask({
-          source_baseline_freshness: {
-            current_commit: "2222222222222222222222222222222222222222",
-            source_commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            status: "stale",
-            summary:
-              "Task source baseline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa differs from current origin/main 2222222222222222222222222222222222222222",
-          },
-          task_id: "task-stale",
-          title: "Stale active work",
-        }),
-      ],
-      baselineFacts: {
-        commitSha: "2222222222222222222222222222222222222222",
-        fetchedAt: "2026-04-28T17:13:03.000Z",
-        summary: "Current baseline summary",
-      },
-      rejectedTasks: [],
-    });
-
-    expect(prompt).toContain(
-      "- Current active work (task-current) status pending source_freshness current source 1111111111111111111111111111111111111111 current 1111111111111111111111111111111111111111 summary Task source baseline matches current origin/main 1111111111111111111111111111111111111111; worktree /repo/.worktrees/task-current; PR https://github.com/example/repo/pull/12; session session-current",
-    );
-    expect(prompt).toContain(
-      "- Stale active work (task-stale) status pending source_freshness stale source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa current 2222222222222222222222222222222222222222 summary Task source baseline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa differs from current origin/main 2222222222222222222222222222222222222222; worktree (not set); PR (not set); session (not set)",
-    );
-  });
-
-  it("uses an explicit unknown fallback when active task freshness is missing", () => {
-    const taskWithoutFreshness = createTask({
-      task_id: "task-unknown",
-      title: "Unknown active work",
-    }) as Task & {
-      source_baseline_freshness?: Task["source_baseline_freshness"];
-    };
-    delete taskWithoutFreshness.source_baseline_freshness;
-
-    const prompt = buildTaskSessionPrompt(createTask(), {
-      activeTasks: [taskWithoutFreshness as Task],
-      baselineFacts: {
-        commitSha: "2222222222222222222222222222222222222222",
-        fetchedAt: "2026-04-28T17:13:03.000Z",
-        summary: "Current baseline summary",
-      },
-      rejectedTasks: [],
-    });
-
-    expect(prompt).toContain(
-      "- Unknown active work (task-unknown) status pending source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session (not set)",
-    );
+    expect(prompt).not.toContain("a9979ba9487edf2d822e10ae7b651c98be3d175d");
+    expect(prompt).not.toContain("Refactor optimizer system startup lifecycle");
+    expect(prompt).not.toContain("task-active");
+    expect(prompt).not.toContain("Active work");
+    expect(prompt).not.toContain("task-rejected");
+    expect(prompt).not.toContain("Rejected work");
   });
 });

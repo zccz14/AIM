@@ -197,167 +197,9 @@ const planningInputHash = ({
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 };
 
-const summarizeRejectedTask = (task: Task) => {
-  const validation = task.source_metadata.task_spec_validation;
-  const validationSummary =
-    typeof validation === "object" && validation !== null
-      ? Object.entries(validation as Record<string, unknown>)
-          .filter(([key]) =>
-            [
-              "conclusion",
-              "conclusion_summary",
-              "failure_reason",
-              "blocking_assumptions",
-            ].includes(key),
-          )
-          .map(([key, value]) => `${key}: ${String(value)}`)
-          .join("; ")
-      : "no task_spec_validation metadata";
-
-  return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${task.result || "no result"}. ${validationSummary}`;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const getNonEmptyString = (source: Record<string, unknown>, field: string) => {
-  const value = source[field];
-
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-};
-
-const getTaskValidatedBaseline = (task: Task) => {
-  const validation = task.source_metadata.task_spec_validation;
-
-  return isRecord(validation)
-    ? getNonEmptyString(validation, "latest_origin_main_commit")
-    : null;
-};
-
-const getTaskFreshnessStatus = ({
-  currentBaseline,
-  sourceBaseline,
-  validatedBaseline,
-}: {
-  currentBaseline: string;
-  sourceBaseline: null | string;
-  validatedBaseline: null | string;
-}) => {
-  if (!sourceBaseline && !validatedBaseline) {
-    return "missing_baseline_metadata";
-  }
-
-  if (!currentBaseline || !sourceBaseline || !validatedBaseline) {
-    return "unknown";
-  }
-
-  return sourceBaseline === currentBaseline &&
-    validatedBaseline === currentBaseline
-    ? "current"
-    : "stale";
-};
-
-const summarizeActiveTask = (task: Task, baselineFacts: BaselineFacts) => {
-  const sourceBaseline = getNonEmptyString(
-    task.source_metadata,
-    "latest_origin_main_commit",
-  );
-  const validatedBaseline = getTaskValidatedBaseline(task);
-  const freshness = getTaskFreshnessStatus({
-    currentBaseline: baselineFacts.commitSha,
-    sourceBaseline,
-    validatedBaseline,
-  });
-
-  return `- ${task.title} (${task.task_id}) status ${task.status}; source baseline ${sourceBaseline ?? "(missing)"}; validated baseline ${validatedBaseline ?? "(missing)"}; freshness ${freshness}; PR ${task.pull_request_url ?? "(not set)"}; worktree ${task.worktree_path ?? "(not set)"}; session ${task.session_id ?? "(not set)"}`;
-};
-
-const buildPrioritySummary = ({
-  activeTasks,
-  baselineFacts,
-  evaluations,
-}: {
-  activeTasks: Task[];
-  baselineFacts: BaselineFacts;
-  evaluations: Array<{ dimension: Dimension; evaluation: DimensionEvaluation }>;
-}) => {
-  const rankedEvaluations = evaluations
-    .map((entry, index) => {
-      const evidence = entry.evaluation.evaluation.toLowerCase();
-      const hasReadmeAhead = evidence.includes("readme_ahead");
-      const hasConsiderCreate = evidence.includes("consider_create");
-      const hasGap = evidence.includes("gap");
-      const hasEmptyPoolSignal =
-        activeTasks.length === 0 || evidence.includes("empty pool");
-      const isCurrentBaseline =
-        entry.evaluation.commit_sha === baselineFacts.commitSha;
-      const baselineStatus = isCurrentBaseline
-        ? "current"
-        : `stale/historical: evaluation commit ${entry.evaluation.commit_sha} differs from current ${baselineFacts.commitSha}; do not use independently as create evidence`;
-      const rank =
-        (hasReadmeAhead ? 100 : 0) +
-        (hasConsiderCreate ? 80 : 0) +
-        (hasGap ? 40 : 0) +
-        (hasEmptyPoolSignal ? 20 : 0) +
-        Math.max(0, 100 - entry.evaluation.score) / 10;
-
-      return {
-        baselineStatus,
-        entry,
-        hasConsiderCreate,
-        hasGap,
-        hasReadmeAhead,
-        index,
-        isCurrentBaseline,
-        rank,
-      };
-    })
-    .sort(
-      (left, right) =>
-        Number(right.isCurrentBaseline) - Number(left.isCurrentBaseline) ||
-        right.rank - left.rank ||
-        left.index - right.index,
-    );
-
-  return rankedEvaluations
-    .map(
-      (
-        { baselineStatus, entry, hasConsiderCreate, hasGap, hasReadmeAhead },
-        index,
-      ) => {
-        const signals = [
-          hasReadmeAhead ? "readme_ahead" : null,
-          hasConsiderCreate ? "consider_create" : null,
-          hasGap ? "gap" : null,
-        ].filter(Boolean);
-
-        return `${index + 1}. ${entry.dimension.name} (${entry.dimension.id}) priority signals: ${signals.join(", ") || "none explicit"}; score: ${entry.evaluation.score}; active_pool: ${activeTasks.length === 0 ? "empty" : `${activeTasks.length} unfinished`}; baseline: ${baselineStatus}; evidence: ${entry.evaluation.evaluation}`;
-      },
-    )
-    .join("\n");
-};
-
-const summarizeEvaluation = (
-  dimension: Dimension,
-  evaluation: DimensionEvaluation,
-  baselineFacts: BaselineFacts,
-) => {
-  const matchesCurrentBaseline =
-    evaluation.commit_sha === baselineFacts.commitSha;
-  const baselineStatus = matchesCurrentBaseline
-    ? `matches current origin/main baseline ${baselineFacts.commitSha}`
-    : `stale: evaluation commit ${evaluation.commit_sha} differs from current origin/main baseline ${baselineFacts.commitSha}; treat as historical signal only and do not use it independently as current baseline evidence for creating Tasks`;
-
-  return `- ${dimension.name} (${dimension.id}) score ${evaluation.score} at ${evaluation.created_at}; commit ${evaluation.commit_sha} (${baselineStatus}): ${evaluation.evaluation}`;
-};
-
 const buildPrompt = ({
   activeTasks,
-  baselineFacts,
-  dimensions,
-  evaluations,
   project,
-  rejectedTasks,
   threshold,
 }: {
   activeTasks: Task[];
@@ -368,28 +210,17 @@ const buildPrompt = ({
   rejectedTasks: Task[];
   threshold: number;
 }) => {
-  const evaluationSummary = evaluations
-    .map(({ dimension, evaluation }) =>
-      summarizeEvaluation(dimension, evaluation, baselineFacts),
-    )
-    .join("\n");
-  const poolSummary = activeTasks
-    .map((task) => summarizeActiveTask(task, baselineFacts))
-    .join("\n");
-  const rejectedSummary = rejectedTasks.map(summarizeRejectedTask).join("\n");
-  const prioritySummary = buildPrioritySummary({
-    activeTasks,
-    baselineFacts,
-    evaluations,
-  });
-
   return `You are the AIM Coordinator for project_id "${project.id}".
+
+AIM Server base URL: http://localhost:8192
+
+FOLLOW the aim-coordinator-guide SKILL.
 
 Maintain the Active Task Pool for this single project only. The current threshold is ${threshold}. Active Task Pool: ${activeTasks.length} unfinished Tasks.
 
-Analyze the latest dimension_evaluations, current Active Task Pool, rejected Task feedback, and latest baseline facts, then append Tasks through the AIM API only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
+Fetch current dimensions, dimension evaluations, current Active Task Pool, and rejected tasks via the AIM API if needed. Fetch and validate the origin/main baseline locally before planning. Append Tasks only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
 
-Before considering POST /tasks/batch, run POST /coordinator/proposals/dry-run using the current Manager evaluations, current Active Task Pool, rejected Task feedback, and baseline commit below. Treat the dry_run_only output as planning evidence only: it must not write directly, must not bypass POST /tasks/batch, and must not replace source_metadata.task_spec_validation.
+Before considering POST /tasks/batch, run POST /coordinator/proposals/dry-run using the current Manager evaluations, current Active Task Pool, rejected Task feedback, and current baseline commit. Treat the dry_run_only output as planning evidence only: it must not write directly, must not bypass POST /tasks/batch, and must not replace source_metadata.task_spec_validation.
 
 Use dry-run results to plan conservatively:
 - Blocked create output means the blocked proposal must not enter POST /tasks/batch.
@@ -397,32 +228,12 @@ Use dry-run results to plan conservatively:
 - Stale delete output is only a delete candidate; verify the Task is stale, unneeded, and safe before including any delete operation.
 - Only create drafts that survive dry-run and independent Task Spec validation with conclusion "pass" may enter POST /tasks/batch.
 
-Current baseline facts:
-- origin/main commit "${baselineFacts.commitSha}" fetched at ${baselineFacts.fetchedAt}: ${baselineFacts.summary}
-
 POST /tasks/batch planning and validation guardrails:
 - Create Tasks only through POST /tasks/batch after independently checking the latest origin/main baseline facts and current Active Task Pool.
 - Do not create stale baseline work, self-overlap, duplicate coverage, or replacements that conflict with unfinished Tasks in this project.
 - Every create operation must include source_metadata Coordinator planning evidence: current_task_pool_coverage, dependency_rationale, conflict_duplicate_assessment, and unfinished_task_non_conflict_rationale.
 - Every create operation must include complete source_metadata.task_spec_validation evidence with conclusion "pass". Never submit waiting_assumptions or failed Task Spec validation through POST /tasks/batch.
-- Use rejected Task feedback below to avoid repeating stale baseline, self-overlap, duplicate coverage, waiting_assumptions, and failed Task Spec validation patterns.
-
-Dimensions:
-${dimensions.map((dimension) => `- ${dimension.name} (${dimension.id}): ${dimension.goal}`).join("\n") || "- none"}
-
-Priority summary for candidate signals:
-${prioritySummary || "- none"}
-
-Latest dimension_evaluations:
-${evaluationSummary || "- none"}
-
-Current Active Task Pool:
-${poolSummary || "- none"}
-
-Stale active tasks are only historical/conceptual coverage candidates and cannot independently prove current baseline coverage.
-
-Rejected Task feedback for this project:
-${rejectedSummary || "- none"}`;
+- Fetch rejected Task feedback yourself before planning so stale baseline, self-overlap, duplicate coverage, waiting_assumptions, and failed Task Spec validation patterns are not repeated.`;
 };
 
 export const createCoordinator = (
