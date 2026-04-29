@@ -51,12 +51,16 @@ const createSupportedOpenCodeModelsAdapter = () => ({
 });
 
 const createRouteApp = () =>
-  createApp({ openCodeModelsAdapter: createSupportedOpenCodeModelsAdapter() });
+  createApp({
+    currentBaselineFactsProvider: vi.fn().mockResolvedValue({ commit: null }),
+    openCodeModelsAdapter: createSupportedOpenCodeModelsAdapter(),
+  });
 
 const createRouteAppWithSessionPromptSender = (
   sendPrompt = vi.fn().mockResolvedValue(undefined),
 ) => ({
   app: createApp({
+    currentBaselineFactsProvider: vi.fn().mockResolvedValue({ commit: null }),
     openCodeModelsAdapter: createSupportedOpenCodeModelsAdapter(),
     openCodeSessionsAdapter: { sendPrompt },
   }),

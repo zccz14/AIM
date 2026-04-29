@@ -546,6 +546,13 @@ describe("task routes", () => {
     expect(createResponse.status).toBe(201);
 
     const createdTask = await createResponse.json();
+    const createdTaskFromGet = {
+      ...createdTask,
+      source_baseline_freshness: {
+        ...createdTask.source_baseline_freshness,
+        current_commit: currentBaselineCommit,
+      },
+    };
 
     expect(contractModule.taskSchema.safeParse(createdTask).success).toBe(true);
     expect(createdTask.task_spec).toBe("write sqlite-backed route tests");
@@ -564,7 +571,7 @@ describe("task routes", () => {
       contractModule.taskListResponseSchema.safeParse(listPayload).success,
     ).toBe(true);
     expect(listPayload.items).toHaveLength(1);
-    expect(listPayload.items[0]).toEqual(createdTask);
+    expect(listPayload.items[0]).toEqual(createdTaskFromGet);
 
     const detailResponse = await app.request(
       resolveTaskByIdPath(createdTask.task_id),
@@ -577,7 +584,7 @@ describe("task routes", () => {
     expect(contractModule.taskSchema.safeParse(detailPayload).success).toBe(
       true,
     );
-    expect(detailPayload).toEqual(createdTask);
+    expect(detailPayload).toEqual(createdTaskFromGet);
   });
 
   it("surfaces associated OpenCode session promise state on task get and list responses", async () => {
@@ -657,7 +664,7 @@ describe("task routes", () => {
     );
   });
 
-  it("reports current, stale, and unknown task source baseline freshness", async () => {
+  it("reports list/detail source baseline freshness from current baseline facts", async () => {
     const projectRoot = await useProjectRoot(
       "reports-task-source-baseline-freshness",
     );
@@ -689,10 +696,10 @@ describe("task routes", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           project_id: mainProjectId,
-          commit_sha: currentCommit,
+          commit_sha: staleCommit,
           evaluator_model: "gpt-5.5",
           score: 80,
-          evaluation: "Current independent origin/main evaluation.",
+          evaluation: "Stale independent dimension evaluation.",
         }),
       },
     );
@@ -804,6 +811,20 @@ describe("task routes", () => {
       status: "stale",
       summary: `Task source baseline ${staleCommit} differs from current origin/main ${currentCommit}`,
     });
+
+    const staleDetailResponse = await app.request(
+      resolveTaskByIdPath("22222222-2222-4222-8222-222222222222"),
+    );
+
+    expect(staleDetailResponse.status).toBe(200);
+    await expect(staleDetailResponse.json()).resolves.toMatchObject({
+      source_baseline_freshness: {
+        current_commit: currentCommit,
+        source_commit: staleCommit,
+        status: "stale",
+        summary: `Task source baseline ${staleCommit} differs from current origin/main ${currentCommit}`,
+      },
+    });
     expect(
       tasksByTitle.get("Missing source metadata task")
         ?.source_baseline_freshness,
@@ -813,6 +834,68 @@ describe("task routes", () => {
       status: "unknown",
       summary:
         "Task source baseline metadata is missing latest_origin_main_commit",
+    });
+  });
+
+  it("reports unknown list/detail freshness when current baseline facts are unavailable", async () => {
+    const projectRoot = await useProjectRoot(
+      "reports-unknown-current-baseline-freshness",
+    );
+
+    const app = createTaskRouteApp({
+      currentBaselineFactsProvider: vi
+        .fn()
+        .mockRejectedValue(new Error("origin/main unavailable")),
+    });
+    const createResponse = await app.request(contractModule.tasksPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: "Unknown current baseline task",
+        task_spec: "Task planned from a known source baseline.",
+        project_id: mainProjectId,
+      }),
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const createdTask = await createResponse.json();
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare("UPDATE tasks SET source_metadata = ? WHERE task_id = ?")
+      .run(
+        JSON.stringify({ latest_origin_main_commit: currentBaselineCommit }),
+        createdTask.task_id,
+      );
+    database.close();
+
+    const expectedFreshness = {
+      current_commit: null,
+      source_commit: currentBaselineCommit,
+      status: "unknown",
+      summary:
+        "Current origin/main baseline is unavailable for comparison. Fetch origin/main or configure baseline facts lookup, then retry.",
+    };
+
+    const listResponse = await app.request(contractModule.tasksPath);
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
+          source_baseline_freshness: expectedFreshness,
+        }),
+      ],
+    });
+
+    const detailResponse = await app.request(
+      resolveTaskByIdPath(createdTask.task_id),
+    );
+
+    expect(detailResponse.status).toBe(200);
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      source_baseline_freshness: expectedFreshness,
     });
   });
 
@@ -2026,6 +2109,13 @@ describe("task routes", () => {
     expect(patchResponse.status).toBe(200);
 
     const patchedTask = await patchResponse.json();
+    const patchedTaskFromGet = {
+      ...patchedTask,
+      source_baseline_freshness: {
+        ...patchedTask.source_baseline_freshness,
+        current_commit: currentBaselineCommit,
+      },
+    };
 
     expect(contractModule.taskSchema.safeParse(patchedTask).success).toBe(true);
     expect(patchedTask.task_id).toBe(createdTask.task_id);
@@ -2042,7 +2132,7 @@ describe("task routes", () => {
     );
 
     expect(detailResponse.status).toBe(200);
-    await expect(detailResponse.json()).resolves.toEqual(patchedTask);
+    await expect(detailResponse.json()).resolves.toEqual(patchedTaskFromGet);
   });
 
   it("patches nullable fields back to null", async () => {

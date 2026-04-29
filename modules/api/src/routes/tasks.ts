@@ -3,7 +3,6 @@ import { execFile } from "node:child_process";
 import {
   createTaskBatchRequestSchema,
   createTaskRequestSchema,
-  type DimensionEvaluation,
   type OpenCodeSession,
   type ParsedCreateTaskBatchRequest,
   patchTaskRequestSchema,
@@ -28,7 +27,6 @@ import {
 import type { Hono } from "hono";
 
 import type { ApiLogger } from "../api-logger.js";
-import { createDimensionRepository } from "../dimension-repository.js";
 import { execGh } from "../exec-file.js";
 import { listSupportedModels } from "../opencode/list-supported-models.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
@@ -294,7 +292,7 @@ const unknownSourceBaselineFreshness = (
   source_commit: sourceCommit,
   status: "unknown",
   summary: sourceCommit
-    ? "Current origin/main baseline is unavailable for comparison"
+    ? "Current origin/main baseline is unavailable for comparison. Fetch origin/main or configure baseline facts lookup, then retry."
     : "Task source baseline metadata is missing latest_origin_main_commit",
 });
 
@@ -870,19 +868,10 @@ export const registerTaskRoutes = (
     options.currentBaselineFactsProvider ??
     createGitCurrentBaselineFactsProvider(projectRoot);
   let openCodeModelsAdapter = options.openCodeModelsAdapter;
-  let dimensionRepository: null | ReturnType<typeof createDimensionRepository> =
-    null;
   let repository: null | ReturnType<typeof createTaskRepository> = null;
   let openCodeSessionRepository: null | ReturnType<
     typeof createOpenCodeSessionRepository
   > = null;
-  const getDimensionRepository = () => {
-    dimensionRepository ??=
-      options.resourceScope?.use(createDimensionRepository({ projectRoot })) ??
-      createDimensionRepository({ projectRoot });
-
-    return dimensionRepository;
-  };
   const getRepository = () => {
     repository ??=
       options.resourceScope?.use(createTaskRepository({ projectRoot })) ??
@@ -926,36 +915,21 @@ export const registerTaskRoutes = (
         : null,
     }));
   };
-  const getCurrentCommitsByProject = async (tasks: Task[]) => {
-    const projectIds = [...new Set(tasks.map((task) => task.project_id))];
-    const entries = await Promise.all(
-      projectIds.map(async (projectId) => {
-        const evaluations =
-          await getDimensionRepository().listProjectDimensionEvaluations(
-            projectId,
-          );
-        const latestEvaluation = evaluations.reduce(
-          (latest, evaluation) =>
-            !latest || evaluation.created_at > latest.created_at
-              ? evaluation
-              : latest,
-          null as null | DimensionEvaluation,
-        );
-
-        return [projectId, latestEvaluation?.commit_sha ?? null] as const;
-      }),
-    );
-
-    return new Map(entries);
+  const getCurrentBaselineCommit = async () => {
+    try {
+      return (await currentBaselineFactsProvider()).commit ?? null;
+    } catch {
+      return null;
+    }
   };
   const attachSourceBaselineFreshness = async (tasks: Task[]) => {
-    const currentCommitsByProject = await getCurrentCommitsByProject(tasks);
+    const currentCommit = await getCurrentBaselineCommit();
 
     return tasks.map((task) => ({
       ...task,
       source_baseline_freshness: buildSourceBaselineFreshness(
         task,
-        currentCommitsByProject.get(task.project_id) ?? null,
+        currentCommit,
       ),
     }));
   };
