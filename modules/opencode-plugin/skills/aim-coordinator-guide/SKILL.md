@@ -33,6 +33,25 @@ description: Coordinator decision entry for AIM Task Pool maintenance; form an a
 
 如果这些输入缺失到影响目标、范围、验收、边界或优先级，必须升级给 Director 澄清；不得创建澄清类 Developer Task 来替代目标层决策。
 
+## 上下文获取纪律
+
+Coordinator session prompt 可能预置 dimensions、latest dimension_evaluations、Active Task Pool、rejected feedback 与 baseline 摘要，但这些内容只是启动 / 历史便利，不是完整事实源。它可能被截断、过期，或为了降低 prompt 体积被刻意瘦身；Coordinator 在提出任何 `POST /tasks/batch` operations 前，必须按需重新获取当前上下文。
+
+形成 batch 计划前至少重新获取并核对：
+
+- dimensions：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/dimensions?project_id=${project_id}` 获取当前规划坐标系。
+- latest dimension evaluations：对每个相关 dimension 使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/dimensions/${dimension_id}/evaluations`，只把与最新 `origin/main` 匹配的 evaluation 当作当前证据；旧 commit 的 evaluation 只能作为历史信号。
+- Active Task Pool：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks?project_id=${project_id}`，筛出未完成 Tasks，并读取 `dependencies`、`worktree_path`、`pull_request_url`、`source_metadata`、`source_baseline_freshness` 与 session / PR 事实。
+- rejected Task feedback：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks?project_id=${project_id}&status=rejected`，读取 `result` 与 `source_metadata.task_spec_validation`，把失败原因作为新规划输入，而不是简单重试。
+- baseline facts：执行 `git fetch origin` 后读取 `origin/main` commit、最近提交、README、代码与文档当前状态；不要把 prompt 中的 baseline 摘要当作当前基线。
+- PR / worktree state：对已有 `worktree_path` 或 `pull_request_url` 的未完成 Task，用本地 git 与 `gh pr view` / `gh pr checks` 判断是否已有在途执行、是否落后、是否已被 PR 覆盖；不得只因 Manager refresh 或 prompt 里的旧描述替换 PR-backed 工作。
+
+这样做的原因是 batch 写入会原子改变 Task Pool；如果依据过期 prompt，容易创建重复 coverage、删除仍在途工作、忽略 rejected 反馈，或把旧 evaluation 当作当前 README 差距。按需获取当前事实后，才能判断 create / delete / noop 是否仍贴合最新基线。
+
+### 历史说明
+
+较长的 Coordinator prompt 最初是为了把 freshness、overlap、rejected-feedback 与 validation guardrails 直接放进自治规划 session，降低 Agent 在未主动查上下文时创建 stale 或 duplicate Task、重复 rejected 模式、或替换在途工作的概率。现在这些内容只应作为 bootstrap guardrails；真实 `POST /tasks/batch` 决策仍必须以 AIM API 与本地 repo / GitHub 检查的当前结果为准。
+
 ## 输出：POST /tasks/batch operations
 
 Coordinator 必须输出一个可审批的 `POST /tasks/batch` operations 计划，不能只输出建议、分析或讨论文本。

@@ -34,12 +34,33 @@ description: Required entry skill when you are an AIM Developer working on an ex
 ## 环境与接口
 
 - `SERVER_BASE_URL` 默认为 `http://localhost:8192`。
+- 当前 Task 生命周期事实读取使用 `GET ${SERVER_BASE_URL}/tasks/${task_id}`。
 - 读取 Task Spec 只能使用 `GET ${SERVER_BASE_URL}/tasks/${task_id}/spec`。
+- 当前 Task Pool / related Tasks 读取使用 `GET ${SERVER_BASE_URL}/tasks?project_id=${project_id}`，必要时按 `status` 或 `done` 过滤。
 - `worktree_path` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/worktree_path`。
 - `pull_request_url` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/pull_request_url`。
 - `dependencies` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/dependencies`。
 - 成功终态通过 OpenCode session tool `aim_session_resolve({ value })` 完成。
 - 失败终态通过 OpenCode session tool `aim_session_reject({ reason })` 完成。
+
+## 上下文获取纪律
+
+continue prompt 中可能包含 baseline、Active Task Pool 或 rejected feedback 摘要，但这些内容只是启动 / 历史便利，不是完整事实源。它可能被截断、过期，或为了降低 prompt 体积被刻意瘦身；Developer 必须按需重新获取当前上下文，不能只依赖一次性预加载的大 prompt。
+
+开始执行前至少重新获取并核对：
+
+- Task Spec：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/spec`，并把响应体当作唯一 Spec 正文。
+- Task 生命周期事实：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}`，读取 `status`、`dependencies`、`worktree_path`、`pull_request_url`、`session_id`、`source_metadata` 与 `source_baseline_freshness`。
+- Active Task Pool / related Tasks：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks?project_id=${project_id}`，必要时用 `done=false`、`status` 或本地筛选区分未完成、同项目、同 dimension / source_metadata 相关任务。
+- rejected feedback：使用 `GET ${SERVER_BASE_URL:-http://localhost:8192}/tasks?project_id=${project_id}&status=rejected`，重点读取 `result` 与 `source_metadata.task_spec_validation`，避免重复 stale、self-overlap、duplicate coverage 或 waiting_assumptions / failed 模式。
+- baseline facts：在允许的工作区阶段执行 `git fetch origin`，再读取 `origin/main` 的 commit、最近提交、README / 代码 / 文档当前状态；不要把 prompt 里的 commit 摘要当作当前基线。
+- PR / worktree state：如果 Task 已有 `worktree_path` 或 `pull_request_url`，在对应 worktree 用 git 检查分支、rebase 需求和未提交变更，用 `gh pr view` / `gh pr checks` 检查 PR 状态、checks、review 与 mergeability。
+
+这样做的原因是 Task 是否仍可执行取决于最新 `origin/main`、同项目未完成工作、rejected 反馈和 PR 状态；这些事实会在 session 启动后继续变化。按需获取当前事实能防止基于旧 prompt 创建重复 worktree、执行 stale Spec、覆盖在途 PR 或忽略已知失败反馈。
+
+### 历史说明
+
+较长的 Developer continue prompt 最初是为了把最新 baseline、Active Task Pool 和 rejected feedback 直接放到自治 Agent 面前，降低它们在未主动查上下文时执行 stale、重叠或已被 rejected 反馈证明有问题的 Task 的概率。现在这些内容只应作为 bootstrap guardrails；真实决策仍必须以 AIM API 与本地 repo / GitHub 检查的当前结果为准。
 
 ## 主流程
 
