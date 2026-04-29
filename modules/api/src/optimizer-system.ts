@@ -20,6 +20,7 @@ import type {
   ManagerStateInput,
 } from "./manager-state-repository.js";
 import { createOpenCodeSessionManager } from "./opencode-session-manager.js";
+import type { OptimizerLaneRecentEvent } from "./optimizer-lane-events.js";
 import { createOptimizerLaneEventRecorder } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
@@ -118,6 +119,28 @@ const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
 
 const isOptimizerEnabled = (project: Project) => project.optimizer_enabled;
+
+const laneSummaryNames = {
+  coordinator: "Coordinator",
+  developer: "Developer",
+  manager: "Manager",
+} as const;
+
+const summarizeNonManagerLaneBlocker = (
+  recentEvents: OptimizerLaneRecentEvent[],
+) => {
+  const blockerEvent = recentEvents.find(
+    (event) =>
+      event.lane_name !== "manager" &&
+      (event.event === "failure" || event.event === "idle"),
+  );
+
+  return blockerEvent
+    ? `${laneSummaryNames[blockerEvent.lane_name]} lane ${
+        blockerEvent.event === "failure" ? "failed" : "idle"
+      }: ${blockerEvent.summary}`
+    : null;
+};
 
 export const createOptimizerSystem = async ({
   continuationSessionRepository,
@@ -270,25 +293,29 @@ export const createOptimizerSystem = async ({
     },
     getProjectStatus(projectId: string) {
       const manager = managersByProjectId.get(projectId);
+      const recentEvents = laneEvents.list(projectId);
 
       if (!manager) {
         return {
           blocker_summary: "Optimizer lane inactive",
-          recent_events: laneEvents.list(projectId),
+          recent_events: recentEvents,
         };
       }
 
       const status = manager.getStatus();
+      const nonManagerBlockerSummary =
+        summarizeNonManagerLaneBlocker(recentEvents);
 
       return {
         blocker_summary: status.last_error
           ? `Manager lane failed: ${status.last_error}`
-          : status.last_scan_at
-            ? `Manager lane active; recent scan at ${status.last_scan_at}`
-            : status.running
-              ? "Manager lane active; no recent scan yet"
-              : "Manager lane inactive",
-        recent_events: laneEvents.list(projectId),
+          : (nonManagerBlockerSummary ??
+            (status.last_scan_at
+              ? `Manager lane active; recent scan at ${status.last_scan_at}`
+              : status.running
+                ? "Manager lane active; no recent scan yet"
+                : "Manager lane inactive")),
+        recent_events: recentEvents,
       };
     },
   };

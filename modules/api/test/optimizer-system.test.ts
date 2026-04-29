@@ -260,6 +260,206 @@ describe("optimizer system", () => {
     await system[Symbol.asyncDispose]();
   });
 
+  it("summarizes the most recent non-manager lane failure when the manager lane is healthy", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const project = {
+      ...configuredProject,
+      id: "00000000-0000-4000-8000-000000000101",
+    };
+    const taskRepository = { listProjects: vi.fn(() => [project]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: "2026-04-29T10:15:30.000Z",
+        running: true,
+      })),
+    };
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    mockCreateCoordinator.mock.calls[0]?.[1].onLaneEvent({
+      event: "failure",
+      lane_name: "coordinator",
+      project_id: project.id,
+      summary: "Task batch dry-run failed: stale baseline",
+    });
+
+    expect(system.getProjectStatus?.(project.id)).toMatchObject({
+      blocker_summary:
+        "Coordinator lane failed: Task batch dry-run failed: stale baseline",
+    });
+
+    await system[Symbol.asyncDispose]();
+  });
+
+  it("summarizes a non-manager idle reason before generic manager activity", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const project = {
+      ...configuredProject,
+      id: "00000000-0000-4000-8000-000000000102",
+    };
+    const taskRepository = { listProjects: vi.fn(() => [project]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: "2026-04-29T10:15:30.000Z",
+        running: true,
+      })),
+    };
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    mockCreateDeveloper.mock.calls[0]?.[0].onLaneEvent({
+      event: "idle",
+      lane_name: "developer",
+      project_id: project.id,
+      summary: "No unassigned tasks are available to continue",
+    });
+
+    expect(system.getProjectStatus?.(project.id)).toMatchObject({
+      blocker_summary:
+        "Developer lane idle: No unassigned tasks are available to continue",
+    });
+
+    await system[Symbol.asyncDispose]();
+  });
+
+  it("keeps manager failure as the highest blocker summary priority", async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const project = {
+      ...configuredProject,
+      id: "00000000-0000-4000-8000-000000000103",
+    };
+    const taskRepository = { listProjects: vi.fn(() => [project]) };
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: "README evaluation failed",
+        last_scan_at: "2026-04-29T10:15:30.000Z",
+        running: true,
+      })),
+    };
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    mockCreateDeveloper.mock.calls[0]?.[0].onLaneEvent({
+      event: "failure",
+      lane_name: "developer",
+      project_id: project.id,
+      summary: "OpenCode continuation failed",
+    });
+
+    expect(system.getProjectStatus?.(project.id)).toMatchObject({
+      blocker_summary: "Manager lane failed: README evaluation failed",
+    });
+
+    await system[Symbol.asyncDispose]();
+  });
+
   it("does not create project optimizer lanes for configured projects when optimizer is disabled", async () => {
     const disabledProject = { ...configuredProject, optimizer_enabled: false };
     const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
