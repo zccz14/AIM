@@ -1090,98 +1090,6 @@ export const openApiDocument = {
         },
       },
     },
-    "/tasks/{taskId}/resolve": {
-      post: {
-        operationId: "resolveTaskById",
-        summary: "Resolve a task with a result",
-        parameters: [
-          {
-            $ref: "#/components/parameters/TaskIdPathParameter",
-          },
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/TaskResultRequest",
-              },
-            },
-          },
-        },
-        responses: {
-          "204": {
-            description: "Task resolved",
-          },
-          "400": {
-            description: "Invalid task result",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-          "404": {
-            description: "Task not found",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/tasks/{taskId}/reject": {
-      post: {
-        operationId: "rejectTaskById",
-        summary: "Reject a task with a result",
-        parameters: [
-          {
-            $ref: "#/components/parameters/TaskIdPathParameter",
-          },
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/TaskResultRequest",
-              },
-            },
-          },
-        },
-        responses: {
-          "204": {
-            description: "Task rejected",
-          },
-          "400": {
-            description: "Invalid task result",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-          "404": {
-            description: "Task not found",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     "/tasks/{taskId}/spec": {
       get: {
         operationId: "getTaskSpecById",
@@ -2443,18 +2351,6 @@ export const openApiDocument = {
           },
           pull_request_url: {
             type: ["string", "null"],
-          },
-        },
-      },
-      TaskResultRequest: {
-        type: "object",
-        additionalProperties: false,
-        required: ["result"],
-        properties: {
-          result: {
-            type: "string",
-            minLength: 1,
-            pattern: "^(?!\\s*$).+",
           },
         },
       },

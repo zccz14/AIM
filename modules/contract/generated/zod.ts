@@ -277,14 +277,6 @@ const TaskPullRequestStatusResponse = z
     pull_request_url: z.union([z.string(), z.null()]),
   })
   .strict();
-const TaskResultRequest = z
-  .object({
-    result: z
-      .string()
-      .min(1)
-      .regex(/^(?!\s*$).+/),
-  })
-  .strict();
 const CreateTaskBatchTask = z
   .object({
     task_id: z.string().uuid(),
@@ -414,7 +406,6 @@ export const schemas = {
   TaskDependenciesRequest,
   TaskPullRequestFollowupCategory,
   TaskPullRequestStatusResponse,
-  TaskResultRequest,
   CreateTaskBatchTask,
   CreateTaskBatchOperation,
   DeleteTaskBatchOperation,

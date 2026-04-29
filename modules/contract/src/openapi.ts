@@ -33,7 +33,5 @@ export const taskWorktreePathPath = "/tasks/{taskId}/worktree_path";
 export const taskPullRequestUrlPath = "/tasks/{taskId}/pull_request_url";
 export const taskPullRequestStatusPath = "/tasks/{taskId}/pull_request_status";
 export const taskDependenciesPath = "/tasks/{taskId}/dependencies";
-export const taskResolvePath = "/tasks/{taskId}/resolve";
-export const taskRejectPath = "/tasks/{taskId}/reject";
 export const taskSpecPath = "/tasks/{taskId}/spec";
 export const openApiDocument: OpenApiDocument = generatedOpenApiDocument;

@@ -26,8 +26,6 @@ export {
   taskDependenciesPath,
   taskPullRequestStatusPath,
   taskPullRequestUrlPath,
-  taskRejectPath,
-  taskResolvePath,
   taskSpecPath,
   tasksBatchPath,
   tasksPath,
@@ -86,7 +84,6 @@ export const taskPullRequestUrlRequestSchema =
 export const taskPullRequestStatusResponseSchema =
   schemas.TaskPullRequestStatusResponse;
 export const taskDependenciesRequestSchema = schemas.TaskDependenciesRequest;
-export const taskResultRequestSchema = schemas.TaskResultRequest;
 export const taskListResponseSchema = schemas.TaskListResponse;
 export const taskBatchOperationSchema = schemas.TaskBatchOperation;
 export const createTaskBatchRequestSchema = schemas.CreateTaskBatchRequest;
@@ -171,7 +168,6 @@ export type TaskPullRequestStatusResponse = Infer<
 export type TaskDependenciesRequest = Infer<
   typeof taskDependenciesRequestSchema
 >;
-export type TaskResultRequest = Infer<typeof taskResultRequestSchema>;
 export type TaskListResponse = Infer<typeof taskListResponseSchema>;
 export type TaskBatchOperation = Infer<typeof taskBatchOperationSchema>;
 export type CreateTaskBatchRequest = Input<typeof createTaskBatchRequestSchema>;
@@ -237,7 +233,6 @@ export type TaskPullRequestStatusResponseSchema =
   typeof taskPullRequestStatusResponseSchema;
 export type TaskDependenciesRequestSchema =
   typeof taskDependenciesRequestSchema;
-export type TaskResultRequestSchema = typeof taskResultRequestSchema;
 export type TaskListResponseSchema = typeof taskListResponseSchema;
 export type TaskBatchOperationSchema = typeof taskBatchOperationSchema;
 export type CreateTaskBatchRequestSchema = typeof createTaskBatchRequestSchema;
@@ -294,7 +289,6 @@ export type ParsedTaskWorktreePathRequest = TaskWorktreePathRequest;
 export type ParsedTaskPullRequestUrlRequest = TaskPullRequestUrlRequest;
 export type ParsedTaskPullRequestStatusResponse = TaskPullRequestStatusResponse;
 export type ParsedTaskDependenciesRequest = TaskDependenciesRequest;
-export type ParsedTaskResultRequest = TaskResultRequest;
 export type ParsedTaskListResponse = TaskListResponse;
 export type ParsedTaskBatchOperation = TaskBatchOperation;
 export type ParsedCreateTaskBatchRequest = Output<

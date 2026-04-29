@@ -113,15 +113,9 @@ import type {
   RejectOpenCodeSessionByIdData,
   RejectOpenCodeSessionByIdErrors,
   RejectOpenCodeSessionByIdResponses,
-  RejectTaskByIdData,
-  RejectTaskByIdErrors,
-  RejectTaskByIdResponses,
   ResolveOpenCodeSessionByIdData,
   ResolveOpenCodeSessionByIdErrors,
   ResolveOpenCodeSessionByIdResponses,
-  ResolveTaskByIdData,
-  ResolveTaskByIdErrors,
-  ResolveTaskByIdResponses,
 } from "./types.gen.js";
 
 export type Options<
@@ -579,44 +573,6 @@ export const getTaskPullRequestStatusById = <
     GetTaskPullRequestStatusByIdErrors,
     ThrowOnError
   >({ url: "/tasks/{taskId}/pull_request_status", ...options });
-
-/**
- * Resolve a task with a result
- */
-export const resolveTaskById = <ThrowOnError extends boolean = false>(
-  options: Options<ResolveTaskByIdData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    ResolveTaskByIdResponses,
-    ResolveTaskByIdErrors,
-    ThrowOnError
-  >({
-    url: "/tasks/{taskId}/resolve",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
- * Reject a task with a result
- */
-export const rejectTaskById = <ThrowOnError extends boolean = false>(
-  options: Options<RejectTaskByIdData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    RejectTaskByIdResponses,
-    RejectTaskByIdErrors,
-    ThrowOnError
-  >({
-    url: "/tasks/{taskId}/reject",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
 
 /**
  * Read a task spec markdown document
