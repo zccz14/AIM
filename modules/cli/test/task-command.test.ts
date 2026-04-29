@@ -14,6 +14,36 @@ const taskCommandHelperSourceUrl = new URL(
   import.meta.url,
 );
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const optimizerStatus = {
+  project_id: mainProjectId,
+  optimizer_enabled: true,
+  runtime_active: true,
+  blocker_summary:
+    "Manager lane active; recent scan at 2026-04-29T10:15:30.000Z",
+  current_baseline_commit_sha: "abc123",
+  recent_events: [
+    {
+      lane_name: "manager",
+      event: "failure",
+      timestamp: "2026-04-29T10:16:30.000Z",
+      summary: "Manager lane failed: git fetch failed",
+    },
+    {
+      lane_name: "coordinator",
+      event: "success",
+      timestamp: "2026-04-29T10:15:30.000Z",
+      summary: "Coordinator lane created 2 tasks",
+    },
+  ],
+};
+const optimizerStatusWithoutEvents = {
+  project_id: mainProjectId,
+  optimizer_enabled: false,
+  runtime_active: false,
+  blocker_summary: "Optimizer disabled for project",
+  current_baseline_commit_sha: null,
+  recent_events: [],
+};
 
 type RecordedRequest = {
   method: string;
@@ -139,6 +169,45 @@ const startTaskServer = async () => {
     ) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(taskPullRequestStatus));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === `/api/projects/${mainProjectId}/optimizer/status`
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(optimizerStatus));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path ===
+        "/api/projects/00000000-0000-4000-8000-000000000002/optimizer/status"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ...optimizerStatusWithoutEvents,
+          project_id: "00000000-0000-4000-8000-000000000002",
+        }),
+      );
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path ===
+        "/api/projects/00000000-0000-4000-8000-000000000003/optimizer/status"
+    ) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          code: "PROJECT_NOT_FOUND",
+          message: "missing project",
+        }),
+      );
       return;
     }
 
@@ -370,6 +439,117 @@ describe("task cli command baseline", () => {
         task_done: false,
         pull_request_url: "https://example.test/pr/2",
       },
+    });
+  });
+
+  it("registers project optimizer status and prints runtime details", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]?.path).toBe(
+      `/api/projects/${mainProjectId}/optimizer/status`,
+    );
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        project_id: mainProjectId,
+        optimizer_enabled: true,
+        runtime_status: "active",
+        blocker_summary:
+          "Manager lane active; recent scan at 2026-04-29T10:15:30.000Z",
+        lane_summaries: [
+          {
+            lane_name: "manager",
+            status: "failure",
+            summary: "Manager lane failed: git fetch failed",
+          },
+          {
+            lane_name: "coordinator",
+            status: "success",
+            summary: "Coordinator lane created 2 tasks",
+          },
+          {
+            lane_name: "developer",
+            status: "unknown",
+            summary: "No recent events",
+          },
+        ],
+        recent_events: [
+          {
+            timestamp: "2026-04-29T10:16:30.000Z",
+            level: "error",
+            summary: "Manager lane failed: git fetch failed",
+          },
+          {
+            timestamp: "2026-04-29T10:15:30.000Z",
+            level: "info",
+            summary: "Coordinator lane created 2 tasks",
+          },
+        ],
+      },
+    });
+  });
+
+  it("prints empty optimizer events when the API reports no events", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "00000000-0000-4000-8000-000000000002",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        project_id: "00000000-0000-4000-8000-000000000002",
+        optimizer_enabled: false,
+        runtime_status: "inactive",
+        blocker_summary: "Optimizer disabled for project",
+        recent_events: [],
+      },
+    });
+  });
+
+  it("preserves server project optimizer errors on stderr", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "00000000-0000-4000-8000-000000000003",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: { code: "PROJECT_NOT_FOUND", message: "missing project" },
     });
   });
 
@@ -679,6 +859,7 @@ describe("task cli command baseline", () => {
     expect(indexSource).toContain('"task:update"');
     expect(indexSource).toContain('"task:delete"');
     expect(indexSource).toContain('"task:pr-status"');
+    expect(indexSource).toContain('"project:optimizer:status"');
     expect(indexSource).not.toContain("manager-report");
     expect(indexSource).not.toContain("contract/generated");
     expect(helperSource).toContain("@aim-ai/contract");
