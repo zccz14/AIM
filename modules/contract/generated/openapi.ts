@@ -571,6 +571,39 @@ export const openApiDocument = {
         },
       },
     },
+    "/projects/{projectId}/token-usage": {
+      get: {
+        operationId: "getProjectTokenUsage",
+        summary: "Read project-scoped OpenCode token usage",
+        parameters: [
+          {
+            $ref: "#/components/parameters/ProjectIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Project token usage aggregated by task and session",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ProjectTokenUsageResponse",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Project not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/projects/{projectId}/director/clarifications": {
       get: {
         operationId: "listDirectorClarifications",
@@ -1970,6 +2003,175 @@ export const openApiDocument = {
                   minLength: 1,
                 },
               },
+            },
+          },
+        },
+      },
+      ProjectTokenUsageTotals: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "input",
+          "output",
+          "reasoning",
+          "cache",
+          "total",
+          "cost",
+          "messages",
+        ],
+        properties: {
+          input: {
+            type: "number",
+            minimum: 0,
+          },
+          output: {
+            type: "number",
+            minimum: 0,
+          },
+          reasoning: {
+            type: "number",
+            minimum: 0,
+          },
+          cache: {
+            type: "object",
+            additionalProperties: false,
+            required: ["read", "write"],
+            properties: {
+              read: {
+                type: "number",
+                minimum: 0,
+              },
+              write: {
+                type: "number",
+                minimum: 0,
+              },
+            },
+          },
+          total: {
+            type: "number",
+            minimum: 0,
+          },
+          cost: {
+            type: "number",
+            minimum: 0,
+          },
+          messages: {
+            type: "integer",
+            minimum: 0,
+          },
+        },
+      },
+      ProjectTokenUsageFailure: {
+        type: "object",
+        additionalProperties: false,
+        required: ["code", "message", "root_session_id", "task_id"],
+        properties: {
+          code: {
+            type: "string",
+            enum: ["OPENCODE_MESSAGES_UNAVAILABLE"],
+          },
+          message: {
+            type: "string",
+            minLength: 1,
+          },
+          root_session_id: {
+            type: "string",
+            minLength: 1,
+          },
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      ProjectTokenUsageTask: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_id", "title", "session_id", "totals", "failures"],
+        properties: {
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+          title: {
+            type: "string",
+            minLength: 1,
+          },
+          session_id: {
+            type: "string",
+            minLength: 1,
+          },
+          totals: {
+            $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          failures: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/ProjectTokenUsageFailure",
+            },
+          },
+        },
+      },
+      ProjectTokenUsageSession: {
+        type: "object",
+        additionalProperties: false,
+        required: ["root_session_id", "task_id", "title", "totals", "failure"],
+        properties: {
+          root_session_id: {
+            type: "string",
+            minLength: 1,
+          },
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+          title: {
+            type: "string",
+            minLength: 1,
+          },
+          totals: {
+            $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          failure: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/ProjectTokenUsageFailure",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+        },
+      },
+      ProjectTokenUsageResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["project_id", "totals", "tasks", "sessions", "failures"],
+        properties: {
+          project_id: {
+            type: "string",
+            format: "uuid",
+          },
+          totals: {
+            $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          tasks: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/ProjectTokenUsageTask",
+            },
+          },
+          sessions: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/ProjectTokenUsageSession",
+            },
+          },
+          failures: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/ProjectTokenUsageFailure",
             },
           },
         },

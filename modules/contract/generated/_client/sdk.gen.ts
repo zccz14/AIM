@@ -60,6 +60,9 @@ import type {
   GetProjectOptimizerStatusData,
   GetProjectOptimizerStatusErrors,
   GetProjectOptimizerStatusResponses,
+  GetProjectTokenUsageData,
+  GetProjectTokenUsageErrors,
+  GetProjectTokenUsageResponses,
   GetTaskByIdData,
   GetTaskByIdErrors,
   GetTaskByIdResponses,
@@ -375,6 +378,18 @@ export const getProjectOptimizerStatus = <ThrowOnError extends boolean = false>(
     GetProjectOptimizerStatusErrors,
     ThrowOnError
   >({ url: "/projects/{projectId}/optimizer/status", ...options });
+
+/**
+ * Read project-scoped OpenCode token usage
+ */
+export const getProjectTokenUsage = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectTokenUsageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectTokenUsageResponses,
+    GetProjectTokenUsageErrors,
+    ThrowOnError
+  >({ url: "/projects/{projectId}/token-usage", ...options });
 
 /**
  * List Director clarification and adjustment requests for a project

@@ -23,6 +23,7 @@ export {
   projectDirectorClarificationsPath,
   projectOptimizerStatusPath,
   projectsPath,
+  projectTokenUsagePath,
   taskByIdPath,
   taskDependenciesPath,
   taskPullRequestStatusPath,
@@ -62,6 +63,8 @@ export const directorClarificationListResponseSchema =
   schemas.DirectorClarificationListResponse;
 export const projectOptimizerStatusResponseSchema =
   schemas.ProjectOptimizerStatusResponse;
+export const projectTokenUsageResponseSchema =
+  schemas.ProjectTokenUsageResponse;
 export const openCodeSessionSchema = schemas.OpenCodeSession;
 export const openCodeSessionListResponseSchema =
   schemas.OpenCodeSessionListResponse;
@@ -137,6 +140,9 @@ export type DirectorClarificationListResponse = Infer<
 >;
 export type ProjectOptimizerStatusResponse = Infer<
   typeof projectOptimizerStatusResponseSchema
+>;
+export type ProjectTokenUsageResponse = Infer<
+  typeof projectTokenUsageResponseSchema
 >;
 export type OpenCodeSession = Infer<typeof openCodeSessionSchema>;
 export type OpenCodeSessionListResponse = Infer<
@@ -223,6 +229,8 @@ export type DirectorClarificationListResponseSchema =
   typeof directorClarificationListResponseSchema;
 export type ProjectOptimizerStatusResponseSchema =
   typeof projectOptimizerStatusResponseSchema;
+export type ProjectTokenUsageResponseSchema =
+  typeof projectTokenUsageResponseSchema;
 export type OpenCodeSessionSchema = typeof openCodeSessionSchema;
 export type OpenCodeSessionListResponseSchema =
   typeof openCodeSessionListResponseSchema;
@@ -290,6 +298,7 @@ export type ParsedDirectorClarificationListResponse =
   DirectorClarificationListResponse;
 export type ParsedProjectOptimizerStatusResponse =
   ProjectOptimizerStatusResponse;
+export type ParsedProjectTokenUsageResponse = ProjectTokenUsageResponse;
 export type ParsedOpenCodeSession = OpenCodeSession;
 export type ParsedOpenCodeSessionListResponse = OpenCodeSessionListResponse;
 export type ParsedCreateOpenCodeSessionRequest = Output<

@@ -10,6 +10,7 @@ import {
   getDimensionById,
   getHealth,
   getProjectOptimizerStatus,
+  getProjectTokenUsage,
   getTaskById,
   getTaskPullRequestStatusById,
   listDimensionEvaluations,
@@ -53,6 +54,8 @@ import type {
   GetHealthResponse,
   GetProjectOptimizerStatusError,
   GetProjectOptimizerStatusResponse,
+  GetProjectTokenUsageError,
+  GetProjectTokenUsageResponse,
   GetTaskByIdError,
   GetTaskByIdResponse,
   GetTaskPullRequestStatusByIdError,
@@ -80,6 +83,7 @@ import type {
   Project,
   ProjectListResponse,
   ProjectOptimizerStatusResponse,
+  ProjectTokenUsageResponse,
   Task,
   TaskBatchResponse,
   TaskListResponse,
@@ -134,6 +138,7 @@ export type ContractClient = {
   getProjectOptimizerStatus(
     projectId: string,
   ): Promise<ProjectOptimizerStatusResponse>;
+  getProjectTokenUsage(projectId: string): Promise<ProjectTokenUsageResponse>;
   listDirectorClarifications(
     projectId: string,
     query?: { dimension_id?: string },
@@ -173,6 +178,7 @@ const projectSchema = schemas.Project;
 const projectListResponseSchema = schemas.ProjectListResponse;
 const projectOptimizerStatusResponseSchema =
   schemas.ProjectOptimizerStatusResponse;
+const projectTokenUsageResponseSchema = schemas.ProjectTokenUsageResponse;
 const directorClarificationSchema = schemas.DirectorClarification;
 const directorClarificationListResponseSchema =
   schemas.DirectorClarificationListResponse;
@@ -449,6 +455,31 @@ export const createContractClient = ({
       return projectOptimizerStatusResponseSchema.parse(
         result.data satisfies GetProjectOptimizerStatusResponse,
       ) satisfies ProjectOptimizerStatusResponse;
+    },
+
+    async getProjectTokenUsage(projectId) {
+      const result = await getProjectTokenUsage({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies GetProjectTokenUsageError,
+          ),
+        );
+      }
+
+      return projectTokenUsageResponseSchema.parse(
+        result.data satisfies GetProjectTokenUsageResponse,
+      ) satisfies ProjectTokenUsageResponse;
     },
 
     async deleteProjectById(projectId) {
