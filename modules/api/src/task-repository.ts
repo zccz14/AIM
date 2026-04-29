@@ -23,7 +23,6 @@ import {
 type TaskRow = {
   created_at: string;
   dependencies: string;
-  done: number;
   global_model_id: string;
   global_provider_id: string;
   pull_request_url: null | string;
@@ -31,8 +30,8 @@ type TaskRow = {
   project_id: string;
   result: string;
   session_id: null | string;
+  session_state: null | TaskStatus;
   source_metadata: string;
-  status: TaskStatus;
   task_id: string;
   task_spec: string;
   title: string;
@@ -67,7 +66,7 @@ type IndexListRow = {
 
 const tasksTableName = "tasks";
 const projectsTableName = "projects";
-const unfinishedSessionIndexName = "tasks_unfinished_session_id_unique";
+const taskSessionIndexName = "tasks_session_id_unique";
 
 type ListTaskFilters = {
   done?: boolean;
@@ -97,8 +96,6 @@ const requiredColumns = [
     pk: 0,
     type: "TEXT",
   },
-  { name: "done", notnull: 1, pk: 0, type: "INTEGER" },
-  { name: "status", notnull: 1, pk: 0, type: "TEXT" },
   { name: "created_at", notnull: 1, pk: 0, type: "TEXT" },
   { name: "updated_at", notnull: 1, pk: 0, type: "TEXT" },
 ] as const;
@@ -116,6 +113,9 @@ const requiredProjectColumns = [
 
 const isDoneStatus = (status: TaskStatus) =>
   status === "resolved" || status === "rejected";
+
+const deriveTaskStatus = (row: Pick<TaskRow, "session_state">): TaskStatus =>
+  row.session_state ?? "pending";
 
 const buildSchemaError = () => new Error("tasks schema is incompatible");
 
@@ -180,7 +180,7 @@ const normalizeColumnType = (type: string) => {
   return normalizedType;
 };
 
-const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
+const hasCompatibleSessionPredicate = (sql: null | string) => {
   if (!sql) {
     return false;
   }
@@ -203,17 +203,15 @@ const hasCompatibleUnfinishedSessionPredicate = (sql: null | string) => {
     .sort();
 
   return (
-    (normalizedPredicates.length === 2 &&
-      normalizedPredicates[0] === "0 = done" &&
-      normalizedPredicates[1] === "session_id is not null") ||
-    (normalizedPredicates.length === 2 &&
-      normalizedPredicates[0] === "done = 0" &&
-      normalizedPredicates[1] === "session_id is not null")
+    normalizedPredicates.length === 1 &&
+    normalizedPredicates[0] === "session_id is not null"
   );
 };
 
-const mapTaskRow = (row: TaskRow) =>
-  taskSchema.parse({
+const mapTaskRow = (row: TaskRow) => {
+  const status = deriveTaskStatus(row);
+
+  return taskSchema.parse({
     task_id: row.task_id,
     title: row.title,
     task_spec: row.task_spec,
@@ -235,11 +233,12 @@ const mapTaskRow = (row: TaskRow) =>
         "Task source baseline metadata is missing latest_origin_main_commit",
     },
     opencode_session: null,
-    done: Boolean(row.done),
-    status: row.status,
+    done: isDoneStatus(status),
+    status,
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
+};
 
 const mapProjectRow = (row: ProjectRow) =>
   projectSchema.parse({
@@ -260,13 +259,13 @@ const validateTasksIndexes = (
     .prepare(`PRAGMA index_list(${tasksTableName})`)
     .all() as IndexListRow[];
   const sessionIndex = indexes.find(
-    (index) => index.name === unfinishedSessionIndexName,
+    (index) => index.name === taskSessionIndexName,
   );
   const sessionIndexSql = database
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?")
-    .get(unfinishedSessionIndexName) as { sql: null | string } | undefined;
+    .get(taskSessionIndexName) as { sql: null | string } | undefined;
   const sessionIndexColumns = database
-    .prepare(`PRAGMA index_info(${unfinishedSessionIndexName})`)
+    .prepare(`PRAGMA index_info(${taskSessionIndexName})`)
     .all() as Array<{ name: string }>;
 
   if (
@@ -275,7 +274,7 @@ const validateTasksIndexes = (
     sessionIndex.partial !== 1 ||
     sessionIndexColumns.length !== 1 ||
     sessionIndexColumns[0]?.name !== "session_id" ||
-    !hasCompatibleUnfinishedSessionPredicate(sessionIndexSql?.sql ?? null)
+    !hasCompatibleSessionPredicate(sessionIndexSql?.sql ?? null)
   ) {
     throw buildSchemaError();
   }
@@ -387,11 +386,9 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       dependencies,
       result,
       source_metadata,
-      done,
-      status,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getProjectByIdStatement = database.prepare(`
     SELECT
@@ -460,12 +457,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.dependencies,
       tasks.result,
       tasks.source_metadata,
-      tasks.done,
-      tasks.status,
+      opencode_sessions.state AS session_state,
       tasks.created_at,
       tasks.updated_at
     FROM ${tasksTableName} AS tasks
     INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    LEFT JOIN opencode_sessions ON opencode_sessions.session_id = tasks.session_id
     ORDER BY tasks.created_at ASC, tasks.rowid ASC
   `);
   const getTaskByIdStatement = database.prepare(`
@@ -483,12 +480,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.dependencies,
       tasks.result,
       tasks.source_metadata,
-      tasks.done,
-      tasks.status,
+      opencode_sessions.state AS session_state,
       tasks.created_at,
       tasks.updated_at
     FROM ${tasksTableName} AS tasks
     INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    LEFT JOIN opencode_sessions ON opencode_sessions.session_id = tasks.session_id
     WHERE tasks.task_id = ?
   `);
   const updateTaskStatement = database.prepare(`
@@ -501,8 +498,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       dependencies = ?,
       result = ?,
       source_metadata = ?,
-      done = ?,
-      status = ?,
       updated_at = ?
     WHERE task_id = ?
   `);
@@ -524,19 +519,19 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.dependencies,
       tasks.result,
       tasks.source_metadata,
-      tasks.done,
-      tasks.status,
+      opencode_sessions.state AS session_state,
       tasks.created_at,
       tasks.updated_at
     FROM ${tasksTableName} AS tasks
     INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
-    WHERE tasks.project_id = ? AND tasks.done = 0
+    LEFT JOIN opencode_sessions ON opencode_sessions.session_id = tasks.session_id
+    WHERE tasks.project_id = ? AND (opencode_sessions.state IS NULL OR opencode_sessions.state = 'pending')
     ORDER BY tasks.created_at ASC, tasks.rowid ASC
   `);
   const assignSessionIfUnassignedStatement = database.prepare(`
     UPDATE ${tasksTableName}
     SET session_id = ?, updated_at = ?
-    WHERE task_id = ? AND session_id IS NULL AND done = 0
+    WHERE task_id = ? AND session_id IS NULL
   `);
 
   return {
@@ -665,8 +660,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         dependencies: JSON.stringify(input.dependencies ?? []),
         result: input.result ?? "",
         source_metadata: JSON.stringify({}),
-        done: Number(isDoneStatus(input.status ?? "processing")),
-        status: input.status ?? "processing",
+        session_state: null,
         created_at: timestamp,
         updated_at: timestamp,
       });
@@ -682,13 +676,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         JSON.stringify(task.dependencies),
         task.result,
         JSON.stringify(task.source_metadata),
-        Number(task.done),
-        task.status,
         task.created_at,
         task.updated_at,
       );
 
-      return task;
+      return (await this.getTaskById(task.task_id)) ?? task;
     },
     async createTaskBatch(
       input: CreateTaskBatchRequest,
@@ -757,8 +749,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               dependencies: JSON.stringify(operation.task.dependencies ?? []),
               result: operation.task.result ?? "",
               source_metadata: sourceMetadata,
-              done: Number(isDoneStatus(operation.task.status ?? "processing")),
-              status: operation.task.status ?? "processing",
+              session_state: null,
               created_at: timestamp,
               updated_at: timestamp,
             });
@@ -774,8 +765,6 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
               JSON.stringify(task.dependencies),
               task.result,
               sourceMetadata,
-              Number(task.done),
-              task.status,
               task.created_at,
               task.updated_at,
             );
@@ -800,7 +789,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             throw new Error("Task batch cannot cross project_id");
           }
 
-          if (task.done || isDoneStatus(task.status)) {
+          if (isDoneStatus(task.status)) {
             throw new Error("Task batch cannot delete terminal tasks");
           }
 
@@ -837,13 +826,16 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       const parameters: Array<number | string> = [];
 
       if (filters.status !== undefined) {
-        whereClauses.push("status = ?");
+        whereClauses.push("COALESCE(opencode_sessions.state, 'pending') = ?");
         parameters.push(filters.status);
       }
 
       if (filters.done !== undefined) {
-        whereClauses.push("done = ?");
-        parameters.push(Number(filters.done));
+        whereClauses.push(
+          filters.done
+            ? "opencode_sessions.state IN ('resolved', 'rejected')"
+            : "(opencode_sessions.state IS NULL OR opencode_sessions.state = 'pending')",
+        );
       }
 
       if (filters.project_id !== undefined) {
@@ -852,7 +844,7 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       }
 
       if (filters.session_id !== undefined) {
-        whereClauses.push("session_id = ?");
+        whereClauses.push("tasks.session_id = ?");
         parameters.push(filters.session_id);
       }
 
@@ -872,12 +864,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             tasks.dependencies,
             tasks.result,
             tasks.source_metadata,
-            tasks.done,
-            tasks.status,
+            opencode_sessions.state AS session_state,
             tasks.created_at,
             tasks.updated_at
           FROM ${tasksTableName} AS tasks
           INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+          LEFT JOIN opencode_sessions ON opencode_sessions.session_id = tasks.session_id
           WHERE ${whereClauses.join(" AND ")}
           ORDER BY tasks.created_at ASC, tasks.rowid ASC
         `)
@@ -917,13 +909,10 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
       const currentTask = mapTaskRow(currentTaskRow);
 
-      const nextStatus = patch.status ?? currentTask.status;
       const updatedTask = taskSchema.parse({
         ...currentTask,
         ...patch,
         task_id: currentTask.task_id,
-        done: isDoneStatus(nextStatus),
-        status: nextStatus,
         updated_at: new Date().toISOString(),
       });
 
@@ -935,19 +924,11 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         JSON.stringify(updatedTask.dependencies),
         updatedTask.result,
         currentTaskRow.source_metadata,
-        Number(updatedTask.done),
-        updatedTask.status,
         updatedTask.updated_at,
         taskId,
       );
 
-      return updatedTask;
-    },
-    resolveTask(taskId: string, result: string): Promise<null | Task> {
-      return this.updateTask(taskId, { result, status: "resolved" });
-    },
-    rejectTask(taskId: string, result: string): Promise<null | Task> {
-      return this.updateTask(taskId, { result, status: "rejected" });
+      return this.getTaskById(taskId);
     },
     deleteTask(taskId: string): Promise<boolean> {
       const result = deleteTaskStatement.run(taskId);

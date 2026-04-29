@@ -104,7 +104,7 @@ const startTaskServer = async () => {
         "Task source baseline metadata is missing latest_origin_main_commit",
     },
     done: false,
-    status: "processing",
+    status: "pending",
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   };
@@ -112,7 +112,7 @@ const startTaskServer = async () => {
     category: "waiting_checks",
     summary: "Pull request checks are still running.",
     recovery_action: "Wait for checks to complete.",
-    task_status: "processing",
+    task_status: "pending",
     task_done: false,
     pull_request_url: "https://example.test/pr/2",
   };
@@ -146,7 +146,7 @@ const startTaskServer = async () => {
       response.end(
         JSON.stringify({
           items:
-            url.searchParams.get("status") === "processing" &&
+            url.searchParams.get("status") === "pending" &&
             url.searchParams.get("done") === "false" &&
             url.searchParams.get("project_id") === mainProjectId &&
             url.searchParams.get("session_id") === "session-1"
@@ -331,7 +331,7 @@ describe("task cli command baseline", () => {
       "--base-url",
       `${server.baseUrl}/api`,
       "--status",
-      "processing",
+      "pending",
       "--done",
       "false",
       "--project-id",
@@ -348,7 +348,7 @@ describe("task cli command baseline", () => {
       method: "GET",
       pathname: "/api/tasks",
       searchParams: {
-        status: "processing",
+        status: "pending",
         done: "false",
         project_id: mainProjectId,
         session_id: "session-1",
@@ -435,7 +435,7 @@ describe("task cli command baseline", () => {
         category: "waiting_checks",
         summary: "Pull request checks are still running.",
         recovery_action: "Wait for checks to complete.",
-        task_status: "processing",
+        task_status: "pending",
         task_done: false,
         pull_request_url: "https://example.test/pr/2",
       },
@@ -565,8 +565,6 @@ describe("task cli command baseline", () => {
       "task-1",
       "--task-spec",
       "rewrite spec",
-      "--status",
-      "processing",
       "--clear-session-id",
       "--clear-worktree-path",
       "--clear-pull-request-url",
@@ -582,7 +580,6 @@ describe("task cli command baseline", () => {
       path: "/api/tasks/task-1",
       json: {
         task_spec: "rewrite spec",
-        status: "processing",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,
@@ -594,7 +591,7 @@ describe("task cli command baseline", () => {
       data: {
         task_id: "task-1",
         task_spec: "rewrite spec",
-        status: "processing",
+        status: "pending",
         session_id: null,
         worktree_path: null,
         pull_request_url: null,

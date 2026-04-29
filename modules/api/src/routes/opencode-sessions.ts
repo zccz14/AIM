@@ -294,7 +294,9 @@ export const registerOpenCodeSessionRoutes = (
         return result.error;
       }
 
-      await getTaskRepository().rejectTask(task.task_id, result.result);
+      await getTaskRepository().updateTask(task.task_id, {
+        result: result.result,
+      });
 
       return null;
     }
@@ -319,7 +321,9 @@ export const registerOpenCodeSessionRoutes = (
       return pullRequestError;
     }
 
-    await getTaskRepository().resolveTask(task.task_id, result.result);
+    await getTaskRepository().updateTask(task.task_id, {
+      result: result.result,
+    });
 
     return null;
   };

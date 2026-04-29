@@ -6,7 +6,6 @@ import {
   createTaskContractClient,
   exitWithFailure,
   hasOwnPatchField,
-  parseStatusFlag,
   pickLastValue,
   requireFlag,
   writeSuccess,
@@ -29,7 +28,6 @@ export default class TaskUpdateCommand extends Command {
       description: "Task dependency id",
       multiple: true,
     }),
-    status: Flags.string({ description: "Task status" }),
     "clear-session-id": Flags.boolean({ description: "Clear task session id" }),
     "clear-worktree-path": Flags.boolean({
       description: "Clear task worktree path",
@@ -77,10 +75,6 @@ export default class TaskUpdateCommand extends Command {
 
       if (flags["task-spec"] !== undefined) {
         patch.task_spec = flags["task-spec"];
-      }
-
-      if (flags.status !== undefined) {
-        patch.status = parseStatusFlag(flags.status);
       }
 
       if (flags["session-id"] !== undefined) {

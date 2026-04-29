@@ -167,7 +167,7 @@ export type Task = {
   pull_request_url: string | null;
   dependencies: Array<string>;
   readonly done: boolean;
-  status: "processing" | "resolved" | "rejected";
+  status: "pending" | "resolved" | "rejected";
   readonly created_at: string;
   readonly updated_at: string;
 };
@@ -181,7 +181,6 @@ export type CreateTaskRequest = {
   session_id?: string | null;
   worktree_path?: string | null;
   pull_request_url?: string | null;
-  status?: "processing" | "resolved" | "rejected";
 };
 
 export type PatchTaskRequest = {
@@ -191,7 +190,6 @@ export type PatchTaskRequest = {
   pull_request_url?: string | null;
   dependencies?: Array<string>;
   result?: string;
-  status?: "processing" | "resolved" | "rejected";
 };
 
 export type CreateTaskBatchTask = {
@@ -203,7 +201,6 @@ export type CreateTaskBatchTask = {
   session_id?: string | null;
   worktree_path?: string | null;
   pull_request_url?: string | null;
-  status?: "processing" | "resolved" | "rejected";
   source_metadata?: {
     [key: string]: unknown;
   };
@@ -274,7 +271,7 @@ export type TaskPullRequestStatusResponse = {
   category: TaskPullRequestFollowupCategory;
   summary: string;
   recovery_action: string;
-  task_status: "processing" | "resolved" | "rejected";
+  task_status: "pending" | "resolved" | "rejected";
   task_done: boolean;
   pull_request_url: string | null;
 };
@@ -454,7 +451,7 @@ export type TaskWritable = {
   worktree_path: string | null;
   pull_request_url: string | null;
   dependencies: Array<string>;
-  status: "processing" | "resolved" | "rejected";
+  status: "pending" | "resolved" | "rejected";
 };
 
 export type TaskListResponseWritable = {
@@ -504,7 +501,7 @@ export type DirectorClarificationListResponseWritable = {
 
 export type TaskIdPathParameter = string;
 
-export type TaskStatusQueryParameter = "processing" | "resolved" | "rejected";
+export type TaskStatusQueryParameter = "pending" | "resolved" | "rejected";
 
 export type TaskDoneQueryParameter = boolean;
 
@@ -1061,7 +1058,7 @@ export type ListTasksData = {
   body?: never;
   path?: never;
   query?: {
-    status?: "processing" | "resolved" | "rejected";
+    status?: "pending" | "resolved" | "rejected";
     done?: boolean;
     project_id?: string;
     session_id?: string;

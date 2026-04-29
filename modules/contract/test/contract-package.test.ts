@@ -671,9 +671,7 @@ describe("contract package baseline", () => {
     expect(contractModule.taskPullRequestStatusPath).toBe(
       "/tasks/{taskId}/pull_request_status",
     );
-    expect(contractModule.taskStatusSchema.parse("processing")).toBe(
-      "processing",
-    );
+    expect(contractModule.taskStatusSchema.parse("pending")).toBe("pending");
     expect(contractModule.taskErrorCodeSchema.parse("TASK_NOT_FOUND")).toBe(
       "TASK_NOT_FOUND",
     );
@@ -697,11 +695,9 @@ describe("contract package baseline", () => {
     ).toBe(false);
     expect(
       contractModule.patchTaskRequestSchema.parse({
-        status: "resolved",
         result: "final output",
       }),
     ).toEqual({
-      status: "resolved",
       result: "final output",
     });
     expect(
@@ -711,11 +707,11 @@ describe("contract package baseline", () => {
         recovery_action: "Fix failing checks and continue PR follow-up.",
         summary: "Required checks failed: test:api.",
         task_done: false,
-        task_status: "processing",
+        task_status: "pending",
       }),
     ).toMatchObject({
       category: "failed_checks",
-      task_status: "processing",
+      task_status: "pending",
     });
     expect(
       contractModule.taskSchema.parse({
@@ -734,14 +730,14 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "processing",
+        status: "pending",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }),
     ).toMatchObject({
       task_id: "task-1",
       result: "complete",
-      status: "processing",
+      status: "pending",
     });
     expect(
       contractModule.taskListResponseSchema.parse({
@@ -762,7 +758,7 @@ describe("contract package baseline", () => {
             pull_request_url: null,
             dependencies: [],
             done: false,
-            status: "processing",
+            status: "pending",
             created_at: "2026-04-19T00:00:00.000Z",
             updated_at: "2026-04-19T00:00:00.000Z",
           },
@@ -787,7 +783,7 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "processing",
+        status: "pending",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }).success,
@@ -803,8 +799,8 @@ describe("contract package baseline", () => {
     });
   });
 
-  it("limits the public task status contract to processing, resolved, and rejected", () => {
-    const publicStatuses = ["processing", "resolved", "rejected"];
+  it("limits the public task status contract to pending, resolved, and rejected", () => {
+    const publicStatuses = ["pending", "resolved", "rejected"];
     const retiredStatuses = [
       "created",
       "waiting_assumptions",
@@ -830,9 +826,7 @@ describe("contract package baseline", () => {
       );
     }
 
-    expect(createTaskRequestSchema.properties.status).toMatchObject({
-      enum: publicStatuses,
-    });
+    expect(createTaskRequestSchema.properties.status).toBeUndefined();
   });
 
   it("publishes a minimal health OpenAPI document", () => {
@@ -1127,7 +1121,6 @@ describe("contract package baseline", () => {
               task_id: "11111111-1111-4111-8111-111111111111",
               title: "Ship batch",
               spec: "Create the endpoint",
-              status: "processing",
               source_metadata: { coordinator_session_id: "session-1" },
             },
           },
@@ -1312,7 +1305,6 @@ describe("contract package baseline", () => {
       "pull_request_url",
       "result",
       "session_id",
-      "status",
       "task_spec",
       "title",
       "worktree_path",
@@ -1338,15 +1330,6 @@ describe("contract package baseline", () => {
         }
       ).properties.pull_request_url,
     ).toMatchObject({ type: ["string", "null"] });
-    expect(
-      (
-        createTaskRequestSchema as {
-          properties: Record<string, { type?: unknown; enum?: string[] }>;
-        }
-      ).properties.status,
-    ).toMatchObject({
-      enum: ["processing", "resolved", "rejected"],
-    });
     expect(
       contractModule.openApiDocument.components.schemas.Task,
     ).toMatchObject({
@@ -1441,7 +1424,7 @@ describe("contract package baseline", () => {
         pull_request_url: null,
         dependencies: [],
         done: false,
-        status: "processing",
+        status: "pending",
         created_at: "2026-04-19T00:00:00.000Z",
         updated_at: "2026-04-19T00:00:00.000Z",
       }).success,
@@ -1791,7 +1774,7 @@ describe("contract package baseline", () => {
       source_metadata: {},
       source_baseline_freshness: unknownSourceBaselineFreshness,
       done: false,
-      status: "processing",
+      status: "pending",
       created_at: "2026-04-20T00:00:00.000Z",
       updated_at: "2026-04-20T00:00:00.000Z",
     };
@@ -1861,10 +1844,10 @@ describe("contract package baseline", () => {
           if (
             request.method === "PATCH" &&
             url.pathname === "/tasks/task-1" &&
-            bodyText === JSON.stringify({ status: "processing" })
+            bodyText === JSON.stringify({ result: "run summary" })
           ) {
             return new Response(
-              JSON.stringify({ ...task, status: "processing" }),
+              JSON.stringify({ ...task, result: "run summary" }),
               {
                 status: 200,
                 headers: { "content-type": "application/json" },
@@ -1891,7 +1874,7 @@ describe("contract package baseline", () => {
         done: false,
         project_id: mainProjectId,
         session_id: "session-1",
-        status: "processing",
+        status: "pending",
       }),
     ).resolves.toEqual({
       items: [],
@@ -1908,16 +1891,16 @@ describe("contract package baseline", () => {
       task_spec: "write spec",
       git_origin_url: "https://github.com/example/repo.git",
       result: "",
-      status: "processing",
+      status: "pending",
     });
     await expect(client.getTaskById("task-1")).resolves.toMatchObject({
       task_id: "task-1",
     });
     await expect(
-      client.patchTaskById("task-1", { status: "processing" }),
+      client.patchTaskById("task-1", { result: "run summary" }),
     ).resolves.toMatchObject({
       task_id: "task-1",
-      status: "processing",
+      result: "run summary",
     });
     await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
 
@@ -1931,7 +1914,7 @@ describe("contract package baseline", () => {
           done: "false",
           project_id: mainProjectId,
           session_id: "session-1",
-          status: "processing",
+          status: "pending",
         },
       },
       {
@@ -1952,7 +1935,7 @@ describe("contract package baseline", () => {
         searchParams: {},
       },
       {
-        body: { status: "processing" },
+        body: { result: "run summary" },
         method: "PATCH",
         pathname: "/tasks/task-1",
         searchParams: {},

@@ -202,7 +202,7 @@ describe("task repository", () => {
     await expect(
       repository.createTask({
         project_id: mainProjectId,
-        status: "processing",
+        status: "pending",
         task_spec: "store task under project identity",
         title: "Project scoped task",
       }),
@@ -358,7 +358,7 @@ describe("task repository", () => {
 
     const task = await repository.createTask({
       project_id: mainProjectId,
-      status: "processing",
+      status: "pending",
       task_spec: "store only the project identity on the task row",
       title: "Project scoped task",
     });
@@ -469,7 +469,7 @@ describe("task repository", () => {
         "[]",
         "",
         0,
-        "processing",
+        "pending",
         "2026-04-26T00:00:00.000Z",
         "2026-04-26T00:00:00.000Z",
       );
@@ -611,7 +611,7 @@ describe("task repository", () => {
 
     const repository = createTaskRepository();
     const createdTask = await createTask(repository, {
-      status: "processing",
+      status: "pending",
       task_spec: "persist task without copied model fields",
       title: "Persist task identity fields",
     });
@@ -645,16 +645,16 @@ describe("task repository", () => {
     const otherProject = await createProject(repository, "other");
     const firstTask = await createTask(repository, {
       project_id: project.id,
-      task_spec: "keep processing",
+      task_spec: "keep pending",
       session_id: "session-a",
-      status: "processing",
+      status: "pending",
     });
     const secondTask = await createTask(repository, {
       project_id: project.id,
       task_spec: "complete later",
       session_id: "session-a-pending",
       dependencies: [firstTask.task_id],
-      status: "processing",
+      status: "pending",
     });
     const thirdTask = await createTask(repository, {
       project_id: project.id,
@@ -665,7 +665,7 @@ describe("task repository", () => {
     const otherProjectTask = await createTask(repository, {
       project_id: otherProject.id,
       task_spec: "other project",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(repository.getTaskById(secondTask.task_id)).resolves.toEqual(
@@ -731,7 +731,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await createTask(repository, {
       result: "keep me",
-      status: "processing",
+      status: "pending",
       task_spec: "preserve result",
     });
 
@@ -756,7 +756,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await createTask(repository, {
       result: "before",
-      status: "processing",
+      status: "pending",
       task_spec: "replace result",
     });
 
@@ -766,7 +766,7 @@ describe("task repository", () => {
 
     expect(updatedTask).toMatchObject({
       result: "after",
-      status: "processing",
+      status: "pending",
       task_id: task.task_id,
     });
   });
@@ -778,11 +778,11 @@ describe("task repository", () => {
 
     const repository = createTaskRepository();
     const resolvedTask = await createTask(repository, {
-      status: "processing",
+      status: "pending",
       task_spec: "resolve me",
     });
     const rejectedTask = await createTask(repository, {
-      status: "processing",
+      status: "pending",
       task_spec: "reject me",
     });
 
@@ -823,12 +823,12 @@ describe("task repository", () => {
 
     const repository = createTaskRepository();
     const processingTask = await createTask(repository, {
-      task_spec: "still processing",
-      status: "processing",
+      task_spec: "still pending",
+      status: "pending",
     });
     const queuedTask = await createTask(repository, {
       task_spec: "queued",
-      status: "processing",
+      status: "pending",
     });
     await createTask(repository, {
       task_spec: "already done",
@@ -851,7 +851,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await createTask(repository, {
       task_spec: "claim me once",
-      status: "processing",
+      status: "pending",
     });
 
     const claimedTask = await repository.assignSessionIfUnassigned(
@@ -877,7 +877,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await createTask(repository, {
       task_spec: "race me",
-      status: "processing",
+      status: "pending",
     });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
@@ -904,7 +904,7 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const task = await createTask(repository, {
       task_spec: "finish before binding",
-      status: "processing",
+      status: "pending",
     });
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
@@ -934,11 +934,11 @@ describe("task repository", () => {
     await createTask(repository, {
       task_spec: "already claimed elsewhere",
       session_id: "shared-session",
-      status: "processing",
+      status: "pending",
     });
     const unassignedTask = await createTask(repository, {
       task_spec: "claim me later",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(
@@ -963,11 +963,11 @@ describe("task repository", () => {
     const repository = createTaskRepository();
     const firstTask = await createTask(repository, {
       task_spec: "null session first",
-      status: "processing",
+      status: "pending",
     });
     const secondTask = await createTask(repository, {
       task_spec: "null session second",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(repository.listUnfinishedTasks()).resolves.toEqual([
@@ -987,14 +987,14 @@ describe("task repository", () => {
     await createTask(repository, {
       task_spec: "first shared session task",
       session_id: "shared-session",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(
       createTask(repository, {
         task_spec: "second shared session task",
         session_id: "shared-session",
-        status: "processing",
+        status: "pending",
       }),
     ).rejects.toThrow(/unique|constraint/i);
   });
@@ -1008,7 +1008,7 @@ describe("task repository", () => {
     const firstTask = await createTask(repository, {
       task_spec: "finish before reuse",
       session_id: "reusable-session",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(
@@ -1024,12 +1024,12 @@ describe("task repository", () => {
       createTask(repository, {
         task_spec: "reuse after completion",
         session_id: "reusable-session",
-        status: "processing",
+        status: "pending",
       }),
     ).resolves.toMatchObject({
       done: false,
       session_id: "reusable-session",
-      status: "processing",
+      status: "pending",
     });
   });
 
@@ -1044,11 +1044,11 @@ describe("task repository", () => {
     await createTask(repository, {
       task_spec: "session owner",
       session_id: "shared-session",
-      status: "processing",
+      status: "pending",
     });
     const taskToUpdate = await createTask(repository, {
       task_spec: "update me",
-      status: "processing",
+      status: "pending",
     });
 
     await expect(

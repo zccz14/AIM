@@ -55,8 +55,6 @@ const createCurrentTasksTableSql = `
     dependencies TEXT NOT NULL,
     result TEXT NOT NULL DEFAULT '',
     source_metadata TEXT NOT NULL DEFAULT '{}',
-    done INTEGER NOT NULL,
-    status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -79,11 +77,51 @@ const migrateTasksWithoutDeveloperModelColumns = (database: DatabaseSync) => {
   database.exec("ALTER TABLE tasks RENAME TO tasks_legacy_developer_model");
   database.exec(createCurrentTasksTableSql);
   database.exec(`
-    INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, done, status, created_at, updated_at)
-    SELECT task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, ${sourceMetadataExpression}, done, status, created_at, updated_at
+    INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, created_at, updated_at)
+    SELECT task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, ${sourceMetadataExpression}, created_at, updated_at
     FROM tasks_legacy_developer_model
   `);
   database.exec("DROP TABLE tasks_legacy_developer_model");
+};
+
+const migrateTasksWithoutPersistedLifecycleColumns = (
+  database: DatabaseSync,
+) => {
+  const taskColumns = tableColumns(database, "tasks");
+
+  if (!taskColumns.has("done") && !taskColumns.has("status")) {
+    return;
+  }
+
+  for (const requiredColumn of [
+    "task_id",
+    "title",
+    "task_spec",
+    "project_id",
+    "session_id",
+    "worktree_path",
+    "pull_request_url",
+    "dependencies",
+    "result",
+    "created_at",
+    "updated_at",
+  ]) {
+    if (!taskColumns.has(requiredColumn)) {
+      return;
+    }
+  }
+
+  const sourceMetadataExpression = taskColumns.has("source_metadata")
+    ? "source_metadata"
+    : "'{}'";
+  database.exec("ALTER TABLE tasks RENAME TO tasks_legacy_lifecycle");
+  database.exec(createCurrentTasksTableSql);
+  database.exec(`
+    INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, created_at, updated_at)
+    SELECT task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, ${sourceMetadataExpression}, created_at, updated_at
+    FROM tasks_legacy_lifecycle
+  `);
+  database.exec("DROP TABLE tasks_legacy_lifecycle");
 };
 
 const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
@@ -200,8 +238,8 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
       database.exec("ALTER TABLE tasks RENAME TO tasks_legacy_project_path");
       database.exec(createCurrentTasksTableSql);
       database.exec(`
-        INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, done, status, created_at, updated_at)
-        SELECT task_id, title, task_spec, ${projectIdExpression}, session_id, worktree_path, pull_request_url, dependencies, result, '{}', done, status, created_at, updated_at
+        INSERT INTO tasks (task_id, title, task_spec, project_id, session_id, worktree_path, pull_request_url, dependencies, result, source_metadata, created_at, updated_at)
+        SELECT task_id, title, task_spec, ${projectIdExpression}, session_id, worktree_path, pull_request_url, dependencies, result, '{}', created_at, updated_at
         FROM tasks_legacy_project_path
       `);
       database.exec("DROP TABLE tasks_legacy_project_path");
@@ -281,6 +319,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     }
 
     migrateTasksWithoutDeveloperModelColumns(database);
+    migrateTasksWithoutPersistedLifecycleColumns(database);
 
     const openCodeSessionColumns = tableColumns(database, "opencode_sessions");
     if (
@@ -323,6 +362,7 @@ export const applySqliteTableSchema = (database: DatabaseSync) => {
 
 export const applySqliteIndexSchema = (database: DatabaseSync) => {
   database.exec("DROP INDEX IF EXISTS tasks_unfinished_session_id_unique;");
+  database.exec("DROP INDEX IF EXISTS tasks_session_id_unique;");
   execSchemaStatements(
     database,
     (statement) =>

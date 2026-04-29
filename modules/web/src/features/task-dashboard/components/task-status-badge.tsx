@@ -6,7 +6,7 @@ import type { DashboardStatus } from "../model/task-dashboard-view-model.js";
 export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
   const { t } = useI18n();
   const statusLabelMap = {
-    processing: t("creatingTask"),
+    pending: t("pendingStatus"),
     rejected: t("rejectedFeedback"),
     resolved: t("completedStatus"),
   } satisfies Record<DashboardStatus, string>;
@@ -15,7 +15,7 @@ export const TaskStatusBadge = ({ status }: { status: DashboardStatus }) => {
     <Badge
       className={cn(
         status === "rejected" && "text-destructive",
-        status === "processing" && "text-muted-foreground",
+        status === "pending" && "text-muted-foreground",
         status === "resolved" && "text-primary",
       )}
       data-status={status}

@@ -15,7 +15,7 @@ const buildTask = ({
     summary: "Task source baseline matches current origin/main abc1234",
   },
   spec,
-  status = "processing",
+  status = "pending",
   taskId,
   updatedAt = "2026-04-19T00:00:00.000Z",
 }: {
@@ -168,7 +168,7 @@ const buildTaskPullRequestStatus = ({
   category,
   summary,
   recovery_action: recoveryAction,
-  task_status: "processing",
+  task_status: "pending",
   task_done: false,
   pull_request_url: pullRequestUrl,
 });

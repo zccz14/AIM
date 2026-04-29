@@ -23,7 +23,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   session_id: null,
   source_baseline_freshness: unknownSourceBaselineFreshness,
   source_metadata: {},
-  status: "processing",
+  status: "pending",
   task_id: "task-1",
   task_spec: "Implement the assigned task.",
   title: "Implement task",
@@ -38,7 +38,7 @@ describe("buildTaskSessionPrompt", () => {
       activeTasks: [
         createTask({
           session_id: "session-active",
-          status: "processing",
+          status: "pending",
           task_id: "task-active",
           title: "Active overlapping work",
         }),
@@ -73,7 +73,7 @@ describe("buildTaskSessionPrompt", () => {
     );
     expect(prompt).toContain("Current Active Task Pool:");
     expect(prompt).toContain(
-      "- Active overlapping work (task-active) status processing source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session session-active",
+      "- Active overlapping work (task-active) status pending source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session session-active",
     );
     expect(prompt).toContain("Rejected Task feedback for this project:");
     expect(prompt).toContain(
@@ -125,10 +125,10 @@ describe("buildTaskSessionPrompt", () => {
     });
 
     expect(prompt).toContain(
-      "- Current active work (task-current) status processing source_freshness current source 1111111111111111111111111111111111111111 current 1111111111111111111111111111111111111111 summary Task source baseline matches current origin/main 1111111111111111111111111111111111111111; worktree /repo/.worktrees/task-current; PR https://github.com/example/repo/pull/12; session session-current",
+      "- Current active work (task-current) status pending source_freshness current source 1111111111111111111111111111111111111111 current 1111111111111111111111111111111111111111 summary Task source baseline matches current origin/main 1111111111111111111111111111111111111111; worktree /repo/.worktrees/task-current; PR https://github.com/example/repo/pull/12; session session-current",
     );
     expect(prompt).toContain(
-      "- Stale active work (task-stale) status processing source_freshness stale source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa current 2222222222222222222222222222222222222222 summary Task source baseline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa differs from current origin/main 2222222222222222222222222222222222222222; worktree (not set); PR (not set); session (not set)",
+      "- Stale active work (task-stale) status pending source_freshness stale source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa current 2222222222222222222222222222222222222222 summary Task source baseline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa differs from current origin/main 2222222222222222222222222222222222222222; worktree (not set); PR (not set); session (not set)",
     );
   });
 
@@ -152,7 +152,7 @@ describe("buildTaskSessionPrompt", () => {
     });
 
     expect(prompt).toContain(
-      "- Unknown active work (task-unknown) status processing source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session (not set)",
+      "- Unknown active work (task-unknown) status pending source_freshness unknown source (not set) current (not set) summary not set; worktree (not set); PR (not set); session (not set)",
     );
   });
 });

@@ -18,8 +18,14 @@ describe("api sqlite schema source", () => {
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS projects/i);
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS tasks/i);
     expect(schemaSql).toMatch(
-      /CREATE UNIQUE INDEX IF NOT EXISTS tasks_unfinished_session_id_unique/i,
+      /CREATE UNIQUE INDEX IF NOT EXISTS tasks_session_id_unique/i,
     );
+    const tasksDdl = schemaSql.match(
+      /CREATE TABLE IF NOT EXISTS tasks \([\s\S]*?\);/i,
+    )?.[0];
+
+    expect(tasksDdl).toBeDefined();
+    expect(tasksDdl).not.toMatch(/\b(done|status)\b/i);
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS dimensions/i);
     expect(schemaSql).toMatch(
       /CREATE TABLE IF NOT EXISTS dimension_evaluations/i,

@@ -148,6 +148,10 @@ const parseListFilters = (request: Request) => {
 
 const parseCreateTaskRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    delete (payload as Record<string, unknown>).done;
+    delete (payload as Record<string, unknown>).status;
+  }
   const result = createTaskRequestSchema.safeParse(payload);
 
   if (!result.success) {
@@ -165,6 +169,23 @@ const parseCreateTaskBatchRequest = async (
   currentBaselineFactsProvider: CurrentBaselineFactsProvider,
 ) => {
   const payload = await request.json().catch(() => undefined);
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const operations = (payload as { operations?: unknown }).operations;
+    for (const operation of Array.isArray(operations) ? operations : []) {
+      if (
+        operation &&
+        typeof operation === "object" &&
+        !Array.isArray(operation) &&
+        "task" in operation &&
+        operation.task &&
+        typeof operation.task === "object" &&
+        !Array.isArray(operation.task)
+      ) {
+        delete (operation.task as Record<string, unknown>).done;
+        delete (operation.task as Record<string, unknown>).status;
+      }
+    }
+  }
   const result = createTaskBatchRequestSchema.safeParse(payload);
 
   if (!result.success) {
@@ -521,6 +542,10 @@ const inferValidationConclusion = (conclusionSummary: string) => {
 
 const parsePatchTaskRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    delete (payload as Record<string, unknown>).done;
+    delete (payload as Record<string, unknown>).status;
+  }
 
   const result = patchTaskRequestSchema.safeParse(payload);
 
@@ -607,18 +632,17 @@ const buildPullRequestFollowupStatus = (
   };
 
   if (!task.pull_request_url) {
-    if (task.status === "processing" && !task.session_id) {
+    if (task.status === "pending" && !task.session_id) {
       return taskPullRequestStatusResponseSchema.parse({
         ...base,
         category: "waiting_for_assignment",
         recovery_action:
           "Assign a developer session before expecting PR follow-up; no PR exists yet.",
-        summary:
-          "Task is processing without an assigned OpenCode session or PR.",
+        summary: "Task is pending without an assigned OpenCode session or PR.",
       });
     }
 
-    if (task.status === "processing" && openCodeSession?.stale) {
+    if (task.status === "pending" && openCodeSession?.stale) {
       return taskPullRequestStatusResponseSchema.parse({
         ...base,
         category: "session_pending_stale",
@@ -629,7 +653,7 @@ const buildPullRequestFollowupStatus = (
       });
     }
 
-    if (task.status === "processing" && task.worktree_path) {
+    if (task.status === "pending" && task.worktree_path) {
       return taskPullRequestStatusResponseSchema.parse({
         ...base,
         category: "worktree_created_no_pr",
@@ -639,7 +663,7 @@ const buildPullRequestFollowupStatus = (
       });
     }
 
-    if (task.status === "processing" && openCodeSession) {
+    if (task.status === "pending" && openCodeSession) {
       return taskPullRequestStatusResponseSchema.parse({
         ...base,
         category: "needs_developer_continue",
@@ -710,7 +734,7 @@ const buildPullRequestFollowupStatus = (
       category: "merged_but_not_resolved",
       recovery_action:
         "Call aim_session_resolve with the final result now that the pull request is merged.",
-      summary: "Pull request is merged, but the AIM task is still processing.",
+      summary: "Pull request is merged, but the AIM task is still pending.",
     });
   }
 
