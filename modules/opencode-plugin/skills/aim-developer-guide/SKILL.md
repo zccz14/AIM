@@ -39,8 +39,9 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - `worktree_path` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/worktree_path`。
 - `pull_request_url` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/pull_request_url`。
 - `dependencies` 上报使用 `PUT ${SERVER_BASE_URL}/tasks/${task_id}/dependencies`。
-- 成功终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/resolve`。
-- 失败终态上报使用 `POST ${SERVER_BASE_URL}/tasks/${task_id}/reject`。
+- 成功终态通过 OpenCode session tool `aim_session_resolve({ value })` 完成。
+- 失败终态通过 OpenCode session tool `aim_session_reject({ reason })` 完成。
+- AIM Developer 不应直接调用 Task terminal `POST /tasks/${task_id}/resolve` 或 `POST /tasks/${task_id}/reject` 端点完成终态 session；终态由 AIM 控制的 OpenCode session tools 结算。
 
 ## 主流程
 
@@ -74,8 +75,8 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 ### 3. 区分验证失败与链路失败
 
-- Spec 验证失败：表示 Task Spec 与最新基线不再匹配、关键前提已失效、或继续执行会偏离任务目标。这是任务本身失败，应直接使用 `POST /tasks/${task_id}/reject` 上报，并在 `result` 里写清基线失配原因。
-- Spec API 失败、AIM PATCH 失败、AIM resolve/reject 失败：这是输入链路或上报链路阻塞，不是任务本身失败。必须显式暴露阻塞，停止声称 AIM 已同步成功，但不要把任务误判为失败。
+- Spec 验证失败：表示 Task Spec 与最新基线不再匹配、关键前提已失效、或继续执行会偏离任务目标。这是任务本身失败，应使用 `aim_session_reject({ reason })`，并在 `reason` 里写清基线失配原因。
+- Spec API 失败、AIM PATCH 失败、AIM terminal session tool 调用失败：这是输入链路或上报链路阻塞，不是任务本身失败。必须显式暴露阻塞，停止声称 AIM 已同步成功，但不要把任务误判为失败。
 
 ### 4. 创建 worktree 并开始执行
 
@@ -109,13 +110,13 @@ description: Required entry skill when you are an AIM Developer working on an ex
 
 - PR 已合并、关闭或确认废弃后，仍保持 `processing`，直到 review 收尾、删除 worktree，并确认不再需要该 worktree。
 - 删除 worktree 后，必须回到主工作区执行 `git fetch origin && git checkout origin/main`。
-- 只有在 PR 终态成立、worktree 已删除、主工作区基线已刷新后，才能 `POST /resolve`，并把 Task 视为真正完成。
+- 只有在 PR 终态成立、worktree 已删除、主工作区基线已刷新后，才能调用 `aim_session_resolve({ value })`，并把 Task 视为真正完成。
 
 ## 生命周期状态
 
 - `processing`：Task 仍需继续推进，包含创建、验证、开发、PR 跟进、等待外部信号和收尾等所有非终态过程。
-- `resolved`：任务已成功完成，并通过 `POST /resolve` 上报。
-- `rejected`：任务已失败结束，并通过 `POST /reject` 上报。
+- `resolved`：任务已成功完成，并通过 `aim_session_resolve({ value })` 结算。
+- `rejected`：任务已失败结束，并通过 `aim_session_reject({ reason })` 结算。
 
 不要把内部步骤上报成 task status。AIM 外部只需要知道 Task 是否仍在 `processing`，或已进入 `resolved` / `rejected` 终态。
 
@@ -125,8 +126,8 @@ description: Required entry skill when you are an AIM Developer working on an ex
 2. worktree 创建后：通过字段级 PUT 补充 `worktree_path`。
 3. PR 创建后：通过字段级 PUT 补充 `pull_request_url`。
 4. 依赖关系变化时：通过字段级 PUT 补充 `dependencies`。
-5. 最终成功完成时：`POST /resolve`，请求体只发送非空 `result`。
-6. 任务本身失败时：`POST /reject`，请求体只发送非空 `result`。
+5. 最终成功完成时：调用 `aim_session_resolve({ value })`，其中 `value` 为非空完成摘要。
+6. 任务本身失败时：调用 `aim_session_reject({ reason })`，其中 `reason` 为非空失败原因。
 
 只要 `worktree_path`、`pull_request_url` 或 `dependencies` 有新增或变化，应使用对应字段级 PUT 单独上报。
 
@@ -141,12 +142,12 @@ description: Required entry skill when you are an AIM Developer working on an ex
 - `PUT /tasks/${task_id}/dependencies` 的请求体必须且只能包含 `dependencies`。
 - 未知值必须省略，不能发送空字符串、伪造值或 `null` 占位。
 - 在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。
-- 成功终态只能使用 `POST /tasks/${task_id}/resolve`。
-- 失败终态只能使用 `POST /tasks/${task_id}/reject`。
-- 只能使用 `POST /resolve` 上报 `resolved` 终态结果，且只能使用 `POST /reject` 上报 `rejected` 终态结果。
-- 终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。
-- 终态请求体必须且只能包含一个非空 `result` 字符串字段。
-- 除非 PATCH 或终态 POST 实际成功，否则不要声称 AIM 已拥有最新事实。
+- 成功终态只能使用 OpenCode session tool `aim_session_resolve({ value })`。
+- 失败终态只能使用 OpenCode session tool `aim_session_reject({ reason })`。
+- AIM Developer 不应直接调用 Task terminal `POST /tasks/${task_id}/resolve` 或 `POST /tasks/${task_id}/reject` 端点完成终态 session；除非用户明确指示，否则不要在 tool 调用失败后回退到直接 Task terminal API。
+- 终态成功的 `value` 必须是非空字符串。
+- 终态失败的 `reason` 必须是非空字符串。
+- 除非 PATCH、字段级 PUT 或 terminal session tool 实际成功，否则不要声称 AIM 已拥有最新事实。
 
 ### Processing 示例
 
@@ -186,30 +187,26 @@ curl -X PUT "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/dependen
 
 ### 终态成功示例
 
-```bash
-curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/resolve" \
-  -H "Content-Type: application/json" \
-  --data '{
-    "result": "PR merged, worktree removed, and local baseline refreshed."
-  }'
+```ts
+aim_session_resolve({
+  value: "PR merged, worktree removed, and local baseline refreshed.",
+})
 ```
 
 ### 终态失败示例
 
-```bash
-curl -X POST "${SERVER_BASE_URL:-http://localhost:8192}/tasks/${task_id}/reject" \
-  -H "Content-Type: application/json" \
-  --data '{
-    "result": "Task Spec no longer matches the latest baseline and must be replanned."
-  }'
+```ts
+aim_session_reject({
+  reason: "Task Spec no longer matches the latest baseline and must be replanned.",
+})
 ```
 
 ## 失败处理
 
 要把任务失败与上报失败区分开。
 
-- 任务失败：工作本身失败，因此应通过 `POST /tasks/${task_id}/reject` 发送带非空 `result` 的终态失败上报。
-- 上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。
+- 任务失败：工作本身失败，因此应通过 `aim_session_reject({ reason })` 发送带非空 `reason` 的终态失败结算。
+- 上报失败：PATCH、字段级 PUT 请求或 terminal session tool 调用因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败，也不要回退到直接 Task terminal API，除非用户明确指示。
 - Task Spec 获取失败：`GET /tasks/${task_id}/spec` 因 404、网络、超时、连接、5xx、空响应或畸形响应等问题无法提供可用 Markdown。把它视为输入 / 上报链路阻塞，不要把这类情况转换成任务失败，也不要继续依赖本地文件推进。
 
 对于单个 AIM 请求，最多尝试三次：首次请求加最多两次重试。可采用简短重试，例如先等 1 秒，再等 5 秒。如果服务端明确返回 4xx 输入错误，则停止重试，并暴露输入问题。
