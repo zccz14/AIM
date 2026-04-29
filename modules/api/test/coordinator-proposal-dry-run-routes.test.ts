@@ -90,18 +90,8 @@ describe("coordinator proposal dry-run route", () => {
     const projectRoot = await useProjectRoot("structured-dry-run-no-writes");
     const app = createRouteApp();
     const project = await createProject(app);
-    const seededTaskResponse = await app.request(contractModule.tasksPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: project.id,
-        task_spec: "Existing task proves dry-run does not write rows.",
-        title: "Existing task",
-      }),
-    });
 
-    expect(seededTaskResponse.status).toBe(201);
-    expect(countTasks(projectRoot)).toBe(1);
+    expect(countTasks(projectRoot)).toBe(0);
 
     const response = await app.request(
       contractModule.coordinatorProposalDryRunPath,
@@ -218,7 +208,7 @@ describe("coordinator proposal dry-run route", () => {
         task_id: "task-stale-feedback",
       }),
     ]);
-    expect(countTasks(projectRoot)).toBe(1);
+    expect(countTasks(projectRoot)).toBe(0);
   });
 
   it("returns actionable validation errors for invalid dry-run requests", async () => {
