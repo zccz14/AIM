@@ -137,7 +137,7 @@ export const createOptimizerSystem = async ({
   const enabledConfiguredProjects =
     configuredProjects.filter(isOptimizerEnabled);
   const managersByProjectId = new Map<string, Manager>();
-  const laneEvents = createOptimizerLaneEventRecorder();
+  const laneEvents = stack.use(createOptimizerLaneEventRecorder());
   const startupContext = {
     configured_project_count: configuredProjects.length,
     enabled_configured_project_count: enabledConfiguredProjects.length,
