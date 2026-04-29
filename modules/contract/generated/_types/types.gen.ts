@@ -279,10 +279,6 @@ export type TaskPullRequestStatusResponse = {
   pull_request_url: string | null;
 };
 
-export type TaskResultRequest = {
-  result: string;
-};
-
 export type TaskListResponse = {
   items: Array<Task>;
 };
@@ -1332,72 +1328,6 @@ export type GetTaskPullRequestStatusByIdResponses = {
 
 export type GetTaskPullRequestStatusByIdResponse =
   GetTaskPullRequestStatusByIdResponses[keyof GetTaskPullRequestStatusByIdResponses];
-
-export type ResolveTaskByIdData = {
-  body: TaskResultRequest;
-  path: {
-    taskId: string;
-  };
-  query?: never;
-  url: "/tasks/{taskId}/resolve";
-};
-
-export type ResolveTaskByIdErrors = {
-  /**
-   * Invalid task result
-   */
-  400: ErrorResponse;
-  /**
-   * Task not found
-   */
-  404: ErrorResponse;
-};
-
-export type ResolveTaskByIdError =
-  ResolveTaskByIdErrors[keyof ResolveTaskByIdErrors];
-
-export type ResolveTaskByIdResponses = {
-  /**
-   * Task resolved
-   */
-  204: void;
-};
-
-export type ResolveTaskByIdResponse =
-  ResolveTaskByIdResponses[keyof ResolveTaskByIdResponses];
-
-export type RejectTaskByIdData = {
-  body: TaskResultRequest;
-  path: {
-    taskId: string;
-  };
-  query?: never;
-  url: "/tasks/{taskId}/reject";
-};
-
-export type RejectTaskByIdErrors = {
-  /**
-   * Invalid task result
-   */
-  400: ErrorResponse;
-  /**
-   * Task not found
-   */
-  404: ErrorResponse;
-};
-
-export type RejectTaskByIdError =
-  RejectTaskByIdErrors[keyof RejectTaskByIdErrors];
-
-export type RejectTaskByIdResponses = {
-  /**
-   * Task rejected
-   */
-  204: void;
-};
-
-export type RejectTaskByIdResponse =
-  RejectTaskByIdResponses[keyof RejectTaskByIdResponses];
 
 export type GetTaskSpecByIdData = {
   body?: never;

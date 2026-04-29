@@ -18,9 +18,6 @@ import {
   taskPullRequestStatusResponseSchema,
   taskPullRequestUrlPath,
   taskPullRequestUrlRequestSchema,
-  taskRejectPath,
-  taskResolvePath,
-  taskResultRequestSchema,
   taskSpecPath,
   taskStatusSchema,
   tasksBatchPath,
@@ -61,8 +58,6 @@ const taskDependenciesRoutePath = taskDependenciesPath.replace(
   ":taskId",
 );
 const taskSpecRoutePath = taskSpecPath.replace("{taskId}", ":taskId");
-const taskResolveRoutePath = taskResolvePath.replace("{taskId}", ":taskId");
-const taskRejectRoutePath = taskRejectPath.replace("{taskId}", ":taskId");
 
 const redactSensitiveErrorDetail = (message: string) =>
   message
@@ -539,25 +534,6 @@ const parsePatchTaskRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
-const parseTaskResultRequest = async (request: Request) => {
-  const payload = await request.json().catch(() => undefined);
-  const result = taskResultRequestSchema.safeParse(payload);
-
-  if (!result.success) {
-    return {
-      error: buildValidationError("Invalid task result"),
-      ok: false as const,
-    };
-  }
-
-  return { data: result.data, ok: true as const };
-};
-
-const getPullRequestMergedOutput = (pullRequestUrl: string) =>
-  execGh(["pr", "view", pullRequestUrl, "--json", "state,mergedAt"], {
-    target: pullRequestUrl,
-  });
-
 const getPullRequestFollowupOutput = (pullRequestUrl: string) =>
   execGh(
     [
@@ -807,42 +783,6 @@ const buildPullRequestFollowupStatus = (
     summary:
       "Pull request has no observed checks, review, or mergeability blockers.",
   });
-};
-
-const verifyPullRequestMerged = async (pullRequestUrl: string) => {
-  let stdout: string;
-  try {
-    stdout = await getPullRequestMergedOutput(pullRequestUrl);
-  } catch (error) {
-    const detail =
-      error instanceof Error
-        ? ` gh error: ${redactSensitiveErrorDetail(error.message)}.`
-        : "";
-
-    return buildValidationError(
-      `Could not confirm pull_request_url is merged with gh.${detail} Verify the PR exists, confirm GitHub CLI authentication and repository access, then retry resolve.`,
-    );
-  }
-
-  let pullRequest: { mergedAt?: unknown; state?: unknown };
-  try {
-    pullRequest = JSON.parse(stdout) as { mergedAt?: unknown; state?: unknown };
-  } catch {
-    return buildValidationError(
-      "Could not confirm pull_request_url is merged with gh. Make sure GitHub CLI is installed, authenticated, and the PR exists.",
-    );
-  }
-
-  const mergedAt =
-    typeof pullRequest.mergedAt === "string" ? pullRequest.mergedAt.trim() : "";
-
-  if (pullRequest.state !== "MERGED" && mergedAt.length === 0) {
-    return buildValidationError(
-      "Task cannot be resolved until pull_request_url points to a merged pull request.",
-    );
-  }
-
-  return null;
 };
 
 const parseTaskWorktreePathRequest = async (request: Request) => {
@@ -1226,70 +1166,6 @@ export const registerTaskRoutes = (
     }
 
     return context.json(attachOpenCodeSessions([payload])[0], 200);
-  });
-
-  app.post(taskResolveRoutePath, async (context) => {
-    const taskId = requireTaskId(context.req.param("taskId"));
-    const input = await parseTaskResultRequest(context.req.raw);
-
-    if (!input.ok) {
-      return context.json(input.error, 400);
-    }
-
-    const task = await getRepository().getTaskById(taskId);
-
-    if (!task) {
-      return context.json(buildNotFoundError(taskId), 404);
-    }
-
-    if (!task.pull_request_url) {
-      return context.json(
-        buildValidationError(
-          "Task cannot be resolved until pull_request_url is recorded.",
-        ),
-        400,
-      );
-    }
-
-    const pullRequestError = await verifyPullRequestMerged(
-      task.pull_request_url,
-    );
-
-    if (pullRequestError) {
-      return context.json(pullRequestError, 400);
-    }
-
-    const payload = await getRepository().resolveTask(
-      taskId,
-      input.data.result,
-    );
-
-    if (!payload) {
-      return context.json(buildNotFoundError(taskId), 404);
-    }
-
-    logger?.info(buildTaskLogFields("task_resolved", payload));
-
-    return new Response(null, { status: 204 });
-  });
-
-  app.post(taskRejectRoutePath, async (context) => {
-    const taskId = requireTaskId(context.req.param("taskId"));
-    const input = await parseTaskResultRequest(context.req.raw);
-
-    if (!input.ok) {
-      return context.json(input.error, 400);
-    }
-
-    const payload = await getRepository().rejectTask(taskId, input.data.result);
-
-    if (!payload) {
-      return context.json(buildNotFoundError(taskId), 404);
-    }
-
-    logger?.info(buildTaskLogFields("task_rejected", payload));
-
-    return new Response(null, { status: 204 });
   });
 
   app.delete(taskByIdRoutePath, async (context) => {

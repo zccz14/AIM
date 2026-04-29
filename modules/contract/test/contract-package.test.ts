@@ -132,15 +132,12 @@ type _generatedClientExportsTaskCrud = Assert<
     HasExport<GeneratedClientModule, "createTask"> &
     HasExport<GeneratedClientModule, "getTaskById"> &
     HasExport<GeneratedClientModule, "patchTaskById"> &
-    HasExport<GeneratedClientModule, "deleteTaskById"> &
-    HasExport<GeneratedClientModule, "resolveTaskById"> &
-    HasExport<GeneratedClientModule, "rejectTaskById">
+    HasExport<GeneratedClientModule, "deleteTaskById">
 >;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
     HasExport<GeneratedTypesModule, "PatchTaskRequest"> &
-    HasExport<GeneratedTypesModule, "TaskResultRequest"> &
     HasExport<GeneratedTypesModule, "TaskListResponse">
 >;
 
@@ -377,9 +374,6 @@ describe("contract package baseline", () => {
       "taskPullRequestStatusResponseSchema",
       "taskPullRequestUrlPath",
       "taskPullRequestUrlRequestSchema",
-      "taskRejectPath",
-      "taskResolvePath",
-      "taskResultRequestSchema",
       "taskSchema",
       "taskSpecPath",
       "taskStatusSchema",
@@ -496,14 +490,14 @@ describe("contract package baseline", () => {
       contractModule.openApiDocument.paths[contractModule.taskDependenciesPath],
     ).toBeDefined();
     expect(
-      contractModule.openApiDocument.paths[contractModule.taskResolvePath],
-    ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[contractModule.taskRejectPath],
-    ).toBeDefined();
-    expect(
       contractModule.openApiDocument.paths[contractModule.taskSpecPath],
     ).toBeDefined();
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/tasks/{taskId}/resolve",
+    );
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/tasks/{taskId}/reject",
+    );
     expect(contractModule.openApiDocument.paths).not.toHaveProperty(
       "/manager_reports",
     );
@@ -677,8 +671,6 @@ describe("contract package baseline", () => {
     expect(contractModule.taskPullRequestStatusPath).toBe(
       "/tasks/{taskId}/pull_request_status",
     );
-    expect(contractModule.taskResolvePath).toBe("/tasks/{taskId}/resolve");
-    expect(contractModule.taskRejectPath).toBe("/tasks/{taskId}/reject");
     expect(contractModule.taskStatusSchema.parse("processing")).toBe(
       "processing",
     );
@@ -724,13 +716,6 @@ describe("contract package baseline", () => {
     ).toMatchObject({
       category: "failed_checks",
       task_status: "processing",
-    });
-    expect(
-      contractModule.taskResultRequestSchema.parse({
-        result: "final output",
-      }),
-    ).toEqual({
-      result: "final output",
     });
     expect(
       contractModule.taskSchema.parse({
@@ -790,10 +775,6 @@ describe("contract package baseline", () => {
         },
       ],
     });
-    expect(
-      contractModule.taskResultRequestSchema.safeParse({ result: "   " })
-        .success,
-    ).toBe(false);
     expect(
       contractModule.taskSchema.safeParse({
         task_id: "task-1",
@@ -957,38 +938,6 @@ describe("contract package baseline", () => {
     const taskDependenciesPathItem = contractModule.openApiDocument.paths[
       "/tasks/{taskId}/dependencies"
     ] as typeof taskWorktreePathItem;
-    const resolveTaskByIdPathItem = contractModule.openApiDocument.paths[
-      "/tasks/{taskId}/resolve"
-    ] as
-      | {
-          post?: {
-            requestBody?: {
-              content?: {
-                "application/json"?: {
-                  schema?: Record<string, unknown>;
-                };
-              };
-            };
-            responses: Record<string, unknown>;
-          };
-        }
-      | undefined;
-    const rejectTaskByIdPathItem = contractModule.openApiDocument.paths[
-      "/tasks/{taskId}/reject"
-    ] as
-      | {
-          post?: {
-            requestBody?: {
-              content?: {
-                "application/json"?: {
-                  schema?: Record<string, unknown>;
-                };
-              };
-            };
-            responses: Record<string, unknown>;
-          };
-        }
-      | undefined;
     const taskSpecPathItem = contractModule.openApiDocument.paths[
       contractModule.taskSpecPath
     ] as
@@ -1024,8 +973,12 @@ describe("contract package baseline", () => {
     expect(taskPullRequestUrlPathItem).toBeDefined();
     expect(taskPullRequestStatusPathItem).toBeDefined();
     expect(taskDependenciesPathItem).toBeDefined();
-    expect(resolveTaskByIdPathItem).toBeDefined();
-    expect(rejectTaskByIdPathItem).toBeDefined();
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/tasks/{taskId}/resolve",
+    );
+    expect(contractModule.openApiDocument.paths).not.toHaveProperty(
+      "/tasks/{taskId}/reject",
+    );
     expect(contractModule.taskSpecPath).toBe("/tasks/{taskId}/spec");
     expect(taskSpecPathItem).toBeDefined();
     expect(tasksPathItem?.post?.responses["201"]).toBeDefined();
@@ -1105,48 +1058,6 @@ describe("contract package baseline", () => {
     expect(taskDependenciesPathItem?.put?.responses["200"]).toBeDefined();
     expect(taskDependenciesPathItem?.put?.responses["400"]).toBeDefined();
     expect(taskDependenciesPathItem?.put?.responses["404"]).toBeDefined();
-    expect(
-      resolveTaskByIdPathItem?.post?.requestBody?.content?.["application/json"]
-        ?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/TaskResultRequest",
-    });
-    expect(resolveTaskByIdPathItem?.post?.responses["204"]).toBeDefined();
-    expect(
-      resolveTaskByIdPathItem?.post?.responses["400"]?.content?.[
-        "application/json"
-      ]?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/ErrorResponse",
-    });
-    expect(
-      resolveTaskByIdPathItem?.post?.responses["404"]?.content?.[
-        "application/json"
-      ]?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/ErrorResponse",
-    });
-    expect(
-      rejectTaskByIdPathItem?.post?.requestBody?.content?.["application/json"]
-        ?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/TaskResultRequest",
-    });
-    expect(rejectTaskByIdPathItem?.post?.responses["204"]).toBeDefined();
-    expect(
-      rejectTaskByIdPathItem?.post?.responses["400"]?.content?.[
-        "application/json"
-      ]?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/ErrorResponse",
-    });
-    expect(
-      rejectTaskByIdPathItem?.post?.responses["404"]?.content?.[
-        "application/json"
-      ]?.schema,
-    ).toEqual({
-      $ref: "#/components/schemas/ErrorResponse",
-    });
     expect(
       taskSpecPathItem?.get?.responses?.["200"]?.content?.["text/markdown"]
         ?.schema,
@@ -1380,8 +1291,8 @@ describe("contract package baseline", () => {
       contractModule.openApiDocument.components.schemas.PatchTaskRequest,
     ).toBeDefined();
     expect(
-      contractModule.openApiDocument.components.schemas.TaskResultRequest,
-    ).toBeDefined();
+      contractModule.openApiDocument.components.schemas,
+    ).not.toHaveProperty("TaskResultRequest");
     expect(taskListResponseSchema).toBeDefined();
     expect(
       contractModule.openApiDocument.components.schemas.ErrorResponse,
@@ -1458,24 +1369,6 @@ describe("contract package baseline", () => {
       ).properties.result,
     ).toEqual({
       default: "",
-      type: "string",
-    });
-    expect(
-      contractModule.openApiDocument.components.schemas.TaskResultRequest,
-    ).toMatchObject({
-      additionalProperties: false,
-      required: ["result"],
-      type: "object",
-    });
-    expect(
-      (
-        contractModule.openApiDocument.components.schemas.TaskResultRequest as {
-          properties: Record<string, unknown>;
-        }
-      ).properties.result,
-    ).toMatchObject({
-      minLength: 1,
-      pattern: "^(?!\\s*$).+",
       type: "string",
     });
     expect(taskListResponseSchema).toEqual({
@@ -1697,8 +1590,8 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.getTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.patchTaskById).toBeTypeOf("function");
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
-    await expect(generatedClientModule.resolveTaskById).toBeTypeOf("function");
-    await expect(generatedClientModule.rejectTaskById).toBeTypeOf("function");
+    await expect(generatedClientModule).not.toHaveProperty("resolveTaskById");
+    await expect(generatedClientModule).not.toHaveProperty("rejectTaskById");
     await expect(generatedClientModule.createOpenCodeSession).toBeTypeOf(
       "function",
     );
@@ -1983,22 +1876,6 @@ describe("contract package baseline", () => {
             return new Response(null, { status: 204 });
           }
 
-          if (
-            request.method === "POST" &&
-            url.pathname === "/tasks/task-1/resolve" &&
-            bodyText === JSON.stringify({ result: "completed" })
-          ) {
-            return new Response(null, { status: 204 });
-          }
-
-          if (
-            request.method === "POST" &&
-            url.pathname === "/tasks/task-1/reject" &&
-            bodyText === JSON.stringify({ result: "rejected" })
-          ) {
-            return new Response(null, { status: 204 });
-          }
-
           throw new Error(
             `unexpected request: ${request.method} ${url.pathname}${url.search}`,
           );
@@ -2043,14 +1920,8 @@ describe("contract package baseline", () => {
       status: "processing",
     });
     await expect(client.deleteTaskById("task-1")).resolves.toBeUndefined();
-    await expect(
-      client.resolveTaskById("task-1", { result: "completed" }),
-    ).resolves.toBeUndefined();
-    await expect(
-      client.rejectTaskById("task-1", { result: "rejected" }),
-    ).resolves.toBeUndefined();
 
-    expect(fetcher.mock.calls).toHaveLength(7);
+    expect(fetcher.mock.calls).toHaveLength(5);
     expect(requests).toEqual([
       {
         body: undefined,
@@ -2090,18 +1961,6 @@ describe("contract package baseline", () => {
         body: undefined,
         method: "DELETE",
         pathname: "/tasks/task-1",
-        searchParams: {},
-      },
-      {
-        body: { result: "completed" },
-        method: "POST",
-        pathname: "/tasks/task-1/resolve",
-        searchParams: {},
-      },
-      {
-        body: { result: "rejected" },
-        method: "POST",
-        pathname: "/tasks/task-1/reject",
         searchParams: {},
       },
     ]);
