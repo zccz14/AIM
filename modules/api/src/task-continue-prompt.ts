@@ -12,84 +12,31 @@ export type TaskSessionPromptContext = {
   rejectedTasks: Task[];
 };
 
-const getTaskSourceBaselineFreshness = (task: Task) =>
-  task.source_baseline_freshness ?? {
-    current_commit: null,
-    source_commit: null,
-    status: "unknown" as const,
-    summary: "not set",
-  };
-
-const summarizeTask = (task: Task) => {
-  const freshness = getTaskSourceBaselineFreshness(task);
-
-  return `- ${task.title} (${task.task_id}) status ${task.status} source_freshness ${freshness.status} source ${freshness.source_commit ?? "(not set)"} current ${freshness.current_commit ?? "(not set)"} summary ${freshness.summary}; worktree ${task.worktree_path ?? "(not set)"}; PR ${task.pull_request_url ?? "(not set)"}; session ${task.session_id ?? "(not set)"}`;
-};
-
-const summarizeRejectedTask = (task: Task) => {
-  const validation = task.source_metadata.task_spec_validation;
-  const validationSummary =
-    typeof validation === "object" && validation !== null
-      ? Object.entries(validation as Record<string, unknown>)
-          .filter(([key]) =>
-            [
-              "conclusion",
-              "conclusion_summary",
-              "failure_reason",
-              "blocking_assumptions",
-            ].includes(key),
-          )
-          .map(([key, value]) => `${key}: ${String(value)}`)
-          .join("; ")
-      : "no task_spec_validation metadata";
-
-  const result = task.result || "no result";
-  const separator = /[.!?]$/.test(result) ? "" : ".";
-
-  return `- ${task.title} (${task.task_id}) rejected at ${task.updated_at}: ${result}${separator} ${validationSummary}`;
-};
-
 export const buildTaskSessionPrompt = (
   task: Task,
-  context?: TaskSessionPromptContext,
+  _context?: TaskSessionPromptContext,
 ) => `
 You are the AIM developer.
 
 FOLLOW the aim-developer-guide SKILL and finish the task assigned to you by AIM Coordinator.
 
-Remember reporting the final status to AIM API Server. The task's final status is either 'resolved' or 'rejected'.
-1. resolved: "GitHub PR is merged" AND "local worktree is cleaned up" AND "local main branch is refreshed to origin/main".
-2. rejected: The task spec's verification steps have FAILED.
+AIM Server base URL: http://localhost:8192
 
-You should retry if you encounter any other failure, such as CI failure, test failure, or any other error during the execution of the task.
-
-AIM Task Context:
+Bootstrap identifiers:
 - task_id: ${task.task_id}
-- session_id: ${task.session_id ?? "(not set)"}
-- status: ${task.status}
 - project_id: ${task.project_id}
-- git_origin_url: ${task.git_origin_url}
-- worktree_path: ${task.worktree_path ?? "(not set)"}
-- pull_request_url: ${task.pull_request_url ?? "(not set)"}
+- session_id: ${task.session_id ?? "not recorded"}
+- worktree_path: ${task.worktree_path ?? "not recorded"}
+- pull_request_url: ${task.pull_request_url ?? "not recorded"}
 
-Read the task spec by GET /tasks/${task.task_id}/spec.
+Before acting, fetch the current task facts from GET /tasks/${task.task_id} and the Task Spec from GET /tasks/${task.task_id}/spec. Do not rely on this bootstrap prompt as the full context source.
 
-${
-  context
-    ? `Current baseline facts:
-- origin/main commit "${context.baselineFacts.commitSha}" fetched at ${context.baselineFacts.fetchedAt}: ${context.baselineFacts.summary}
+High-cost lifecycle warnings:
+- If worktree_path is recorded, do not recreate the worktree; continue the existing lifecycle.
+- If pull_request_url is recorded, do not recreate the PR; continue the existing lifecycle.
+- If a lifecycle fact is not recorded, verify current task facts before creating anything.
 
-Current Active Task Pool:
-${context.activeTasks.map(summarizeTask).join("\n") || "- none"}
-
-Rejected Task feedback for this project:
-${context.rejectedTasks.map(summarizeRejectedTask).join("\n") || "- none"}
-
-Spec freshness guardrails:
-- Before creating or using a worktree, read GET /tasks/${task.task_id}/spec and verify its assumptions against the current baseline facts, Active Task Pool, and rejected feedback below.
-- Reject the Task if the spec is stale, self-overlaps with unfinished work, conflicts with rejected feedback, or its verification assumptions fail.`
-    : ""
-}
+Final status reporting is concise: resolved only after the GitHub PR is merged, the worktree is cleaned up, and the local main branch is refreshed to origin/main; rejected only when Task Spec verification fails.
 
 DON'T ASK ME ANY QUESTIONS. Just Follow your Recommendations and Continue. I agree with all your actions.
 `;

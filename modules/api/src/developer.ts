@@ -1,18 +1,10 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
-import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
-import {
-  type BaselineFacts,
-  buildTaskSessionPrompt,
-} from "./task-continue-prompt.js";
-
-type BaselineRepository = {
-  getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
-};
+import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 
 type DeveloperSessionCreator = Pick<OpenCodeSessionManager, "createSession">;
 
@@ -21,12 +13,11 @@ type DeveloperTaskRepository = {
     taskId: string,
     sessionId: string,
   ): Promise<null | Task>;
-  listRejectedTasksByProject(projectId: string): Promise<Task[]>;
   listUnfinishedTasks(): Promise<Task[]>;
 };
 
 type CreateDeveloperOptions = {
-  baselineRepository?: BaselineRepository;
+  baselineRepository?: unknown;
   logger?: ApiLogger;
   onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   sessionManager: DeveloperSessionCreator;
@@ -38,26 +29,6 @@ type ManagedDeveloperSession = Awaited<
 >;
 
 const heartbeatMs = 1000;
-
-const git = async (projectDirectory: string, args: string[]) =>
-  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
-
-const defaultBaselineRepository: BaselineRepository = {
-  async getLatestBaselineFacts(projectDirectory) {
-    await git(projectDirectory, ["fetch", "origin", "main"]);
-
-    return {
-      commitSha: await git(projectDirectory, ["rev-parse", "origin/main"]),
-      fetchedAt: new Date().toISOString(),
-      summary: await git(projectDirectory, [
-        "log",
-        "-1",
-        "--format=%s",
-        "origin/main",
-      ]),
-    };
-  },
-};
 
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -81,21 +52,7 @@ const sleep = (milliseconds: number, signal: AbortSignal) =>
     );
   });
 
-const withExplicitSourceBaselineFreshness = (task: Task): Task =>
-  task.source_baseline_freshness
-    ? task
-    : {
-        ...task,
-        source_baseline_freshness: {
-          current_commit: null,
-          source_commit: null,
-          status: "unknown",
-          summary: "not set",
-        },
-      };
-
 export const createDeveloper = ({
-  baselineRepository = defaultBaselineRepository,
   logger,
   onLaneEvent,
   sessionManager,
@@ -105,7 +62,7 @@ export const createDeveloper = ({
   const abortController = new AbortController();
   const activeSessions = new Map<string, ManagedDeveloperSession>();
 
-  const bindTask = async (task: Task, unfinishedTasks: Task[]) => {
+  const bindTask = async (task: Task) => {
     let createdSession: ManagedDeveloperSession | null = null;
 
     try {
@@ -117,24 +74,13 @@ export const createDeveloper = ({
         task_id: task.task_id,
       });
       const directory = await ensureProjectWorkspace(task);
-      const [baselineFacts, rejectedTasks] = await Promise.all([
-        baselineRepository.getLatestBaselineFacts(directory),
-        taskRepository.listRejectedTasksByProject(task.project_id),
-      ]);
-      const activeTasks = unfinishedTasks
-        .filter((activeTask) => activeTask.project_id === task.project_id)
-        .map(withExplicitSourceBaselineFreshness);
       createdSession = await sessionManager.createSession({
         directory,
         model: {
           modelID: task.global_model_id,
           providerID: task.global_provider_id,
         },
-        prompt: buildTaskSessionPrompt(task, {
-          activeTasks,
-          baselineFacts,
-          rejectedTasks,
-        }),
+        prompt: buildTaskSessionPrompt(task),
         title: `AIM Developer: ${task.title}`,
       });
 
@@ -203,7 +149,7 @@ export const createDeveloper = ({
       }
 
       try {
-        await bindTask(task, tasks);
+        await bindTask(task);
       } catch (error) {
         logger?.error(
           {

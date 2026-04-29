@@ -250,31 +250,33 @@ describe("coordinator", () => {
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
     expect(prompt).toContain('project_id "project-1"');
     expect(prompt).toContain("Active Task Pool: 1 unfinished Tasks");
-    expect(prompt).toContain("Current baseline facts");
-    expect(prompt).toContain('commit "baseline-123"');
-    expect(prompt).toContain("Fix optimizer scheduler setup cleanup (#245)");
-    expect(prompt).toContain("commit abc123");
-    expect(prompt).toContain(
-      "stale: evaluation commit abc123 differs from current origin/main baseline baseline-123",
+    expect(prompt).toContain("http://localhost:8192");
+    expect(prompt).toContain("aim-coordinator-guide");
+    expect(prompt).toMatch(/fetch current dimensions/i);
+    expect(prompt).toContain("dimension evaluations");
+    expect(prompt).toContain("current Active Task Pool");
+    expect(prompt).toContain("rejected tasks");
+    expect(prompt).toContain("origin/main baseline locally");
+    expect(prompt).not.toContain("Current baseline facts");
+    expect(prompt).not.toContain('commit "baseline-123"');
+    expect(prompt).not.toContain(
+      "Fix optimizer scheduler setup cleanup (#245)",
     );
-    expect(prompt).toContain("treat as historical signal only");
-    expect(prompt).toContain(
-      "do not use it independently as current baseline evidence for creating Tasks",
-    );
-    expect(prompt).toContain("Rejected Task feedback for this project");
-    expect(prompt).toContain("rejected-project-1-1");
-    expect(prompt).toContain(
+    expect(prompt).not.toContain("commit abc123");
+    expect(prompt).not.toContain("Rejected Task feedback for this project");
+    expect(prompt).not.toContain("rejected-project-1-1");
+    expect(prompt).not.toContain(
       "Task Spec validation failed because coverage duplicated current Active Task Pool",
     );
     expect(prompt).not.toContain("rejected-other-project-2");
-    expect(prompt).toContain("append Tasks");
+    expect(prompt).toMatch(/append Tasks/i);
     expect(prompt).toContain("POST /tasks/batch");
     expect(prompt).toContain("source_metadata.task_spec_validation");
     expect(prompt).toContain("waiting_assumptions");
     expect(prompt).toContain("failed Task Spec validation");
     expect(prompt).toContain("self-overlap");
     expect(prompt).toContain("duplicate coverage");
-    expect(prompt).toContain(
+    expect(prompt).not.toContain(
       "Latest gap: missing coordinator-created task coverage.",
     );
 
@@ -432,22 +434,15 @@ describe("coordinator", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toContain("Current Active Task Pool:");
-    expect(prompt).toContain(
-      "Task 1 (task-project-1-1) status pushed; source baseline baseline-current; validated baseline baseline-current; freshness current; PR https://github.com/example/project/pull/1; worktree /repo/.worktrees/current; session session-current",
-    );
-    expect(prompt).toContain(
-      "Task 2 (task-project-1-2) status running; source baseline baseline-old; validated baseline baseline-old-validated; freshness stale; PR (not set); worktree /repo/.worktrees/stale; session session-stale",
-    );
-    expect(prompt).toContain(
-      "Task 3 (task-project-1-3) status pending; source baseline (missing); validated baseline (missing); freshness missing_baseline_metadata; PR (not set); worktree (not set); session (not set)",
-    );
-    expect(prompt).toContain(
-      "Task 4 (task-project-1-4) status pending; source baseline baseline-current; validated baseline (missing); freshness unknown; PR (not set); worktree (not set); session (not set)",
-    );
-    expect(prompt).toContain(
-      "Stale active tasks are only historical/conceptual coverage candidates and cannot independently prove current baseline coverage.",
-    );
+    expect(prompt).toContain("Active Task Pool: 4 unfinished Tasks");
+    expect(prompt).toMatch(/fetch current dimensions/i);
+    expect(prompt).toContain("current Active Task Pool");
+    expect(prompt).toContain("origin/main baseline locally");
+    expect(prompt).not.toContain("Current Active Task Pool:");
+    expect(prompt).not.toContain("task-project-1-1");
+    expect(prompt).not.toContain("baseline-current");
+    expect(prompt).not.toContain("/repo/.worktrees/current");
+    expect(prompt).not.toContain("https://github.com/example/project/pull/1");
 
     await coordinator[Symbol.asyncDispose]();
   });
@@ -500,12 +495,13 @@ describe("coordinator", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toMatch(
-      /Current Active Task Pool:\n- Task 1.*freshness current/s,
-    );
-    expect(prompt).toContain("Rejected Task feedback for this project:");
-    expect(prompt).toContain("rejected-project-1-1");
-    expect(prompt).toContain(
+    expect(prompt).toContain("Active Task Pool: 1 unfinished Tasks");
+    expect(prompt).toMatch(/fetch current dimensions/i);
+    expect(prompt).toContain("rejected tasks");
+    expect(prompt).not.toContain("Current Active Task Pool:");
+    expect(prompt).not.toContain("Rejected Task feedback for this project:");
+    expect(prompt).not.toContain("rejected-project-1-1");
+    expect(prompt).not.toContain(
       "Task Spec validation failed because coverage duplicated current Active Task Pool",
     );
 
@@ -620,35 +616,17 @@ describe("coordinator", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toContain("Priority summary for candidate signals");
-    expect(prompt).toMatch(
-      /1\. Current README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: 1 unfinished.*baseline: current/s,
-    );
-    expect(prompt).toMatch(
-      /2\. Current baseline evidence.*gap.*score: 80.*active_pool: 1 unfinished.*baseline: current/s,
-    );
-    expect(prompt).toMatch(
-      /3\. Stale README-ahead autonomy.*readme_ahead.*consider_create.*active_pool: 1 unfinished.*baseline: stale\/historical: evaluation commit older-baseline differs from current baseline-123; do not use independently as create evidence/s,
-    );
-    expect(prompt).toMatch(
-      /4\. Stale create candidate.*consider_create.*active_pool: 1 unfinished.*baseline: stale\/historical: evaluation commit older-baseline differs from current baseline-123; do not use independently as create evidence/s,
-    );
-    expect(
-      prompt.indexOf("Priority summary for candidate signals"),
-    ).toBeLessThan(prompt.indexOf("Latest dimension_evaluations"));
-    expect(prompt).toContain(
-      "Stale README-ahead autonomy (stale-readme-ahead) score 1 at 2026-04-28T10:00:00.000Z; commit older-baseline",
-    );
-    expect(prompt).toContain(
-      "Stale README-ahead autonomy: readme_ahead gap with empty pool coverage; consider_create.",
-    );
-    expect(prompt).toContain(
-      "Current README-ahead autonomy: readme_ahead gap; consider_create.",
-    );
-    expect(prompt).toContain("Stale create candidate: consider_create");
-    expect(prompt).toContain("Rejected Task feedback for this project");
-    expect(prompt).toContain("rejected-project-1-1");
-    expect(prompt).toContain("latest origin/main baseline facts");
+    expect(prompt).toContain("Active Task Pool: 1 unfinished Tasks");
+    expect(prompt).toMatch(/fetch current dimensions/i);
+    expect(prompt).toContain("dimension evaluations");
+    expect(prompt).toContain("origin/main baseline locally");
+    expect(prompt).not.toContain("Priority summary for candidate signals");
+    expect(prompt).not.toContain("Latest dimension_evaluations");
+    expect(prompt).not.toContain("Current README-ahead autonomy");
+    expect(prompt).not.toContain("Stale create candidate");
+    expect(prompt).not.toContain("Rejected Task feedback for this project");
+    expect(prompt).not.toContain("rejected-project-1-1");
+    expect(prompt).not.toContain("baseline-123");
     expect(prompt).toContain("current Active Task Pool");
     expect(prompt).toContain("source_metadata.task_spec_validation");
     expect(prompt).toContain("Never submit waiting_assumptions");
@@ -706,13 +684,15 @@ describe("coordinator", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toContain("commit baseline-current");
-    expect(prompt).toContain(
+    expect(prompt).toContain("dimension evaluations");
+    expect(prompt).toContain("origin/main baseline locally");
+    expect(prompt).not.toContain("commit baseline-current");
+    expect(prompt).not.toContain(
       "matches current origin/main baseline baseline-current",
     );
     expect(prompt).not.toContain("stale: evaluation commit baseline-current");
     expect(prompt).not.toContain("historical signal only");
-    expect(prompt).toContain(
+    expect(prompt).not.toContain(
       "Current baseline still needs accessibility coverage.",
     );
 

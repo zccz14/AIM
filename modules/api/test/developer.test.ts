@@ -109,11 +109,7 @@ describe("developer", () => {
         modelID: initialTask.global_model_id,
         providerID: initialTask.global_provider_id,
       },
-      prompt: buildTaskSessionPrompt(initialTask, {
-        activeTasks: [initialTask],
-        baselineFacts,
-        rejectedTasks: [],
-      }),
+      prompt: buildTaskSessionPrompt(initialTask),
       title: `AIM Developer: ${initialTask.title}`,
     });
 
@@ -216,7 +212,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("builds the session prompt with current baseline, active pool, and rejected feedback before preserving atomic session assignment", async () => {
+  it("builds a lightweight bootstrap prompt without preloading baseline, active pool, or rejected feedback", async () => {
     vi.useFakeTimers();
     const initialTask = createTask();
     const activeTask = createTask({
@@ -262,36 +258,22 @@ describe("developer", () => {
       );
     });
 
-    expect(baselineRepository.getLatestBaselineFacts).toHaveBeenCalledWith(
-      `/repo/.worktrees/${initialTask.task_id}`,
-    );
-    expect(repository.listRejectedTasksByProject).toHaveBeenCalledWith(
-      initialTask.project_id,
-    );
+    expect(baselineRepository.getLatestBaselineFacts).not.toHaveBeenCalled();
+    expect(repository.listRejectedTasksByProject).not.toHaveBeenCalled();
     expect(sessionManager.createSession).toHaveBeenCalledBefore(
       repository.assignSessionIfUnassigned,
     );
-    expect(sessionManager.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: expect.stringContaining(
-          'origin/main commit "a9979ba9487edf2d822e10ae7b651c98be3d175d" fetched at 2026-04-28T17:13:03.000Z: Refactor optimizer system startup lifecycle (#258)',
-        ),
-      }),
-    );
-    expect(sessionManager.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: expect.stringContaining(
-          "- Active overlapping work (task-active) status pending source_freshness stale source bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb current a9979ba9487edf2d822e10ae7b651c98be3d175d summary Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d; worktree /repo/.worktrees/task-active; PR (not set); session session-active",
-        ),
-      }),
-    );
-    expect(sessionManager.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: expect.stringContaining(
-          "- Rejected stale work (task-rejected) rejected",
-        ),
-      }),
-    );
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("http://localhost:8192");
+    expect(prompt).toContain(`task_id: ${initialTask.task_id}`);
+    expect(prompt).toContain(`project_id: ${initialTask.project_id}`);
+    expect(prompt).toContain(`GET /tasks/${initialTask.task_id}`);
+    expect(prompt).toContain(`GET /tasks/${initialTask.task_id}/spec`);
+    expect(prompt).not.toContain("Current baseline facts");
+    expect(prompt).not.toContain("Current Active Task Pool");
+    expect(prompt).not.toContain("Rejected Task feedback");
+    expect(prompt).not.toContain("task-active");
+    expect(prompt).not.toContain("task-rejected");
 
     await developer[Symbol.asyncDispose]();
   });
