@@ -22,8 +22,6 @@ CREATE TABLE IF NOT EXISTS tasks (
   dependencies TEXT NOT NULL,
   result TEXT NOT NULL DEFAULT '',
   source_metadata TEXT NOT NULL DEFAULT '{}',
-  done INTEGER NOT NULL,
-  status TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -32,9 +30,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS tasks_project_id_index
 ON tasks (project_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS tasks_unfinished_session_id_unique
+CREATE UNIQUE INDEX IF NOT EXISTS tasks_session_id_unique
 ON tasks (session_id)
-WHERE done = 0 AND session_id IS NOT NULL;
+WHERE session_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS dimensions (
   id TEXT NOT NULL PRIMARY KEY,

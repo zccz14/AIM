@@ -5,7 +5,7 @@ import type {
   ProjectOptimizerStatusResponse,
 } from "@aim-ai/contract";
 
-export type DashboardStatus = "processing" | "resolved" | "rejected";
+export type DashboardStatus = "pending" | "resolved" | "rejected";
 
 export type DashboardTask = {
   id: string;

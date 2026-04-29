@@ -1446,7 +1446,7 @@ export const openApiDocument = {
         required: false,
         schema: {
           type: "string",
-          enum: ["processing", "resolved", "rejected"],
+          enum: ["pending", "resolved", "rejected"],
         },
       },
       TaskDoneQueryParameter: {
@@ -2037,7 +2037,7 @@ export const openApiDocument = {
           },
           status: {
             type: "string",
-            enum: ["processing", "resolved", "rejected"],
+            enum: ["pending", "resolved", "rejected"],
           },
           created_at: {
             type: "string",
@@ -2088,10 +2088,6 @@ export const openApiDocument = {
           pull_request_url: {
             type: ["string", "null"],
           },
-          status: {
-            type: "string",
-            enum: ["processing", "resolved", "rejected"],
-          },
         },
       },
       PatchTaskRequest: {
@@ -2120,10 +2116,6 @@ export const openApiDocument = {
           },
           result: {
             type: "string",
-          },
-          status: {
-            type: "string",
-            enum: ["processing", "resolved", "rejected"],
           },
         },
       },
@@ -2163,10 +2155,6 @@ export const openApiDocument = {
           },
           pull_request_url: {
             type: ["string", "null"],
-          },
-          status: {
-            type: "string",
-            enum: ["processing", "resolved", "rejected"],
           },
           source_metadata: {
             type: "object",
@@ -2344,7 +2332,7 @@ export const openApiDocument = {
           },
           task_status: {
             type: "string",
-            enum: ["processing", "resolved", "rejected"],
+            enum: ["pending", "resolved", "rejected"],
           },
           task_done: {
             type: "boolean",

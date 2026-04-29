@@ -235,18 +235,18 @@ Task 不是“等依赖都完成才启动”的一次性流程，而是可能多
 
 推荐状态值如下：
 
-- `processing`: Task 仍需继续推进，包含创建、验证、开发、PR 跟进、等待外部信号和收尾等所有非终态过程。
+- `pending`: Task 仍需继续推进，包含创建、验证、开发、PR 跟进、等待外部信号和收尾等所有非终态过程。
 - `resolved`: Task 已成功结束。
 - `rejected`: Task 已失败结束。
 
 推荐搭配关系：
 
-- `done = false` 时，`status` 应为 `processing`。
+- `done = false` 时，`status` 应为 `pending`。
 - `done = true` 时，`status` 应为 `resolved` 或 `rejected`。
 
 其中：
 
-- `processing` 不区分中间过程，外部系统只需知道该 Task 尚未进入终态。
+- `pending` 不区分中间过程，外部系统只需知道该 Task 尚未进入终态。
 - `rejected` 表示“这份 Task Spec 已不能继续执行，需要上层规划器介入或吸收失败反馈”。
 
 ### `result`

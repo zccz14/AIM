@@ -12,8 +12,8 @@ import type {
 
 export const toDashboardStatus = (status: TaskStatus): DashboardStatus => {
   switch (status) {
-    case "processing":
-      return "processing";
+    case "pending":
+      return "pending";
     case "resolved":
       return "resolved";
     case "rejected":
@@ -42,7 +42,7 @@ const formatSessionStatusBreakdown = ({
 }) => `Pending ${pending} / Resolved ${resolved} / Rejected ${rejected}`;
 
 const isActiveTask = (task: DashboardTask) =>
-  task.dashboardStatus === "processing";
+  task.dashboardStatus === "pending";
 
 const buildDimensionFreshness = ({
   currentBaselineCommitSha,
@@ -305,7 +305,7 @@ export const adaptTaskDashboard = (
       return rightDate.localeCompare(leftDate);
     });
   const rejectedFeedbackSignals = buildRejectedFeedbackSignals(historyTasks);
-  const processingCount = countTasksByStatus(tasks, "processing");
+  const pendingCount = countTasksByStatus(tasks, "pending");
   const resolvedCount = countTasksByStatus(historyTasks, "resolved");
   const rejectedCount = countTasksByStatus(historyTasks, "rejected");
   const pendingSessionCount = countOpenCodeSessionsByState(response, "pending");
@@ -368,7 +368,7 @@ export const adaptTaskDashboard = (
         key: "coverage",
         label: "Coverage",
         value: `${tasks.length} active`,
-        detail: `${processingCount} processing tasks currently carry the task pool direction, including ${dependencyLinkedCount} with dependencies.`,
+        detail: `${pendingCount} pending tasks currently carry the task pool direction, including ${dependencyLinkedCount} with dependencies.`,
       },
       {
         key: "flow",
@@ -394,9 +394,9 @@ export const adaptTaskDashboard = (
     ],
     statusBoardItems: [
       {
-        key: "processing",
-        label: "Processing",
-        value: processingCount,
+        key: "pending",
+        label: "Pending",
+        value: pendingCount,
       },
     ],
     activitySeries: [...historyTasks]

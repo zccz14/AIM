@@ -49,7 +49,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   session_id: null,
   source_baseline_freshness: unknownSourceBaselineFreshness,
   source_metadata: {},
-  status: "processing",
+  status: "pending",
   task_id: "task-1",
   task_spec: "Implement the assigned task.",
   title: "Implement task",
@@ -281,7 +281,7 @@ describe("developer", () => {
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining(
-          "- Active overlapping work (task-active) status processing source_freshness stale source bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb current a9979ba9487edf2d822e10ae7b651c98be3d175d summary Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d; worktree /repo/.worktrees/task-active; PR (not set); session session-active",
+          "- Active overlapping work (task-active) status pending source_freshness stale source bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb current a9979ba9487edf2d822e10ae7b651c98be3d175d summary Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d; worktree /repo/.worktrees/task-active; PR (not set); session session-active",
         ),
       }),
     );

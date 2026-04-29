@@ -3,7 +3,6 @@ import { Command, Flags } from "@oclif/core";
 import {
   createTaskContractClient,
   exitWithFailure,
-  parseStatusFlag,
   pickLastValue,
   requireFlag,
   writeSuccess,
@@ -27,7 +26,6 @@ export default class TaskCreateCommand extends Command {
       description: "Task dependency id",
       multiple: true,
     }),
-    status: Flags.string({ description: "Task status" }),
   };
 
   public async run(): Promise<void> {
@@ -45,7 +43,6 @@ export default class TaskCreateCommand extends Command {
         worktree_path: flags["worktree-path"],
         pull_request_url: pickLastValue(flags["pull-request-url"]),
         dependencies: flags.dependency ?? [],
-        status: parseStatusFlag(flags.status),
       });
 
       writeSuccess(this, task);

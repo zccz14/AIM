@@ -703,7 +703,7 @@ describe("opencode session routes", () => {
       body: JSON.stringify({
         project_id: mainProjectId,
         session_id: "session-task-rejected",
-        status: "processing",
+        status: "pending",
         task_spec: "Reject this task from the session API.",
         title: "Reject bound task",
       }),
@@ -750,7 +750,7 @@ describe("opencode session routes", () => {
       body: JSON.stringify({
         project_id: mainProjectId,
         session_id: "session-task-idempotent",
-        status: "processing",
+        status: "pending",
         task_spec: "Reject this task once from the session API.",
         title: "Reject bound task once",
       }),
@@ -813,7 +813,7 @@ describe("opencode session routes", () => {
       body: JSON.stringify({
         project_id: mainProjectId,
         session_id: "session-task-resolve-no-pr",
-        status: "processing",
+        status: "pending",
         task_spec: "Resolve this task from the session API.",
         title: "Resolve bound task",
       }),
@@ -857,7 +857,7 @@ describe("opencode session routes", () => {
       body: JSON.stringify({
         project_id: mainProjectId,
         session_id: "session-task-missing-result",
-        status: "processing",
+        status: "pending",
         task_spec: "Settle this task from the session API.",
         title: "Settle bound task",
       }),
@@ -900,7 +900,7 @@ describe("opencode session routes", () => {
         project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         session_id: "session-task-resolved",
-        status: "processing",
+        status: "pending",
         task_spec: "Resolve this task from the session API.",
         title: "Resolve bound task",
       }),
@@ -948,7 +948,7 @@ describe("opencode session routes", () => {
         project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
         session_id: "developer-session-1",
-        status: "processing",
+        status: "pending",
         task_spec: "Complete this developer session.",
         title: "Developer session lifecycle",
       }),

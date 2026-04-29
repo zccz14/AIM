@@ -196,7 +196,6 @@ const CreateTaskRequest = z
     session_id: z.union([z.string(), z.null()]).optional(),
     worktree_path: z.union([z.string(), z.null()]).optional(),
     pull_request_url: z.union([z.string(), z.null()]).optional(),
-    status: z.enum(["processing", "resolved", "rejected"]).optional(),
   })
   .strict();
 const Task = z
@@ -224,7 +223,7 @@ const Task = z
     pull_request_url: z.union([z.string(), z.null()]),
     dependencies: z.array(z.string().min(1)),
     done: z.boolean(),
-    status: z.enum(["processing", "resolved", "rejected"]),
+    status: z.enum(["pending", "resolved", "rejected"]),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
@@ -238,7 +237,6 @@ const PatchTaskRequest = z
     pull_request_url: z.union([z.string(), z.null()]),
     dependencies: z.array(z.string().min(1)),
     result: z.string(),
-    status: z.enum(["processing", "resolved", "rejected"]),
   })
   .partial()
   .strict();
@@ -272,7 +270,7 @@ const TaskPullRequestStatusResponse = z
     category: TaskPullRequestFollowupCategory,
     summary: z.string().min(1),
     recovery_action: z.string().min(1),
-    task_status: z.enum(["processing", "resolved", "rejected"]),
+    task_status: z.enum(["pending", "resolved", "rejected"]),
     task_done: z.boolean(),
     pull_request_url: z.union([z.string(), z.null()]),
   })
@@ -287,7 +285,6 @@ const CreateTaskBatchTask = z
     session_id: z.union([z.string(), z.null()]).optional(),
     worktree_path: z.union([z.string(), z.null()]).optional(),
     pull_request_url: z.union([z.string(), z.null()]).optional(),
-    status: z.enum(["processing", "resolved", "rejected"]).optional(),
     source_metadata: z.object({}).partial().strict().passthrough().optional(),
   })
   .strict();

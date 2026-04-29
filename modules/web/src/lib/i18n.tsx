@@ -66,6 +66,7 @@ const messages = {
     createTaskFormTitle:
       "Shape a focused brief before it enters the task pool.",
     creatingTask: "Creating Task...",
+    pendingStatus: "Pending",
     createdAt: "Created At",
     dashboard: "Dashboard",
     dashboardError: "Dashboard Error",
@@ -380,6 +381,7 @@ const messages = {
     createTaskFormSummary: "使用与收敛复核一致的证据语汇编写任务入口。",
     createTaskFormTitle: "先形成聚焦简报，再进入任务池。",
     creatingTask: "正在创建任务...",
+    pendingStatus: "待处理",
     createdAt: "创建时间",
     dashboard: "仪表盘",
     dashboardError: "仪表盘错误",

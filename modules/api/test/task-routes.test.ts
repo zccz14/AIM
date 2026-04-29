@@ -231,6 +231,23 @@ describe("task routes", () => {
     });
 
     const app = createTaskRouteApp();
+
+    await app.request(contractModule.openCodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: "session-a-rejected" }),
+    });
+    await app.request(
+      contractModule.openCodeSessionRejectPath.replace(
+        "{sessionId}",
+        "session-a-rejected",
+      ),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "already done" }),
+      },
+    );
     const createResponse = await app.request("/projects", {
       method: "POST",
       headers: {
@@ -522,7 +539,7 @@ describe("task routes", () => {
         project_id: mainProjectId,
         session_id: "session-1",
         dependencies: ["task-0"],
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -591,7 +608,7 @@ describe("task routes", () => {
         task_spec: "surface opencode session state",
         project_id: mainProjectId,
         session_id: "session-observed",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -722,11 +739,9 @@ describe("task routes", () => {
           dependencies,
           result,
           source_metadata,
-          done,
-          status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         "22222222-2222-4222-8222-222222222222",
@@ -739,8 +754,6 @@ describe("task routes", () => {
         "[]",
         "",
         JSON.stringify({ latest_origin_main_commit: staleCommit }),
-        0,
-        "processing",
         now,
         now,
       );
@@ -836,7 +849,7 @@ describe("task routes", () => {
               task_id: newTaskId,
               title: "Created from batch",
               spec: "write batch route",
-              status: "processing",
+              status: "pending",
               source_metadata: {
                 ...buildPassingCoordinatorSourceMetadata(),
                 coordinator_session_id: "session-1",
@@ -1605,6 +1618,11 @@ describe("task routes", () => {
 
     const app = createTaskRouteApp();
     const project = { id: mainProjectId };
+    await app.request(contractModule.openCodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: "terminal-delete-session" }),
+    });
     const resolvedResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -1612,12 +1630,23 @@ describe("task routes", () => {
       },
       body: JSON.stringify({
         project_id: project.id,
-        status: "resolved",
+        session_id: "terminal-delete-session",
         task_spec: "already done",
         title: "Already done",
       }),
     });
     const resolvedTask = await resolvedResponse.json();
+    await app.request(
+      contractModule.openCodeSessionRejectPath.replace(
+        "{sessionId}",
+        "terminal-delete-session",
+      ),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "terminal task" }),
+      },
+    );
     const taskId = "11111111-1111-4111-8111-111111111111";
 
     const duplicateResponse = await app.request(contractModule.tasksBatchPath, {
@@ -1738,7 +1767,7 @@ describe("task routes", () => {
         title: "Test task",
         project_id: mainProjectId,
         session_id: "session-1",
-        status: "processing",
+        status: "pending",
         task_spec: "write sqlite-backed route tests",
       }),
     });
@@ -1751,7 +1780,7 @@ describe("task routes", () => {
       event: "task_created",
       project_id: mainProjectId,
       session_id: "session-1",
-      status: "processing",
+      status: "pending",
       task_id: createdTask.task_id,
     });
   });
@@ -1788,6 +1817,22 @@ describe("task routes", () => {
     await useProjectRoot("filters-list");
 
     const app = createTaskRouteApp();
+    await app.request(contractModule.openCodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: "session-a-rejected" }),
+    });
+    await app.request(
+      contractModule.openCodeSessionRejectPath.replace(
+        "{sessionId}",
+        "session-a-rejected",
+      ),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "already done" }),
+      },
+    );
 
     const firstCreateResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
@@ -1799,7 +1844,7 @@ describe("task routes", () => {
         task_spec: "keep running",
         project_id: mainProjectId,
         session_id: "session-a",
-        status: "processing",
+        status: "pending",
       }),
     });
     const secondCreateResponse = await app.request(contractModule.tasksPath, {
@@ -1811,7 +1856,7 @@ describe("task routes", () => {
         title: "Test task",
         task_spec: "already done",
         project_id: mainProjectId,
-        session_id: "session-a",
+        session_id: "session-a-rejected",
         status: "rejected",
       }),
     });
@@ -1825,7 +1870,7 @@ describe("task routes", () => {
         task_spec: "different session",
         project_id: mainProjectId,
         session_id: "session-b",
-        status: "processing",
+        status: "pending",
       }),
     });
     const otherProjectResponse = await app.request(
@@ -1855,7 +1900,7 @@ describe("task routes", () => {
           title: "Other task",
           task_spec: "other project task",
           project_id: otherProject.id,
-          status: "processing",
+          status: "pending",
         }),
       },
     );
@@ -1867,7 +1912,7 @@ describe("task routes", () => {
     expect(otherProjectTaskResponse.status).toBe(201);
 
     const statusFilteredResponse = await app.request(
-      `${contractModule.tasksPath}?status=processing`,
+      `${contractModule.tasksPath}?status=pending`,
     );
     const doneFilteredResponse = await app.request(
       `${contractModule.tasksPath}?done=true`,
@@ -1900,7 +1945,7 @@ describe("task routes", () => {
       "other project task",
     ]);
     expect(
-      statusFilteredPayload.items.every((task) => task.status === "processing"),
+      statusFilteredPayload.items.every((task) => task.status === "pending"),
     ).toBe(true);
 
     expect(
@@ -1916,10 +1961,9 @@ describe("task routes", () => {
       contractModule.taskListResponseSchema.safeParse(sessionFilteredPayload)
         .success,
     ).toBe(true);
-    expect(sessionFilteredPayload.items).toHaveLength(2);
+    expect(sessionFilteredPayload.items).toHaveLength(1);
     expect(sessionFilteredPayload.items.map((task) => task.task_spec)).toEqual([
       "keep running",
-      "already done",
     ]);
     expect(
       sessionFilteredPayload.items.every(
@@ -1942,7 +1986,7 @@ describe("task routes", () => {
     ).toBe(true);
   });
 
-  it("patches a persisted task by merging fields and deriving done from failed status", async () => {
+  it("patches a persisted task while leaving lifecycle derived from session state", async () => {
     await useProjectRoot("patches-task");
 
     const app = createTaskRouteApp();
@@ -1957,7 +2001,7 @@ describe("task routes", () => {
         project_id: mainProjectId,
         session_id: "session-7",
         dependencies: ["task-a"],
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -1975,7 +2019,6 @@ describe("task routes", () => {
         body: JSON.stringify({
           task_spec: "after patch",
           pull_request_url: "https://example.test/pr/7",
-          status: "rejected",
         }),
       },
     );
@@ -1991,8 +2034,8 @@ describe("task routes", () => {
     expect(patchedTask.session_id).toBe("session-7");
     expect(patchedTask.dependencies).toEqual(["task-a"]);
     expect(patchedTask.pull_request_url).toBe("https://example.test/pr/7");
-    expect(patchedTask.status).toBe("rejected");
-    expect(patchedTask.done).toBe(true);
+    expect(patchedTask.status).toBe("pending");
+    expect(patchedTask.done).toBe(false);
 
     const detailResponse = await app.request(
       resolveTaskByIdPath(createdTask.task_id),
@@ -2064,7 +2107,7 @@ describe("task routes", () => {
         project_id: mainProjectId,
         dependencies: ["task-a"],
         pull_request_url: "https://example.test/pr/1",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2092,7 +2135,7 @@ describe("task routes", () => {
     expect(updatedTask.worktree_path).toBe("/repo/.worktrees/task-1");
     expect(updatedTask.pull_request_url).toBe("https://example.test/pr/1");
     expect(updatedTask.dependencies).toEqual(["task-a"]);
-    expect(updatedTask.status).toBe("processing");
+    expect(updatedTask.status).toBe("pending");
   });
 
   it("updates pull_request_url through its dedicated field endpoint", async () => {
@@ -2153,7 +2196,7 @@ describe("task routes", () => {
         task_spec: "follow the pull request",
         project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2173,7 +2216,7 @@ describe("task routes", () => {
       recovery_action:
         "Inspect the failing required checks, fix in-scope failures on the same branch, push, and continue PR follow-up. Escalate if the failure is outside task scope.",
       summary: expect.stringContaining("test:api"),
-      task_status: "processing",
+      task_status: "pending",
     });
 
     mockGhPullRequestOutput(ghReviewBlockedPullRequestOutput);
@@ -2206,7 +2249,7 @@ describe("task routes", () => {
         task_spec: "follow the pull request",
         project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/42",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2222,9 +2265,9 @@ describe("task routes", () => {
       category: "merged_but_not_resolved",
       recovery_action:
         "Call aim_session_resolve with the final result now that the pull request is merged.",
-      summary: "Pull request is merged, but the AIM task is still processing.",
+      summary: "Pull request is merged, but the AIM task is still pending.",
       task_done: false,
-      task_status: "processing",
+      task_status: "pending",
     });
   });
 
@@ -2244,7 +2287,7 @@ describe("task routes", () => {
         task_spec: "follow the pull request",
         project_id: mainProjectId,
         pull_request_url: "https://github.com/example/repo/pull/404",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2264,7 +2307,7 @@ describe("task routes", () => {
     });
   });
 
-  it("classifies processing tasks without pull requests by assignment, session, and worktree state", async () => {
+  it("classifies pending tasks without pull requests by assignment, session, and worktree state", async () => {
     const projectRoot = await useProjectRoot(
       "pull-request-status-no-pr-states",
     );
@@ -2280,7 +2323,7 @@ describe("task routes", () => {
         title: "Waiting task",
         task_spec: "wait for assignment",
         project_id: mainProjectId,
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2295,10 +2338,10 @@ describe("task routes", () => {
     await expect(unassignedStatusResponse.json()).resolves.toMatchObject({
       category: "waiting_for_assignment",
       pull_request_url: null,
-      task_status: "processing",
+      task_status: "pending",
       recovery_action:
         "Assign a developer session before expecting PR follow-up; no PR exists yet.",
-      summary: "Task is processing without an assigned OpenCode session or PR.",
+      summary: "Task is pending without an assigned OpenCode session or PR.",
     });
 
     const staleSessionResponse = await app.request(
@@ -2333,7 +2376,7 @@ describe("task routes", () => {
         task_spec: "recover stale session",
         project_id: mainProjectId,
         session_id: "session-stale-no-pr",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2366,7 +2409,7 @@ describe("task routes", () => {
         project_id: mainProjectId,
         session_id: "missing-session-no-pr",
         worktree_path: worktreePath,
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2391,7 +2434,7 @@ describe("task routes", () => {
     expect(worktreePayload.recovery_action).not.toContain(worktreePath);
   });
 
-  it("classifies active no-PR processing tasks as needing developer continuation", async () => {
+  it("classifies active no-PR pending tasks as needing developer continuation", async () => {
     await useProjectRoot("pull-request-status-no-pr-active-session");
 
     const app = createTaskRouteApp();
@@ -2419,7 +2462,7 @@ describe("task routes", () => {
         task_spec: "continue active session",
         project_id: mainProjectId,
         session_id: "session-active-no-pr",
-        status: "processing",
+        status: "pending",
       }),
     });
 
@@ -2672,7 +2715,7 @@ describe("task routes", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          status: "not-a-status",
+          dependencies: [""],
         }),
       },
     );
@@ -2697,7 +2740,7 @@ describe("task routes", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        status: "processing",
+        status: "pending",
       }),
     });
 

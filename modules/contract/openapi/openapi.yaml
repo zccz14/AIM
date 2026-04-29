@@ -852,7 +852,7 @@ components:
       schema:
         type: string
         enum:
-          - processing
+          - pending
           - resolved
           - rejected
     TaskDoneQueryParameter:
@@ -1367,7 +1367,7 @@ components:
         status:
           type: string
           enum:
-            - processing
+            - pending
             - resolved
             - rejected
         created_at:
@@ -1415,12 +1415,6 @@ components:
           type:
             - string
             - "null"
-        status:
-          type: string
-          enum:
-            - processing
-            - resolved
-            - rejected
     PatchTaskRequest:
       type: object
       additionalProperties: false
@@ -1447,12 +1441,6 @@ components:
             minLength: 1
         result:
           type: string
-        status:
-          type: string
-          enum:
-            - processing
-            - resolved
-            - rejected
     CreateTaskBatchTask:
       type: object
       additionalProperties: false
@@ -1490,12 +1478,6 @@ components:
           type:
             - string
             - "null"
-        status:
-          type: string
-          enum:
-            - processing
-            - resolved
-            - rejected
         source_metadata:
           type: object
           additionalProperties: true
@@ -1646,7 +1628,7 @@ components:
         task_status:
           type: string
           enum:
-            - processing
+            - pending
             - resolved
             - rejected
         task_done:
