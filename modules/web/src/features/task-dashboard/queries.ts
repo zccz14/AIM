@@ -11,8 +11,10 @@ import { adaptTaskDashboard } from "./model/task-dashboard-adapter.js";
 
 export const taskDashboardQueryKey = ["task-dashboard"] as const;
 export const openCodeSessionsQueryKey = ["opencode-sessions"] as const;
-export const directorClarificationsQueryKey = (projectId: string) =>
-  ["director-clarifications", projectId] as const;
+export const directorClarificationsQueryKey = (
+  projectId: string,
+  dimensionId?: string | null,
+) => ["director-clarifications", projectId, dimensionId ?? null] as const;
 export const taskPullRequestStatusQueryKey = (taskId: string | null) =>
   ["task-pull-request-status", taskId] as const;
 
@@ -63,10 +65,13 @@ export const openCodeSessionsQueryOptions = queryOptions({
   refetchOnReconnect: false,
 });
 
-export const directorClarificationsQueryOptions = (projectId: string) =>
+export const directorClarificationsQueryOptions = (
+  projectId: string,
+  dimensionId?: string | null,
+) =>
   queryOptions({
-    queryKey: directorClarificationsQueryKey(projectId),
-    queryFn: () => listDirectorClarifications(projectId),
+    queryKey: directorClarificationsQueryKey(projectId, dimensionId),
+    queryFn: () => listDirectorClarifications(projectId, dimensionId),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

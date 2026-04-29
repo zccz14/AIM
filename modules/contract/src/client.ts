@@ -131,6 +131,7 @@ export type ContractClient = {
   ): Promise<ProjectOptimizerStatusResponse>;
   listDirectorClarifications(
     projectId: string,
+    query?: { dimension_id?: string },
   ): Promise<DirectorClarificationListResponse>;
   createDirectorClarification(
     projectId: string,
@@ -459,7 +460,7 @@ export const createContractClient = ({
       }
     },
 
-    async listDirectorClarifications(projectId) {
+    async listDirectorClarifications(projectId, query) {
       const result = await listDirectorClarifications({
         client,
         headers: {
@@ -468,6 +469,7 @@ export const createContractClient = ({
         path: {
           projectId,
         },
+        query,
       });
 
       if (result.error) {

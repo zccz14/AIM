@@ -1390,6 +1390,61 @@ test("labels dimension freshness as unknown when the baseline is unavailable", a
   ).toBeVisible();
 });
 
+test("shows only dimension-scoped Director clarifications on a dimension detail page", async ({
+  page,
+}) => {
+  const listRequests: string[] = [];
+
+  await page.unroute("**/api/projects/*/director/clarifications");
+  await page.route(
+    "**/api/projects/*/director/clarifications**",
+    async (route) => {
+      const requestUrl = new URL(route.request().url());
+      const dimensionId = requestUrl.searchParams.get("dimension_id");
+
+      listRequests.push(requestUrl.search);
+
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items:
+            dimensionId === "dimension-readme-fit"
+              ? [
+                  buildDirectorClarification({
+                    clarificationId: "clarification-readme-fit",
+                    dimensionId: "dimension-readme-fit",
+                    message: "Clarify README Fit convergence evidence.",
+                  }),
+                ]
+              : [
+                  buildDirectorClarification({
+                    clarificationId: "clarification-other-dimension",
+                    dimensionId: "dimension-other-fit",
+                    message: "Clarify another dimension only.",
+                  }),
+                ],
+        }),
+      });
+    },
+  );
+
+  await page.goto("/#/dimensions/dimension-readme-fit");
+
+  const panel = page.getByRole("region", {
+    name: "Director clarification requests",
+  });
+
+  await expect(
+    panel.getByText("Clarify README Fit convergence evidence."),
+  ).toBeVisible();
+  await expect(panel.getByText("Clarify another dimension only.")).toHaveCount(
+    0,
+  );
+  await expect
+    .poll(() => listRequests)
+    .toContain("?dimension_id=dimension-readme-fit");
+});
+
 test("keeps project management available on the Projects page", async ({
   page,
 }) => {

@@ -343,6 +343,7 @@ paths:
       summary: List Director clarification and adjustment requests for a project
       parameters:
         - $ref: "#/components/parameters/ProjectIdPathParameter"
+        - $ref: "#/components/parameters/DirectorClarificationDimensionIdQueryParameter"
       responses:
         "200":
           description: Director clarification collection
@@ -916,6 +917,13 @@ components:
       name: clarificationId
       in: path
       required: true
+      schema:
+        type: string
+        minLength: 1
+    DirectorClarificationDimensionIdQueryParameter:
+      name: dimension_id
+      in: query
+      required: false
       schema:
         type: string
         minLength: 1

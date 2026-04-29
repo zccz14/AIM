@@ -144,6 +144,7 @@ export type {
   DimensionListResponseWritable,
   DimensionWritable,
   DirectorClarification,
+  DirectorClarificationDimensionIdQueryParameter,
   DirectorClarificationIdPathParameter,
   DirectorClarificationKind,
   DirectorClarificationListResponse,

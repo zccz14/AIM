@@ -143,6 +143,7 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
   ): Promise<DimensionEvaluationListResponse>;
   listDirectorClarifications(
     projectId: string,
+    query?: { dimension_id?: string },
   ): Promise<DirectorClarificationListResponse>;
   getTaskPullRequestStatus(
     taskId: string,
@@ -196,11 +197,25 @@ const buildDimensionEvaluationListPath = (dimensionId: string) =>
     encodeURIComponent(dimensionId),
   );
 
-const buildProjectDirectorClarificationsPath = (projectId: string) =>
-  projectDirectorClarificationsPath.replace(
+const buildProjectDirectorClarificationsPath = (
+  projectId: string,
+  query?: { dimension_id?: string },
+) => {
+  const path = projectDirectorClarificationsPath.replace(
     "{projectId}",
     encodeURIComponent(projectId),
   );
+
+  if (!query?.dimension_id) {
+    return path;
+  }
+
+  const searchParams = new URLSearchParams({
+    dimension_id: query.dimension_id,
+  });
+
+  return `${path}?${searchParams.toString()}`;
+};
 
 const buildProjectDirectorClarificationByIdPath = (
   projectId: string,
@@ -383,10 +398,10 @@ export const createWebApiClient = (
       );
     },
 
-    async listDirectorClarifications(projectId) {
+    async listDirectorClarifications(projectId, query) {
       const [requestInput, requestInit] = await toAbsoluteRequestInit(
         resolvedBaseUrl,
-        buildProjectDirectorClarificationsPath(projectId),
+        buildProjectDirectorClarificationsPath(projectId, query),
         {
           headers: {
             accept: "application/json",

@@ -642,6 +642,8 @@ export type ProjectIdPathParameter = string;
 
 export type DirectorClarificationIdPathParameter = string;
 
+export type DirectorClarificationDimensionIdQueryParameter = string;
+
 export type ProjectIdQueryParameter = string;
 
 export type BulkIdPathParameter = string;
@@ -1090,7 +1092,9 @@ export type ListDirectorClarificationsData = {
   path: {
     projectId: string;
   };
-  query?: never;
+  query?: {
+    dimension_id?: string;
+  };
   url: "/projects/{projectId}/director/clarifications";
 };
 

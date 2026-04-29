@@ -57,7 +57,7 @@ export const DirectorClarificationPanel = ({
   const [kind, setKind] = useState<DirectorClarificationKind>("clarification");
   const [message, setMessage] = useState("");
   const clarificationsQuery = useQuery(
-    directorClarificationsQueryOptions(projectId),
+    directorClarificationsQueryOptions(projectId, dimensionId),
   );
   const createMutation = useMutation({
     mutationFn: () =>
@@ -70,7 +70,7 @@ export const DirectorClarificationPanel = ({
     onSuccess: async () => {
       setMessage("");
       await queryClient.invalidateQueries({
-        queryKey: directorClarificationsQueryKey(projectId),
+        queryKey: directorClarificationsQueryKey(projectId, dimensionId),
       });
     },
   });
@@ -84,7 +84,7 @@ export const DirectorClarificationPanel = ({
     }) => patchDirectorClarificationStatus(projectId, clarificationId, status),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: directorClarificationsQueryKey(projectId),
+        queryKey: directorClarificationsQueryKey(projectId, dimensionId),
       });
     },
   });
