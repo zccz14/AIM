@@ -20,6 +20,22 @@ const createSessionManager = () => ({
   pushContinuationPrompt: vi.fn().mockResolvedValue(undefined),
 });
 
+const createOpenCodeSession = (
+  overrides: NonNullable<Task["opencode_session"]>,
+): NonNullable<Task["opencode_session"]> => ({
+  continue_prompt: null,
+  created_at: "2026-04-20T00:00:00.000Z",
+  model_id: null,
+  provider_id: null,
+  reason: null,
+  session_id: overrides.session_id,
+  stale: false,
+  state: overrides.state,
+  updated_at: "2026-04-20T00:00:00.000Z",
+  value: null,
+  ...overrides,
+});
+
 const baselineFacts = {
   commitSha: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
   fetchedAt: "2026-04-28T17:13:03.000Z",
@@ -287,32 +303,217 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("does not create a session when active tasks are already assigned", async () => {
+  it("continues an assigned pending session when no unassigned task is available", async () => {
     vi.useFakeTimers();
+    const assignedTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-existing",
+        state: "pending",
+      }),
+      session_id: "session-existing",
+      worktree_path: "/repo/.worktrees/task-1",
+    });
     const repository = {
       assignSessionIfUnassigned: vi.fn(),
       listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
-      listUnfinishedTasks: vi
-        .fn()
-        .mockResolvedValue([createTask({ session_id: "session-existing" })]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
     };
     const sessionManager = createSessionManager();
     const baselineRepository = createBaselineRepository();
+    const onLaneEvent = vi.fn();
 
     const developer = createDeveloper({
       baselineRepository,
+      onLaneEvent,
       sessionManager,
       taskRepository: repository,
     });
 
     await vi.waitFor(() => {
-      expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
+      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: {
+            modelID: assignedTask.global_model_id,
+            providerID: assignedTask.global_provider_id,
+          },
+          sessionId: "session-existing",
+        }),
+      );
     });
+    expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(`task_id: ${assignedTask.task_id}`),
+      }),
+    );
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
-    expect("start" in developer).toBe(false);
-    expect("stop" in developer).toBe(false);
-    expect("scanOnce" in developer).toBe(false);
+    expect(onLaneEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "success",
+        project_id: assignedTask.project_id,
+        session_id: "session-existing",
+        task_id: assignedTask.task_id,
+      }),
+    );
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("skips assigned tasks whose OpenCode session is already settled", async () => {
+    vi.useFakeTimers();
+    const resolvedTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-resolved",
+        state: "resolved",
+      }),
+      session_id: "session-resolved",
+      task_id: "task-resolved-session",
+    });
+    const rejectedTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-rejected",
+        state: "rejected",
+      }),
+      session_id: "session-rejected",
+      task_id: "task-rejected-session",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi
+        .fn()
+        .mockResolvedValue([resolvedTask, rejectedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: resolvedTask.project_id,
+          session_id: "session-resolved",
+          task_id: resolvedTask.task_id,
+        }),
+      );
+    });
+    expect(onLaneEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "noop",
+        project_id: rejectedTask.project_id,
+        session_id: "session-rejected",
+        task_id: rejectedTask.task_id,
+      }),
+    );
+    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("skips assigned pending sessions for PR follow-up work that is not merged settlement", async () => {
+    vi.useFakeTimers();
+    const prTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-pr-follow-up",
+        state: "pending",
+      }),
+      pull_request_url: "https://github.com/example/repo/pull/5",
+      session_id: "session-pr-follow-up",
+      task_id: "task-pr-follow-up",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([prTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+    const pullRequestStatusProvider = {
+      getTaskPullRequestStatus: vi.fn().mockResolvedValue({
+        category: "waiting_checks",
+      }),
+    };
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      pullRequestStatusProvider,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: prTask.project_id,
+          session_id: "session-pr-follow-up",
+          task_id: prTask.task_id,
+        }),
+      );
+    });
+    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("skips assigned pending sessions while a dependency is not resolved", async () => {
+    vi.useFakeTimers();
+    const blockedTask = createTask({
+      dependencies: ["dependency-pending"],
+      opencode_session: createOpenCodeSession({
+        session_id: "session-blocked",
+        state: "pending",
+      }),
+      session_id: "session-blocked",
+      task_id: "task-blocked-session",
+    });
+    const dependencyTask = createTask({
+      status: "pending",
+      task_id: "dependency-pending",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      getTaskById: vi.fn().mockResolvedValue(dependencyTask),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([blockedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: blockedTask.project_id,
+          session_id: "session-blocked",
+          task_id: blockedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) =>
+        laneEvent.event === "noop" && laneEvent.task_id === blockedTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain("dependency-pending");
+    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });

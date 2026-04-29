@@ -438,6 +438,75 @@ export const createDeveloper = ({
     }
   };
 
+  const continueAssignedPendingSession = async (
+    task: Task,
+    tasksById: Map<string, Task>,
+  ) => {
+    if (!task.session_id) {
+      return;
+    }
+
+    const sessionState = task.opencode_session?.state;
+    if (sessionState !== "pending") {
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: task.session_id,
+        summary: `Developer lane skipped assigned task ${task.task_id}: OpenCode session ${task.session_id} is ${sessionState ?? "unavailable"}.`,
+        task_id: task.task_id,
+      });
+
+      return;
+    }
+
+    if (task.pull_request_url) {
+      const { category } =
+        await pullRequestStatusProvider.getTaskPullRequestStatus(task);
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: task.session_id,
+        summary: `Developer lane skipped assigned task ${task.task_id}: pull request follow-up category ${category} is not pending session continuation scope.`,
+        task_id: task.task_id,
+      });
+
+      return;
+    }
+
+    const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
+    if (unmetDependencyIds.length > 0) {
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: task.session_id,
+        summary: `Developer lane skipped assigned task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
+        task_id: task.task_id,
+      });
+
+      return;
+    }
+
+    await sessionManager.pushContinuationPrompt({
+      model: {
+        modelID: task.global_model_id,
+        providerID: task.global_provider_id,
+      },
+      prompt: buildTaskSessionPrompt(task),
+      sessionId: task.session_id,
+    });
+    onLaneEvent?.({
+      event: "success",
+      lane_name: "developer",
+      project_id: task.project_id,
+      session_id: task.session_id,
+      summary: `Developer lane continued assigned pending session ${task.session_id} for task ${task.task_id}.`,
+      task_id: task.task_id,
+    });
+  };
+
   const findMergedPullRequestSettlementTasks = async (tasks: Task[]) => {
     const settlementTasks: Task[] = [];
 
@@ -497,17 +566,6 @@ export const createDeveloper = ({
     );
     const activeProjectIds = [...new Set(tasks.map((task) => task.project_id))];
 
-    if (unassignedTasks.length === 0) {
-      for (const projectId of activeProjectIds) {
-        onLaneEvent?.({
-          event: "idle",
-          lane_name: "developer",
-          project_id: projectId,
-          summary: "Developer lane idle: no unassigned unfinished tasks.",
-        });
-      }
-    }
-
     for (const task of unassignedTasks) {
       if (abortController.signal.aborted) {
         return;
@@ -545,6 +603,51 @@ export const createDeveloper = ({
           summary: `Developer lane failed for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry assignment.`,
           task_id: task.task_id,
         });
+      }
+    }
+
+    if (unassignedTasks.length === 0) {
+      const assignedTasks = tasks.filter(
+        (task) => !task.done && task.session_id !== null,
+      );
+
+      if (assignedTasks.length === 0) {
+        for (const projectId of activeProjectIds) {
+          onLaneEvent?.({
+            event: "idle",
+            lane_name: "developer",
+            project_id: projectId,
+            summary: "Developer lane idle: no unassigned unfinished tasks.",
+          });
+        }
+      }
+
+      for (const task of assignedTasks) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        try {
+          await continueAssignedPendingSession(task, tasksById);
+        } catch (error) {
+          logger?.error(
+            {
+              err: error,
+              event: "developer_task_failed",
+              project_id: task.project_id,
+              task_id: task.task_id,
+            },
+            `Developer failed while continuing assigned pending session for task ${task.task_id}`,
+          );
+          onLaneEvent?.({
+            event: "failure",
+            lane_name: "developer",
+            project_id: task.project_id,
+            session_id: task.session_id ?? undefined,
+            summary: `Developer lane failed assigned pending session continuation for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry continuation.`,
+            task_id: task.task_id,
+          });
+        }
       }
     }
   };
