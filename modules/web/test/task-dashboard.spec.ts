@@ -877,7 +877,9 @@ test("shows active task pull request loading and error summaries", async ({
 
   await page.goto("/");
 
-  await expect(page.getByText("Loading pull request status")).toBeVisible();
+  await expect(
+    page.getByText("Loading pull request status").first(),
+  ).toBeVisible();
   resolveMainStatus();
   await expect(page.getByText("review_blocked")).toBeVisible();
   await expect(
