@@ -19,6 +19,12 @@ const buildValidationError = (message: string) =>
     message,
   });
 
+const buildProjectNotFoundError = (projectId: string) =>
+  taskErrorSchema.parse({
+    code: "PROJECT_NOT_FOUND",
+    message: `Project ${projectId} was not found. Confirm project_id or create the project before running coordinator proposal dry-run.`,
+  });
+
 const parseDryRunRequest = async (request: Request) => {
   const payload = await request.json().catch(() => undefined);
   const result =
@@ -61,8 +67,8 @@ export const registerCoordinatorProposalRoutes = (
 
     if (!project) {
       return context.json(
-        buildValidationError(`Project ${input.data.project_id} was not found`),
-        400,
+        buildProjectNotFoundError(input.data.project_id),
+        404,
       );
     }
 

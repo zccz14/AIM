@@ -230,6 +230,34 @@ describe("coordinator proposal dry-run route", () => {
     });
   });
 
+  it("returns project-not-found for a structurally valid dry-run request with an unknown project_id", async () => {
+    const projectRoot = await useProjectRoot("unknown-project-id");
+    const app = createRouteApp();
+
+    const missingProjectId = "00000000-0000-4000-8000-000000000001";
+
+    const response = await app.request(
+      contractModule.coordinatorProposalDryRunPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          project_id: missingProjectId,
+          currentBaselineCommit,
+          evaluations: [],
+          taskPool: [],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "PROJECT_NOT_FOUND",
+      message: expect.stringContaining(missingProjectId),
+    });
+    expect(countTasks(projectRoot)).toBe(0);
+  });
+
   it("documents the dry-run endpoint in the OpenAPI contract", () => {
     expect(
       contractModule.openApiDocument.paths[
