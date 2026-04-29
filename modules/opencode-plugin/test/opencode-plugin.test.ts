@@ -812,28 +812,36 @@ describe("opencode plugin package baseline", () => {
       /字段级事实必须使用对应的 PUT 端点单独上报。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /只能使用 `POST \/resolve` 上报 `resolved` 终态结果，且只能使用 `POST \/reject` 上报 `rejected` 终态结果。/,
+      /成功终态只能使用 OpenCode session tool `aim_session_resolve\(\{ value \}\)`。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /在非终态 PATCH 上报中，只发送受支持的 patch 字段，绝不要通过发送 `done`、`worktree_path`、`pull_request_url` 或 `dependencies` 来指挥 AIM。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /终态上报的请求体必须且只能包含一个非空 `result` 字符串字段。/,
+      /失败终态只能使用 OpenCode session tool `aim_session_reject\(\{ reason \}\)`。/,
+    );
+    expect(pluginDeveloperGuideSkillText).toMatch(
+      /除非用户明确指示，否则不要在 tool 调用失败后回退到直接 Task terminal API。/,
+    );
+    expect(pluginDeveloperGuideSkillText).toMatch(
+      /终态成功的 `value` 必须是非空字符串。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
       /要把任务失败与上报失败区分开。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /任务失败：工作本身失败，因此应通过 `POST \/tasks\/\$\{task_id\}\/reject` 发送带非空 `result` 的终态失败上报。/,
+      /任务失败：工作本身失败，因此应通过 `aim_session_reject\(\{ reason \}\)` 发送带非空 `reason` 的终态失败结算。/,
     );
     expect(pluginDeveloperGuideSkillText).toMatch(
-      /上报失败：PATCH 请求或终态 POST 因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败。/,
+      /上报失败：PATCH、字段级 PUT 请求或 terminal session tool 调用因网络、超时、连接、5xx 或意外响应等问题失败。不要把这类情况转换成任务失败，也不要回退到直接 Task terminal API，除非用户明确指示。/,
     );
 
     for (const requiredFragment of [
       '"status": "processing"',
       "resolved",
       "rejected",
+      "aim_session_resolve({ value })",
+      "aim_session_reject({ reason })",
       `POST /tasks/\${task_id}/resolve`,
       `POST /tasks/\${task_id}/reject`,
       `PUT /tasks/\${task_id}/worktree_path`,
