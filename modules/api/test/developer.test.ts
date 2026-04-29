@@ -17,6 +17,7 @@ const createSessionHandle = (sessionId: string) => ({
 
 const createSessionManager = () => ({
   createSession: vi.fn().mockResolvedValue(createSessionHandle("session-1")),
+  pushContinuationPrompt: vi.fn().mockResolvedValue(undefined),
 });
 
 const baselineFacts = {
@@ -112,6 +113,176 @@ describe("developer", () => {
       prompt: buildTaskSessionPrompt(initialTask),
       title: `AIM Developer: ${initialTask.title}`,
     });
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("continues merged unresolved PR-backed tasks before assigning a new task", async () => {
+    vi.useFakeTimers();
+    const mergedTask = createTask({
+      pull_request_url: "https://github.com/example/repo/pull/1",
+      session_id: "session-merged",
+      task_id: "task-merged",
+      title: "Settle merged PR",
+      worktree_path: "/repo/.worktrees/task-merged",
+    });
+    const newTask = createTask({
+      task_id: "task-new",
+      title: "New task",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn().mockResolvedValue(
+        createTask({
+          session_id: "session-1",
+          task_id: "task-new",
+        }),
+      ),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([newTask, mergedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
+    const pullRequestStatusProvider = {
+      getTaskPullRequestStatus: vi.fn().mockResolvedValue({
+        category: "merged_but_not_resolved",
+      }),
+    };
+
+    const developer = createDeveloper({
+      baselineRepository,
+      pullRequestStatusProvider,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: "session-merged",
+        }),
+      );
+    });
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("does not steal unresolved PR tasks that are not merged settlement work", async () => {
+    vi.useFakeTimers();
+    const failedChecksTask = createTask({
+      pull_request_url: "https://github.com/example/repo/pull/2",
+      session_id: "session-failed-checks",
+      task_id: "task-failed-checks",
+    });
+    const reviewBlockedTask = createTask({
+      pull_request_url: "https://github.com/example/repo/pull/3",
+      session_id: "session-review-blocked",
+      task_id: "task-review-blocked",
+    });
+    const newTask = createTask({ task_id: "task-new" });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn().mockResolvedValue(
+        createTask({
+          session_id: "session-1",
+          task_id: "task-new",
+        }),
+      ),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi
+        .fn()
+        .mockResolvedValue([failedChecksTask, reviewBlockedTask, newTask]),
+    };
+    const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
+    const pullRequestStatusProvider = {
+      getTaskPullRequestStatus: vi
+        .fn()
+        .mockResolvedValueOnce({ category: "failed_checks" })
+        .mockResolvedValueOnce({ category: "review_blocked" }),
+    };
+
+    const developer = createDeveloper({
+      baselineRepository,
+      pullRequestStatusProvider,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
+        "task-new",
+        "session-1",
+      );
+    });
+    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("creates a settlement-only session for merged unresolved PR-backed tasks without an existing session", async () => {
+    vi.useFakeTimers();
+    const mergedTask = createTask({
+      pull_request_url: "https://github.com/example/repo/pull/4",
+      task_id: "task-merged",
+      title: "Settle merged PR",
+      worktree_path: "/repo/.worktrees/task-merged",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi
+        .fn()
+        .mockResolvedValue(createTask({ session_id: "session-1" })),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([mergedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
+    const pullRequestStatusProvider = {
+      getTaskPullRequestStatus: vi.fn().mockResolvedValue({
+        category: "merged_but_not_resolved",
+      }),
+    };
+
+    const developer = createDeveloper({
+      baselineRepository,
+      pullRequestStatusProvider,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
+        "task-merged",
+        "session-1",
+      );
+    });
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("Confirm the GitHub PR is merged"),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("clean up the task worktree"),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "refresh the main workspace to origin/main",
+        ),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("call aim_session_resolve"),
+      }),
+    );
+    expect(sessionManager.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("actionable rejected reason"),
+      }),
+    );
 
     await developer[Symbol.asyncDispose]();
   });
