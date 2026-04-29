@@ -163,10 +163,14 @@ export const continueOpenCodeSession = async (
 
 export const listDirectorClarifications = async (
   projectId: string,
+  dimensionId?: string | null,
 ): Promise<DirectorClarificationListResponse> => {
   const client = createWebApiClient();
 
-  return client.listDirectorClarifications(projectId);
+  return client.listDirectorClarifications(
+    projectId,
+    dimensionId ? { dimension_id: dimensionId } : undefined,
+  );
 };
 
 export const getTaskPullRequestStatus = async (

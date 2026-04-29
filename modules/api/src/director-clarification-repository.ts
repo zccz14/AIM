@@ -158,6 +158,12 @@ export const createDirectorClarificationRepository = (
     WHERE project_id = ?
     ORDER BY created_at ASC, rowid ASC
   `);
+  const listDimensionDirectorClarificationsStatement = database.prepare(`
+    SELECT id, project_id, dimension_id, kind, message, status, created_at, updated_at
+    FROM ${directorClarificationsTableName}
+    WHERE project_id = ? AND dimension_id = ?
+    ORDER BY created_at ASC, rowid ASC
+  `);
   const getDirectorClarificationStatement = database.prepare(`
     SELECT id, project_id, dimension_id, kind, message, status, created_at, updated_at
     FROM ${directorClarificationsTableName}
@@ -227,9 +233,15 @@ export const createDirectorClarificationRepository = (
     },
     listDirectorClarifications(
       projectId: string,
+      dimensionId?: string,
     ): Promise<DirectorClarification[]> {
-      const rows = listDirectorClarificationsStatement.all(
-        projectId,
+      const rows = (
+        dimensionId
+          ? listDimensionDirectorClarificationsStatement.all(
+              projectId,
+              dimensionId,
+            )
+          : listDirectorClarificationsStatement.all(projectId)
       ) as DirectorClarificationRow[];
 
       return Promise.resolve(rows.map(mapDirectorClarificationRow));

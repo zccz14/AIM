@@ -48,13 +48,14 @@ const createProject = async (
 const createDimension = async (
   app: ReturnType<typeof createApp>,
   projectId: string,
+  name = "API Fit",
 ) => {
   const response = await app.request("/dimensions", {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({
       project_id: projectId,
-      name: "API Fit",
+      name,
       goal: "Keep the public API aligned with manager workflow needs.",
       evaluation_method:
         "Review OpenAPI and route behavior against Manager usage.",
@@ -118,6 +119,118 @@ describe("director clarification routes", () => {
     expect(listResponse.status).toBe(200);
     await expect(listResponse.json()).resolves.toEqual({
       items: [createdClarification],
+    });
+  });
+
+  it("keeps project-wide list behavior when dimension_id is not provided", async () => {
+    await useProjectRoot("project-wide-list");
+
+    const app = createApp();
+    const project = await createProject(app);
+    const dimension = await createDimension(app, project.id);
+
+    const projectScopedResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          kind: "clarification",
+          message: "Clarify the project-wide direction.",
+        }),
+      },
+    );
+    const dimensionScopedResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          dimension_id: dimension.id,
+          kind: "adjustment",
+          message: "Adjust the API Fit dimension.",
+        }),
+      },
+    );
+
+    expect(projectScopedResponse.status).toBe(201);
+    expect(dimensionScopedResponse.status).toBe(201);
+    const projectScopedClarification = await projectScopedResponse.json();
+    const dimensionScopedClarification = await dimensionScopedResponse.json();
+
+    const listResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+    );
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      items: [projectScopedClarification, dimensionScopedClarification],
+    });
+  });
+
+  it("lists only clarifications for the requested dimension_id", async () => {
+    await useProjectRoot("dimension-filtered-list");
+
+    const app = createApp();
+    const project = await createProject(app);
+    const apiDimension = await createDimension(app, project.id, "API Fit");
+    const guiDimension = await createDimension(app, project.id, "GUI Fit");
+
+    await app.request(`/projects/${project.id}/director/clarifications`, {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        project_id: project.id,
+        dimension_id: guiDimension.id,
+        kind: "clarification",
+        message: "Clarify GUI-only readiness.",
+      }),
+    });
+    const apiClarificationResponse = await app.request(
+      `/projects/${project.id}/director/clarifications`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          dimension_id: apiDimension.id,
+          kind: "adjustment",
+          message: "Adjust API compatibility evidence.",
+        }),
+      },
+    );
+
+    expect(apiClarificationResponse.status).toBe(201);
+    const apiClarification = await apiClarificationResponse.json();
+
+    const listResponse = await app.request(
+      `/projects/${project.id}/director/clarifications?dimension_id=${apiDimension.id}`,
+    );
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      items: [apiClarification],
+    });
+  });
+
+  it("rejects dimension_id list filters from another project", async () => {
+    await useProjectRoot("dimension-filter-mismatch");
+
+    const app = createApp();
+    const project = await createProject(app, "Main project");
+    const otherProject = await createProject(app, "Other project");
+    const otherDimension = await createDimension(app, otherProject.id);
+
+    const listResponse = await app.request(
+      `/projects/${project.id}/director/clarifications?dimension_id=${otherDimension.id}`,
+    );
+
+    expect(listResponse.status).toBe(400);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      code: "DIRECTOR_CLARIFICATION_VALIDATION_ERROR",
+      message: "dimension_id must belong to the project",
     });
   });
 

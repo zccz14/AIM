@@ -88,6 +88,7 @@ export const registerDirectorClarificationRoutes = (
 
   app.get(projectDirectorClarificationsRoutePath, async (context) => {
     const projectId = requireProjectId(context.req.param("projectId"));
+    const dimensionId = context.req.query("dimension_id");
 
     if (!(await getRepository().hasProject(projectId))) {
       return context.json(
@@ -96,8 +97,26 @@ export const registerDirectorClarificationRoutes = (
       );
     }
 
+    if (dimensionId) {
+      const dimension = await getRepository().getDimensionIdentity(dimensionId);
+
+      if (!dimension) {
+        return context.json(
+          buildNotFoundError(`Dimension ${dimensionId} was not found`),
+          404,
+        );
+      }
+
+      if (dimension.project_id !== projectId) {
+        return context.json(
+          buildValidationError("dimension_id must belong to the project"),
+          400,
+        );
+      }
+    }
+
     const directorClarifications =
-      await getRepository().listDirectorClarifications(projectId);
+      await getRepository().listDirectorClarifications(projectId, dimensionId);
 
     return context.json({ items: directorClarifications }, 200);
   });

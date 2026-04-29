@@ -580,6 +580,9 @@ export const openApiDocument = {
           {
             $ref: "#/components/parameters/ProjectIdPathParameter",
           },
+          {
+            $ref: "#/components/parameters/DirectorClarificationDimensionIdQueryParameter",
+          },
         ],
         responses: {
           "200": {
@@ -1535,6 +1538,15 @@ export const openApiDocument = {
         name: "clarificationId",
         in: "path",
         required: true,
+        schema: {
+          type: "string",
+          minLength: 1,
+        },
+      },
+      DirectorClarificationDimensionIdQueryParameter: {
+        name: "dimension_id",
+        in: "query",
+        required: false,
         schema: {
           type: "string",
           minLength: 1,
