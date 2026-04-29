@@ -1,3 +1,9 @@
+import type {
+  CoordinatorProposalDryRunResponse,
+  CreateCoordinatorProposalDryRunRequest,
+} from "@aim-ai/contract";
+import { useQuery } from "@tanstack/react-query";
+
 import { Badge } from "../../../components/ui/badge.js";
 import {
   Card,
@@ -7,6 +13,7 @@ import {
   CardTitle,
 } from "../../../components/ui/card.js";
 import { useI18n } from "../../../lib/i18n.js";
+import { createCoordinatorProposalDryRun } from "../api/task-dashboard-api.js";
 import type {
   DashboardDimensionReportItem,
   DashboardTask,
@@ -103,6 +110,235 @@ const hasRejectedCoverageRisk = (tasks: DashboardTask[]) =>
     );
   });
 
+const toDryRunTaskPoolItem = (
+  task: DashboardTask,
+  currentBaselineCommit: string,
+) => ({
+  task_id: task.id,
+  title: task.title,
+  done: task.isDone,
+  result: task.result,
+  status: task.contractStatus,
+  source_metadata: {
+    latest_origin_main_commit: currentBaselineCommit,
+  },
+});
+
+const buildDryRunRequest = ({
+  activeTasks,
+  completedTasks,
+  currentBaselineCommit,
+  dimensions,
+  projectId,
+}: {
+  activeTasks: DashboardTask[];
+  completedTasks: DashboardTask[];
+  currentBaselineCommit: string;
+  dimensions: DashboardDimensionReportItem[];
+  projectId: string;
+}): CreateCoordinatorProposalDryRunRequest => ({
+  project_id: projectId,
+  currentBaselineCommit,
+  evaluations: dimensions.flatMap((report) =>
+    report.latestEvaluation
+      ? [
+          {
+            source_dimension: {
+              id: report.dimension.id,
+              name: report.dimension.name,
+              goal: report.dimension.goal,
+              evaluation_method: report.dimension.evaluation_method,
+            },
+            source_evaluation: {
+              id: report.latestEvaluation.id,
+              commit_sha: report.latestEvaluation.commit_sha,
+              evaluation: report.latestEvaluation.evaluation,
+              score: report.latestEvaluation.score,
+            },
+            source_gap: report.latestEvaluation.evaluation,
+          },
+        ]
+      : [],
+  ),
+  taskPool: activeTasks.map((task) =>
+    toDryRunTaskPoolItem(task, currentBaselineCommit),
+  ),
+  rejectedTasks: completedTasks
+    .filter((task) => task.dashboardStatus === "rejected")
+    .map((task) => toDryRunTaskPoolItem(task, currentBaselineCommit)),
+  staleTaskFeedback: completedTasks
+    .filter((task) => task.dashboardStatus === "rejected")
+    .map((task) => ({
+      reason: task.result || task.title,
+      task: toDryRunTaskPoolItem(task, currentBaselineCommit),
+    })),
+});
+
+const countDryRunDecisions = (
+  dryRun: CoordinatorProposalDryRunResponse | undefined,
+) => ({
+  create:
+    dryRun?.operations.filter((operation) => operation.decision === "create")
+      .length ?? 0,
+  keep:
+    dryRun?.operations.filter((operation) => operation.decision === "keep")
+      .length ?? 0,
+  delete:
+    dryRun?.operations.filter((operation) => operation.decision === "delete")
+      .length ?? 0,
+  blocked:
+    dryRun?.operations.filter(
+      (operation) => operation.planning_feedback?.blocked === true,
+    ).length ?? 0,
+});
+
+const getDryRunOperationKey = (
+  operation: CoordinatorProposalDryRunResponse["operations"][number],
+) =>
+  [
+    operation.decision,
+    "task_id" in operation
+      ? operation.task_id
+      : operation.task_spec_draft?.title,
+    operation.planning_feedback?.reason,
+    operation.source_evaluation?.id,
+    operation.source_gap,
+  ]
+    .filter(Boolean)
+    .join(":");
+
+const CoordinatorDryRunSummary = ({
+  activeTasks,
+  completedTasks,
+  currentBaselineCommit,
+  dimensions,
+  projectId,
+}: {
+  activeTasks: DashboardTask[];
+  completedTasks: DashboardTask[];
+  currentBaselineCommit: string | null | undefined;
+  dimensions: DashboardDimensionReportItem[];
+  projectId: string;
+}) => {
+  const { t } = useI18n();
+  const dryRunRequest = currentBaselineCommit
+    ? buildDryRunRequest({
+        activeTasks,
+        completedTasks,
+        currentBaselineCommit,
+        dimensions,
+        projectId,
+      })
+    : null;
+  const hasDryRunInput =
+    dryRunRequest !== null && dryRunRequest.evaluations.length > 0;
+  const dryRunQuery = useQuery({
+    queryKey: ["coordinator-proposal-dry-run", projectId, dryRunRequest],
+    queryFn: () => {
+      if (!dryRunRequest) {
+        throw new Error(t("coordinatorDryRunMissingBaseline"));
+      }
+
+      return createCoordinatorProposalDryRun(dryRunRequest);
+    },
+    enabled: hasDryRunInput,
+    retry: false,
+  });
+  const dryRunCounts = countDryRunDecisions(dryRunQuery.data);
+  const dryRunInputError = !currentBaselineCommit
+    ? t("coordinatorDryRunMissingBaseline")
+    : !hasDryRunInput
+      ? t("coordinatorDryRunMissingEvaluations")
+      : null;
+
+  return (
+    <section
+      aria-label={t("coordinatorDryRunSummaryRegion")}
+      className={pageStack}
+    >
+      <div>
+        <p className={eyebrow}>{t("coordinatorInput")}</p>
+        <h2 className={sectionTitle}>{t("coordinatorDryRunSummary")}</h2>
+        <p className={sectionCopy}>{t("coordinatorDryRunDescription")}</p>
+      </div>
+      <Card>
+        <CardContent className={panelStack}>
+          <p className={sectionCopy}>{t("coordinatorDryRunSafety")}</p>
+          {dryRunInputError ? (
+            <div className={panelStack}>
+              <strong>{t("coordinatorDryRunUnavailable")}</strong>
+              <p className={sectionCopy}>{dryRunInputError}</p>
+            </div>
+          ) : dryRunQuery.isError ? (
+            <div className={panelStack}>
+              <strong>{t("coordinatorDryRunUnavailable")}</strong>
+              <p className={sectionCopy}>{t("coordinatorDryRunRetry")}</p>
+            </div>
+          ) : dryRunQuery.isLoading ? (
+            <p className={sectionCopy}>{t("coordinatorDryRunLoading")}</p>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("coordinatorDryRunCreate")}</p>
+                  <strong>{`${t("coordinatorDryRunCreate")} ${dryRunCounts.create}`}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("coordinatorDryRunKeep")}</p>
+                  <strong>{`${t("coordinatorDryRunKeep")} ${dryRunCounts.keep}`}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("coordinatorDryRunDelete")}</p>
+                  <strong>{`${t("coordinatorDryRunDelete")} ${dryRunCounts.delete}`}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("coordinatorDryRunBlocked")}</p>
+                  <strong>{`${t("coordinatorDryRunBlocked")} ${dryRunCounts.blocked}`}</strong>
+                </div>
+              </div>
+              <div className={taskList}>
+                {dryRunQuery.data?.operations.map((operation) => (
+                  <div
+                    className={taskListItem}
+                    key={getDryRunOperationKey(operation)}
+                  >
+                    <div className={panelStack}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            operation.planning_feedback?.blocked
+                              ? "destructive"
+                              : operation.decision === "keep"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {operation.decision}
+                        </Badge>
+                        <span className={tableMeta}>
+                          {operation.coverage_judgment.status}
+                        </span>
+                      </div>
+                      <p className={sectionCopy}>
+                        {operation.coverage_judgment.summary}
+                      </p>
+                      {operation.planning_feedback ? (
+                        <p className={sectionCopy}>
+                          {operation.planning_feedback.reason}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+};
+
 export const ProjectDetailPage = ({
   dashboard,
   projectId,
@@ -153,6 +389,7 @@ export const ProjectDetailPage = ({
       ? t("targetGapWaitDeveloper")
       : t("targetGapReplan");
   const optimizerStatus = dashboard.projectOptimizerStatuses[project.id];
+  const currentBaselineCommit = optimizerStatus?.current_baseline_commit_sha;
   const configEnabled =
     optimizerStatus?.optimizer_enabled ?? project.optimizer_enabled;
   const runtimeLabel = optimizerStatus
@@ -264,6 +501,14 @@ export const ProjectDetailPage = ({
 
       <DirectorClarificationPanel
         contextName={project.name}
+        projectId={project.id}
+      />
+
+      <CoordinatorDryRunSummary
+        activeTasks={activeTasks}
+        completedTasks={completedTasks}
+        currentBaselineCommit={currentBaselineCommit}
+        dimensions={dimensions}
         projectId={project.id}
       />
 

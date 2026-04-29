@@ -173,6 +173,104 @@ const buildTaskPullRequestStatus = ({
   pull_request_url: pullRequestUrl,
 });
 
+const buildCoordinatorDryRunOperation = ({
+  blocked = false,
+  decision,
+  taskId,
+}: {
+  blocked?: boolean;
+  decision: "create" | "keep" | "delete";
+  taskId?: string;
+}) => {
+  const base = {
+    coverage_judgment: {
+      status:
+        decision === "keep"
+          ? "covered_by_unfinished_task"
+          : decision === "delete"
+            ? "stale_unfinished_task"
+            : "uncovered_gap",
+      covered_by_task_id:
+        decision === "keep" ? (taskId ?? "task-main") : undefined,
+      summary:
+        decision === "keep"
+          ? "Current active task already covers this Manager gap."
+          : decision === "delete"
+            ? "Rejected feedback marks this task as stale against the current baseline."
+            : "No active project task covers this Manager gap.",
+    },
+    dependency_conflict_plan: {
+      conflict_draft: "No dependency conflict detected in dry-run evidence.",
+      dependency_draft: [],
+    },
+    dry_run_only: true,
+    must_not_write_directly: true,
+    requires_task_spec_validation: decision !== "keep",
+    source_dimension: {
+      id: "dimension-readme-fit",
+      name: "README Fit",
+    },
+    source_evaluation: {
+      id: "evaluation-readme-fit-1",
+      commit_sha: currentBaselineCommitSha,
+      evaluation: "Dashboard lacks Coordinator dry-run proposal visibility.",
+    },
+    source_gap: "Coordinator preflight visibility gap",
+    source_metadata_planning_evidence: {
+      conflict_duplicate_assessment: "No duplicate dry-run proposal detected.",
+      current_task_pool_coverage: "Project-scoped task pool was checked.",
+      dependency_rationale: "No dependency draft is required for the summary.",
+      unfinished_task_non_conflict_rationale:
+        "Unfinished task evidence remains read-only.",
+    },
+  };
+
+  if (decision === "keep") {
+    return {
+      ...base,
+      decision,
+      keep_reason: "Keep existing active coverage.",
+      planning_feedback: null,
+      task_id: taskId ?? "task-main",
+      task_spec_draft: null,
+    };
+  }
+
+  if (decision === "delete") {
+    return {
+      ...base,
+      decision,
+      delete_reason: "Delete stale duplicate candidate from the active pool.",
+      planning_feedback: {
+        blocked: false,
+        reason: "Rejected feedback indicates stale planning evidence.",
+        rejected_task_id: "task-rejected",
+      },
+      task_id: taskId ?? "task-stale",
+      task_spec_draft: null,
+    };
+  }
+
+  return {
+    ...base,
+    decision,
+    planning_feedback: blocked
+      ? {
+          blocked: true,
+          reason:
+            "Blocked until Coordinator validation resolves stale rejected feedback.",
+          rejected_task_id: "task-rejected",
+        }
+      : null,
+    task_spec_draft: blocked
+      ? null
+      : {
+          title: "Expose Coordinator dry-run proposal summary",
+          spec: "# Task\nShow read-only Coordinator dry-run proposal evidence.",
+        },
+  };
+};
+
 const routeProjectOptimizerStatus = async (
   page: Page,
   currentBaseline: string | null,
@@ -555,6 +653,178 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
     page.getByRole("link", { name: "README Fit" }).first(),
   ).toBeVisible();
   await expect(page.getByText("Research Fit")).toHaveCount(0);
+});
+
+test("shows read-only Coordinator dry-run proposal summary without task batch writes", async ({
+  page,
+}) => {
+  const dryRunRequests: unknown[] = [];
+  const taskBatchRequests: unknown[] = [];
+
+  await page.route("**/api/tasks**", async (route) => {
+    const doneFilter = new URL(route.request().url()).searchParams.get("done");
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items:
+          doneFilter === "true"
+            ? [
+                buildTask({
+                  done: true,
+                  result: "Merged and verified.",
+                  spec: "Completed project task",
+                  status: "resolved",
+                  taskId: "task-resolved",
+                }),
+                buildTask({
+                  done: true,
+                  result:
+                    "Rejected because stale planning evidence overlapped.",
+                  spec: "Rejected project dry-run feedback",
+                  status: "rejected",
+                  taskId: "task-rejected",
+                }),
+                buildTask({
+                  done: true,
+                  gitOriginUrl: "https://github.com/example/research.git",
+                  projectId: "00000000-0000-4000-8000-000000000011",
+                  result: "Rejected research feedback outside this project.",
+                  spec: "Rejected research task",
+                  status: "rejected",
+                  taskId: "task-research-rejected",
+                }),
+              ]
+            : [
+                buildTask({
+                  dependencies: ["task-resolved"],
+                  spec: "Active main task",
+                  taskId: "task-main",
+                }),
+                buildTask({
+                  gitOriginUrl: "https://github.com/example/research.git",
+                  projectId: "00000000-0000-4000-8000-000000000011",
+                  spec: "Research project task",
+                  taskId: "task-research",
+                }),
+              ],
+      }),
+    });
+  });
+  await page.route("**/api/tasks/batch", async (route) => {
+    taskBatchRequests.push({
+      method: route.request().method(),
+      body: route.request().postData(),
+    });
+    await route.fulfill({
+      contentType: "application/json",
+      status: 500,
+      body: JSON.stringify({
+        code: "UNEXPECTED_TASK_BATCH_WRITE",
+        message: "The dry-run summary must not write Tasks.",
+      }),
+    });
+  });
+  await page.route("**/api/coordinator/proposals/dry-run", async (route) => {
+    dryRunRequests.push(JSON.parse(route.request().postData() ?? "{}"));
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        dry_run: true,
+        operations: [
+          buildCoordinatorDryRunOperation({ decision: "create" }),
+          buildCoordinatorDryRunOperation({
+            decision: "create",
+            blocked: true,
+          }),
+          buildCoordinatorDryRunOperation({
+            decision: "keep",
+            taskId: "task-main",
+          }),
+          buildCoordinatorDryRunOperation({
+            decision: "delete",
+            taskId: "task-stale",
+          }),
+        ],
+      }),
+    });
+  });
+  await routeProjectOptimizerStatus(page, currentBaselineCommitSha);
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const dryRunRegion = page.getByRole("region", {
+    name: "Coordinator dry-run proposal summary",
+  });
+  await expect(dryRunRegion).toBeVisible();
+  await expect(
+    dryRunRegion.getByText("Create 2", { exact: true }),
+  ).toBeVisible();
+  await expect(dryRunRegion.getByText("Keep 1", { exact: true })).toBeVisible();
+  await expect(
+    dryRunRegion.getByText("Delete 1", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    dryRunRegion.getByText("Blocked 1", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    dryRunRegion.getByText("No active project task covers this Manager gap."),
+  ).toHaveCount(2);
+  await expect(
+    dryRunRegion.getByText(
+      "Blocked until Coordinator validation resolves stale rejected feedback.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dryRunRegion.getByText(
+      "Read-only dry-run evidence only: candidates still require Task Spec validation and approved POST /tasks/batch outside the GUI.",
+    ),
+  ).toBeVisible();
+  await expect.poll(() => dryRunRequests.length).toBe(1);
+  expect(dryRunRequests[0]).toMatchObject({
+    project_id: "00000000-0000-4000-8000-000000000010",
+    currentBaselineCommit: currentBaselineCommitSha,
+    taskPool: [expect.objectContaining({ task_id: "task-main" })],
+    rejectedTasks: [expect.objectContaining({ task_id: "task-rejected" })],
+    staleTaskFeedback: [
+      expect.objectContaining({
+        reason: "Rejected because stale planning evidence overlapped.",
+        task: expect.objectContaining({ task_id: "task-rejected" }),
+      }),
+    ],
+  });
+  expect(taskBatchRequests).toEqual([]);
+});
+
+test("shows an actionable Coordinator dry-run error state when the API rejects the request", async ({
+  page,
+}) => {
+  await page.route("**/api/coordinator/proposals/dry-run", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      status: 400,
+      body: JSON.stringify({
+        code: "TASK_VALIDATION_ERROR",
+        message: "currentBaselineCommit is required for dry-run planning.",
+      }),
+    });
+  });
+  await routeProjectOptimizerStatus(page, currentBaselineCommitSha);
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const dryRunRegion = page.getByRole("region", {
+    name: "Coordinator dry-run proposal summary",
+  });
+  await expect(dryRunRegion).toBeVisible();
+  await expect(
+    dryRunRegion.getByText("Coordinator dry-run unavailable"),
+  ).toBeVisible();
+  await expect(
+    dryRunRegion.getByText(
+      "Refresh project-scoped dashboard evidence and retry Coordinator preflight.",
+    ),
+  ).toBeVisible();
 });
 
 test("submits a project Director clarification and shows recent request status", async ({
