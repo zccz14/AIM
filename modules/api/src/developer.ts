@@ -13,6 +13,7 @@ type DeveloperTaskRepository = {
     taskId: string,
     sessionId: string,
   ): Promise<null | Task>;
+  getTaskById?(taskId: string): Promise<null | Task> | null | Task;
   listUnfinishedTasks(): Promise<Task[]>;
 };
 
@@ -125,8 +126,29 @@ export const createDeveloper = ({
     }
   };
 
+  const getUnmetDependencyIds = async (
+    task: Task,
+    listedTasksById: Map<string, Task>,
+  ) => {
+    const unmetDependencyIds: string[] = [];
+
+    for (const dependencyId of task.dependencies ?? []) {
+      const dependencyTask =
+        listedTasksById.get(dependencyId) ??
+        (await taskRepository.getTaskById?.(dependencyId)) ??
+        null;
+
+      if (dependencyTask?.status !== "resolved") {
+        unmetDependencyIds.push(dependencyId);
+      }
+    }
+
+    return unmetDependencyIds;
+  };
+
   const heartbeat = async () => {
     const tasks = await taskRepository.listUnfinishedTasks();
+    const tasksById = new Map(tasks.map((task) => [task.task_id, task]));
     const unassignedTasks = tasks.filter(
       (task) => !task.done && task.session_id === null,
     );
@@ -149,6 +171,19 @@ export const createDeveloper = ({
       }
 
       try {
+        const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
+
+        if (unmetDependencyIds.length > 0) {
+          onLaneEvent?.({
+            event: "noop",
+            lane_name: "developer",
+            project_id: task.project_id,
+            summary: `Developer lane skipped task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
+            task_id: task.task_id,
+          });
+          continue;
+        }
+
         await bindTask(task);
       } catch (error) {
         logger?.error(

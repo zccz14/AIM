@@ -146,6 +146,138 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
+  it("skips an unassigned task while a dependency is not resolved", async () => {
+    vi.useFakeTimers();
+    const blockedTask = createTask({
+      dependencies: ["dependency-pending"],
+      task_id: "task-blocked",
+    });
+    const dependencyTask = createTask({
+      status: "pending",
+      task_id: "dependency-pending",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi
+        .fn()
+        .mockResolvedValue(createTask({ session_id: "session-1" })),
+      getTaskById: vi.fn().mockResolvedValue(dependencyTask),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([blockedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: blockedTask.project_id,
+          task_id: blockedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) =>
+        laneEvent.event === "noop" && laneEvent.task_id === blockedTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain(blockedTask.task_id);
+    expect(event?.summary).toContain(blockedTask.project_id);
+    expect(event?.summary).toContain("dependency-pending");
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("binds an unassigned task after all dependencies are resolved", async () => {
+    vi.useFakeTimers();
+    const eligibleTask = createTask({
+      dependencies: ["dependency-resolved"],
+      task_id: "task-eligible",
+    });
+    const resolvedDependency = createTask({
+      done: true,
+      status: "resolved",
+      task_id: "dependency-resolved",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi
+        .fn()
+        .mockResolvedValue(createTask({ session_id: "session-1" })),
+      getTaskById: vi.fn().mockResolvedValue(resolvedDependency),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([eligibleTask]),
+    };
+    const sessionManager = createSessionManager();
+
+    const developer = createDeveloper({
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.assignSessionIfUnassigned).toHaveBeenCalledWith(
+        eligibleTask.task_id,
+        "session-1",
+      );
+    });
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(eligibleTask);
+    expect(sessionManager.createSession).toHaveBeenCalledOnce();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("conservatively skips an unassigned task when a dependency is missing", async () => {
+    vi.useFakeTimers();
+    const blockedTask = createTask({
+      dependencies: ["dependency-missing"],
+      task_id: "task-missing-dependency",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi
+        .fn()
+        .mockResolvedValue(createTask({ session_id: "session-1" })),
+      getTaskById: vi.fn().mockResolvedValue(null),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([blockedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: blockedTask.project_id,
+          task_id: blockedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) =>
+        laneEvent.event === "noop" && laneEvent.task_id === blockedTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain("dependency-missing");
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
   it("disposing stops future heartbeats and releases active session handles", async () => {
     vi.useFakeTimers();
     const activeSession = createSessionHandle("session-1");
