@@ -3,6 +3,7 @@ import { type Command, execute, settings } from "@oclif/core";
 import DirectorClarificationsCreateCommand from "./commands/director/clarifications/create.js";
 import DirectorClarificationsListCommand from "./commands/director/clarifications/list.js";
 import HealthCommand from "./commands/health.js";
+import ProjectOptimizerStatusCommand from "./commands/project/optimizer/status.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
 import TaskDeleteCommand from "./commands/task/delete.js";
@@ -39,6 +40,14 @@ const normalizeCommandArgs = (args: string[]) => {
     return [`director:clarifications:${args[2]}`, ...args.slice(3)];
   }
 
+  if (
+    args[0] === "project" &&
+    args[1] === "optimizer" &&
+    args[2] === "status"
+  ) {
+    return ["project:optimizer:status", ...args.slice(3)];
+  }
+
   return args;
 };
 
@@ -46,6 +55,7 @@ export const commands = {
   "director:clarifications:create": DirectorClarificationsCreateCommand,
   "director:clarifications:list": DirectorClarificationsListCommand,
   health: HealthCommand,
+  "project:optimizer:status": ProjectOptimizerStatusCommand,
   "server:start": ServerStartCommand,
   "task:create": TaskCreateCommand,
   "task:list": TaskListCommand,
