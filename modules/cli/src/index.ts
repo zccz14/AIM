@@ -1,5 +1,6 @@
 import { type Command, execute, settings } from "@oclif/core";
 
+import CoordinatorProposalDryRunCommand from "./commands/coordinator/proposal/dry-run.js";
 import DimensionEvaluationsListCommand from "./commands/dimension/evaluations/list.js";
 import DimensionListCommand from "./commands/dimension/list.js";
 import DirectorClarificationsCreateCommand from "./commands/director/clarifications/create.js";
@@ -25,6 +26,7 @@ const taskCommandNames = new Set([
 const serverCommandNames = new Set(["start"]);
 const dimensionCommandNames = new Set(["list"]);
 const dimensionEvaluationsCommandNames = new Set(["list"]);
+const coordinatorProposalCommandNames = new Set(["dry-run"]);
 const directorClarificationsCommandNames = new Set(["create", "list"]);
 
 const normalizeCommandArgs = (args: string[]) => {
@@ -49,6 +51,14 @@ const normalizeCommandArgs = (args: string[]) => {
   }
 
   if (
+    args[0] === "coordinator" &&
+    args[1] === "proposal" &&
+    coordinatorProposalCommandNames.has(args[2] ?? "")
+  ) {
+    return [`coordinator:proposal:${args[2]}`, ...args.slice(3)];
+  }
+
+  if (
     args[0] === "director" &&
     args[1] === "clarifications" &&
     directorClarificationsCommandNames.has(args[2] ?? "")
@@ -68,6 +78,7 @@ const normalizeCommandArgs = (args: string[]) => {
 };
 
 export const commands = {
+  "coordinator:proposal:dry-run": CoordinatorProposalDryRunCommand,
   "dimension:evaluations:list": DimensionEvaluationsListCommand,
   "dimension:list": DimensionListCommand,
   "director:clarifications:create": DirectorClarificationsCreateCommand,

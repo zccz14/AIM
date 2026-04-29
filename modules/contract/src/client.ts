@@ -1,5 +1,6 @@
 import { createClient as createGeneratedClient } from "../generated/_client/client/index.js";
 import {
+  createCoordinatorProposalDryRun,
   createDirectorClarification,
   createProject,
   createTask,
@@ -22,6 +23,10 @@ import {
   patchTaskById,
 } from "../generated/client.js";
 import type {
+  CoordinatorProposalDryRunResponse,
+  CreateCoordinatorProposalDryRunError,
+  CreateCoordinatorProposalDryRunRequest,
+  CreateCoordinatorProposalDryRunResponse,
   CreateDirectorClarificationError,
   CreateDirectorClarificationRequest,
   CreateDirectorClarificationResponse,
@@ -144,6 +149,9 @@ export type ContractClient = {
   ): Promise<DirectorClarification>;
   deleteProjectById(projectId: string): Promise<void>;
   createTaskBatch(input: CreateTaskBatchRequest): Promise<TaskBatchResponse>;
+  createCoordinatorProposalDryRun(
+    input: CreateCoordinatorProposalDryRunRequest,
+  ): Promise<CoordinatorProposalDryRunResponse>;
   createTask(input: CreateTaskRequest): Promise<Task>;
   getTaskById(taskId: string): Promise<Task>;
   getTaskPullRequestStatusById(
@@ -171,6 +179,8 @@ const directorClarificationListResponseSchema =
 const taskSchema = schemas.Task;
 const taskListResponseSchema = schemas.TaskListResponse;
 const taskBatchResponseSchema = schemas.TaskBatchResponse;
+const coordinatorProposalDryRunResponseSchema =
+  schemas.CoordinatorProposalDryRunResponse;
 const taskPullRequestStatusResponseSchema =
   schemas.TaskPullRequestStatusResponse;
 const opencodeModelsResponseSchema = schemas.OpenCodeModelsResponse;
@@ -578,6 +588,29 @@ export const createContractClient = ({
       return taskBatchResponseSchema.parse(
         result.data satisfies CreateTaskBatchResponse,
       ) satisfies TaskBatchResponse;
+    },
+
+    async createCoordinatorProposalDryRun(input) {
+      const result = await createCoordinatorProposalDryRun({
+        body: input,
+        client,
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(
+            result.error satisfies CreateCoordinatorProposalDryRunError,
+          ),
+        );
+      }
+
+      return coordinatorProposalDryRunResponseSchema.parse(
+        result.data satisfies CreateCoordinatorProposalDryRunResponse,
+      ) satisfies CoordinatorProposalDryRunResponse;
     },
 
     async createTask(input) {
