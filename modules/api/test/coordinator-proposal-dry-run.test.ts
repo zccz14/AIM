@@ -124,6 +124,44 @@ describe("coordinator proposal dry-run", () => {
     });
   });
 
+  it("uses top-level Task worktree and PR fields in keep rationale before legacy metadata", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "abc1234",
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: sourceEvaluation,
+          source_gap: "Close the documented dry-run gap.",
+        },
+      ],
+      taskPool: [
+        {
+          done: false,
+          pull_request_url: "https://github.com/zccz14/AIM/pull/61",
+          source_metadata: {
+            dimension_evaluation_id: "evaluation-1",
+            dimension_id: "dimension-api",
+            pull_request_url: "https://github.com/zccz14/AIM/pull/old",
+            worktree_path: "/old/worktree",
+          },
+          status: "pending",
+          task_id: "task-existing-artifacts",
+          title: "Existing dry-run task with artifacts",
+          worktree_path: "/repo/.worktrees/task-existing-artifacts",
+        },
+      ],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "keep",
+        keep_reason:
+          "Retain unfinished coverage task task-existing-artifacts; worktree=/repo/.worktrees/task-existing-artifacts; pr=https://github.com/zccz14/AIM/pull/61; it already covers the current dimension evaluation and should not be duplicated.",
+        task_id: "task-existing-artifacts",
+      }),
+    ]);
+  });
+
   it("uses rejected stale or self-overlap feedback as replacement planning feedback instead of a generic create placeholder", () => {
     const dryRun = buildCoordinatorProposalDryRun({
       currentBaselineCommit: "abc1234",
@@ -333,5 +371,40 @@ describe("coordinator proposal dry-run", () => {
       }),
     ]);
     expect(postBatch).not.toHaveBeenCalled();
+  });
+
+  it("uses top-level Task worktree and PR fields in delete rationale before legacy metadata", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      evaluations: [],
+      staleTaskFeedback: [
+        {
+          reason: "Superseded by accepted dependency plan.",
+          task: {
+            done: false,
+            pull_request_url: "https://github.com/zccz14/AIM/pull/62",
+            source_metadata: {
+              dimension_evaluation_id: "evaluation-old",
+              dimension_id: "dimension-api",
+              pull_request_url: "https://github.com/zccz14/AIM/pull/old",
+              worktree_path: "/old/worktree",
+            },
+            status: "pending",
+            task_id: "task-stale-artifacts",
+            title: "Stale task with artifacts",
+            worktree_path: "/repo/.worktrees/task-stale-artifacts",
+          },
+        },
+      ],
+      taskPool: [],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "delete",
+        delete_reason:
+          "Superseded by accepted dependency plan.; worktree=/repo/.worktrees/task-stale-artifacts; pr=https://github.com/zccz14/AIM/pull/62; delete because stale/conflict/baseline absorbed coverage should not remain in the unfinished Task Pool.",
+        task_id: "task-stale-artifacts",
+      }),
+    ]);
   });
 });

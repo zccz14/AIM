@@ -14,11 +14,13 @@ type SourceEvaluation = {
 
 type TaskPoolItem = {
   done?: boolean;
+  pull_request_url?: string;
   result?: string;
   source_metadata?: Record<string, unknown>;
   status?: string;
   task_id: string;
   title: string;
+  worktree_path?: string;
 };
 
 type EvaluationGap = {
@@ -125,6 +127,9 @@ const getStringMetadata = (
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 };
 
+const getStringField = (value: undefined | string) =>
+  typeof value === "string" && value.trim().length > 0 ? value : null;
+
 const matchesSource = (task: TaskPoolItem, evaluation: EvaluationGap) =>
   getStringMetadata(task.source_metadata, "dimension_id") ===
     evaluation.source_dimension.id &&
@@ -179,13 +184,19 @@ const buildDependencyConflictPlan = (
 };
 
 const classifyTaskWorktreeAndPr = (task: TaskPoolItem) => {
-  const worktreePath = getStringMetadata(task.source_metadata, "worktree_path");
+  const worktreePath =
+    getStringField(task.worktree_path) ??
+    getStringMetadata(task.source_metadata, "worktree_path");
   const pullRequestUrl = getStringMetadata(
     task.source_metadata,
     "pull_request_url",
   );
+  const preferredPullRequestUrl =
+    getStringField(task.pull_request_url) ?? pullRequestUrl;
 
-  return `worktree=${worktreePath ?? "none"}; pr=${pullRequestUrl ?? "none"}`;
+  return `worktree=${worktreePath ?? "none"}; pr=${
+    preferredPullRequestUrl ?? "none"
+  }`;
 };
 
 const buildSourceMetadataPlanningEvidence = (
