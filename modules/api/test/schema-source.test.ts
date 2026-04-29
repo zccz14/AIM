@@ -38,6 +38,18 @@ describe("api sqlite schema source", () => {
       /CREATE TABLE IF NOT EXISTS optimizer_lane_states/i,
     );
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS manager_states/i);
+    const managerStatesDdl = schemaSql.match(
+      /CREATE TABLE IF NOT EXISTS manager_states \([\s\S]*?\);/i,
+    )?.[0];
+
+    expect(managerStatesDdl).toBeDefined();
+    expect(managerStatesDdl).toMatch(/project_id TEXT PRIMARY KEY/i);
+    expect(managerStatesDdl).toMatch(
+      /FOREIGN KEY \(project_id\) REFERENCES projects\(id\) ON DELETE CASCADE/i,
+    );
+    expect(managerStatesDdl).toMatch(
+      /FOREIGN KEY \(session_id\) REFERENCES opencode_sessions\(session_id\) ON DELETE SET NULL/i,
+    );
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS coordinator_states/i);
     const coordinatorStatesDdl = schemaSql.match(
       /CREATE TABLE IF NOT EXISTS coordinator_states \([\s\S]*?\);/i,
