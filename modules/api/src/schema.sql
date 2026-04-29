@@ -107,6 +107,21 @@ CREATE TABLE IF NOT EXISTS opencode_sessions (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS coordinator_states (
+  project_id TEXT PRIMARY KEY,
+  commit_sha TEXT NOT NULL,
+  active_task_count INTEGER NOT NULL,
+  threshold INTEGER NOT NULL,
+  planning_input_hash TEXT NOT NULL,
+  session_id TEXT,
+  state TEXT NOT NULL,
+  last_error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (session_id) REFERENCES opencode_sessions(session_id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS optimizer_lane_events (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,

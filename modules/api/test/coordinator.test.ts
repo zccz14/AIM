@@ -84,6 +84,53 @@ const createBelowThresholdRepositories = () => ({
   },
 });
 
+const createCoordinatorStateRepository = (
+  initialState: null | {
+    active_task_count: number;
+    commit_sha: string;
+    created_at: string;
+    last_error: null | string;
+    planning_input_hash: string;
+    project_id: string;
+    session_id: null | string;
+    state: "failed" | "planning";
+    threshold: number;
+    updated_at: string;
+  } = null,
+) => {
+  let state = initialState;
+
+  return {
+    clearCoordinatorState: vi.fn(() => {
+      state = null;
+      return true;
+    }),
+    getCoordinatorState: vi.fn(() => state),
+    upsertCoordinatorState: vi.fn(
+      (input: {
+        active_task_count: number;
+        commit_sha: string;
+        last_error?: null | string;
+        planning_input_hash: string;
+        project_id: string;
+        session_id?: null | string;
+        state: "failed" | "planning";
+        threshold: number;
+      }) => {
+        state = {
+          created_at: state?.created_at ?? "2026-04-28T12:00:00.000Z",
+          updated_at: "2026-04-28T12:00:00.000Z",
+          ...input,
+          last_error: input.last_error ?? null,
+          session_id: input.session_id ?? null,
+        };
+
+        return state;
+      },
+    ),
+  };
+};
+
 describe("coordinator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -807,5 +854,193 @@ describe("coordinator", () => {
 
     expect(sessionHandles[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
     expect(sessionHandles[1][Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("does not create a duplicate Coordinator session after restart when persisted planning state points at a pending session", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const coordinatorStateRepository = createCoordinatorStateRepository({
+      active_task_count: 0,
+      commit_sha: "baseline-retry",
+      created_at: "2026-04-28T12:00:00.000Z",
+      last_error: null,
+      planning_input_hash: "persisted-hash",
+      project_id: project.id,
+      session_id: "coordinator-session-existing",
+      state: "planning",
+      threshold: 10,
+      updated_at: "2026-04-28T12:00:00.000Z",
+    });
+    const continuationSessionRepository = {
+      getSessionById: vi.fn(() => ({
+        session_id: "coordinator-session-existing",
+        state: "pending" as const,
+      })),
+    };
+    const sessionManager = { createSession: vi.fn() };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      continuationSessionRepository,
+      coordinatorStateRepository,
+      heartbeatMs: 100,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(continuationSessionRepository.getSessionById).toHaveBeenCalledWith(
+      "coordinator-session-existing",
+    );
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("creates a new Coordinator session after the persisted pending session is rejected", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const coordinatorStateRepository = createCoordinatorStateRepository({
+      active_task_count: 0,
+      commit_sha: "baseline-retry",
+      created_at: "2026-04-28T12:00:00.000Z",
+      last_error: null,
+      planning_input_hash: "persisted-hash",
+      project_id: project.id,
+      session_id: "coordinator-session-rejected",
+      state: "planning",
+      threshold: 10,
+      updated_at: "2026-04-28T12:00:00.000Z",
+    });
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-next",
+    };
+    const sessionManager = { createSession: vi.fn(async () => sessionHandle) };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      continuationSessionRepository: {
+        getSessionById: vi.fn(() => ({
+          session_id: "coordinator-session-rejected",
+          state: "rejected" as const,
+        })),
+      },
+      coordinatorStateRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    expect(
+      coordinatorStateRepository.upsertCoordinatorState,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: project.id,
+        session_id: null,
+        state: "planning",
+      }),
+    );
+    expect(
+      coordinatorStateRepository.upsertCoordinatorState,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: project.id,
+        session_id: "coordinator-session-next",
+        state: "planning",
+      }),
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("does not permanently stall when persisted planning state has no session reference", async () => {
+    const repositories = createBelowThresholdRepositories();
+    const coordinatorStateRepository = createCoordinatorStateRepository({
+      active_task_count: 0,
+      commit_sha: "baseline-retry",
+      created_at: "2026-04-28T12:00:00.000Z",
+      last_error: null,
+      planning_input_hash: "persisted-hash",
+      project_id: project.id,
+      session_id: null,
+      state: "planning",
+      threshold: 10,
+      updated_at: "2026-04-28T12:00:00.000Z",
+    });
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: "coordinator-session-recovered",
+    };
+    const sessionManager = { createSession: vi.fn(async () => sessionHandle) };
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      coordinatorStateRepository,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    expect(
+      coordinatorStateRepository.upsertCoordinatorState,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: project.id,
+        session_id: "coordinator-session-recovered",
+        state: "planning",
+      }),
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it("clears persisted Coordinator state when the Active Task Pool reaches the threshold", async () => {
+    const taskRepository = {
+      getProjectById: vi.fn(() => project),
+      listRejectedTasksByProject: vi.fn(),
+      listUnfinishedTasks: vi.fn(async () =>
+        Array.from({ length: 10 }, (_, index) => createTask(index)),
+      ),
+    };
+    const coordinatorStateRepository = createCoordinatorStateRepository({
+      active_task_count: 9,
+      commit_sha: "baseline-old",
+      created_at: "2026-04-28T12:00:00.000Z",
+      last_error: null,
+      planning_input_hash: "persisted-hash",
+      project_id: project.id,
+      session_id: "coordinator-session-existing",
+      state: "planning",
+      threshold: 10,
+      updated_at: "2026-04-28T12:00:00.000Z",
+    });
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      coordinatorStateRepository,
+      dimensionRepository: {
+        listDimensionEvaluations: vi.fn(),
+        listDimensions: vi.fn(),
+      },
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager: { createSession: vi.fn() },
+      taskRepository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(
+      coordinatorStateRepository.clearCoordinatorState,
+    ).toHaveBeenCalledWith(project.id);
+
+    await coordinator[Symbol.asyncDispose]();
   });
 });

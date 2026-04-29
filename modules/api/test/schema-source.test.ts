@@ -7,6 +7,7 @@ const schemaUrl = new URL("src/schema.sql", apiRoot);
 const repositorySourceUrls = [
   new URL("src/director-clarification-repository.ts", apiRoot),
   new URL("src/dimension-repository.ts", apiRoot),
+  new URL("src/coordinator-state-repository.ts", apiRoot),
   new URL("src/manager-state-repository.ts", apiRoot),
   new URL("src/task-repository.ts", apiRoot),
 ];
@@ -37,11 +38,42 @@ describe("api sqlite schema source", () => {
       /CREATE TABLE IF NOT EXISTS optimizer_lane_states/i,
     );
     expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS manager_states/i);
+    expect(schemaSql).toMatch(/CREATE TABLE IF NOT EXISTS coordinator_states/i);
+    const coordinatorStatesDdl = schemaSql.match(
+      /CREATE TABLE IF NOT EXISTS coordinator_states \([\s\S]*?\);/i,
+    )?.[0];
+
+    expect(coordinatorStatesDdl).toBeDefined();
+    expect(coordinatorStatesDdl).toMatch(/project_id TEXT PRIMARY KEY/i);
+    expect(coordinatorStatesDdl).toMatch(
+      /FOREIGN KEY \(project_id\) REFERENCES projects\(id\) ON DELETE CASCADE/i,
+    );
+    expect(coordinatorStatesDdl).toMatch(
+      /FOREIGN KEY \(session_id\) REFERENCES opencode_sessions\(session_id\) ON DELETE SET NULL/i,
+    );
     expect(schemaSql).not.toMatch(
       /CREATE TABLE IF NOT EXISTS task_write_bulks/i,
     );
     expect(schemaSql).toMatch(/DROP TABLE IF EXISTS task_write_bulks/i);
     expect(schemaSql).not.toMatch(/manager_reports/i);
+
+    const opencodeSessionsDdl = schemaSql.match(
+      /CREATE TABLE IF NOT EXISTS opencode_sessions \([\s\S]*?\);/i,
+    )?.[0];
+    expect(opencodeSessionsDdl).toBeDefined();
+    expect(opencodeSessionsDdl).toMatchInlineSnapshot(`
+      "CREATE TABLE IF NOT EXISTS opencode_sessions (
+        session_id TEXT PRIMARY KEY,
+        state TEXT NOT NULL,
+        value TEXT,
+        reason TEXT,
+        continue_prompt TEXT,
+        provider_id TEXT,
+        model_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );"
+    `);
   });
 
   it("does not scatter schema DDL across api repository modules", async () => {

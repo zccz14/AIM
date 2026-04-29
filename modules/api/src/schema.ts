@@ -144,6 +144,7 @@ const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
       "dimension_evaluations",
       "director_clarifications",
       "manager_states",
+      "coordinator_states",
     ]) {
       const columns = tableColumns(database, tableName);
 
