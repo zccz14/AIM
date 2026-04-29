@@ -307,7 +307,10 @@ describe("contract package baseline", () => {
     });
     expect(Object.keys(contractModule).sort()).toEqual([
       "ContractClientError",
+      "coordinatorProposalDryRunPath",
+      "coordinatorProposalDryRunResponseSchema",
       "createContractClient",
+      "createCoordinatorProposalDryRunRequestSchema",
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
       "createDirectorClarificationRequestSchema",
@@ -465,6 +468,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.projectDirectorClarificationByIdPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.coordinatorProposalDryRunPath
       ],
     ).toBeDefined();
     expect(
