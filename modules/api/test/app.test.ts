@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 const mockRegisterHealthRoute = vi.fn();
+const mockRegisterCoordinatorProposalRoutes = vi.fn();
 const mockRegisterDbRoutes = vi.fn();
 const mockRegisterDirectorClarificationRoutes = vi.fn();
 const mockRegisterDimensionRoutes = vi.fn();
@@ -16,6 +17,10 @@ vi.mock("@aim-ai/contract", () => ({
 
 vi.mock("../src/routes/health.js", () => ({
   registerHealthRoute: mockRegisterHealthRoute,
+}));
+
+vi.mock("../src/routes/coordinator-proposals.js", () => ({
+  registerCoordinatorProposalRoutes: mockRegisterCoordinatorProposalRoutes,
 }));
 
 vi.mock("../src/routes/db.js", () => ({
@@ -57,6 +62,7 @@ afterEach(() => {
 
 afterAll(() => {
   vi.doUnmock("@aim-ai/contract");
+  vi.doUnmock("../src/routes/coordinator-proposals.js");
   vi.doUnmock("../src/routes/db.js");
   vi.doUnmock("../src/routes/dimensions.js");
   vi.doUnmock("../src/routes/director-clarifications.js");
