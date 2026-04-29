@@ -197,8 +197,64 @@ const planningInputHash = ({
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const getNonEmptyString = (source: Record<string, unknown>, field: string) => {
+  const value = source[field];
+
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
+const getTaskValidatedBaseline = (task: Task) => {
+  const validation = task.source_metadata.task_spec_validation;
+
+  return isRecord(validation)
+    ? getNonEmptyString(validation, "validated_baseline_commit")
+    : null;
+};
+
+const getTaskFreshnessStatus = ({
+  currentBaseline,
+  sourceBaseline,
+  validatedBaseline,
+}: {
+  currentBaseline: string;
+  sourceBaseline: null | string;
+  validatedBaseline: null | string;
+}) => {
+  if (!sourceBaseline && !validatedBaseline) {
+    return "missing_baseline_metadata";
+  }
+
+  if (!currentBaseline || !sourceBaseline || !validatedBaseline) {
+    return "unknown";
+  }
+
+  return sourceBaseline === currentBaseline &&
+    validatedBaseline === currentBaseline
+    ? "current"
+    : "stale";
+};
+
+const summarizeActiveTask = (task: Task, baselineFacts: BaselineFacts) => {
+  const sourceBaseline = getNonEmptyString(
+    task.source_metadata,
+    "latest_origin_main_commit",
+  );
+  const validatedBaseline = getTaskValidatedBaseline(task);
+  const freshness = getTaskFreshnessStatus({
+    currentBaseline: baselineFacts.commitSha,
+    sourceBaseline,
+    validatedBaseline,
+  });
+
+  return `- ${task.title} (${task.task_id}) status ${task.status}; source baseline ${sourceBaseline ?? "(missing)"}; validated baseline ${validatedBaseline ?? "(missing)"}; freshness ${freshness}; PR ${task.pull_request_url ?? "(not set)"}; worktree ${task.worktree_path ?? "(not set)"}; session ${task.session_id ?? "(not set)"}`;
+};
+
 const buildPrompt = ({
   activeTasks,
+  baselineFacts,
   project,
   threshold,
 }: {
@@ -210,6 +266,10 @@ const buildPrompt = ({
   rejectedTasks: Task[];
   threshold: number;
 }) => {
+  const activeTaskSummary = activeTasks
+    .map((task) => summarizeActiveTask(task, baselineFacts))
+    .join("\n");
+
   return `You are the AIM Coordinator for project_id "${project.id}".
 
 AIM Server base URL: http://localhost:8192
@@ -217,6 +277,9 @@ AIM Server base URL: http://localhost:8192
 FOLLOW the aim-coordinator-guide SKILL.
 
 Maintain the Active Task Pool for this single project only. The current threshold is ${threshold}. Active Task Pool: ${activeTasks.length} unfinished Tasks.
+
+Current Active Task Pool freshness summary:
+${activeTaskSummary || "- No unfinished Tasks in this project."}
 
 Fetch current dimensions, dimension evaluations, current Active Task Pool, and rejected tasks via the AIM API if needed. Fetch and validate the origin/main baseline locally before planning. Append Tasks only when the pool needs more actionable work. Do not operate on other projects and do not run an Issue Reducer.
 

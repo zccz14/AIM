@@ -367,7 +367,7 @@ describe("coordinator", () => {
       source_metadata: {
         latest_origin_main_commit: "baseline-current",
         task_spec_validation: {
-          latest_origin_main_commit: "baseline-current",
+          validated_baseline_commit: "baseline-current",
         },
       },
       status: "pushed" as const,
@@ -379,7 +379,7 @@ describe("coordinator", () => {
       source_metadata: {
         latest_origin_main_commit: "baseline-old",
         task_spec_validation: {
-          latest_origin_main_commit: "baseline-old-validated",
+          validated_baseline_commit: "baseline-old-validated",
         },
       },
       status: "running" as const,
@@ -438,11 +438,19 @@ describe("coordinator", () => {
     expect(prompt).toMatch(/fetch current dimensions/i);
     expect(prompt).toContain("current Active Task Pool");
     expect(prompt).toContain("origin/main baseline locally");
-    expect(prompt).not.toContain("Current Active Task Pool:");
-    expect(prompt).not.toContain("task-project-1-1");
-    expect(prompt).not.toContain("baseline-current");
-    expect(prompt).not.toContain("/repo/.worktrees/current");
-    expect(prompt).not.toContain("https://github.com/example/project/pull/1");
+    expect(prompt).toContain("Current Active Task Pool freshness summary:");
+    expect(prompt).toContain(
+      "- Task 1 (task-project-1-1) status pushed; source baseline baseline-current; validated baseline baseline-current; freshness current; PR https://github.com/example/project/pull/1; worktree /repo/.worktrees/current; session session-current",
+    );
+    expect(prompt).toContain(
+      "- Task 2 (task-project-1-2) status running; source baseline baseline-old; validated baseline baseline-old-validated; freshness stale; PR (not set); worktree /repo/.worktrees/stale; session session-stale",
+    );
+    expect(prompt).toContain(
+      "- Task 3 (task-project-1-3) status pending; source baseline (missing); validated baseline (missing); freshness missing_baseline_metadata; PR (not set); worktree (not set); session (not set)",
+    );
+    expect(prompt).toContain(
+      "- Task 4 (task-project-1-4) status pending; source baseline baseline-current; validated baseline (missing); freshness unknown; PR (not set); worktree (not set); session (not set)",
+    );
 
     await coordinator[Symbol.asyncDispose]();
   });
@@ -457,7 +465,7 @@ describe("coordinator", () => {
           source_metadata: {
             latest_origin_main_commit: "baseline-current",
             task_spec_validation: {
-              latest_origin_main_commit: "baseline-current",
+              validated_baseline_commit: "baseline-current",
             },
           },
         },
@@ -498,7 +506,7 @@ describe("coordinator", () => {
     expect(prompt).toContain("Active Task Pool: 1 unfinished Tasks");
     expect(prompt).toMatch(/fetch current dimensions/i);
     expect(prompt).toContain("rejected tasks");
-    expect(prompt).not.toContain("Current Active Task Pool:");
+    expect(prompt).toContain("Current Active Task Pool freshness summary:");
     expect(prompt).not.toContain("Rejected Task feedback for this project:");
     expect(prompt).not.toContain("rejected-project-1-1");
     expect(prompt).not.toContain(
