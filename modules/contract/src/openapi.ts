@@ -26,6 +26,7 @@ export const projectDirectorClarificationByIdPath =
   "/projects/{projectId}/director/clarifications/{clarificationId}";
 export const projectOptimizerStatusPath =
   "/projects/{projectId}/optimizer/status";
+export const coordinatorProposalDryRunPath = "/coordinator/proposals/dry-run";
 export const tasksPath = "/tasks";
 export const tasksBatchPath = "/tasks/batch";
 export const taskByIdPath = "/tasks/{taskId}";

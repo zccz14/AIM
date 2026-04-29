@@ -712,6 +712,44 @@ export const openApiDocument = {
         },
       },
     },
+    "/coordinator/proposals/dry-run": {
+      post: {
+        operationId: "createCoordinatorProposalDryRun",
+        summary: "Build a read-only Coordinator task proposal dry-run",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateCoordinatorProposalDryRunRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Structured dry-run Coordinator proposal operations",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CoordinatorProposalDryRunResponse",
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid dry-run payload or project",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/tasks": {
       post: {
         operationId: "createTask",
@@ -2250,6 +2288,475 @@ export const openApiDocument = {
             type: "array",
             items: {
               $ref: "#/components/schemas/TaskBatchOperationResult",
+            },
+          },
+        },
+      },
+      CoordinatorProposalSourceDimension: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "name"],
+        properties: {
+          id: {
+            type: "string",
+            minLength: 1,
+          },
+          name: {
+            type: "string",
+            minLength: 1,
+          },
+          goal: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluation_method: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinatorProposalSourceEvaluation: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "evaluation"],
+        properties: {
+          id: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluation: {
+            type: "string",
+            minLength: 1,
+          },
+          commit_sha: {
+            type: "string",
+            minLength: 1,
+          },
+          score: {
+            type: "number",
+          },
+        },
+      },
+      CoordinatorProposalTaskPoolItem: {
+        type: "object",
+        additionalProperties: false,
+        required: ["task_id", "title"],
+        properties: {
+          task_id: {
+            type: "string",
+            minLength: 1,
+          },
+          title: {
+            type: "string",
+            minLength: 1,
+          },
+          done: {
+            type: "boolean",
+          },
+          result: {
+            type: "string",
+          },
+          status: {
+            type: "string",
+          },
+          source_metadata: {
+            type: "object",
+            additionalProperties: true,
+          },
+        },
+      },
+      CoordinatorProposalEvaluationGap: {
+        type: "object",
+        additionalProperties: false,
+        required: ["source_dimension", "source_evaluation", "source_gap"],
+        properties: {
+          source_dimension: {
+            $ref: "#/components/schemas/CoordinatorProposalSourceDimension",
+          },
+          source_evaluation: {
+            $ref: "#/components/schemas/CoordinatorProposalSourceEvaluation",
+          },
+          source_gap: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinatorProposalStaleTaskFeedback: {
+        type: "object",
+        additionalProperties: false,
+        required: ["reason", "task"],
+        properties: {
+          reason: {
+            type: "string",
+            minLength: 1,
+          },
+          task: {
+            $ref: "#/components/schemas/CoordinatorProposalTaskPoolItem",
+          },
+        },
+      },
+      CreateCoordinatorProposalDryRunRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "project_id",
+          "currentBaselineCommit",
+          "evaluations",
+          "taskPool",
+        ],
+        properties: {
+          project_id: {
+            type: "string",
+            format: "uuid",
+          },
+          currentBaselineCommit: {
+            type: "string",
+            minLength: 1,
+          },
+          evaluations: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinatorProposalEvaluationGap",
+            },
+          },
+          taskPool: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinatorProposalTaskPoolItem",
+            },
+          },
+          rejectedTasks: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinatorProposalTaskPoolItem",
+            },
+          },
+          staleTaskFeedback: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinatorProposalStaleTaskFeedback",
+            },
+          },
+        },
+      },
+      CoordinatorProposalCoverageJudgment: {
+        oneOf: [
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["status", "covered_by_task_id", "summary"],
+            properties: {
+              status: {
+                type: "string",
+                enum: ["covered_by_unfinished_task"],
+              },
+              covered_by_task_id: {
+                type: "string",
+                minLength: 1,
+              },
+              summary: {
+                type: "string",
+                minLength: 1,
+              },
+            },
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["status", "summary"],
+            properties: {
+              status: {
+                type: "string",
+                enum: ["stale_unfinished_task", "uncovered_gap"],
+              },
+              summary: {
+                type: "string",
+                minLength: 1,
+              },
+            },
+          },
+        ],
+      },
+      CoordinatorProposalDependencyConflictPlan: {
+        type: "object",
+        additionalProperties: false,
+        required: ["conflict_draft", "dependency_draft"],
+        properties: {
+          conflict_draft: {
+            type: "string",
+            minLength: 1,
+          },
+          dependency_draft: {
+            type: "array",
+            items: {
+              type: "string",
+              minLength: 1,
+            },
+          },
+        },
+      },
+      CoordinatorProposalSourceMetadataPlanningEvidence: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "conflict_duplicate_assessment",
+          "current_task_pool_coverage",
+          "dependency_rationale",
+          "unfinished_task_non_conflict_rationale",
+        ],
+        properties: {
+          conflict_duplicate_assessment: {
+            type: "string",
+            minLength: 1,
+          },
+          current_task_pool_coverage: {
+            type: "string",
+            minLength: 1,
+          },
+          dependency_rationale: {
+            type: "string",
+            minLength: 1,
+          },
+          unfinished_task_non_conflict_rationale: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinatorProposalPlanningFeedback: {
+        type: "object",
+        additionalProperties: false,
+        required: ["blocked", "reason"],
+        properties: {
+          blocked: {
+            type: "boolean",
+          },
+          reason: {
+            type: "string",
+            minLength: 1,
+          },
+          rejected_task_id: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinatorProposalTaskSpecDraft: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "spec"],
+        properties: {
+          title: {
+            type: "string",
+            minLength: 1,
+          },
+          spec: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      CoordinatorProposalOperationBase: {
+        type: "object",
+        additionalProperties: true,
+        required: [
+          "coverage_judgment",
+          "dependency_conflict_plan",
+          "dry_run_only",
+          "must_not_write_directly",
+          "requires_task_spec_validation",
+          "source_metadata_planning_evidence",
+          "source_dimension",
+          "source_evaluation",
+          "source_gap",
+        ],
+        properties: {
+          coverage_judgment: {
+            $ref: "#/components/schemas/CoordinatorProposalCoverageJudgment",
+          },
+          dependency_conflict_plan: {
+            $ref: "#/components/schemas/CoordinatorProposalDependencyConflictPlan",
+          },
+          dry_run_only: {
+            type: "boolean",
+            enum: [true],
+          },
+          must_not_write_directly: {
+            type: "boolean",
+            enum: [true],
+          },
+          requires_task_spec_validation: {
+            type: "boolean",
+          },
+          source_metadata_planning_evidence: {
+            $ref: "#/components/schemas/CoordinatorProposalSourceMetadataPlanningEvidence",
+          },
+          source_dimension: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/CoordinatorProposalSourceDimension",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          source_evaluation: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/CoordinatorProposalSourceEvaluation",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          source_gap: {
+            type: "string",
+          },
+        },
+      },
+      CoordinatorProposalCreateOperation: {
+        allOf: [
+          {
+            $ref: "#/components/schemas/CoordinatorProposalOperationBase",
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["decision", "planning_feedback", "task_spec_draft"],
+            properties: {
+              decision: {
+                type: "string",
+                enum: ["create"],
+              },
+              planning_feedback: {
+                anyOf: [
+                  {
+                    $ref: "#/components/schemas/CoordinatorProposalPlanningFeedback",
+                  },
+                  {
+                    type: "null",
+                  },
+                ],
+              },
+              task_spec_draft: {
+                anyOf: [
+                  {
+                    $ref: "#/components/schemas/CoordinatorProposalTaskSpecDraft",
+                  },
+                  {
+                    type: "null",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+      CoordinatorProposalKeepOperation: {
+        allOf: [
+          {
+            $ref: "#/components/schemas/CoordinatorProposalOperationBase",
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "decision",
+              "keep_reason",
+              "planning_feedback",
+              "task_id",
+              "task_spec_draft",
+            ],
+            properties: {
+              decision: {
+                type: "string",
+                enum: ["keep"],
+              },
+              keep_reason: {
+                type: "string",
+                minLength: 1,
+              },
+              planning_feedback: {
+                type: "null",
+              },
+              task_id: {
+                type: "string",
+                minLength: 1,
+              },
+              task_spec_draft: {
+                type: "null",
+              },
+            },
+          },
+        ],
+      },
+      CoordinatorProposalDeleteOperation: {
+        allOf: [
+          {
+            $ref: "#/components/schemas/CoordinatorProposalOperationBase",
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "decision",
+              "delete_reason",
+              "planning_feedback",
+              "task_id",
+              "task_spec_draft",
+            ],
+            properties: {
+              decision: {
+                type: "string",
+                enum: ["delete"],
+              },
+              delete_reason: {
+                type: "string",
+                minLength: 1,
+              },
+              planning_feedback: {
+                $ref: "#/components/schemas/CoordinatorProposalPlanningFeedback",
+              },
+              task_id: {
+                type: "string",
+                minLength: 1,
+              },
+              task_spec_draft: {
+                type: "null",
+              },
+            },
+          },
+        ],
+      },
+      CoordinatorProposalOperation: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/CoordinatorProposalCreateOperation",
+          },
+          {
+            $ref: "#/components/schemas/CoordinatorProposalKeepOperation",
+          },
+          {
+            $ref: "#/components/schemas/CoordinatorProposalDeleteOperation",
+          },
+        ],
+      },
+      CoordinatorProposalDryRunResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["dry_run", "operations"],
+        properties: {
+          dry_run: {
+            type: "boolean",
+            enum: [true],
+          },
+          operations: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/CoordinatorProposalOperation",
             },
           },
         },

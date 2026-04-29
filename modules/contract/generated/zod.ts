@@ -186,6 +186,151 @@ const CreateDirectorClarificationRequest = z
 const PatchDirectorClarificationRequest = z
   .object({ status: z.enum(["open", "addressed", "dismissed"]) })
   .strict();
+const CoordinatorProposalSourceDimension = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    goal: z.string().min(1).optional(),
+    evaluation_method: z.string().min(1).optional(),
+  })
+  .strict();
+const CoordinatorProposalSourceEvaluation = z
+  .object({
+    id: z.string().min(1),
+    evaluation: z.string().min(1),
+    commit_sha: z.string().min(1).optional(),
+    score: z.number().optional(),
+  })
+  .strict();
+const CoordinatorProposalEvaluationGap = z
+  .object({
+    source_dimension: CoordinatorProposalSourceDimension,
+    source_evaluation: CoordinatorProposalSourceEvaluation,
+    source_gap: z.string().min(1),
+  })
+  .strict();
+const CoordinatorProposalTaskPoolItem = z
+  .object({
+    task_id: z.string().min(1),
+    title: z.string().min(1),
+    done: z.boolean().optional(),
+    result: z.string().optional(),
+    status: z.string().optional(),
+    source_metadata: z.object({}).partial().strict().passthrough().optional(),
+  })
+  .strict();
+const CoordinatorProposalStaleTaskFeedback = z
+  .object({ reason: z.string().min(1), task: CoordinatorProposalTaskPoolItem })
+  .strict();
+const CreateCoordinatorProposalDryRunRequest = z
+  .object({
+    project_id: z.string().uuid(),
+    currentBaselineCommit: z.string().min(1),
+    evaluations: z.array(CoordinatorProposalEvaluationGap),
+    taskPool: z.array(CoordinatorProposalTaskPoolItem),
+    rejectedTasks: z.array(CoordinatorProposalTaskPoolItem).optional(),
+    staleTaskFeedback: z.array(CoordinatorProposalStaleTaskFeedback).optional(),
+  })
+  .strict();
+const CoordinatorProposalCoverageJudgment = z.union([
+  z
+    .object({
+      status: z.literal("covered_by_unfinished_task"),
+      covered_by_task_id: z.string().min(1),
+      summary: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.enum(["stale_unfinished_task", "uncovered_gap"]),
+      summary: z.string().min(1),
+    })
+    .strict(),
+]);
+const CoordinatorProposalDependencyConflictPlan = z
+  .object({
+    conflict_draft: z.string().min(1),
+    dependency_draft: z.array(z.string().min(1)),
+  })
+  .strict();
+const CoordinatorProposalSourceMetadataPlanningEvidence = z
+  .object({
+    conflict_duplicate_assessment: z.string().min(1),
+    current_task_pool_coverage: z.string().min(1),
+    dependency_rationale: z.string().min(1),
+    unfinished_task_non_conflict_rationale: z.string().min(1),
+  })
+  .strict();
+const CoordinatorProposalOperationBase = z
+  .object({
+    coverage_judgment: CoordinatorProposalCoverageJudgment,
+    dependency_conflict_plan: CoordinatorProposalDependencyConflictPlan,
+    dry_run_only: z.literal(true),
+    must_not_write_directly: z.literal(true),
+    requires_task_spec_validation: z.boolean(),
+    source_metadata_planning_evidence:
+      CoordinatorProposalSourceMetadataPlanningEvidence,
+    source_dimension: z.union([CoordinatorProposalSourceDimension, z.null()]),
+    source_evaluation: z.union([CoordinatorProposalSourceEvaluation, z.null()]),
+    source_gap: z.string(),
+  })
+  .strict()
+  .passthrough();
+const CoordinatorProposalPlanningFeedback = z
+  .object({
+    blocked: z.boolean(),
+    reason: z.string().min(1),
+    rejected_task_id: z.string().min(1).optional(),
+  })
+  .strict();
+const CoordinatorProposalTaskSpecDraft = z
+  .object({ title: z.string().min(1), spec: z.string().min(1) })
+  .strict();
+const CoordinatorProposalCreateOperation = CoordinatorProposalOperationBase.and(
+  z
+    .object({
+      decision: z.literal("create"),
+      planning_feedback: z.union([
+        CoordinatorProposalPlanningFeedback,
+        z.null(),
+      ]),
+      task_spec_draft: z.union([CoordinatorProposalTaskSpecDraft, z.null()]),
+    })
+    .strict()
+);
+const CoordinatorProposalKeepOperation = CoordinatorProposalOperationBase.and(
+  z
+    .object({
+      decision: z.literal("keep"),
+      keep_reason: z.string().min(1),
+      planning_feedback: z.null(),
+      task_id: z.string().min(1),
+      task_spec_draft: z.null(),
+    })
+    .strict()
+);
+const CoordinatorProposalDeleteOperation = CoordinatorProposalOperationBase.and(
+  z
+    .object({
+      decision: z.literal("delete"),
+      delete_reason: z.string().min(1),
+      planning_feedback: CoordinatorProposalPlanningFeedback,
+      task_id: z.string().min(1),
+      task_spec_draft: z.null(),
+    })
+    .strict()
+);
+const CoordinatorProposalOperation = z.union([
+  CoordinatorProposalCreateOperation,
+  CoordinatorProposalKeepOperation,
+  CoordinatorProposalDeleteOperation,
+]);
+const CoordinatorProposalDryRunResponse = z
+  .object({
+    dry_run: z.literal(true),
+    operations: z.array(CoordinatorProposalOperation),
+  })
+  .strict();
 const CreateTaskRequest = z
   .object({
     title: z.string().min(1),
@@ -394,6 +539,23 @@ export const schemas = {
   DirectorClarificationListResponse,
   CreateDirectorClarificationRequest,
   PatchDirectorClarificationRequest,
+  CoordinatorProposalSourceDimension,
+  CoordinatorProposalSourceEvaluation,
+  CoordinatorProposalEvaluationGap,
+  CoordinatorProposalTaskPoolItem,
+  CoordinatorProposalStaleTaskFeedback,
+  CreateCoordinatorProposalDryRunRequest,
+  CoordinatorProposalCoverageJudgment,
+  CoordinatorProposalDependencyConflictPlan,
+  CoordinatorProposalSourceMetadataPlanningEvidence,
+  CoordinatorProposalOperationBase,
+  CoordinatorProposalPlanningFeedback,
+  CoordinatorProposalTaskSpecDraft,
+  CoordinatorProposalCreateOperation,
+  CoordinatorProposalKeepOperation,
+  CoordinatorProposalDeleteOperation,
+  CoordinatorProposalOperation,
+  CoordinatorProposalDryRunResponse,
   CreateTaskRequest,
   Task,
   TaskListResponse,

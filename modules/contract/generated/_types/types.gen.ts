@@ -239,6 +239,133 @@ export type TaskBatchResponse = {
   results: Array<TaskBatchOperationResult>;
 };
 
+export type CoordinatorProposalSourceDimension = {
+  id: string;
+  name: string;
+  goal?: string;
+  evaluation_method?: string;
+};
+
+export type CoordinatorProposalSourceEvaluation = {
+  id: string;
+  evaluation: string;
+  commit_sha?: string;
+  score?: number;
+};
+
+export type CoordinatorProposalTaskPoolItem = {
+  task_id: string;
+  title: string;
+  done?: boolean;
+  result?: string;
+  status?: string;
+  source_metadata?: {
+    [key: string]: unknown;
+  };
+};
+
+export type CoordinatorProposalEvaluationGap = {
+  source_dimension: CoordinatorProposalSourceDimension;
+  source_evaluation: CoordinatorProposalSourceEvaluation;
+  source_gap: string;
+};
+
+export type CoordinatorProposalStaleTaskFeedback = {
+  reason: string;
+  task: CoordinatorProposalTaskPoolItem;
+};
+
+export type CreateCoordinatorProposalDryRunRequest = {
+  project_id: string;
+  currentBaselineCommit: string;
+  evaluations: Array<CoordinatorProposalEvaluationGap>;
+  taskPool: Array<CoordinatorProposalTaskPoolItem>;
+  rejectedTasks?: Array<CoordinatorProposalTaskPoolItem>;
+  staleTaskFeedback?: Array<CoordinatorProposalStaleTaskFeedback>;
+};
+
+export type CoordinatorProposalCoverageJudgment =
+  | {
+      status: "covered_by_unfinished_task";
+      covered_by_task_id: string;
+      summary: string;
+    }
+  | {
+      status: "stale_unfinished_task" | "uncovered_gap";
+      summary: string;
+    };
+
+export type CoordinatorProposalDependencyConflictPlan = {
+  conflict_draft: string;
+  dependency_draft: Array<string>;
+};
+
+export type CoordinatorProposalSourceMetadataPlanningEvidence = {
+  conflict_duplicate_assessment: string;
+  current_task_pool_coverage: string;
+  dependency_rationale: string;
+  unfinished_task_non_conflict_rationale: string;
+};
+
+export type CoordinatorProposalPlanningFeedback = {
+  blocked: boolean;
+  reason: string;
+  rejected_task_id?: string;
+};
+
+export type CoordinatorProposalTaskSpecDraft = {
+  title: string;
+  spec: string;
+};
+
+export type CoordinatorProposalOperationBase = {
+  coverage_judgment: CoordinatorProposalCoverageJudgment;
+  dependency_conflict_plan: CoordinatorProposalDependencyConflictPlan;
+  dry_run_only: true;
+  must_not_write_directly: true;
+  requires_task_spec_validation: boolean;
+  source_metadata_planning_evidence: CoordinatorProposalSourceMetadataPlanningEvidence;
+  source_dimension: CoordinatorProposalSourceDimension | null;
+  source_evaluation: CoordinatorProposalSourceEvaluation | null;
+  source_gap: string;
+  [key: string]: unknown;
+};
+
+export type CoordinatorProposalCreateOperation =
+  CoordinatorProposalOperationBase & {
+    decision: "create";
+    planning_feedback: CoordinatorProposalPlanningFeedback | null;
+    task_spec_draft: CoordinatorProposalTaskSpecDraft | null;
+  };
+
+export type CoordinatorProposalKeepOperation =
+  CoordinatorProposalOperationBase & {
+    decision: "keep";
+    keep_reason: string;
+    planning_feedback: null;
+    task_id: string;
+    task_spec_draft: null;
+  };
+
+export type CoordinatorProposalDeleteOperation =
+  CoordinatorProposalOperationBase & {
+    decision: "delete";
+    delete_reason: string;
+    planning_feedback: CoordinatorProposalPlanningFeedback;
+    task_id: string;
+    task_spec_draft: null;
+  };
+
+export type CoordinatorProposalOperation =
+  | CoordinatorProposalCreateOperation
+  | CoordinatorProposalKeepOperation
+  | CoordinatorProposalDeleteOperation;
+
+export type CoordinatorProposalDryRunResponse = {
+  dry_run: true;
+  operations: Array<CoordinatorProposalOperation>;
+};
+
 export type TaskWorktreePathRequest = {
   worktree_path: string | null;
 };
@@ -1053,6 +1180,33 @@ export type PatchDirectorClarificationByIdResponses = {
 
 export type PatchDirectorClarificationByIdResponse =
   PatchDirectorClarificationByIdResponses[keyof PatchDirectorClarificationByIdResponses];
+
+export type CreateCoordinatorProposalDryRunData = {
+  body: CreateCoordinatorProposalDryRunRequest;
+  path?: never;
+  query?: never;
+  url: "/coordinator/proposals/dry-run";
+};
+
+export type CreateCoordinatorProposalDryRunErrors = {
+  /**
+   * Invalid dry-run payload or project
+   */
+  400: ErrorResponse;
+};
+
+export type CreateCoordinatorProposalDryRunError =
+  CreateCoordinatorProposalDryRunErrors[keyof CreateCoordinatorProposalDryRunErrors];
+
+export type CreateCoordinatorProposalDryRunResponses = {
+  /**
+   * Structured dry-run Coordinator proposal operations
+   */
+  200: CoordinatorProposalDryRunResponse;
+};
+
+export type CreateCoordinatorProposalDryRunResponse =
+  CreateCoordinatorProposalDryRunResponses[keyof CreateCoordinatorProposalDryRunResponses];
 
 export type ListTasksData = {
   body?: never;
