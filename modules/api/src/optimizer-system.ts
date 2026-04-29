@@ -8,6 +8,10 @@ import type {
 
 import type { ApiLogger } from "./api-logger.js";
 import { createCoordinator } from "./coordinator.js";
+import type {
+  CoordinatorState,
+  CoordinatorStateInput,
+} from "./coordinator-state-repository.js";
 import { createDeveloper } from "./developer.js";
 import type { Manager } from "./manager.js";
 import { createManager } from "./manager.js";
@@ -81,6 +85,12 @@ type ManagerStateRepository = {
   upsertManagerState(input: ManagerStateInput): ManagerState;
 };
 
+type CoordinatorStateRepository = {
+  clearCoordinatorState(projectId: string): boolean;
+  getCoordinatorState(projectId: string): CoordinatorState | null;
+  upsertCoordinatorState(input: CoordinatorStateInput): CoordinatorState;
+};
+
 export type OptimizerProjectStatus = Pick<
   ProjectOptimizerStatusResponse,
   "blocker_summary" | "recent_events"
@@ -92,6 +102,7 @@ export type OptimizerSystem = AsyncDisposable & {
 
 type CreateOptimizerSystemOptions = {
   continuationSessionRepository: ContinuationSessionRepository;
+  coordinatorStateRepository: CoordinatorStateRepository;
   coordinatorConfig: OpenCodeSessionManagerConfig;
   dimensionRepository: DimensionRepository;
   intervalMs: number;
@@ -110,6 +121,7 @@ const isOptimizerEnabled = (project: Project) => project.optimizer_enabled;
 
 export const createOptimizerSystem = async ({
   continuationSessionRepository,
+  coordinatorStateRepository,
   coordinatorConfig,
   dimensionRepository,
   logger,
@@ -224,6 +236,7 @@ export const createOptimizerSystem = async ({
       stack.use(
         createCoordinator(project.id, {
           continuationSessionRepository,
+          coordinatorStateRepository,
           dimensionRepository,
           onLaneEvent: laneEvents.record,
           projectDirectory: () =>

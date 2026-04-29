@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { serve } from "@hono/node-server";
 
 import { createApp } from "./app.js";
+import { createCoordinatorStateRepository } from "./coordinator-state-repository.js";
 import { createDimensionRepository } from "./dimension-repository.js";
 import { createApiLogger } from "./logger.js";
 import { createManagerStateRepository } from "./manager-state-repository.js";
@@ -62,6 +63,10 @@ export const startServer = async (): Promise<AsyncDisposable> => {
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
   scope.use(managerStateRepository);
+  const coordinatorStateRepository = createCoordinatorStateRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
+  });
+  scope.use(coordinatorStateRepository);
   const dimensionRepository = createDimensionRepository({
     projectRoot: process.env.AIM_PROJECT_ROOT,
   });
@@ -72,6 +77,7 @@ export const startServer = async (): Promise<AsyncDisposable> => {
     optimizerSystem = scope.use(
       await createOptimizerSystem({
         continuationSessionRepository: openCodeSessionRepository,
+        coordinatorStateRepository,
         coordinatorConfig,
         dimensionRepository,
         intervalMs: schedulerIntervalMs,

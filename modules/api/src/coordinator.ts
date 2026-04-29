@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   Dimension,
   DimensionEvaluation,
@@ -5,6 +7,10 @@ import type {
   Task,
 } from "@aim-ai/contract";
 
+import type {
+  CoordinatorState,
+  CoordinatorStateInput,
+} from "./coordinator-state-repository.js";
 import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
@@ -49,10 +55,17 @@ type ContinuationSessionRepository = {
   ): null | ContinuationSession | Promise<null | ContinuationSession>;
 };
 
+type CoordinatorStateRepository = {
+  clearCoordinatorState(projectId: string): boolean;
+  getCoordinatorState(projectId: string): CoordinatorState | null;
+  upsertCoordinatorState(input: CoordinatorStateInput): CoordinatorState;
+};
+
 type CreateCoordinatorOptions = {
   activeTaskThreshold?: number;
   baselineRepository?: BaselineRepository;
   continuationSessionRepository?: ContinuationSessionRepository;
+  coordinatorStateRepository?: CoordinatorStateRepository;
   dimensionRepository: DimensionRepository;
   heartbeatMs?: number;
   onLaneEvent?: (event: OptimizerLaneEventInput) => void;
@@ -125,6 +138,64 @@ const latestEvaluation = (evaluations: DimensionEvaluation[]) =>
         : latest,
     null,
   );
+
+const planningInputHash = ({
+  activeTasks,
+  baselineFacts,
+  dimensions,
+  evaluations,
+  rejectedTasks,
+  threshold,
+}: {
+  activeTasks: Task[];
+  baselineFacts: BaselineFacts;
+  dimensions: Dimension[];
+  evaluations: Array<{ dimension: Dimension; evaluation: DimensionEvaluation }>;
+  rejectedTasks: Task[];
+  threshold: number;
+}) => {
+  const input = {
+    activeTasks: activeTasks
+      .map((task) => ({
+        status: task.status,
+        task_id: task.task_id,
+        updated_at: task.updated_at,
+      }))
+      .sort((left, right) => left.task_id.localeCompare(right.task_id)),
+    commitSha: baselineFacts.commitSha,
+    dimensions: dimensions
+      .map((dimension) => ({
+        goal: dimension.goal,
+        id: dimension.id,
+        name: dimension.name,
+        updated_at: dimension.updated_at,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    latestEvaluations: evaluations
+      .map(({ evaluation }) => ({
+        commit_sha: evaluation.commit_sha,
+        created_at: evaluation.created_at,
+        dimension_id: evaluation.dimension_id,
+        evaluation: evaluation.evaluation,
+        id: evaluation.id,
+        score: evaluation.score,
+      }))
+      .sort((left, right) =>
+        left.dimension_id.localeCompare(right.dimension_id),
+      ),
+    rejectedTasks: rejectedTasks
+      .map((task) => ({
+        result: task.result,
+        status: task.status,
+        task_id: task.task_id,
+        updated_at: task.updated_at,
+      }))
+      .sort((left, right) => left.task_id.localeCompare(right.task_id)),
+    threshold,
+  };
+
+  return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+};
 
 const summarizeRejectedTask = (task: Task) => {
   const validation = task.source_metadata.task_spec_validation;
@@ -359,6 +430,26 @@ export const createCoordinator = (
   let activeSession: ManagedSession | null = null;
   let sessionCreationPending = false;
 
+  const isPersistedPlanningSessionPending = async () => {
+    const persistedState =
+      options.coordinatorStateRepository?.getCoordinatorState(projectId);
+
+    if (persistedState?.state !== "planning" || !persistedState.session_id) {
+      return false;
+    }
+
+    if (!options.continuationSessionRepository) {
+      return true;
+    }
+
+    const continuationSession =
+      await options.continuationSessionRepository.getSessionById(
+        persistedState.session_id,
+      );
+
+    return continuationSession?.state === "pending";
+  };
+
   const hasActiveSession = async () => {
     if (!activeSession) {
       return false;
@@ -410,15 +501,26 @@ export const createCoordinator = (
       await options.taskRepository.listUnfinishedTasks()
     ).filter((task) => task.project_id === projectId);
     const activeCoordinatorSession =
-      sessionCreationPending || (await hasActiveSession());
-    if (activeTasks.length >= threshold || activeCoordinatorSession) {
+      sessionCreationPending ||
+      (await hasActiveSession()) ||
+      (await isPersistedPlanningSessionPending());
+    if (activeTasks.length >= threshold) {
+      options.coordinatorStateRepository?.clearCoordinatorState(projectId);
       options.onLaneEvent?.({
         event: "idle",
         lane_name: "coordinator",
         project_id: projectId,
-        summary: activeCoordinatorSession
-          ? "Coordinator lane idle: coordinator session already active."
-          : `Coordinator lane idle: active task pool has ${activeTasks.length} unfinished tasks.`,
+        summary: `Coordinator lane idle: active task pool has ${activeTasks.length} unfinished tasks.`,
+      });
+      return;
+    }
+
+    if (activeCoordinatorSession) {
+      options.onLaneEvent?.({
+        event: "idle",
+        lane_name: "coordinator",
+        project_id: projectId,
+        summary: "Coordinator lane idle: coordinator session already active.",
       });
       return;
     }
@@ -444,8 +546,26 @@ export const createCoordinator = (
     const directory = await resolveProjectDirectory(options.projectDirectory);
     const baselineFacts =
       await baselineRepository.getLatestBaselineFacts(directory);
+    const inputHash = planningInputHash({
+      activeTasks,
+      baselineFacts,
+      dimensions,
+      evaluations,
+      rejectedTasks,
+      threshold,
+    });
 
     sessionCreationPending = true;
+    options.coordinatorStateRepository?.upsertCoordinatorState({
+      active_task_count: activeTasks.length,
+      commit_sha: baselineFacts.commitSha,
+      last_error: null,
+      planning_input_hash: inputHash,
+      project_id: projectId,
+      session_id: null,
+      state: "planning",
+      threshold,
+    });
     options.onLaneEvent?.({
       event: "start",
       lane_name: "coordinator",
@@ -470,6 +590,16 @@ export const createCoordinator = (
         }),
         title: `AIM Coordinator task-pool session (${project.id})`,
       });
+      options.coordinatorStateRepository?.upsertCoordinatorState({
+        active_task_count: activeTasks.length,
+        commit_sha: baselineFacts.commitSha,
+        last_error: null,
+        planning_input_hash: inputHash,
+        project_id: projectId,
+        session_id: activeSession.sessionId,
+        state: "planning",
+        threshold,
+      });
       options.onLaneEvent?.({
         event: "success",
         lane_name: "coordinator",
@@ -477,6 +607,19 @@ export const createCoordinator = (
         session_id: activeSession.sessionId,
         summary: `Coordinator lane created planning session ${activeSession.sessionId}.`,
       });
+    } catch (error) {
+      options.coordinatorStateRepository?.upsertCoordinatorState({
+        active_task_count: activeTasks.length,
+        commit_sha: baselineFacts.commitSha,
+        last_error: summarizeError(error),
+        planning_input_hash: inputHash,
+        project_id: projectId,
+        session_id: null,
+        state: "failed",
+        threshold,
+      });
+
+      throw error;
     } finally {
       sessionCreationPending = false;
     }
