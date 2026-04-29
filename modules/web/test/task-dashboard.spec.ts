@@ -561,12 +561,46 @@ test("submits a project Director clarification and shows recent request status",
   page,
 }) => {
   const requests: unknown[] = [];
+  const statusRequests: unknown[] = [];
   let clarifications = [
     buildDirectorClarification({
       clarificationId: "clarification-existing",
       message: "Clarify whether target-gap coverage needs a replan.",
     }),
   ];
+
+  await page.route(
+    "**/api/projects/*/director/clarifications/*",
+    async (route) => {
+      const request = route.request();
+      const clarificationId = decodeURIComponent(
+        new URL(request.url()).pathname.split("/").at(-1) ?? "",
+      );
+      const payload = JSON.parse(request.postData() ?? "{}") as {
+        status: "open" | "addressed" | "dismissed";
+      };
+
+      statusRequests.push({ clarificationId, ...payload });
+      clarifications = clarifications.map((clarification) =>
+        clarification.id === clarificationId
+          ? {
+              ...clarification,
+              status: payload.status,
+              updated_at: "2026-04-28T11:05:00.000Z",
+            }
+          : clarification,
+      );
+
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(
+          clarifications.find(
+            (clarification) => clarification.id === clarificationId,
+          ),
+        ),
+      });
+    },
+  );
 
   await page.route(
     "**/api/projects/*/director/clarifications",
@@ -636,6 +670,67 @@ test("submits a project Director clarification and shows recent request status",
         message: "Adjust the next scan toward baseline freshness evidence.",
       },
     ]);
+
+  await panel.getByRole("button", { name: "Mark resolved" }).first().click();
+  await expect(
+    panel.getByText("addressed", { exact: true }).first(),
+  ).toBeVisible();
+  await panel.getByRole("button", { name: "Reopen" }).first().click();
+  await expect(panel.getByText("open", { exact: true }).first()).toBeVisible();
+  await expect
+    .poll(() => statusRequests)
+    .toEqual([
+      { clarificationId: "clarification-created", status: "addressed" },
+      { clarificationId: "clarification-created", status: "open" },
+    ]);
+});
+
+test("shows Director clarification status errors with localized actions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("aim.web.locale", "zh");
+  });
+  await page.route(
+    "**/api/projects/*/director/clarifications/*",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        status: 503,
+        body: JSON.stringify({
+          code: "DIRECTOR_CLARIFICATION_VALIDATION_ERROR",
+          message: "Director clarification status store is unavailable.",
+        }),
+      });
+    },
+  );
+  await page.route(
+    "**/api/projects/*/director/clarifications",
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            buildDirectorClarification({
+              clarificationId: "clarification-status-error",
+              message: "Clarify whether target-gap coverage needs a replan.",
+            }),
+          ],
+        }),
+      });
+    },
+  );
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const panel = page.getByRole("region", { name: "Director 澄清请求" });
+
+  await expect(panel).toBeVisible();
+  await panel.getByRole("button", { name: "标记已处理" }).click();
+  await expect(panel.getByText("澄清状态更新失败")).toBeVisible();
+  await expect(
+    panel.getByText("Director clarification status store is unavailable."),
+  ).toBeVisible();
 });
 
 test("shows actionable API errors and keeps the Director clarification panel mobile safe", async ({

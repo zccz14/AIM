@@ -1,6 +1,7 @@
 import type {
   DirectorClarification,
   DirectorClarificationKind,
+  DirectorClarificationStatus,
 } from "@aim-ai/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle } from "lucide-react";
@@ -18,7 +19,10 @@ import { Card, CardContent } from "../../../components/ui/card.js";
 import { Label } from "../../../components/ui/label.js";
 import { Textarea } from "../../../components/ui/textarea.js";
 import { useI18n } from "../../../lib/i18n.js";
-import { createDirectorClarification } from "../api/task-dashboard-api.js";
+import {
+  createDirectorClarification,
+  patchDirectorClarificationStatus,
+} from "../api/task-dashboard-api.js";
 import {
   directorClarificationsQueryKey,
   directorClarificationsQueryOptions,
@@ -70,6 +74,20 @@ export const DirectorClarificationPanel = ({
       });
     },
   });
+  const statusMutation = useMutation({
+    mutationFn: ({
+      clarificationId,
+      status,
+    }: {
+      clarificationId: string;
+      status: DirectorClarificationStatus;
+    }) => patchDirectorClarificationStatus(projectId, clarificationId, status),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: directorClarificationsQueryKey(projectId),
+      });
+    },
+  });
   const recentClarifications = sortRecentClarifications(
     clarificationsQuery.data?.items ?? [],
   ).slice(0, 5);
@@ -85,6 +103,13 @@ export const DirectorClarificationPanel = ({
     }
 
     createMutation.mutate();
+  };
+
+  const handleStatusChange = (
+    clarificationId: string,
+    status: DirectorClarificationStatus,
+  ) => {
+    statusMutation.mutate({ clarificationId, status });
   };
 
   return (
@@ -188,6 +213,16 @@ export const DirectorClarificationPanel = ({
             </Alert>
           ) : null}
 
+          {statusMutation.isError ? (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>{t("directorClarificationStatusFailed")}</AlertTitle>
+              <AlertDescription>
+                {getDirectorClarificationErrorMessage(statusMutation.error)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {recentClarifications.length === 0 &&
           clarificationsQuery.isSuccess ? (
             <p className={sectionCopy}>{t("directorClarificationEmpty")}</p>
@@ -198,22 +233,52 @@ export const DirectorClarificationPanel = ({
               className="grid gap-2 border-t pt-3 first:border-t-0 first:pt-0"
               key={clarification.id}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
-                  {clarification.kind === "adjustment"
-                    ? t("directorClarificationKindAdjustment")
-                    : t("directorClarificationKindClarification")}
-                </Badge>
-                <Badge
-                  variant={
-                    clarification.status === "open" ? "default" : "secondary"
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    {clarification.kind === "adjustment"
+                      ? t("directorClarificationKindAdjustment")
+                      : t("directorClarificationKindClarification")}
+                  </Badge>
+                  <Badge
+                    variant={
+                      clarification.status === "open" ? "default" : "secondary"
+                    }
+                  >
+                    {clarification.status}
+                  </Badge>
+                  <span className={tableMeta}>
+                    {formatDateLabel(clarification.created_at)}
+                  </span>
+                </div>
+                <Button
+                  disabled={
+                    statusMutation.isPending &&
+                    statusMutation.variables?.clarificationId ===
+                      clarification.id
                   }
+                  onClick={() =>
+                    handleStatusChange(
+                      clarification.id,
+                      clarification.status === "open" ? "addressed" : "open",
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="outline"
                 >
-                  {clarification.status}
-                </Badge>
-                <span className={tableMeta}>
-                  {formatDateLabel(clarification.created_at)}
-                </span>
+                  {statusMutation.isPending &&
+                  statusMutation.variables?.clarificationId ===
+                    clarification.id ? (
+                    <LoaderCircle
+                      className="animate-spin"
+                      data-icon="inline-start"
+                    />
+                  ) : null}
+                  {clarification.status === "open"
+                    ? t("directorClarificationMarkResolved")
+                    : t("directorClarificationReopen")}
+                </Button>
               </div>
               <p className="m-0 text-sm/relaxed">{clarification.message}</p>
             </div>

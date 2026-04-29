@@ -4,6 +4,7 @@ import type {
   DimensionEvaluation,
   DirectorClarification,
   DirectorClarificationListResponse,
+  DirectorClarificationStatus,
   OpenCodeModelsResponse,
   OpenCodeSessionContinueBulkResponse,
   OpenCodeSessionContinueResult,
@@ -183,4 +184,16 @@ export const createDirectorClarification = async (
   const client = createWebApiClient();
 
   return client.createDirectorClarification(projectId, input);
+};
+
+export const patchDirectorClarificationStatus = async (
+  projectId: string,
+  clarificationId: string,
+  status: DirectorClarificationStatus,
+): Promise<DirectorClarification> => {
+  const client = createWebApiClient();
+
+  return client.patchDirectorClarificationStatus(projectId, clarificationId, {
+    status,
+  });
 };

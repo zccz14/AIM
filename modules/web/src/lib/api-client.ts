@@ -22,6 +22,9 @@ import {
   openCodeSessionContinueResultSchema,
   openCodeSessionListResponseSchema,
   openCodeSessionsPath,
+  type PatchDirectorClarificationRequest,
+  patchDirectorClarificationRequestSchema,
+  projectDirectorClarificationByIdPath,
   projectDirectorClarificationsPath,
   type Task,
   type TaskError,
@@ -148,6 +151,11 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     projectId: string,
     input: CreateDirectorClarificationRequest,
   ): Promise<DirectorClarification>;
+  patchDirectorClarificationStatus(
+    projectId: string,
+    clarificationId: string,
+    input: PatchDirectorClarificationRequest,
+  ): Promise<DirectorClarification>;
 };
 
 const buildTaskListPath = (query?: {
@@ -193,6 +201,14 @@ const buildProjectDirectorClarificationsPath = (projectId: string) =>
     "{projectId}",
     encodeURIComponent(projectId),
   );
+
+const buildProjectDirectorClarificationByIdPath = (
+  projectId: string,
+  clarificationId: string,
+) =>
+  projectDirectorClarificationByIdPath
+    .replace("{projectId}", encodeURIComponent(projectId))
+    .replace("{clarificationId}", encodeURIComponent(clarificationId));
 
 const buildTaskPullRequestStatusPath = (taskId: string) =>
   taskPullRequestStatusPath.replace("{taskId}", encodeURIComponent(taskId));
@@ -427,6 +443,35 @@ export const createWebApiClient = (
           },
           body: JSON.stringify(
             createDirectorClarificationRequestSchema.parse(input),
+          ),
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return directorClarificationSchema.parse(
+        (await response.json()) as DirectorClarification,
+      );
+    },
+
+    async patchDirectorClarificationStatus(projectId, clarificationId, input) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildProjectDirectorClarificationByIdPath(projectId, clarificationId),
+        {
+          method: "PATCH",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(
+            patchDirectorClarificationRequestSchema.parse(input),
           ),
         },
       );

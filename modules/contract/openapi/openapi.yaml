@@ -1890,6 +1890,7 @@ components:
         status:
           type: string
           enum:
+            - open
             - addressed
             - dismissed
     DirectorClarificationListResponse:

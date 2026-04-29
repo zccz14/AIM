@@ -362,7 +362,7 @@ export type CreateDirectorClarificationRequest = {
 };
 
 export type PatchDirectorClarificationRequest = {
-  status: "addressed" | "dismissed";
+  status: "open" | "addressed" | "dismissed";
 };
 
 export type DirectorClarificationListResponse = {
