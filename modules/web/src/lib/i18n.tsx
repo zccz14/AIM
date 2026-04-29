@@ -107,10 +107,13 @@ const messages = {
     directorClarificationMessage: "Request message",
     directorClarificationPlaceholder:
       "Describe the decision, ambiguity, or adjustment AIM should consider.",
+    directorClarificationMarkResolved: "Mark resolved",
     directorClarificationRecent: "Recent requests",
     directorClarificationRecentFailed: "Recent requests unavailable",
     directorClarificationRegion: "Director clarification requests",
+    directorClarificationReopen: "Reopen",
     directorClarificationSubmit: "Send request",
+    directorClarificationStatusFailed: "Clarification status update failed",
     directorClarificationSubmitted: "Request recorded",
     directorClarificationSubmittedDescription:
       "AIM stored the Director request for follow-up review.",
@@ -417,10 +420,13 @@ const messages = {
     directorClarificationKindClarification: "澄清",
     directorClarificationMessage: "请求内容",
     directorClarificationPlaceholder: "描述 AIM 需要考虑的决策、歧义或调整。",
+    directorClarificationMarkResolved: "标记已处理",
     directorClarificationRecent: "近期请求",
     directorClarificationRecentFailed: "近期请求不可用",
     directorClarificationRegion: "Director 澄清请求",
+    directorClarificationReopen: "恢复为 open",
     directorClarificationSubmit: "发送请求",
+    directorClarificationStatusFailed: "澄清状态更新失败",
     directorClarificationSubmitted: "请求已记录",
     directorClarificationSubmittedDescription:
       "AIM 已保存 Director 请求，等待后续复核。",

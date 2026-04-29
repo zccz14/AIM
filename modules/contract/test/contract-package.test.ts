@@ -605,10 +605,10 @@ describe("contract package baseline", () => {
       }),
     ).toEqual({ status: "dismissed" });
     expect(
-      contractModule.patchDirectorClarificationRequestSchema.safeParse({
+      contractModule.patchDirectorClarificationRequestSchema.parse({
         status: "open",
-      }).success,
-    ).toBe(false);
+      }),
+    ).toEqual({ status: "open" });
 
     const pathItem = contractModule.openApiDocument.paths[
       contractModule.projectDirectorClarificationByIdPath

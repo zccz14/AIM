@@ -2648,7 +2648,7 @@ export const openApiDocument = {
         properties: {
           status: {
             type: "string",
-            enum: ["addressed", "dismissed"],
+            enum: ["open", "addressed", "dismissed"],
           },
         },
       },

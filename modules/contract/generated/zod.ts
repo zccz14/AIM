@@ -184,7 +184,7 @@ const CreateDirectorClarificationRequest = z
   })
   .strict();
 const PatchDirectorClarificationRequest = z
-  .object({ status: z.enum(["addressed", "dismissed"]) })
+  .object({ status: z.enum(["open", "addressed", "dismissed"]) })
   .strict();
 const CreateTaskRequest = z
   .object({

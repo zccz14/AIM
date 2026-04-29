@@ -194,13 +194,31 @@ describe("director clarification routes", () => {
       createdClarification.updated_at,
     );
 
+    const reopenResponse = await app.request(
+      `/projects/${project.id}/director/clarifications/${createdClarification.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders,
+        body: JSON.stringify({ status: "open" }),
+      },
+    );
+
+    expect(reopenResponse.status).toBe(200);
+    const reopenedClarification = await reopenResponse.json();
+
+    expect(reopenedClarification).toMatchObject({
+      id: createdClarification.id,
+      project_id: project.id,
+      status: "open",
+    });
+
     const listResponse = await app.request(
       `/projects/${project.id}/director/clarifications`,
     );
 
     expect(listResponse.status).toBe(200);
     await expect(listResponse.json()).resolves.toEqual({
-      items: [patchedClarification],
+      items: [reopenedClarification],
     });
   });
 
@@ -232,7 +250,7 @@ describe("director clarification routes", () => {
       {
         method: "PATCH",
         headers: jsonHeaders,
-        body: JSON.stringify({ status: "open" }),
+        body: JSON.stringify({ status: "invalid" }),
       },
     );
 
