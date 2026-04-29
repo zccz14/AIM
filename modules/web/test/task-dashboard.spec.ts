@@ -789,6 +789,106 @@ test("shows the selected task pull request follow-up status", async ({
   ).toBeVisible();
 });
 
+test("summarizes active task pull request follow-up status in the table", async ({
+  page,
+}) => {
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    const taskId = decodeURIComponent(
+      new URL(route.request().url()).pathname.split("/").at(-2) ?? "",
+    );
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        taskId === "task-main"
+          ? buildTaskPullRequestStatus({
+              category: "waiting_checks",
+              recoveryAction: "Continue with required checks follow-up.",
+              summary: "Pull request #42 is waiting for required checks.",
+            })
+          : buildTaskPullRequestStatus({
+              category: "no_pull_request",
+              pullRequestUrl: null,
+              recoveryAction:
+                "Create or link a pull request before merge follow-up.",
+              summary: "No pull request exists for the research task.",
+            }),
+      ),
+    });
+  });
+
+  await page.goto("/");
+
+  const taskTable = page.getByRole("heading", {
+    name: "Active Unfinished Tasks",
+  });
+
+  await expect(taskTable).toBeVisible();
+  await expect(page.getByText("PR Follow-up")).toBeVisible();
+  await expect(page.getByText("waiting_checks")).toBeVisible();
+  await expect(
+    page.getByText("Pull request #42 is waiting for required checks."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Continue with required checks follow-up."),
+  ).toBeVisible();
+  await expect(page.getByText("no_pull_request")).toBeVisible();
+  await expect(
+    page.getByText("No pull request is linked to this task."),
+  ).toBeVisible();
+});
+
+test("shows active task pull request loading and error summaries", async ({
+  page,
+}) => {
+  let resolveMainStatus: () => void = () => undefined;
+  const mainStatusReady = new Promise<void>((resolve) => {
+    resolveMainStatus = resolve;
+  });
+
+  await page.route("**/api/tasks/*/pull_request_status", async (route) => {
+    const taskId = decodeURIComponent(
+      new URL(route.request().url()).pathname.split("/").at(-2) ?? "",
+    );
+
+    if (taskId === "task-main") {
+      await mainStatusReady;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(
+          buildTaskPullRequestStatus({
+            category: "review_blocked",
+            summary: "Pull request #42 is waiting for review.",
+          }),
+        ),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "TASK_VALIDATION_ERROR",
+        message: "GitHub status lookup timed out.",
+      }),
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(
+    page.getByText("Loading pull request status").first(),
+  ).toBeVisible();
+  resolveMainStatus();
+  await expect(page.getByText("review_blocked")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Pull request status unavailable: GitHub status lookup timed out.",
+    ),
+  ).toBeVisible();
+});
+
 test("shows pull request status errors without hiding task relationships", async ({
   page,
 }) => {

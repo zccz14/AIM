@@ -39,6 +39,7 @@ import { ProjectDetailPage } from "./project-detail-page.js";
 import { ProjectRegisterPage } from "./project-register-page.js";
 import { ServerBaseUrlForm } from "./server-base-url-form.js";
 import { TaskDetailsPage } from "./task-details-page.js";
+import { TaskTableSection } from "./task-table-section.js";
 
 type DashboardRoute =
   | { kind: "dashboard" }
@@ -181,6 +182,10 @@ export const DashboardPage = () => {
 
   const goToDimension = (dimensionId: string) => {
     navigateTo(`/dimensions/${encodeURIComponent(dimensionId)}`);
+  };
+
+  const goToTask = (taskId: string) => {
+    navigateTo(`/tasks/${encodeURIComponent(taskId)}`);
   };
 
   const headerTitle =
@@ -327,6 +332,16 @@ export const DashboardPage = () => {
               <AimDimensionReportSection
                 dimensionReports={dashboardQuery.data.dimensionReports}
                 onSelectDimension={goToDimension}
+              />
+            </DashboardPanelBoundary>
+            <DashboardPanelBoundary
+              onRetry={handleRefresh}
+              resetKeys={[dashboardQuery.data.tasks]}
+              scope={t("activeUnfinishedTasks")}
+            >
+              <TaskTableSection
+                onSelectTask={goToTask}
+                tasks={dashboardQuery.data.tasks}
               />
             </DashboardPanelBoundary>
           </div>
