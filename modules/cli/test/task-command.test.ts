@@ -217,6 +217,29 @@ const startTaskServer = async (
       return;
     }
 
+    if (
+      request.method === "PATCH" &&
+      path === `/api/projects/${mainProjectId}`
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ...projects[0], ...json }));
+      return;
+    }
+
+    if (
+      request.method === "PATCH" &&
+      path === "/api/projects/00000000-0000-4000-8000-000000000003"
+    ) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          code: "PROJECT_NOT_FOUND",
+          message: "missing project",
+        }),
+      );
+      return;
+    }
+
     if (request.method === "GET" && path === "/api/tasks/task-1") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(task));
@@ -622,6 +645,150 @@ describe("task cli command baseline", () => {
     });
   });
 
+  it("updates project optimizer config to enabled and prints persisted project fields", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+      "--enable",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/projects/${mainProjectId}`,
+      json: { optimizer_enabled: true },
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        project_id: mainProjectId,
+        name: "Main project",
+        git_origin_url: "https://github.com/example/main.git",
+        global_provider_id: "anthropic",
+        global_model_id: "claude-sonnet-4-5",
+        optimizer_enabled: true,
+        update_type: "persisted_configuration",
+      },
+    });
+  });
+
+  it("updates project optimizer config to disabled", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+      "--disable",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/projects/${mainProjectId}`,
+      json: { optimizer_enabled: false },
+    });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      data: {
+        project_id: mainProjectId,
+        optimizer_enabled: false,
+        update_type: "persisted_configuration",
+      },
+    });
+  });
+
+  it("rejects project optimizer update without an explicit enable or disable flag", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_USAGE_ERROR",
+        message: "project optimizer update requires --enable or --disable",
+      },
+    });
+    expect(server.requests).toEqual([]);
+  });
+
+  it("rejects mutually exclusive project optimizer update flags before any HTTP request", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+      "--enable",
+      "--disable",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_FLAG_VALUE",
+        message: "cannot combine --enable with --disable",
+      },
+    });
+    expect(server.requests).toEqual([]);
+  });
+
+  it("preserves server project optimizer update errors on stderr", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "optimizer",
+      "update",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "00000000-0000-4000-8000-000000000003",
+      "--enable",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: { code: "PROJECT_NOT_FOUND", message: "missing project" },
+    });
+  });
+
   it("registers project list and prints stable project discovery fields", async () => {
     const server = await startTaskServer();
 
@@ -1014,6 +1181,7 @@ describe("task cli command baseline", () => {
     expect(indexSource).toContain('"task:delete"');
     expect(indexSource).toContain('"task:pr-status"');
     expect(indexSource).toContain('"project:optimizer:status"');
+    expect(indexSource).toContain('"project:optimizer:update"');
     expect(indexSource).not.toContain("manager-report");
     expect(indexSource).not.toContain("contract/generated");
     expect(helperSource).toContain("@aim-ai/contract");
