@@ -696,7 +696,12 @@ describe("task repository", () => {
       repository.listTasks({ session_id: "session-a-pending" }),
     ).resolves.toEqual([secondTask]);
     await expect(repository.listTasks({ status: "rejected" })).resolves.toEqual(
-      [thirdTask],
+      [
+        expect.objectContaining({
+          status: "rejected",
+          task_id: thirdTask.task_id,
+        }),
+      ],
     );
     await expect(
       repository.listTasks({ done: false, project_id: firstTask.project_id }),
@@ -705,7 +710,7 @@ describe("task repository", () => {
       repository.listTasks({ done: false, project_id: otherProject.id }),
     ).resolves.toEqual([otherProjectTask]);
     await expect(repository.listTasks({ done: true })).resolves.toEqual([
-      thirdTask,
+      expect.objectContaining({ done: true, task_id: thirdTask.task_id }),
     ]);
 
     const updatedTask = await repository.updateTask(secondTask.task_id, {
@@ -764,6 +769,83 @@ describe("task repository", () => {
     });
   });
 
+  it("does not enrich ordinary task reads with bound opencode session state", async () => {
+    const projectRoot = await createProjectRoot(
+      "ordinary-read-session-id-only",
+    );
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "session-resolved", "resolved");
+    const task = await createTask(repository, {
+      session_id: "session-resolved",
+      task_spec: "read without session entity",
+    });
+
+    await expect(repository.getTaskById(task.task_id)).resolves.toMatchObject({
+      done: false,
+      opencode_session: null,
+      session_id: "session-resolved",
+      status: "pending",
+      task_id: task.task_id,
+    });
+    await expect(repository.listTasks()).resolves.toEqual([
+      expect.objectContaining({
+        done: false,
+        opencode_session: null,
+        session_id: "session-resolved",
+        status: "pending",
+        task_id: task.task_id,
+      }),
+    ]);
+  });
+
+  it("uses explicit status and done filters to derive task pool state", async () => {
+    const projectRoot = await createProjectRoot("explicit-status-filters");
+
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+
+    const repository = createTaskRepository();
+    insertOpenCodeSession(projectRoot, "session-resolved", "resolved");
+    insertOpenCodeSession(projectRoot, "session-rejected", "rejected");
+    const pendingTask = await createTask(repository, {
+      task_spec: "still pending",
+    });
+    const resolvedTask = await createTask(repository, {
+      session_id: "session-resolved",
+      task_spec: "resolved elsewhere",
+    });
+    const rejectedTask = await createTask(repository, {
+      session_id: "session-rejected",
+      task_spec: "rejected elsewhere",
+    });
+
+    await expect(repository.listTasks({ status: "resolved" })).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "resolved",
+          task_id: resolvedTask.task_id,
+        }),
+      ],
+    );
+    await expect(repository.listTasks({ status: "rejected" })).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "rejected",
+          task_id: rejectedTask.task_id,
+        }),
+      ],
+    );
+    await expect(repository.listTasks({ done: true })).resolves.toEqual([
+      expect.objectContaining({ done: true, task_id: resolvedTask.task_id }),
+      expect.objectContaining({ done: true, task_id: rejectedTask.task_id }),
+    ]);
+    await expect(repository.listTasks({ done: false })).resolves.toEqual([
+      expect.objectContaining({ done: false, task_id: pendingTask.task_id }),
+    ]);
+  });
+
   it("updates the result when a patch explicitly includes it", async () => {
     const projectRoot = await createProjectRoot("patch-updates-result");
 
@@ -809,9 +891,9 @@ describe("task repository", () => {
     await expect(
       repository.updateTask(resolvedTask.task_id, { result: "ship it" }),
     ).resolves.toMatchObject({
-      done: true,
+      done: false,
       result: "ship it",
-      status: "resolved",
+      status: "pending",
       task_id: resolvedTask.task_id,
     });
     await expect(
@@ -819,23 +901,31 @@ describe("task repository", () => {
         result: "needs more work",
       }),
     ).resolves.toMatchObject({
-      done: true,
+      done: false,
       result: "needs more work",
-      status: "rejected",
+      status: "pending",
       task_id: rejectedTask.task_id,
     });
-    await expect(
-      repository.getTaskById(resolvedTask.task_id),
-    ).resolves.toMatchObject({
-      result: "ship it",
-      status: "resolved",
-    });
-    await expect(
-      repository.getTaskById(rejectedTask.task_id),
-    ).resolves.toMatchObject({
-      result: "needs more work",
-      status: "rejected",
-    });
+    await expect(repository.listTasks({ status: "resolved" })).resolves.toEqual(
+      [
+        expect.objectContaining({
+          done: true,
+          result: "ship it",
+          status: "resolved",
+          task_id: resolvedTask.task_id,
+        }),
+      ],
+    );
+    await expect(repository.listTasks({ status: "rejected" })).resolves.toEqual(
+      [
+        expect.objectContaining({
+          done: true,
+          result: "needs more work",
+          status: "rejected",
+          task_id: rejectedTask.task_id,
+        }),
+      ],
+    );
   });
 
   it("clears a task session binding when AIM stops tracking the opencode session", async () => {
