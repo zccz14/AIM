@@ -44,6 +44,28 @@ const optimizerStatusWithoutEvents = {
   current_baseline_commit_sha: null,
   recent_events: [],
 };
+const projects = [
+  {
+    id: mainProjectId,
+    name: "Main project",
+    git_origin_url: "https://github.com/example/main.git",
+    global_provider_id: "anthropic",
+    global_model_id: "claude-sonnet-4-5",
+    optimizer_enabled: true,
+    created_at: "2026-04-20T00:00:00.000Z",
+    updated_at: "2026-04-20T00:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    name: "Secondary project",
+    git_origin_url: "https://github.com/example/secondary.git",
+    global_provider_id: "ntnl-openai",
+    global_model_id: "gpt-5.5",
+    optimizer_enabled: false,
+    created_at: "2026-04-21T00:00:00.000Z",
+    updated_at: "2026-04-21T00:00:00.000Z",
+  },
+];
 
 type RecordedRequest = {
   method: string;
@@ -80,7 +102,9 @@ beforeAll(async () => {
   }
 });
 
-const startTaskServer = async () => {
+const startTaskServer = async (
+  options: { projects?: typeof projects } = {},
+) => {
   const requests: RecordedRequest[] = [];
   const task = {
     task_id: "task-1",
@@ -154,6 +178,12 @@ const startTaskServer = async () => {
               : [],
         }),
       );
+      return;
+    }
+
+    if (request.method === "GET" && path === "/api/projects") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ items: options.projects ?? projects }));
       return;
     }
 
@@ -529,6 +559,73 @@ describe("task cli command baseline", () => {
         blocker_summary: "Optimizer disabled for project",
         recent_events: [],
       },
+    });
+  });
+
+  it("registers project list and prints stable project discovery fields", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/api/projects",
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        items: [
+          {
+            project_id: mainProjectId,
+            name: "Main project",
+            git_origin_url: "https://github.com/example/main.git",
+            global_provider_id: "anthropic",
+            global_model_id: "claude-sonnet-4-5",
+            optimizer_enabled: true,
+          },
+          {
+            project_id: "00000000-0000-4000-8000-000000000002",
+            name: "Secondary project",
+            git_origin_url: "https://github.com/example/secondary.git",
+            global_provider_id: "ntnl-openai",
+            global_model_id: "gpt-5.5",
+            optimizer_enabled: false,
+          },
+        ],
+      },
+    });
+  });
+
+  it("prints an empty project list when no projects exist", async () => {
+    const server = await startTaskServer({ projects: [] });
+
+    const result = await runCli([
+      "project",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/api/projects",
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: { items: [] },
     });
   });
 
