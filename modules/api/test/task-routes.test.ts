@@ -76,6 +76,14 @@ const mockGhFailure = () => {
 const taskRouteSourceUrl = new URL("../src/routes/tasks.ts", import.meta.url);
 const appSourceUrl = new URL("../src/app.ts", import.meta.url);
 const routesTempRoot = join(process.cwd(), ".tmp", "modules-api-task-routes");
+const structuredManagerEvaluation = [
+  "baseline_ref: origin/main 45eeecbf2a0c2d33dd9dd4896fc8dd6d6b9ded13",
+  "readme_claim_to_evidence_protocol: compared README claims to route evidence.",
+  "dimension_evaluation: stale independent dimension evaluation.",
+  "gap_analysis: source baseline is stale versus current baseline.",
+  "coordinator_handoff: preserve freshness classification for task planning.",
+  "confidence/limits: high confidence; limited to route fixture evidence.",
+].join("\n\n");
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -711,7 +719,7 @@ describe("task routes", () => {
           commit_sha: staleCommit,
           evaluator_model: "gpt-5.5",
           score: 80,
-          evaluation: "Stale independent dimension evaluation.",
+          evaluation: structuredManagerEvaluation,
         }),
       },
     );
