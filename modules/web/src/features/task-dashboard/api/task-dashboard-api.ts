@@ -14,6 +14,7 @@ import type {
   Project,
   ProjectListResponse,
   ProjectOptimizerStatusResponse,
+  ProjectTokenUsageResponse,
   TaskListResponse,
   TaskPullRequestStatusResponse,
 } from "@aim-ai/contract";
@@ -127,6 +128,14 @@ export const updateProject = async (
     name: input.name,
     git_origin_url: input.gitOriginUrl,
   });
+};
+
+export const getProjectTokenUsage = async (
+  projectId: string,
+): Promise<ProjectTokenUsageResponse> => {
+  const client = createWebApiClient();
+
+  return client.getProjectTokenUsage(projectId);
 };
 
 export const deleteProject = async (projectId: string): Promise<void> => {

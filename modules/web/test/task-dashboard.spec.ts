@@ -173,6 +173,101 @@ const buildTaskPullRequestStatus = ({
   pull_request_url: pullRequestUrl,
 });
 
+const buildProjectTokenUsage = ({
+  cost = 3.75,
+  failures = [],
+  input = 300,
+  messages = 3,
+  output = 450,
+  projectId = "00000000-0000-4000-8000-000000000010",
+  tasks = [
+    {
+      task_id: "task-main",
+      title: "Active main task",
+      session_id: "ses_main",
+      totals: {
+        input: 200,
+        output: 300,
+        reasoning: 25,
+        cache: { read: 15, write: 5 },
+        total: 550,
+        cost: 2.5,
+        messages: 2,
+      },
+      failures: [],
+    },
+    {
+      task_id: "task-resolved",
+      title: "Completed project task",
+      session_id: "ses_resolved",
+      totals: {
+        input: 100,
+        output: 150,
+        reasoning: 10,
+        cache: { read: 5, write: 0 },
+        total: 260,
+        cost: 1.25,
+        messages: 1,
+      },
+      failures: [],
+    },
+  ],
+  total = 810,
+}: {
+  cost?: number;
+  failures?: Array<{
+    code: "OPENCODE_MESSAGES_UNAVAILABLE";
+    message: string;
+    root_session_id: string;
+    task_id: string;
+  }>;
+  input?: number;
+  messages?: number;
+  output?: number;
+  projectId?: string;
+  tasks?: Array<{
+    failures: Array<{
+      code: "OPENCODE_MESSAGES_UNAVAILABLE";
+      message: string;
+      root_session_id: string;
+      task_id: string;
+    }>;
+    session_id: string;
+    task_id: string;
+    title: string;
+    totals: {
+      cache: { read: number; write: number };
+      cost: number;
+      input: number;
+      messages: number;
+      output: number;
+      reasoning: number;
+      total: number;
+    };
+  }>;
+  total?: number;
+} = {}) => ({
+  project_id: projectId,
+  totals: {
+    input,
+    output,
+    reasoning: 35,
+    cache: { read: 20, write: 5 },
+    total,
+    cost,
+    messages,
+  },
+  tasks,
+  sessions: tasks.map((task) => ({
+    root_session_id: task.session_id,
+    task_id: task.task_id,
+    title: task.title,
+    totals: task.totals,
+    failure: task.failures[0] ?? null,
+  })),
+  failures,
+});
+
 const buildCoordinatorDryRunOperation = ({
   blocked = false,
   decision,
@@ -373,6 +468,27 @@ test.beforeEach(async ({ page }) => {
           }),
         ],
       }),
+    });
+  });
+
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    const projectId =
+      new URL(route.request().url()).pathname.split("/").at(3) ??
+      "00000000-0000-4000-8000-000000000010";
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildProjectTokenUsage({
+          cost: 0,
+          input: 0,
+          messages: 0,
+          output: 0,
+          projectId,
+          tasks: [],
+          total: 0,
+        }),
+      ),
     });
   });
 
@@ -653,6 +769,142 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
     page.getByRole("link", { name: "README Fit" }).first(),
   ).toBeVisible();
   await expect(page.getByText("Research Fit")).toHaveCount(0);
+});
+
+test("shows project token totals and the heaviest task attribution without sensitive usage details", async ({
+  page,
+}) => {
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildProjectTokenUsage({
+          failures: [
+            {
+              code: "OPENCODE_MESSAGES_UNAVAILABLE",
+              message:
+                "OpenCode message fetch failed with API key sk-live-secret and raw prompt content.",
+              root_session_id: "ses_sensitive_root",
+              task_id: "task-main",
+            },
+          ],
+        }),
+      ),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage).toBeVisible();
+  await expect(usage.getByText("810 tokens", { exact: true })).toBeVisible();
+  await expect(usage.getByText("$3.75", { exact: true })).toBeVisible();
+  await expect(usage.getByText("Input 300 / Output 450")).toBeVisible();
+  await expect(usage.getByText("3 messages", { exact: true })).toBeVisible();
+  await expect(usage.getByText("Heaviest task")).toBeVisible();
+  await expect(
+    usage.getByText("Active main task", { exact: true }),
+  ).toBeVisible();
+  await expect(usage.getByText("550 tokens / $2.50")).toBeVisible();
+  await expect(usage.getByText("1 usage lookup failed")).toBeVisible();
+  await expect(usage.getByText("sk-live-secret")).toHaveCount(0);
+  await expect(usage.getByText("raw prompt content")).toHaveCount(0);
+  await expect(usage.getByText("ses_sensitive_root")).toHaveCount(0);
+});
+
+test("shows project token usage empty and query failure states", async ({
+  page,
+}) => {
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  let usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage).toBeVisible();
+  await expect(usage.getByText("No token usage recorded")).toBeVisible();
+  await expect(
+    usage.getByText(
+      "Project token and cost totals will appear after AIM records OpenCode usage for this project.",
+    ),
+  ).toBeVisible();
+
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      status: 503,
+      body: JSON.stringify({
+        code: "OPENCODE_MESSAGES_UNAVAILABLE",
+        message: "OpenCode usage service is unavailable.",
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000011");
+
+  usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage).toBeVisible();
+  await expect(usage.getByText("Token usage unavailable")).toBeVisible();
+  await expect(
+    usage.getByText("Refresh project-scoped usage and retry."),
+  ).toBeVisible();
+});
+
+test("keeps project token usage isolated to the selected project", async ({
+  page,
+}) => {
+  const requestedProjectIds: string[] = [];
+
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    const projectId =
+      new URL(route.request().url()).pathname.split("/").at(3) ?? "";
+
+    requestedProjectIds.push(projectId);
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        projectId === "00000000-0000-4000-8000-000000000011"
+          ? buildProjectTokenUsage({
+              cost: 9.99,
+              input: 900,
+              messages: 1,
+              output: 99,
+              projectId,
+              tasks: [
+                {
+                  task_id: "task-research",
+                  title: "Research project task",
+                  session_id: "ses_research",
+                  totals: {
+                    input: 900,
+                    output: 99,
+                    reasoning: 0,
+                    cache: { read: 0, write: 0 },
+                    total: 999,
+                    cost: 9.99,
+                    messages: 1,
+                  },
+                  failures: [],
+                },
+              ],
+              total: 999,
+            })
+          : buildProjectTokenUsage({ projectId }),
+      ),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000011");
+
+  const usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage.getByText("999 tokens", { exact: true })).toBeVisible();
+  await expect(usage.getByText("$9.99", { exact: true })).toBeVisible();
+  await expect(usage.getByText("Research project task")).toBeVisible();
+  await expect(usage.getByText("810 tokens", { exact: true })).toHaveCount(0);
+  await expect
+    .poll(() => requestedProjectIds)
+    .toEqual(["00000000-0000-4000-8000-000000000011"]);
 });
 
 test("shows read-only Coordinator dry-run proposal summary without task batch writes", async ({

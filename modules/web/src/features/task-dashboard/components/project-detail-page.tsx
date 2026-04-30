@@ -13,7 +13,10 @@ import {
   CardTitle,
 } from "../../../components/ui/card.js";
 import { useI18n } from "../../../lib/i18n.js";
-import { createCoordinatorProposalDryRun } from "../api/task-dashboard-api.js";
+import {
+  createCoordinatorProposalDryRun,
+  getProjectTokenUsage,
+} from "../api/task-dashboard-api.js";
 import type {
   DashboardDimensionReportItem,
   DashboardTask,
@@ -34,6 +37,11 @@ import {
 import { DirectorClarificationPanel } from "./director-clarification-panel.js";
 
 const formatCount = (count: number, label: string) => `${count} ${label}`;
+
+const formatTokens = (count: number) =>
+  `${new Intl.NumberFormat("en-US").format(count)} tokens`;
+
+const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
 
 const normalizeGapText = (value: string) =>
   value
@@ -339,6 +347,95 @@ const CoordinatorDryRunSummary = ({
   );
 };
 
+const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
+  const { t } = useI18n();
+  const usageQuery = useQuery({
+    queryKey: ["project-token-usage", projectId],
+    queryFn: () => getProjectTokenUsage(projectId),
+    retry: false,
+  });
+  const usage = usageQuery.data;
+  const heaviestTask = usage?.tasks
+    .filter((task) => task.totals.total > 0 || task.totals.cost > 0)
+    .sort((left, right) => right.totals.total - left.totals.total)[0];
+  const failureCount = usage?.failures.length ?? 0;
+  const hasUsage =
+    (usage?.totals.total ?? 0) > 0 || (usage?.totals.cost ?? 0) > 0;
+
+  return (
+    <section aria-label={t("projectTokenUsageRegion")} className={pageStack}>
+      <div>
+        <p className={eyebrow}>{t("projectTokenUsageEyebrow")}</p>
+        <h2 className={sectionTitle}>{t("projectTokenUsageTitle")}</h2>
+        <p className={sectionCopy}>{t("projectTokenUsageDescription")}</p>
+      </div>
+      <Card>
+        <CardContent className={panelStack}>
+          {usageQuery.isError ? (
+            <div className={panelStack}>
+              <strong>{t("projectTokenUsageUnavailable")}</strong>
+              <p className={sectionCopy}>{t("projectTokenUsageRetry")}</p>
+            </div>
+          ) : usageQuery.isLoading ? (
+            <p className={sectionCopy}>{t("projectTokenUsageLoading")}</p>
+          ) : usage && !hasUsage ? (
+            <div className={panelStack}>
+              <strong>{t("projectTokenUsageEmpty")}</strong>
+              <p className={sectionCopy}>
+                {t("projectTokenUsageEmptyDescription")}
+              </p>
+            </div>
+          ) : usage ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("projectTokenUsageTokens")}</p>
+                  <strong>{formatTokens(usage.totals.total)}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("projectTokenUsageCost")}</p>
+                  <strong>{formatCost(usage.totals.cost)}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("projectTokenUsageBreakdown")}</p>
+                  <strong>{`${t("projectTokenUsageInput")} ${usage.totals.input} / ${t("projectTokenUsageOutput")} ${usage.totals.output}`}</strong>
+                </div>
+                <div className={panelStack}>
+                  <p className={eyebrow}>{t("projectTokenUsageMessages")}</p>
+                  <strong>{`${usage.totals.messages} ${t("projectTokenUsageMessageUnit")}`}</strong>
+                </div>
+              </div>
+              <div className={panelStack}>
+                <p className={eyebrow}>{t("projectTokenUsageHeaviestTask")}</p>
+                {heaviestTask ? (
+                  <a
+                    className="font-medium underline-offset-4 hover:underline"
+                    href={`#/tasks/${encodeURIComponent(heaviestTask.task_id)}`}
+                  >
+                    {heaviestTask.title}
+                  </a>
+                ) : (
+                  <strong>{t("none")}</strong>
+                )}
+                {heaviestTask ? (
+                  <p className={sectionCopy}>{`${formatTokens(
+                    heaviestTask.totals.total,
+                  )} / ${formatCost(heaviestTask.totals.cost)}`}</p>
+                ) : null}
+              </div>
+              {failureCount > 0 ? (
+                <p
+                  className={sectionCopy}
+                >{`${failureCount} ${t("projectTokenUsageFailureUnit")}`}</p>
+              ) : null}
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+    </section>
+  );
+};
+
 export const ProjectDetailPage = ({
   dashboard,
   projectId,
@@ -503,6 +600,8 @@ export const ProjectDetailPage = ({
         contextName={project.name}
         projectId={project.id}
       />
+
+      <ProjectTokenUsageSummary projectId={project.id} />
 
       <CoordinatorDryRunSummary
         activeTasks={activeTasks}
