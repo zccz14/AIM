@@ -224,7 +224,7 @@ aim director clarifications list --base-url http://localhost:8192 --project-id <
 aim director clarifications create --base-url http://localhost:8192 --project-id <project-id> --kind clarification --prompt "Which target outcome should Manager prioritize?"
 ```
 
-本地观测已落地的 AIM 只读状态时，可以用 CLI 查询当前维度、评估历史、Coordinator dry-run proposal 和项目优化器状态：
+本地观测已落地的 AIM 只读状态时，可以用 CLI 查询当前维度、评估历史、Coordinator dry-run proposal 和项目优化器状态。项目级 Token 用量查询入口是 `project:token-usage`，用于查看 project totals、task/session attribution 和 partial failure diagnostics：
 
 ```bash
 aim dimension list --base-url http://localhost:8192 --project-id <project-id>
@@ -234,6 +234,8 @@ aim dimension evaluations list --base-url http://localhost:8192 --dimension-id <
 aim coordinator proposal dry-run --base-url http://localhost:8192 --stdin < proposal.json
 
 aim project optimizer status --base-url http://localhost:8192 --project-id <project-id>
+
+aim project:token-usage --base-url http://localhost:8192 --project-id <project-id>
 ```
 
 构建并验证：`pnpm build`

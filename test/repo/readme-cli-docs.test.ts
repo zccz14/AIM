@@ -20,5 +20,11 @@ describe("README CLI usage docs", () => {
     expect(readme).toContain(
       "aim project optimizer status --base-url http://localhost:8192 --project-id <project-id>",
     );
+    expect(readme).toContain(
+      "aim project:token-usage --base-url http://localhost:8192 --project-id <project-id>",
+    );
+    expect(readme).toContain("project totals");
+    expect(readme).toContain("task/session attribution");
+    expect(readme).toContain("partial failure diagnostics");
   });
 });
