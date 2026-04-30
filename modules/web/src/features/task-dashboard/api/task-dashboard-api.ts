@@ -8,6 +8,7 @@ import type {
   DirectorClarificationListResponse,
   DirectorClarificationStatus,
   OpenCodeModelsResponse,
+  OpenCodeSession,
   OpenCodeSessionContinueBulkResponse,
   OpenCodeSessionContinueResult,
   OpenCodeSessionListResponse,
@@ -162,6 +163,14 @@ export const listOpenCodeSessions =
 
     return client.listOpenCodeSessions();
   };
+
+export const refreshOpenCodeSessionTokenUsageById = async (
+  sessionId: string,
+): Promise<OpenCodeSession> => {
+  const client = createWebApiClient();
+
+  return client.refreshOpenCodeSessionTokenUsageById(sessionId);
+};
 
 export const continuePendingOpenCodeSessions =
   async (): Promise<OpenCodeSessionContinueBulkResponse> => {

@@ -2447,6 +2447,121 @@ test("opens an OpenCode sessions list page without drilling into session details
     ]);
 });
 
+test("summarizes OpenCode session token usage and refreshes one session", async ({
+  page,
+}) => {
+  const refreshRequests: string[] = [];
+  const sessions = [
+    {
+      session_id: "ses_token_heavy",
+      state: "pending",
+      value: null,
+      reason: null,
+      continue_prompt: "Continue after usage refresh.",
+      provider_id: "anthropic",
+      model_id: "claude-sonnet-4-5",
+      input_tokens: 1200,
+      cached_tokens: 300,
+      cache_write_tokens: 40,
+      output_tokens: 500,
+      reasoning_tokens: 75,
+      stale: false,
+      created_at: "2026-04-27T08:00:00.000Z",
+      updated_at: "2026-04-27T09:30:00.000Z",
+    },
+    {
+      session_id: "ses_no_usage",
+      state: "resolved",
+      value: "No token usage recorded yet.",
+      reason: null,
+      continue_prompt: null,
+      provider_id: null,
+      model_id: null,
+      ...zeroOpenCodeSessionTokens,
+      stale: false,
+      created_at: "2026-04-26T08:00:00.000Z",
+      updated_at: "2026-04-26T11:30:00.000Z",
+    },
+  ];
+
+  await page.route("**/api/opencode/sessions**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+
+    if (
+      route.request().method() === "POST" &&
+      requestUrl.pathname.endsWith("/token-usage/refresh")
+    ) {
+      refreshRequests.push(requestUrl.pathname);
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...sessions[0],
+          input_tokens: 1500,
+          cached_tokens: 450,
+          cache_write_tokens: 60,
+          output_tokens: 650,
+          reasoning_tokens: 90,
+          updated_at: "2026-04-27T09:45:00.000Z",
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: sessions }),
+    });
+  });
+
+  await page.goto("/#/opencode/sessions");
+
+  const sessionsRegion = page.getByRole("region", {
+    name: "OpenCode sessions",
+  });
+  const heavyUsageRow = sessionsRegion.getByRole("row", {
+    name: /ses_token_heavy/,
+  });
+  const noUsageRow = sessionsRegion.getByRole("row", { name: /ses_no_usage/ });
+
+  await expect(sessionsRegion.getByText("Input 1,200")).toBeVisible();
+  await expect(sessionsRegion.getByText("Cached input 300")).toBeVisible();
+  await expect(sessionsRegion.getByText("Cache writes 40")).toBeVisible();
+  await expect(sessionsRegion.getByText("Output 500")).toBeVisible();
+  await expect(sessionsRegion.getByText("Reasoning 75")).toBeVisible();
+  await expect(heavyUsageRow.getByText("2,115 tokens")).toBeVisible();
+  await expect(
+    heavyUsageRow.getByText("in 1,200 / cache 300+40 / out 500 / reason 75"),
+  ).toBeVisible();
+  await expect(noUsageRow.getByText("No usage")).toBeVisible();
+  await expect(heavyUsageRow.getByText("Input tokens")).toBeVisible();
+  await expect(heavyUsageRow.getByText("1,200", { exact: true })).toBeVisible();
+  await expect(heavyUsageRow.getByText("Cached tokens")).toBeVisible();
+  await expect(heavyUsageRow.getByText("300", { exact: true })).toBeVisible();
+  await expect(heavyUsageRow.getByText("Cache write tokens")).toBeVisible();
+  await expect(heavyUsageRow.getByText("40", { exact: true })).toBeVisible();
+  await expect(heavyUsageRow.getByText("Output tokens")).toBeVisible();
+  await expect(heavyUsageRow.getByText("500", { exact: true })).toBeVisible();
+  await expect(heavyUsageRow.getByText("Reasoning tokens")).toBeVisible();
+  await expect(heavyUsageRow.getByText("75", { exact: true })).toBeVisible();
+
+  await heavyUsageRow
+    .getByRole("button", { exact: true, name: "Refresh usage" })
+    .click();
+
+  await expect
+    .poll(() => refreshRequests)
+    .toEqual(["/api/opencode/sessions/ses_token_heavy/token-usage/refresh"]);
+  await expect(sessionsRegion.getByText("Input 1,500")).toBeVisible();
+  await expect(sessionsRegion.getByText("Cached input 450")).toBeVisible();
+  await expect(sessionsRegion.getByText("Cache writes 60")).toBeVisible();
+  await expect(sessionsRegion.getByText("Output 650")).toBeVisible();
+  await expect(sessionsRegion.getByText("Reasoning 90")).toBeVisible();
+  await expect(heavyUsageRow.getByText("2,750 tokens")).toBeVisible();
+  await expect(
+    heavyUsageRow.getByText("in 1,500 / cache 450+60 / out 650 / reason 90"),
+  ).toBeVisible();
+});
+
 test("opens a dimension detail trend with time, score, evaluation points, and tooltip descriptions", async ({
   page,
 }) => {
