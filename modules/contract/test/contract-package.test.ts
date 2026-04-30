@@ -536,6 +536,38 @@ describe("contract package baseline", () => {
     );
   });
 
+  it("accepts dry-run task pool top-level artifact fields without loosening strictness", () => {
+    expect(
+      contractModule.createCoordinatorProposalDryRunRequestSchema.safeParse({
+        project_id: mainProjectId,
+        currentBaselineCommit: "7cdc5a1",
+        evaluations: [],
+        taskPool: [
+          {
+            task_id: "task-with-artifacts",
+            title: "Task with artifacts",
+            worktree_path: "/repo/.worktrees/task-with-artifacts",
+            pull_request_url: "https://github.com/example/repo/pull/42",
+          },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      contractModule.createCoordinatorProposalDryRunRequestSchema.safeParse({
+        project_id: mainProjectId,
+        currentBaselineCommit: "7cdc5a1",
+        evaluations: [],
+        taskPool: [
+          {
+            task_id: "task-with-artifacts",
+            title: "Task with artifacts",
+            unexpected_artifact_field: "not allowed",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
   it("exports health schemas from the built package boundary", () => {
     expect(contractModule.healthPath).toBe("/health");
     expect(contractModule.healthStatusSchema.parse("ok")).toBe("ok");

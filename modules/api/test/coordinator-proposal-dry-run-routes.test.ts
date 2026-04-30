@@ -230,6 +230,65 @@ describe("coordinator proposal dry-run route", () => {
     });
   });
 
+  it("accepts top-level task artifact fields and keeps them in rationale", async () => {
+    await useProjectRoot("top-level-artifact-fields");
+    const app = createRouteApp();
+    const project = await createProject(app);
+
+    const response = await app.request(
+      contractModule.coordinatorProposalDryRunPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          project_id: project.id,
+          currentBaselineCommit,
+          evaluations: [
+            {
+              source_dimension: {
+                id: "dimension-artifacts",
+                name: "Artifact evidence",
+              },
+              source_evaluation: {
+                commit_sha: currentBaselineCommit,
+                evaluation: "Covered by task with execution artifacts.",
+                id: "evaluation-artifacts",
+              },
+              source_gap: "Keep observable execution evidence.",
+            },
+          ],
+          taskPool: [
+            {
+              pull_request_url: "https://github.com/example/repo/pull/42",
+              source_metadata: {
+                dimension_evaluation_id: "evaluation-artifacts",
+                dimension_id: "dimension-artifacts",
+                latest_origin_main_commit: currentBaselineCommit,
+              },
+              status: "processing",
+              task_id: "task-with-artifacts",
+              title: "Covered artifact task",
+              worktree_path: "/repo/.worktrees/task-with-artifacts",
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+
+    expect(payload.operations).toEqual([
+      expect.objectContaining({
+        decision: "keep",
+        keep_reason: expect.stringContaining(
+          "worktree=/repo/.worktrees/task-with-artifacts; pr=https://github.com/example/repo/pull/42",
+        ),
+        task_id: "task-with-artifacts",
+      }),
+    ]);
+  });
+
   it("returns project-not-found for a structurally valid dry-run request with an unknown project_id", async () => {
     const projectRoot = await useProjectRoot("unknown-project-id");
     const app = createRouteApp();
