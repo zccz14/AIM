@@ -18,6 +18,8 @@ export const openCodeSessionResolvePath =
   "/opencode/sessions/{sessionId}/resolve";
 export const openCodeSessionRejectPath =
   "/opencode/sessions/{sessionId}/reject";
+export const openCodeSessionTokenUsageRefreshPath =
+  "/opencode/sessions/{sessionId}/token-usage/refresh";
 export const projectsPath = "/projects";
 export const projectByIdPath = "/projects/{projectId}";
 export const projectDirectorClarificationsPath =

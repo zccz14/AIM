@@ -407,6 +407,40 @@ export const openApiDocument = {
         },
       },
     },
+    "/opencode/sessions/{sessionId}/token-usage/refresh": {
+      post: {
+        operationId: "refreshOpenCodeSessionTokenUsageById",
+        summary:
+          "Refresh token usage for an AIM-controlled OpenCode session promise",
+        parameters: [
+          {
+            $ref: "#/components/parameters/OpenCodeSessionIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Updated OpenCode session promise",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/OpenCodeSession",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "OpenCode session promise not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/projects": {
       post: {
         operationId: "createProject",
