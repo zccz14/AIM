@@ -20,6 +20,11 @@ import { resolveProjectWorkspacePath } from "../project-workspace.js";
 import { statTokensBySessionId, type TokenStats } from "../stat-tokens.js";
 import { createTaskRepository } from "../task-repository.js";
 
+type ProjectBudgetThresholds = {
+  cost_warning_threshold: null | number;
+  token_warning_threshold: null | number;
+};
+
 const projectByIdRoutePath = projectByIdPath.replace(
   "{projectId}",
   ":projectId",
@@ -128,6 +133,49 @@ const toTokenUsageTotals = (stats: TokenStats) => ({
   total: stats.totals.total,
 });
 
+const buildProjectTokenBudgetWarning = (
+  thresholds: ProjectBudgetThresholds,
+  totals: ReturnType<typeof zeroTokenUsageTotals>,
+) => {
+  const exceedsTokenThreshold =
+    thresholds.token_warning_threshold !== null &&
+    totals.total > thresholds.token_warning_threshold;
+  const exceedsCostThreshold =
+    thresholds.cost_warning_threshold !== null &&
+    totals.cost > thresholds.cost_warning_threshold;
+
+  if (exceedsTokenThreshold) {
+    return {
+      status: "exceeded" as const,
+      token_warning_threshold: thresholds.token_warning_threshold,
+      cost_warning_threshold: thresholds.cost_warning_threshold,
+      message:
+        "Project token usage exceeds the configured token warning threshold.",
+    };
+  }
+
+  if (exceedsCostThreshold) {
+    return {
+      status: "exceeded" as const,
+      token_warning_threshold: thresholds.token_warning_threshold,
+      cost_warning_threshold: thresholds.cost_warning_threshold,
+      message:
+        "Project token usage exceeds the configured cost warning threshold.",
+    };
+  }
+
+  return {
+    status:
+      thresholds.token_warning_threshold === null &&
+      thresholds.cost_warning_threshold === null
+        ? ("not_configured" as const)
+        : ("within_budget" as const),
+    token_warning_threshold: thresholds.token_warning_threshold,
+    cost_warning_threshold: thresholds.cost_warning_threshold,
+    message: null,
+  };
+};
+
 type ProjectTokenUsageAggregation = {
   failures: ReturnType<typeof buildOpenCodeMessagesFailure>[];
   sessionUsages: {
@@ -182,6 +230,7 @@ const summarizeTokenUsageAggregation = (
     ProjectTokenUsageAggregation,
     "failures" | "sessionUsages" | "totals"
   >,
+  thresholds: ProjectBudgetThresholds,
 ) => {
   const rootSessionCount = aggregation.sessionUsages.length;
   const failedRootSessionCount = aggregation.failures.length;
@@ -196,6 +245,10 @@ const summarizeTokenUsageAggregation = (
 
   return {
     availability,
+    budget_warning: buildProjectTokenBudgetWarning(
+      thresholds,
+      aggregation.totals,
+    ),
     failed_root_session_count: failedRootSessionCount,
     failure_summary:
       failedRootSessionCount === 0
@@ -408,6 +461,7 @@ export const registerProjectRoutes = (
       recent_events: optimizerStatus?.recent_events ?? [],
       token_usage: summarizeTokenUsageAggregation(
         await collectProjectTokenUsage(projectId),
+        project,
       ),
     });
 
@@ -427,6 +481,7 @@ export const registerProjectRoutes = (
 
     const response = projectTokenUsageResponseSchema.parse({
       failures,
+      budget_warning: buildProjectTokenBudgetWarning(project, totals),
       project_id: projectId,
       sessions: sessionUsages,
       tasks: taskUsages,

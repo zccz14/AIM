@@ -283,6 +283,8 @@ export type {
   ProjectOptimizerStatusResponse,
   ProjectOptimizerTokenUsageAvailability,
   ProjectOptimizerTokenUsageSummary,
+  ProjectTokenBudgetWarning,
+  ProjectTokenBudgetWarningStatus,
   ProjectTokenUsageFailure,
   ProjectTokenUsageResponse,
   ProjectTokenUsageSession,

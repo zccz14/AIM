@@ -120,13 +120,17 @@ const buildProject = ({
   name = "Main project",
   optimizerEnabled = false,
   projectId = "00000000-0000-4000-8000-000000000010",
+  tokenWarningThreshold = null,
+  costWarningThreshold = null,
 }: {
+  costWarningThreshold?: number | null;
   gitOriginUrl?: string;
   globalModelId?: string;
   globalProviderId?: string;
   name?: string;
   optimizerEnabled?: boolean;
   projectId?: string;
+  tokenWarningThreshold?: number | null;
 } = {}) => ({
   id: projectId,
   name,
@@ -134,6 +138,8 @@ const buildProject = ({
   global_provider_id: globalProviderId,
   global_model_id: globalModelId,
   optimizer_enabled: optimizerEnabled,
+  token_warning_threshold: tokenWarningThreshold,
+  cost_warning_threshold: costWarningThreshold,
   created_at: "2026-04-26T00:00:00.000Z",
   updated_at: "2026-04-26T00:00:00.000Z",
 });
@@ -185,6 +191,12 @@ const buildTaskPullRequestStatus = ({
 });
 
 const buildProjectTokenUsage = ({
+  budgetWarning = {
+    status: "not_configured",
+    token_warning_threshold: null,
+    cost_warning_threshold: null,
+    message: null,
+  },
   cost = 3.75,
   failures = [],
   input = 300,
@@ -225,6 +237,12 @@ const buildProjectTokenUsage = ({
   ],
   total = 810,
 }: {
+  budgetWarning?: {
+    status: "not_configured" | "within_budget" | "exceeded";
+    token_warning_threshold: number | null;
+    cost_warning_threshold: number | null;
+    message: string | null;
+  };
   cost?: number;
   failures?: Array<{
     code: "OPENCODE_MESSAGES_UNAVAILABLE";
@@ -268,6 +286,7 @@ const buildProjectTokenUsage = ({
     cost,
     messages,
   },
+  budget_warning: budgetWarning,
   tasks,
   sessions: tasks.map((task) => ({
     root_session_id: task.session_id,
@@ -408,6 +427,12 @@ const routeProjectOptimizerStatus = async (
             output: 0,
             reasoning: 0,
             total: 0,
+          },
+          budget_warning: {
+            status: "not_configured",
+            token_warning_threshold: null,
+            cost_warning_threshold: null,
+            message: null,
           },
         },
       }),
@@ -845,6 +870,40 @@ test("shows project token totals, heaviest task attribution, and partial failure
       "OpenCode messages are temporarily unavailable; retry after the session store recovers.",
     ),
   ).toBeVisible();
+});
+
+test("shows project token budget warning when configured thresholds are exceeded", async ({
+  page,
+}) => {
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildProjectTokenUsage({
+          budgetWarning: {
+            status: "exceeded",
+            token_warning_threshold: 800,
+            cost_warning_threshold: 5,
+            message:
+              "Project token usage exceeds the configured token warning threshold.",
+          },
+        }),
+      ),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage.getByText("Budget warning")).toBeVisible();
+  await expect(
+    usage.getByText(
+      "Project token usage exceeds the configured token warning threshold.",
+    ),
+  ).toBeVisible();
+  await expect(usage.getByText("Token threshold 800 tokens")).toBeVisible();
+  await expect(usage.getByText("Cost threshold $5.00")).toBeVisible();
 });
 
 test("shows project token usage empty and query failure states", async ({
@@ -1678,6 +1737,12 @@ test("shows project optimizer config and runtime observability separately", asyn
             output: 20,
             reasoning: 5,
             total: 105,
+          },
+          budget_warning: {
+            status: "not_configured",
+            token_warning_threshold: null,
+            cost_warning_threshold: null,
+            message: null,
           },
         },
         recent_events: [

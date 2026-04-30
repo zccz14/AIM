@@ -33,6 +33,8 @@ export type Project = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled: boolean;
+  token_warning_threshold: number | null;
+  cost_warning_threshold: number | null;
   readonly created_at: string;
   readonly updated_at: string;
 };
@@ -43,6 +45,8 @@ export type CreateProjectRequest = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled?: boolean;
+  token_warning_threshold?: number | null;
+  cost_warning_threshold?: number | null;
 };
 
 export type PatchProjectRequest = {
@@ -51,6 +55,8 @@ export type PatchProjectRequest = {
   global_provider_id?: string;
   global_model_id?: string;
   optimizer_enabled?: boolean;
+  token_warning_threshold?: number | null;
+  cost_warning_threshold?: number | null;
 };
 
 export type ProjectListResponse = {
@@ -158,6 +164,7 @@ export type ProjectOptimizerTokenUsageAvailability =
 export type ProjectOptimizerTokenUsageSummary = {
   availability: ProjectOptimizerTokenUsageAvailability;
   totals: ProjectTokenUsageTotals;
+  budget_warning: ProjectTokenBudgetWarning;
   /**
    * Number of project root sessions considered for the summary.
    */
@@ -183,6 +190,18 @@ export type ProjectTokenUsageTotals = {
   total: number;
   cost: number;
   messages: number;
+};
+
+export type ProjectTokenBudgetWarningStatus =
+  | "not_configured"
+  | "within_budget"
+  | "exceeded";
+
+export type ProjectTokenBudgetWarning = {
+  status: ProjectTokenBudgetWarningStatus;
+  token_warning_threshold: number | null;
+  cost_warning_threshold: number | null;
+  message: string | null;
 };
 
 export type ProjectTokenUsageFailure = {
@@ -211,6 +230,7 @@ export type ProjectTokenUsageSession = {
 export type ProjectTokenUsageResponse = {
   project_id: string;
   totals: ProjectTokenUsageTotals;
+  budget_warning: ProjectTokenBudgetWarning;
   tasks: Array<ProjectTokenUsageTask>;
   sessions: Array<ProjectTokenUsageSession>;
   failures: Array<ProjectTokenUsageFailure>;
@@ -611,6 +631,8 @@ export type ProjectWritable = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled: boolean;
+  token_warning_threshold: number | null;
+  cost_warning_threshold: number | null;
 };
 
 export type ProjectListResponseWritable = {

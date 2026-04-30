@@ -224,6 +224,11 @@ const messages = {
     projectNotAvailable: "Project not available",
     projectNotAvailableDescription:
       "Refresh projects before opening project-scoped observability.",
+    projectBudgetWarning: "Budget warning",
+    projectBudgetWarnings: "Budget warnings",
+    projectCostWarningThreshold: "Cost threshold",
+    projectCostWarningThresholdDescription:
+      "Optional project cost warning threshold in USD. Leave empty for no cost warning.",
     projectObservability: "Project observability",
     projectOptimizer: "Project Optimizer",
     projectOptimizerBlocker: "Blocker",
@@ -271,6 +276,9 @@ const messages = {
     projectTokenUsageTitle: "Project token usage",
     projectTokenUsageTokens: "Tokens",
     projectTokenUsageUnavailable: "Token usage unavailable",
+    projectTokenWarningThreshold: "Token threshold",
+    projectTokenWarningThresholdDescription:
+      "Optional project token warning threshold. Leave empty for no token warning.",
     projectRegister: "Project Register",
     projectRequestBlocked: "Project request blocked",
     projectRequestFailed: "Project request failed",
@@ -575,6 +583,11 @@ const messages = {
     projectName: "项目名称",
     projectNotAvailable: "项目不可用",
     projectNotAvailableDescription: "打开项目级可观测性前请刷新项目。",
+    projectBudgetWarning: "预算告警",
+    projectBudgetWarnings: "预算告警",
+    projectCostWarningThreshold: "成本阈值",
+    projectCostWarningThresholdDescription:
+      "可选的项目成本告警阈值（美元）。留空表示不设置成本告警。",
     projectObservability: "项目可观测性",
     projectOptimizer: "项目 Optimizer",
     projectOptimizerBlocker: "阻塞",
@@ -619,6 +632,9 @@ const messages = {
     projectTokenUsageTitle: "项目 token usage",
     projectTokenUsageTokens: "Tokens",
     projectTokenUsageUnavailable: "Token usage 不可用",
+    projectTokenWarningThreshold: "Token 阈值",
+    projectTokenWarningThresholdDescription:
+      "可选的项目 token 告警阈值。留空表示不设置 token 告警。",
     projectRegister: "项目注册表",
     projectRequestBlocked: "项目请求被阻止",
     projectRequestFailed: "项目请求失败",

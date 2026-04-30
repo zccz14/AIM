@@ -23,12 +23,20 @@ const eventLevelByEvent: Record<
 
 const laneNames = ["manager", "coordinator", "developer"] as const;
 
+const toTokenUsageView = (status: ProjectOptimizerStatusResponse) => ({
+  availability: status.token_usage.availability,
+  failed_root_session_count: status.token_usage.failed_root_session_count,
+  failure_summary: status.token_usage.failure_summary,
+  root_session_count: status.token_usage.root_session_count,
+  totals: status.token_usage.totals,
+});
+
 const toOptimizerStatusView = (status: ProjectOptimizerStatusResponse) => ({
   project_id: status.project_id,
   optimizer_enabled: status.optimizer_enabled,
   runtime_status: status.runtime_active ? "active" : "inactive",
   blocker_summary: status.blocker_summary,
-  token_usage: status.token_usage,
+  token_usage: toTokenUsageView(status),
   lane_summaries: laneNames.map((laneName) => {
     const event = status.recent_events.find(
       (recentEvent) => recentEvent.lane_name === laneName,

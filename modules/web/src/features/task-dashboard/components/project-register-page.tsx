@@ -57,6 +57,8 @@ const emptyForm = {
   name: "",
   gitOriginUrl: "",
   optimizerEnabled: false,
+  tokenWarningThreshold: null,
+  costWarningThreshold: null,
 };
 
 const toFormInput = (project: Project): ProjectFormInput => ({
@@ -65,6 +67,8 @@ const toFormInput = (project: Project): ProjectFormInput => ({
   name: project.name,
   gitOriginUrl: project.git_origin_url,
   optimizerEnabled: project.optimizer_enabled,
+  tokenWarningThreshold: project.token_warning_threshold,
+  costWarningThreshold: project.cost_warning_threshold,
 });
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -84,6 +88,8 @@ export const ProjectRegisterPage = () => {
     name: form.name.trim(),
     gitOriginUrl: form.gitOriginUrl.trim(),
     optimizerEnabled: form.optimizerEnabled,
+    tokenWarningThreshold: form.tokenWarningThreshold,
+    costWarningThreshold: form.costWarningThreshold,
   };
   const canSubmit = [
     trimmedForm.globalModelId,
@@ -225,6 +231,9 @@ export const ProjectRegisterPage = () => {
                       <th className="py-2 pr-3 font-medium">
                         {t("optimizer")}
                       </th>
+                      <th className="py-2 pr-3 font-medium">
+                        {t("projectBudgetWarnings")}
+                      </th>
                       <th className="py-2 pr-0 text-right font-medium">
                         {t("globalControls")}
                       </th>
@@ -258,6 +267,12 @@ export const ProjectRegisterPage = () => {
                               ? t("enabled")
                               : t("disabled")}
                           </Badge>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <div className="flex flex-col gap-1 text-muted-foreground">
+                            <span>{`${t("projectTokenWarningThreshold")} ${project.token_warning_threshold === null ? t("none") : project.token_warning_threshold}`}</span>
+                            <span>{`${t("projectCostWarningThreshold")} ${project.cost_warning_threshold === null ? t("none") : `$${project.cost_warning_threshold.toFixed(2)}`}`}</span>
+                          </div>
                         </td>
                         <td className="py-3 pr-0">
                           <div className="flex justify-end gap-2">
@@ -422,6 +437,55 @@ export const ProjectRegisterPage = () => {
                   </div>
                   <FieldDescription>
                     {t("projectOptimizerDescription")}
+                  </FieldDescription>
+                </Field>
+                <Field data-disabled={isSubmitting}>
+                  <FieldLabel htmlFor="token-warning-threshold">
+                    {t("projectTokenWarningThreshold")}
+                  </FieldLabel>
+                  <Input
+                    disabled={isSubmitting}
+                    id="token-warning-threshold"
+                    min="0"
+                    onChange={(event) => {
+                      const { value } = event.currentTarget;
+
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        tokenWarningThreshold:
+                          value.trim().length === 0 ? null : Number(value),
+                      }));
+                    }}
+                    type="number"
+                    value={form.tokenWarningThreshold ?? ""}
+                  />
+                  <FieldDescription>
+                    {t("projectTokenWarningThresholdDescription")}
+                  </FieldDescription>
+                </Field>
+                <Field data-disabled={isSubmitting}>
+                  <FieldLabel htmlFor="cost-warning-threshold">
+                    {t("projectCostWarningThreshold")}
+                  </FieldLabel>
+                  <Input
+                    disabled={isSubmitting}
+                    id="cost-warning-threshold"
+                    min="0"
+                    onChange={(event) => {
+                      const { value } = event.currentTarget;
+
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        costWarningThreshold:
+                          value.trim().length === 0 ? null : Number(value),
+                      }));
+                    }}
+                    step="0.01"
+                    type="number"
+                    value={form.costWarningThreshold ?? ""}
+                  />
+                  <FieldDescription>
+                    {t("projectCostWarningThresholdDescription")}
                   </FieldDescription>
                 </Field>
               </FieldGroup>

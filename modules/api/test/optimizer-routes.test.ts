@@ -13,6 +13,12 @@ const routesTempRoot = join(
 const jsonHeaders = { "content-type": "application/json" };
 const opencodeSessionsPath = "/opencode/sessions";
 const tasksPath = "/tasks";
+const defaultBudgetWarning = {
+  status: "not_configured",
+  token_warning_threshold: null,
+  cost_warning_threshold: null,
+  message: null,
+};
 
 let previousOpenCodeBaseUrl: string | undefined;
 let previousProjectRoot: string | undefined;
@@ -158,6 +164,7 @@ describe("optimizer routes", () => {
       recent_events: [],
       token_usage: {
         availability: "no_sessions",
+        budget_warning: defaultBudgetWarning,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,
@@ -194,6 +201,7 @@ describe("optimizer routes", () => {
       recent_events: [],
       token_usage: {
         availability: "no_sessions",
+        budget_warning: defaultBudgetWarning,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,
@@ -233,6 +241,7 @@ describe("optimizer routes", () => {
       recent_events: [],
       token_usage: {
         availability: "no_sessions",
+        budget_warning: defaultBudgetWarning,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,
