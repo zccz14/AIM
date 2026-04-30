@@ -67,6 +67,11 @@ export type OpenCodeSession = {
   continue_prompt: string | null;
   provider_id: string | null;
   model_id: string | null;
+  input_tokens: number;
+  cached_tokens: number;
+  cache_write_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
   /**
    * True when the session is still pending and older than the configured stale threshold.
    */
@@ -620,6 +625,11 @@ export type OpenCodeSessionWritable = {
   continue_prompt: string | null;
   provider_id: string | null;
   model_id: string | null;
+  input_tokens: number;
+  cached_tokens: number;
+  cache_write_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
 };
 
 export type OpenCodeSessionListResponseWritable = {

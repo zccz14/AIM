@@ -24,6 +24,13 @@ const execSchemaStatements = (
 
 const dimensionEvaluationUniqueIndexName =
   "dimension_evaluations_project_commit_dimension_unique";
+const openCodeSessionTokenColumns = [
+  "input_tokens",
+  "cached_tokens",
+  "cache_write_tokens",
+  "output_tokens",
+  "reasoning_tokens",
+] as const;
 
 type TableInfoRow = { name: string };
 
@@ -396,6 +403,16 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
       !openCodeSessionColumns.has("model_id")
     ) {
       database.exec("ALTER TABLE opencode_sessions ADD COLUMN model_id TEXT");
+    }
+    for (const column of openCodeSessionTokenColumns) {
+      if (
+        openCodeSessionColumns.has("session_id") &&
+        !openCodeSessionColumns.has(column)
+      ) {
+        database.exec(
+          `ALTER TABLE opencode_sessions ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`,
+        );
+      }
     }
 
     rewriteProjectIdsToUuids(database);

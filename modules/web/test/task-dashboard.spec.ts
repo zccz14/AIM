@@ -1,6 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const currentBaselineCommitSha = "10c965007a9682b212c6531f148a30f98cad3d2c";
+const zeroOpenCodeSessionTokens = {
+  cached_tokens: 0,
+  cache_write_tokens: 0,
+  input_tokens: 0,
+  output_tokens: 0,
+  reasoning_tokens: 0,
+};
 
 const buildTask = ({
   dependencies = [],
@@ -571,6 +578,7 @@ test.beforeEach(async ({ page }) => {
             continue_prompt: "Continue with required checks follow-up.",
             provider_id: "anthropic",
             model_id: "claude-sonnet-4-5",
+            ...zeroOpenCodeSessionTokens,
             stale: true,
             created_at: "2026-04-27T08:00:00.000Z",
             updated_at: "2026-04-27T09:30:00.000Z",
@@ -583,6 +591,7 @@ test.beforeEach(async ({ page }) => {
             continue_prompt: null,
             provider_id: null,
             model_id: null,
+            ...zeroOpenCodeSessionTokens,
             stale: false,
             created_at: "2026-04-26T08:00:00.000Z",
             updated_at: "2026-04-26T11:30:00.000Z",
@@ -595,6 +604,7 @@ test.beforeEach(async ({ page }) => {
             continue_prompt: null,
             provider_id: null,
             model_id: null,
+            ...zeroOpenCodeSessionTokens,
             stale: false,
             created_at: "2026-04-25T08:00:00.000Z",
             updated_at: "2026-04-25T09:00:00.000Z",
@@ -2184,6 +2194,7 @@ test("opens an OpenCode sessions list page without drilling into session details
             continue_prompt: longContinuePrompt,
             provider_id: "anthropic",
             model_id: "claude-sonnet-4-5",
+            ...zeroOpenCodeSessionTokens,
             stale: true,
             created_at: "2026-04-27T08:00:00.000Z",
             updated_at: "2026-04-27T09:30:00.000Z",
@@ -2196,6 +2207,7 @@ test("opens an OpenCode sessions list page without drilling into session details
             continue_prompt: null,
             provider_id: null,
             model_id: null,
+            ...zeroOpenCodeSessionTokens,
             stale: false,
             created_at: "2026-04-26T08:00:00.000Z",
             updated_at: "2026-04-26T11:30:00.000Z",
@@ -2208,6 +2220,7 @@ test("opens an OpenCode sessions list page without drilling into session details
             continue_prompt: null,
             provider_id: null,
             model_id: null,
+            ...zeroOpenCodeSessionTokens,
             stale: false,
             created_at: "2026-04-25T08:00:00.000Z",
             updated_at: "2026-04-25T09:00:00.000Z",
@@ -2220,6 +2233,7 @@ test("opens an OpenCode sessions list page without drilling into session details
             continue_prompt: "Continue the prompt-only session.",
             provider_id: "anthropic",
             model_id: "claude-opus-4-5",
+            ...zeroOpenCodeSessionTokens,
             stale: false,
             created_at: "2026-04-24T08:00:00.000Z",
             updated_at: "2026-04-24T09:00:00.000Z",

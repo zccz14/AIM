@@ -14,10 +14,15 @@ import {
 } from "./task-database.js";
 
 type OpenCodeSessionRow = {
+  cached_tokens: number;
+  cache_write_tokens: number;
   continue_prompt: null | string;
   created_at: string;
+  input_tokens: number;
   model_id: null | string;
+  output_tokens: number;
   reason: null | string;
+  reasoning_tokens: number;
   provider_id: null | string;
   session_id: string;
   state: OpenCodeSessionState;
@@ -27,6 +32,14 @@ type OpenCodeSessionRow = {
 
 type OpenCodeSessionRepositoryOptions = {
   projectRoot?: string;
+};
+
+export type OpenCodeSessionTokenUsageInput = {
+  cached_tokens: number;
+  cache_write_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
 };
 
 const tableName = "opencode_sessions";
@@ -61,11 +74,16 @@ const isStalePendingSession = (row: OpenCodeSessionRow) => {
 
 const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
   openCodeSessionSchema.parse({
+    cached_tokens: row.cached_tokens,
+    cache_write_tokens: row.cache_write_tokens,
     continue_prompt: row.continue_prompt,
     created_at: row.created_at,
+    input_tokens: row.input_tokens,
     model_id: row.model_id,
+    output_tokens: row.output_tokens,
     provider_id: row.provider_id,
     reason: row.reason,
+    reasoning_tokens: row.reasoning_tokens,
     session_id: row.session_id,
     stale: isStalePendingSession(row),
     state: row.state,
@@ -95,22 +113,27 @@ export const createOpenCodeSessionRepository = (
       continue_prompt,
       provider_id,
       model_id,
+      input_tokens,
+      cached_tokens,
+      cache_write_tokens,
+      output_tokens,
+      reasoning_tokens,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getByIdStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     WHERE session_id = ?
   `);
   const listStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     ORDER BY created_at ASC, session_id ASC
   `);
   const listByStateStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     WHERE state = ?
     ORDER BY created_at ASC, session_id ASC
@@ -125,6 +148,11 @@ export const createOpenCodeSessionRepository = (
     SET state = ?, value = ?, reason = ?, updated_at = ?
     WHERE session_id = ? AND state = 'pending'
   `);
+  const updateTokenUsageStatement = database.prepare(`
+    UPDATE ${tableName}
+    SET input_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, output_tokens = ?, reasoning_tokens = ?, updated_at = ?
+    WHERE session_id = ?
+  `);
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
@@ -136,6 +164,11 @@ export const createOpenCodeSessionRepository = (
         continue_prompt: input.continue_prompt ?? null,
         created_at: timestamp,
         model_id: input.model_id ?? null,
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        reasoning_tokens: 0,
         provider_id: input.provider_id ?? null,
         reason: null,
         session_id: input.session_id,
@@ -152,6 +185,11 @@ export const createOpenCodeSessionRepository = (
         session.continue_prompt,
         session.provider_id,
         session.model_id,
+        session.input_tokens,
+        session.cached_tokens,
+        session.cache_write_tokens,
+        session.output_tokens,
+        session.reasoning_tokens,
         session.created_at,
         session.updated_at,
       );
@@ -197,6 +235,22 @@ export const createOpenCodeSessionRepository = (
         state,
         state === "resolved" ? (input.value ?? "") : null,
         state === "rejected" ? (input.reason ?? "") : null,
+        new Date().toISOString(),
+        sessionId,
+      );
+
+      return this.getSessionById(sessionId);
+    },
+    updateSessionTokenUsage(
+      sessionId: string,
+      input: OpenCodeSessionTokenUsageInput,
+    ): null | OpenCodeSession {
+      updateTokenUsageStatement.run(
+        input.input_tokens,
+        input.cached_tokens,
+        input.cache_write_tokens,
+        input.output_tokens,
+        input.reasoning_tokens,
         new Date().toISOString(),
         sessionId,
       );

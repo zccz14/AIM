@@ -1775,6 +1775,11 @@ export const openApiDocument = {
           "continue_prompt",
           "provider_id",
           "model_id",
+          "input_tokens",
+          "cached_tokens",
+          "cache_write_tokens",
+          "output_tokens",
+          "reasoning_tokens",
           "stale",
           "created_at",
           "updated_at",
@@ -1801,6 +1806,26 @@ export const openApiDocument = {
           },
           model_id: {
             type: ["string", "null"],
+          },
+          input_tokens: {
+            type: "integer",
+            minimum: 0,
+          },
+          cached_tokens: {
+            type: "integer",
+            minimum: 0,
+          },
+          cache_write_tokens: {
+            type: "integer",
+            minimum: 0,
+          },
+          output_tokens: {
+            type: "integer",
+            minimum: 0,
+          },
+          reasoning_tokens: {
+            type: "integer",
+            minimum: 0,
           },
           stale: {
             type: "boolean",

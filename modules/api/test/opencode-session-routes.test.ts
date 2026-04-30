@@ -497,7 +497,7 @@ describe("opencode session routes", () => {
       .all();
     const persisted = database
       .prepare(
-        "SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id FROM opencode_sessions WHERE session_id = ?",
+        "SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens FROM opencode_sessions WHERE session_id = ?",
       )
       .get("session-1");
     database.close();
@@ -511,6 +511,11 @@ describe("opencode session routes", () => {
         "continue_prompt",
         "provider_id",
         "model_id",
+        "input_tokens",
+        "cached_tokens",
+        "cache_write_tokens",
+        "output_tokens",
+        "reasoning_tokens",
         "created_at",
         "updated_at",
       ]),
@@ -523,6 +528,11 @@ describe("opencode session routes", () => {
       continue_prompt: "Continue the standalone AIM-controlled session.",
       provider_id: null,
       model_id: null,
+      input_tokens: 0,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      output_tokens: 0,
+      reasoning_tokens: 0,
     });
   });
 
@@ -693,6 +703,147 @@ describe("opencode session routes", () => {
       state: "rejected",
       value: null,
       reason: "blocked",
+    });
+  });
+
+  it("records recomputed OpenCode token usage when resolving a session", async () => {
+    await useProjectRoot("resolve-records-token-usage");
+    const app = createApp();
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (
+        url === "http://localhost:4096/session/session-token-resolved/message"
+      ) {
+        return Response.json([
+          {
+            info: {
+              id: "user-message",
+              role: "user",
+              sessionID: "session-token-resolved",
+            },
+          },
+          {
+            info: {
+              id: "assistant-message",
+              role: "assistant",
+              sessionID: "session-token-resolved",
+              tokens: {
+                cache: { read: 30, write: 40 },
+                input: 10,
+                output: 20,
+                reasoning: 5,
+              },
+            },
+          },
+        ]);
+      }
+
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-token-resolved",
+        continue_prompt: "Continue until resolved.",
+      }),
+    });
+
+    const resolveResponse = await app.request(
+      opencodeSessionResolvePath("session-token-resolved"),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: "finished" }),
+      },
+    );
+
+    expect(resolveResponse.status).toBe(204);
+    await expect(
+      (await app.request(opencodeSessionPath("session-token-resolved"))).json(),
+    ).resolves.toMatchObject({
+      cached_tokens: 30,
+      cache_write_tokens: 40,
+      input_tokens: 10,
+      output_tokens: 20,
+      reasoning_tokens: 5,
+      session_id: "session-token-resolved",
+      state: "resolved",
+    });
+  });
+
+  it("recomputes and overwrites OpenCode token usage when rejecting a settled session again", async () => {
+    await useProjectRoot("reject-overwrites-token-usage");
+    const app = createApp();
+    const tokenSnapshots = [
+      {
+        cacheRead: 300,
+        cacheWrite: 400,
+        input: 100,
+        output: 200,
+        reasoning: 50,
+      },
+      { cacheRead: 3, cacheWrite: 4, input: 1, output: 2, reasoning: 5 },
+    ];
+    const fetch = vi.fn(async () => {
+      const snapshot = tokenSnapshots[Math.min(fetch.mock.calls.length - 1, 1)];
+
+      return Response.json([
+        {
+          info: {
+            id: `assistant-message-${fetch.mock.calls.length}`,
+            role: "assistant",
+            sessionID: "session-token-rejected",
+            tokens: {
+              cache: { read: snapshot.cacheRead, write: snapshot.cacheWrite },
+              input: snapshot.input,
+              output: snapshot.output,
+              reasoning: snapshot.reasoning,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-token-rejected",
+        continue_prompt: "Continue until rejected.",
+      }),
+    });
+
+    expect(
+      await app.request(opencodeSessionRejectPath("session-token-rejected"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "blocked" }),
+      }),
+    ).toMatchObject({ status: 204 });
+    expect(
+      await app.request(opencodeSessionRejectPath("session-token-rejected"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "still blocked" }),
+      }),
+    ).toMatchObject({ status: 204 });
+
+    await expect(
+      (await app.request(opencodeSessionPath("session-token-rejected"))).json(),
+    ).resolves.toMatchObject({
+      cached_tokens: 3,
+      cache_write_tokens: 4,
+      input_tokens: 1,
+      output_tokens: 2,
+      reasoning_tokens: 5,
+      reason: "blocked",
+      session_id: "session-token-rejected",
+      state: "rejected",
     });
   });
 
