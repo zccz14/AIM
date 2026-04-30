@@ -10,6 +10,7 @@ import HealthCommand from "./commands/health.js";
 import ProjectListCommand from "./commands/project/list.js";
 import ProjectOptimizerStatusCommand from "./commands/project/optimizer/status.js";
 import ProjectOptimizerUpdateCommand from "./commands/project/optimizer/update.js";
+import ProjectTokenUsageCommand from "./commands/project/token-usage.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
 import TaskDeleteCommand from "./commands/task/delete.js";
@@ -35,7 +36,7 @@ const directorClarificationsCommandNames = new Set([
   "list",
   "status",
 ]);
-const projectCommandNames = new Set(["list"]);
+const projectCommandNames = new Set(["list", "token-usage"]);
 
 const normalizeCommandArgs = (args: string[]) => {
   if (args[0] === "server" && serverCommandNames.has(args[1] ?? "")) {
@@ -98,6 +99,7 @@ export const commands = {
   "director:clarifications:status": DirectorClarificationsStatusCommand,
   health: HealthCommand,
   "project:list": ProjectListCommand,
+  "project:token-usage": ProjectTokenUsageCommand,
   "project:optimizer:status": ProjectOptimizerStatusCommand,
   "project:optimizer:update": ProjectOptimizerUpdateCommand,
   "server:start": ServerStartCommand,

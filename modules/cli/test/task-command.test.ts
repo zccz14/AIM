@@ -74,6 +74,120 @@ const optimizerStatusWithoutEvents = {
   },
   recent_events: [],
 };
+const projectTokenUsage = {
+  project_id: mainProjectId,
+  totals: {
+    input: 100,
+    output: 50,
+    reasoning: 25,
+    cache: { read: 10, write: 5 },
+    total: 190,
+    cost: 3.75,
+    messages: 4,
+  },
+  tasks: [
+    {
+      task_id: "task-1",
+      title: "Write spec",
+      session_id: "session-1",
+      totals: {
+        input: 80,
+        output: 40,
+        reasoning: 20,
+        cache: { read: 8, write: 4 },
+        total: 152,
+        cost: 3,
+        messages: 3,
+      },
+      failures: [],
+    },
+    {
+      task_id: "task-2",
+      title: "Handle partial usage",
+      session_id: "session-2",
+      totals: {
+        input: 20,
+        output: 10,
+        reasoning: 5,
+        cache: { read: 2, write: 1 },
+        total: 38,
+        cost: 0.75,
+        messages: 1,
+      },
+      failures: [
+        {
+          code: "OPENCODE_MESSAGES_UNAVAILABLE",
+          message:
+            "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+          root_session_id: "root-session-2",
+          task_id: "task-2",
+        },
+      ],
+    },
+  ],
+  sessions: [
+    {
+      root_session_id: "root-session-1",
+      task_id: "task-1",
+      title: "Write spec",
+      totals: {
+        input: 80,
+        output: 40,
+        reasoning: 20,
+        cache: { read: 8, write: 4 },
+        total: 152,
+        cost: 3,
+        messages: 3,
+      },
+      failure: null,
+    },
+    {
+      root_session_id: "root-session-2",
+      task_id: "task-2",
+      title: "Handle partial usage",
+      totals: {
+        input: 20,
+        output: 10,
+        reasoning: 5,
+        cache: { read: 2, write: 1 },
+        total: 38,
+        cost: 0.75,
+        messages: 1,
+      },
+      failure: {
+        code: "OPENCODE_MESSAGES_UNAVAILABLE",
+        message:
+          "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+        root_session_id: "root-session-2",
+        task_id: "task-2",
+      },
+    },
+  ],
+  failures: [
+    {
+      code: "OPENCODE_MESSAGES_UNAVAILABLE",
+      message:
+        "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+      root_session_id: "root-session-2",
+      task_id: "task-2",
+    },
+  ],
+};
+const emptyProjectTokenUsage = {
+  project_id: "00000000-0000-4000-8000-000000000002",
+  totals: {
+    input: 0,
+    output: 0,
+    reasoning: 0,
+    cache: { read: 0, write: 0 },
+    total: 0,
+    cost: 0,
+    messages: 0,
+  },
+  tasks: [],
+  sessions: [],
+  failures: [],
+};
 const projects = [
   {
     id: mainProjectId,
@@ -261,6 +375,38 @@ const startTaskServer = async (
     ) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(optimizerStatus));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === `/api/projects/${mainProjectId}/token-usage`
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(projectTokenUsage));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === "/api/projects/00000000-0000-4000-8000-000000000002/token-usage"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(emptyProjectTokenUsage));
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      path === "/api/projects/00000000-0000-4000-8000-000000000003/token-usage"
+    ) {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          code: "PROJECT_NOT_FOUND",
+          message: "missing project",
+        }),
+      );
       return;
     }
 
@@ -853,6 +999,152 @@ describe("task cli command baseline", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
       data: { items: [] },
+    });
+  });
+
+  it("registers project token-usage and prints totals with task and session attribution", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "token-usage",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: `/api/projects/${mainProjectId}/token-usage`,
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        project_id: mainProjectId,
+        availability: "partial",
+        totals: projectTokenUsage.totals,
+        task_totals: [
+          {
+            task_id: "task-1",
+            title: "Write spec",
+            session_id: "session-1",
+            totals: projectTokenUsage.tasks[0]?.totals,
+            failure_count: 0,
+          },
+          {
+            task_id: "task-2",
+            title: "Handle partial usage",
+            session_id: "session-2",
+            totals: projectTokenUsage.tasks[1]?.totals,
+            failure_count: 1,
+          },
+        ],
+        sessions: [
+          {
+            root_session_id: "root-session-1",
+            task_id: "task-1",
+            title: "Write spec",
+            totals: projectTokenUsage.sessions[0]?.totals,
+            failure: null,
+          },
+          {
+            root_session_id: "root-session-2",
+            task_id: "task-2",
+            title: "Handle partial usage",
+            totals: projectTokenUsage.sessions[1]?.totals,
+            failure: {
+              code: "OPENCODE_MESSAGES_UNAVAILABLE",
+              root_session_id: "root-session-2",
+              task_id: "task-2",
+            },
+          },
+        ],
+        failures: [
+          {
+            code: "OPENCODE_MESSAGES_UNAVAILABLE",
+            root_session_id: "root-session-2",
+            task_id: "task-2",
+          },
+        ],
+      },
+    });
+  });
+
+  it("prints no_usage for an empty project token usage response", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "token-usage",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "00000000-0000-4000-8000-000000000002",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/api/projects/00000000-0000-4000-8000-000000000002/token-usage",
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        project_id: "00000000-0000-4000-8000-000000000002",
+        availability: "no_usage",
+        totals: emptyProjectTokenUsage.totals,
+        task_totals: [],
+        sessions: [],
+        failures: [],
+      },
+    });
+  });
+
+  it("does not print prompt text, API tokens, or provider secrets from usage failures", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "token-usage",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      mainProjectId,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("prompt text");
+    expect(result.stdout).not.toContain("sk-ant-secret");
+    expect(result.stdout).not.toContain("api_token");
+    expect(result.stdout).not.toContain("provider_secret");
+  });
+
+  it("preserves server project token-usage errors on stderr", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "token-usage",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "00000000-0000-4000-8000-000000000003",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: { code: "PROJECT_NOT_FOUND", message: "missing project" },
     });
   });
 
