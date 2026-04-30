@@ -134,4 +134,40 @@ describe("statTokensBySessionId", () => {
       },
     });
   });
+
+  it("passes cancellation signals to root and child OpenCode message fetches", async () => {
+    const signal = AbortSignal.timeout(1000);
+    const fetch = vi.fn(async () =>
+      Response.json([
+        {
+          info: {
+            id: "root-assistant-message",
+            role: "assistant",
+            sessionID: "root-session",
+          },
+          parts: [
+            {
+              state: { metadata: { sessionId: "child-session" } },
+              tool: "task",
+              type: "tool",
+            },
+          ],
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await statTokensBySessionId("http://opencode.test/", "root-session", {
+      signal,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://opencode.test/session/root-session/message",
+      { signal },
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "http://opencode.test/session/child-session/message",
+      { signal },
+    );
+  });
 });
