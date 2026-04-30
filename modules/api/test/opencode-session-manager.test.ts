@@ -235,6 +235,156 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("deletes a referenced pending AIM session when OpenCode reports its messages are not found", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover dangling session.",
+      session_id: "session-dangling",
+    });
+    repository.referenceSession("session-dangling");
+    const messages = vi.fn().mockRejectedValue({ response: { status: 404 } });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(messages).toHaveBeenCalledWith({
+      path: { id: "session-dangling" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-dangling",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("keeps a referenced pending AIM session when OpenCode messages fail for a reason other than not found", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Retry later.",
+      session_id: "session-temporary-message-failure",
+    });
+    repository.referenceSession("session-temporary-message-failure");
+    const messages = vi.fn().mockRejectedValue(new Error("temporary outage"));
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(repository.deleteSessionById).not.toHaveBeenCalled();
+    expect(repository.listSessions({ state: "pending" })).toMatchObject([
+      { session_id: "session-temporary-message-failure", state: "pending" },
+    ]);
+    expect(promptAsync).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode pending session recovery failed",
+      {
+        error: "temporary outage",
+        session_id: "session-temporary-message-failure",
+      },
+    );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("continues pending session patrol when dangling cleanup fails for one session", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Delete me.",
+      session_id: "session-dangling-delete-fails",
+    });
+    repository.referenceSession("session-dangling-delete-fails");
+    await repository.createSession({
+      continue_prompt: "Recover after dangling cleanup failure.",
+      session_id: "session-after-dangling-delete-failure",
+    });
+    repository.referenceSession("session-after-dangling-delete-failure");
+    repository.deleteSessionById.mockImplementationOnce(() => {
+      throw new Error("temporary delete failure");
+    });
+    const messages = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager, withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1001);
+
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode dangling session cleanup failed",
+      {
+        error: "temporary delete failure",
+        session_id: "session-dangling-delete-fails",
+      },
+    );
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [
+          {
+            text: withContinuation("Recover after dangling cleanup failure."),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: "session-after-dangling-delete-failure" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("continues recovering pending sessions after one repository scan fails", async () => {
     const repository = createRepository();
     await repository.createSession({
