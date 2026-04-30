@@ -280,6 +280,8 @@ export type {
   ProjectListResponse,
   ProjectListResponseWritable,
   ProjectOptimizerStatusResponse,
+  ProjectOptimizerTokenUsageAvailability,
+  ProjectOptimizerTokenUsageSummary,
   ProjectTokenUsageFailure,
   ProjectTokenUsageResponse,
   ProjectTokenUsageSession,

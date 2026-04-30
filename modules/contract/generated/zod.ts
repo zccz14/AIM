@@ -130,6 +130,34 @@ const PatchProjectRequest = z
   })
   .partial()
   .strict();
+const ProjectOptimizerTokenUsageAvailability = z.enum([
+  "available",
+  "partial",
+  "unavailable",
+  "no_sessions",
+]);
+const ProjectTokenUsageTotals = z
+  .object({
+    input: z.number().gte(0),
+    output: z.number().gte(0),
+    reasoning: z.number().gte(0),
+    cache: z
+      .object({ read: z.number().gte(0), write: z.number().gte(0) })
+      .strict(),
+    total: z.number().gte(0),
+    cost: z.number().gte(0),
+    messages: z.number().int().gte(0),
+  })
+  .strict();
+const ProjectOptimizerTokenUsageSummary = z
+  .object({
+    availability: ProjectOptimizerTokenUsageAvailability,
+    totals: ProjectTokenUsageTotals,
+    root_session_count: z.number().int().gte(0),
+    failed_root_session_count: z.number().int().gte(0),
+    failure_summary: z.union([z.string(), z.null()]),
+  })
+  .strict();
 const ProjectOptimizerStatusResponse = z
   .object({
     project_id: z.string().uuid(),
@@ -137,6 +165,7 @@ const ProjectOptimizerStatusResponse = z
     runtime_active: z.boolean(),
     blocker_summary: z.union([z.string(), z.null()]),
     current_baseline_commit_sha: z.union([z.string(), z.null()]).optional(),
+    token_usage: ProjectOptimizerTokenUsageSummary,
     recent_events: z.array(
       z
         .object({
@@ -150,19 +179,6 @@ const ProjectOptimizerStatusResponse = z
         })
         .strict()
     ),
-  })
-  .strict();
-const ProjectTokenUsageTotals = z
-  .object({
-    input: z.number().gte(0),
-    output: z.number().gte(0),
-    reasoning: z.number().gte(0),
-    cache: z
-      .object({ read: z.number().gte(0), write: z.number().gte(0) })
-      .strict(),
-    total: z.number().gte(0),
-    cost: z.number().gte(0),
-    messages: z.number().int().gte(0),
   })
   .strict();
 const ProjectTokenUsageFailure = z
@@ -582,8 +598,10 @@ export const schemas = {
   Project,
   ProjectListResponse,
   PatchProjectRequest,
-  ProjectOptimizerStatusResponse,
+  ProjectOptimizerTokenUsageAvailability,
   ProjectTokenUsageTotals,
+  ProjectOptimizerTokenUsageSummary,
+  ProjectOptimizerStatusResponse,
   ProjectTokenUsageFailure,
   ProjectTokenUsageTask,
   ProjectTokenUsageSession,

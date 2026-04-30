@@ -28,6 +28,7 @@ const toOptimizerStatusView = (status: ProjectOptimizerStatusResponse) => ({
   optimizer_enabled: status.optimizer_enabled,
   runtime_status: status.runtime_active ? "active" : "inactive",
   blocker_summary: status.blocker_summary,
+  token_usage: status.token_usage,
   lane_summaries: laneNames.map((laneName) => {
     const event = status.recent_events.find(
       (recentEvent) => recentEvent.lane_name === laneName,

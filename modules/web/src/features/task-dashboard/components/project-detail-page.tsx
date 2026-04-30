@@ -494,6 +494,16 @@ export const ProjectDetailPage = ({
       ? t("projectOptimizerRuntimeActive")
       : t("projectOptimizerRuntimeInactive")
     : t("projectOptimizerRuntimeUnknown");
+  const tokenUsage = optimizerStatus?.token_usage;
+  const tokenUsageLabel = tokenUsage
+    ? tokenUsage.availability === "available"
+      ? t("projectOptimizerTokenUsageAvailable")
+      : tokenUsage.availability === "partial"
+        ? t("projectOptimizerTokenUsagePartial")
+        : tokenUsage.availability === "unavailable"
+          ? t("projectOptimizerTokenUsageUnavailable")
+          : t("projectOptimizerTokenUsageNoSessions")
+    : t("projectOptimizerTokenUsageUnavailable");
   const recentOptimizerEvents = optimizerStatus?.recent_events ?? [];
 
   return (
@@ -645,6 +655,23 @@ export const ProjectDetailPage = ({
             <div className={panelStack}>
               <p className={eyebrow}>{t("projectOptimizerBlocker")}</p>
               <strong>{optimizerStatus?.blocker_summary ?? t("none")}</strong>
+            </div>
+            <div className={panelStack}>
+              <p className={eyebrow}>{t("projectOptimizerTokenUsageStatus")}</p>
+              <strong>{tokenUsageLabel}</strong>
+              {tokenUsage ? (
+                <>
+                  <p className={sectionCopy}>{`${formatTokens(
+                    tokenUsage.totals.total,
+                  )} / ${formatCost(tokenUsage.totals.cost)}`}</p>
+                  <p className={tableMeta}>
+                    {`${tokenUsage.root_session_count} sessions / ${tokenUsage.failed_root_session_count} failed`}
+                  </p>
+                  {tokenUsage.failure_summary ? (
+                    <p className={sectionCopy}>{tokenUsage.failure_summary}</p>
+                  ) : null}
+                </>
+              ) : null}
             </div>
             <div className={`${panelStack} md:col-span-2`}>
               <p className={eyebrow}>{t("projectOptimizerRecentEvents")}</p>

@@ -1939,6 +1939,7 @@ export const openApiDocument = {
           "optimizer_enabled",
           "runtime_active",
           "blocker_summary",
+          "token_usage",
           "recent_events",
         ],
         properties: {
@@ -1964,6 +1965,9 @@ export const openApiDocument = {
             minLength: 1,
             description:
               "Current origin/main baseline commit when the project workspace is available.",
+          },
+          token_usage: {
+            $ref: "#/components/schemas/ProjectOptimizerTokenUsageSummary",
           },
           recent_events: {
             type: "array",
@@ -2004,6 +2008,47 @@ export const openApiDocument = {
                 },
               },
             },
+          },
+        },
+      },
+      ProjectOptimizerTokenUsageAvailability: {
+        type: "string",
+        enum: ["available", "partial", "unavailable", "no_sessions"],
+      },
+      ProjectOptimizerTokenUsageSummary: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "availability",
+          "totals",
+          "root_session_count",
+          "failed_root_session_count",
+          "failure_summary",
+        ],
+        properties: {
+          availability: {
+            $ref: "#/components/schemas/ProjectOptimizerTokenUsageAvailability",
+          },
+          totals: {
+            $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          root_session_count: {
+            type: "integer",
+            minimum: 0,
+            description:
+              "Number of project root sessions considered for the summary.",
+          },
+          failed_root_session_count: {
+            type: "integer",
+            minimum: 0,
+            description:
+              "Number of root sessions whose OpenCode messages could not be read.",
+          },
+          failure_summary: {
+            type: ["string", "null"],
+            minLength: 1,
+            description:
+              "Generic availability diagnostic without session content or secret detail.",
           },
         },
       },
