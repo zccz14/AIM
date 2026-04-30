@@ -1,5 +1,6 @@
 export type ProjectBudgetThresholds = {
   cost_warning_threshold: null | number;
+  token_budget_limit?: null | number;
   token_warning_threshold: null | number;
 };
 
@@ -58,4 +59,23 @@ export const buildProjectTokenBudgetWarning = (
 
 export type ProjectBudgetWarning = ReturnType<
   typeof buildProjectTokenBudgetWarning
+>;
+
+export const buildProjectTokenBudgetStatus = (
+  thresholds: Pick<ProjectBudgetThresholds, "token_budget_limit">,
+  totals: Pick<ProjectTokenUsageTotals, "total">,
+) => {
+  const limit = thresholds.token_budget_limit ?? null;
+  const used = totals.total;
+
+  return {
+    exhausted: limit !== null && used >= limit,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - used),
+    used,
+  };
+};
+
+export type ProjectTokenBudgetStatus = ReturnType<
+  typeof buildProjectTokenBudgetStatus
 >;

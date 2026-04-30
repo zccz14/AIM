@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS projects (
   global_provider_id TEXT NOT NULL,
   global_model_id TEXT NOT NULL,
   optimizer_enabled INTEGER NOT NULL DEFAULT 0,
+  token_budget_limit REAL,
   token_warning_threshold REAL,
   cost_warning_threshold REAL,
   created_at TEXT NOT NULL,

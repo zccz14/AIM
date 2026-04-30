@@ -61,6 +61,12 @@ type DeveloperTaskRepository = {
 
 type CreateDeveloperOptions = {
   baselineRepository?: BaselineRepository;
+  canStartTask?: (
+    task: Task,
+  ) =>
+    | { ok: true }
+    | { ok: false; reason: string }
+    | Promise<{ ok: true } | { ok: false; reason: string }>;
   logger?: ApiLogger;
   onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   pullRequestStatusProvider?: PullRequestStatusProvider;
@@ -260,6 +266,7 @@ Merged PR settlement objective:
 
 export const createDeveloper = ({
   baselineRepository = defaultBaselineRepository,
+  canStartTask = () => ({ ok: true }),
   logger,
   onLaneEvent,
   pullRequestStatusProvider = defaultPullRequestStatusProvider,
@@ -695,6 +702,18 @@ export const createDeveloper = ({
             lane_name: "developer",
             project_id: task.project_id,
             summary: `Developer lane skipped task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
+            task_id: task.task_id,
+          });
+          continue;
+        }
+
+        const startEligibility = await canStartTask(task);
+        if (!startEligibility.ok) {
+          onLaneEvent?.({
+            event: "idle",
+            lane_name: "developer",
+            project_id: task.project_id,
+            summary: startEligibility.reason,
             task_id: task.task_id,
           });
           continue;

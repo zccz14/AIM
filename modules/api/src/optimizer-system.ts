@@ -22,12 +22,16 @@ import type {
 import { createOpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneRecentEvent } from "./optimizer-lane-events.js";
 import { createOptimizerLaneEventRecorder } from "./optimizer-lane-events.js";
-import { buildProjectTokenBudgetWarning } from "./project-budget-warning.js";
+import {
+  buildProjectTokenBudgetStatus,
+  buildProjectTokenBudgetWarning,
+} from "./project-budget-warning.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 import { statTokensBySessionId } from "./stat-tokens.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
   optimizer_enabled?: boolean | number;
+  token_budget_limit?: null | number;
 };
 
 type TaskRepository = {
@@ -151,8 +155,26 @@ const collectProjectBudgetWarning = async ({
   project: Project;
   taskRepository: TaskRepository;
 }) => {
+  const totals = await collectProjectTokenUsageTotals({
+    baseUrl,
+    projectId: project.id,
+    taskRepository,
+  });
+
+  return buildProjectTokenBudgetWarning(project, totals);
+};
+
+const collectProjectTokenUsageTotals = async ({
+  baseUrl,
+  projectId,
+  taskRepository,
+}: {
+  baseUrl: string;
+  projectId: string;
+  taskRepository: TaskRepository;
+}) => {
   const totals = zeroTokenUsageTotals();
-  const tasks = (await taskRepository.listTasks({ project_id: project.id }))
+  const tasks = (await taskRepository.listTasks({ project_id: projectId }))
     .filter((task) => typeof task.session_id === "string")
     .sort((left, right) => left.created_at.localeCompare(right.created_at));
 
@@ -167,8 +189,16 @@ const collectProjectBudgetWarning = async ({
     );
   }
 
-  return buildProjectTokenBudgetWarning(project, totals);
+  return totals;
 };
+
+const summarizeTokenBudgetExhaustion = (status: {
+  limit: number | null;
+  used: number;
+}) =>
+  status.limit === null
+    ? null
+    : `Project token budget exhausted: ${status.used} used of ${status.limit} granted.`;
 
 const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
@@ -227,6 +257,7 @@ export const createOptimizerSystem = async ({
   const enabledConfiguredProjects =
     configuredProjects.filter(isOptimizerEnabled);
   const managersByProjectId = new Map<string, Manager>();
+  const budgetBlockersByProjectId = new Map<string, string>();
   const laneEvents = stack.use(createOptimizerLaneEventRecorder());
   const startupContext = {
     configured_project_count: configuredProjects.length,
@@ -263,6 +294,36 @@ export const createOptimizerSystem = async ({
         onLaneEvent: laneEvents.record,
         sessionManager: openCodeSessionManager,
         sessionRepository: continuationSessionRepository,
+        canStartTask: async (task) => {
+          const project = await taskRepository.getProjectById(task.project_id);
+
+          if (!project) {
+            return { ok: true };
+          }
+
+          if (
+            project.token_budget_limit === null ||
+            project.token_budget_limit === undefined
+          ) {
+            return { ok: true };
+          }
+
+          const totals = await collectProjectTokenUsageTotals({
+            baseUrl: coordinatorConfig.baseUrl,
+            projectId: task.project_id,
+            taskRepository,
+          });
+          const budgetStatus = buildProjectTokenBudgetStatus(project, totals);
+
+          return budgetStatus.exhausted
+            ? {
+                ok: false,
+                reason:
+                  summarizeTokenBudgetExhaustion(budgetStatus) ??
+                  "Project token budget exhausted.",
+              }
+            : { ok: true };
+        },
         taskRepository,
       }),
     );
@@ -285,6 +346,26 @@ export const createOptimizerSystem = async ({
       optimizer_enabled: project.optimizer_enabled,
       project_id: project.id,
     };
+    const budgetStatus = buildProjectTokenBudgetStatus(
+      project,
+      project.token_budget_limit === null ||
+        project.token_budget_limit === undefined
+        ? zeroTokenUsageTotals()
+        : await collectProjectTokenUsageTotals({
+            baseUrl: coordinatorConfig.baseUrl,
+            projectId: project.id,
+            taskRepository,
+          }),
+    );
+
+    if (budgetStatus.exhausted) {
+      budgetBlockersByProjectId.set(
+        project.id,
+        summarizeTokenBudgetExhaustion(budgetStatus) ??
+          "Project token budget exhausted.",
+      );
+      continue;
+    }
 
     try {
       const manager = stack.use(
@@ -356,6 +437,13 @@ export const createOptimizerSystem = async ({
     getProjectStatus(projectId: string) {
       const manager = managersByProjectId.get(projectId);
       const recentEvents = laneEvents.list(projectId);
+
+      if (!manager && budgetBlockersByProjectId.has(projectId)) {
+        return {
+          blocker_summary: budgetBlockersByProjectId.get(projectId) ?? null,
+          recent_events: recentEvents,
+        };
+      }
 
       if (!manager) {
         return {

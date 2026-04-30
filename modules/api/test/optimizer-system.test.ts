@@ -45,6 +45,19 @@ const configuredProject = {
 describe("optimizer system", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  const createTaskRepository = (projects = [configuredProject]) => ({
+    assignSessionIfUnassigned: vi.fn(),
+    getProjectById: vi.fn(
+      (projectId: string) =>
+        projects.find((project) => project.id === projectId) ?? null,
+    ),
+    listProjects: vi.fn(() => projects),
+    listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+    listTasks: vi.fn().mockResolvedValue([]),
+    listUnfinishedTasks: vi.fn().mockResolvedValue([]),
   });
 
   it("resolves to an owned async disposable system without disposing setup resources", async () => {
@@ -505,6 +518,162 @@ describe("optimizer system", () => {
 
     expect(developer[Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(openCodeSessionManager[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("does not create project optimizer lanes after the Director-granted token budget is exhausted", async () => {
+    const exhaustedProject = {
+      ...configuredProject,
+      token_budget_limit: 1000,
+    };
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = createTaskRepository([exhaustedProject]);
+    taskRepository.listTasks.mockResolvedValue([
+      {
+        created_at: "2026-04-26T00:00:00.000Z",
+        session_id: "budget-session",
+      },
+    ]);
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            info: {
+              id: "budget-message",
+              role: "assistant",
+              sessionID: "budget-session",
+              tokens: { input: 600, output: 450, total: 1050 },
+            },
+            parts: [],
+          },
+        ]),
+      ),
+    );
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    expect(mockCreateManager).not.toHaveBeenCalled();
+    expect(mockCreateCoordinator).not.toHaveBeenCalled();
+    expect(system.getProjectStatus?.(exhaustedProject.id)).toMatchObject({
+      blocker_summary:
+        "Project token budget exhausted: 1050 used of 1000 granted.",
+    });
+
+    await system[Symbol.asyncDispose]();
+  });
+
+  it("re-allows optimizer lanes after the Director raises the cumulative token budget limit", async () => {
+    const raisedLimitProject = {
+      ...configuredProject,
+      token_budget_limit: 2000,
+    };
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const taskRepository = createTaskRepository([raisedLimitProject]);
+    taskRepository.listTasks.mockResolvedValue([
+      {
+        created_at: "2026-04-26T00:00:00.000Z",
+        session_id: "budget-session",
+      },
+    ]);
+    const continuationSessionRepository = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const dimensionRepository = {};
+    const managerStateRepository = {};
+    const developer = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+    };
+    const manager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn(() => ({
+        last_error: null,
+        last_scan_at: null,
+        running: true,
+      })),
+    };
+    const openCodeSessionManager = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      createSession: vi.fn(),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            info: {
+              id: "budget-message",
+              role: "assistant",
+              sessionID: "budget-session",
+              tokens: { input: 600, output: 450, total: 1050 },
+            },
+            parts: [],
+          },
+        ]),
+      ),
+    );
+    mockCreateOpenCodeSessionManager.mockReturnValue(openCodeSessionManager);
+    mockCreateDeveloper.mockReturnValue(developer);
+    mockCreateManager.mockReturnValueOnce(manager);
+    mockCreateCoordinator.mockReturnValueOnce(coordinator);
+
+    const { createOptimizerSystem } = await import(
+      "../src/optimizer-system.js"
+    );
+
+    const system = await createOptimizerSystem({
+      continuationSessionRepository,
+      coordinatorConfig: {
+        baseUrl: "http://localhost:4096",
+        sessionIdleFallbackTimeoutMs: undefined,
+      },
+      dimensionRepository,
+      intervalMs: 5_000,
+      logger,
+      managerStateRepository,
+      taskRepository,
+    });
+
+    expect(mockCreateManager).toHaveBeenCalledWith(
+      expect.objectContaining({ project: raisedLimitProject }),
+    );
+    expect(mockCreateCoordinator).toHaveBeenCalledWith(
+      raisedLimitProject.id,
+      expect.any(Object),
+    );
+
+    await system[Symbol.asyncDispose]();
   });
 
   it("disposes the developer scheduler when later optimizer setup fails", async () => {

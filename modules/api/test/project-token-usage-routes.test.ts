@@ -57,6 +57,7 @@ const useProjectRoot = async (name: string) => {
 const createProject = async (
   app: ReturnType<typeof createApp>,
   name: string,
+  input: { token_budget_limit?: null | number } = {},
 ) => {
   const response = await app.request(projectsPath, {
     method: "POST",
@@ -66,6 +67,7 @@ const createProject = async (
       git_origin_url: `https://github.com/example/${name}.git`,
       global_provider_id: "anthropic",
       global_model_id: "claude-sonnet-4-5",
+      ...input,
     }),
   });
 
@@ -248,6 +250,12 @@ describe("project token usage route", () => {
         cost_warning_threshold: null,
         message: null,
       },
+      token_budget: {
+        exhausted: false,
+        limit: null,
+        remaining: null,
+        used: 1155,
+      },
       tasks: [
         {
           failures: [],
@@ -376,6 +384,135 @@ describe("project token usage route", () => {
         cost_warning_threshold: 10,
         message:
           "Project token usage exceeds the configured token warning threshold.",
+      },
+    });
+  });
+
+  it("treats project token budget as a cumulative hard limit that can be raised without resetting usage", async () => {
+    await useProjectRoot("project-hard-token-budget");
+    const app = createRouteApp();
+
+    const project = await createProject(app, "hard-budget-project", {
+      token_budget_limit: 1000,
+    });
+    await createSession(app, "budget-hard-session");
+    await createTask(app, {
+      projectId: project.id,
+      sessionId: "budget-hard-session",
+      title: "Hard budget task",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            info: {
+              cost: 3.75,
+              id: "budget-hard-message",
+              role: "assistant",
+              sessionID: "budget-hard-session",
+              tokens: { input: 600, output: 450, total: 1050 },
+            },
+            parts: [],
+          },
+        ]),
+      ),
+    );
+
+    const exhaustedResponse = await app.request(
+      projectTokenUsagePath(project.id),
+    );
+
+    expect(exhaustedResponse.status).toBe(200);
+    await expect(exhaustedResponse.json()).resolves.toMatchObject({
+      project_id: project.id,
+      token_budget: {
+        exhausted: true,
+        limit: 1000,
+        remaining: 0,
+        used: 1050,
+      },
+      totals: { total: 1050 },
+    });
+
+    const increasedBudgetResponse = await app.request(
+      projectByIdPath(project.id),
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token_budget_limit: 2000 }),
+      },
+    );
+
+    expect(increasedBudgetResponse.status).toBe(200);
+    await expect(increasedBudgetResponse.json()).resolves.toMatchObject({
+      token_budget_limit: 2000,
+    });
+
+    const raisedLimitResponse = await app.request(
+      projectTokenUsagePath(project.id),
+    );
+
+    expect(raisedLimitResponse.status).toBe(200);
+    await expect(raisedLimitResponse.json()).resolves.toMatchObject({
+      project_id: project.id,
+      token_budget: {
+        exhausted: false,
+        limit: 2000,
+        remaining: 950,
+        used: 1050,
+      },
+      totals: { total: 1050 },
+    });
+  });
+
+  it("does not reset hard token budget usage when project settings are updated later", async () => {
+    await useProjectRoot("project-hard-token-budget-no-window-reset");
+    const app = createRouteApp();
+
+    const project = await createProject(app, "no-window-budget-project", {
+      token_budget_limit: 1000,
+    });
+    await createSession(app, "no-window-session");
+    await createTask(app, {
+      projectId: project.id,
+      sessionId: "no-window-session",
+      title: "No window reset task",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            info: {
+              id: "no-window-message",
+              role: "assistant",
+              sessionID: "no-window-session",
+              tokens: { input: 700, output: 400, total: 1100 },
+            },
+            parts: [],
+          },
+        ]),
+      ),
+    );
+
+    const patchResponse = await app.request(projectByIdPath(project.id), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "No window budget project renamed" }),
+    });
+
+    expect(patchResponse.status).toBe(200);
+
+    const usageResponse = await app.request(projectTokenUsagePath(project.id));
+
+    expect(usageResponse.status).toBe(200);
+    await expect(usageResponse.json()).resolves.toMatchObject({
+      token_budget: {
+        exhausted: true,
+        limit: 1000,
+        remaining: 0,
+        used: 1100,
       },
     });
   });
