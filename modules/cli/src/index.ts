@@ -9,6 +9,7 @@ import DirectorClarificationsStatusCommand from "./commands/director/clarificati
 import HealthCommand from "./commands/health.js";
 import ProjectListCommand from "./commands/project/list.js";
 import ProjectOptimizerStatusCommand from "./commands/project/optimizer/status.js";
+import ProjectOptimizerUpdateCommand from "./commands/project/optimizer/update.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
 import TaskDeleteCommand from "./commands/task/delete.js";
@@ -80,9 +81,9 @@ const normalizeCommandArgs = (args: string[]) => {
   if (
     args[0] === "project" &&
     args[1] === "optimizer" &&
-    args[2] === "status"
+    ["status", "update"].includes(args[2] ?? "")
   ) {
-    return ["project:optimizer:status", ...args.slice(3)];
+    return [`project:optimizer:${args[2]}`, ...args.slice(3)];
   }
 
   return args;
@@ -98,6 +99,7 @@ export const commands = {
   health: HealthCommand,
   "project:list": ProjectListCommand,
   "project:optimizer:status": ProjectOptimizerStatusCommand,
+  "project:optimizer:update": ProjectOptimizerUpdateCommand,
   "server:start": ServerStartCommand,
   "task:create": TaskCreateCommand,
   "task:list": TaskListCommand,
