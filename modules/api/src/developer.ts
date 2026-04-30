@@ -43,6 +43,10 @@ type DeveloperTaskRepository = {
   getTaskById?(taskId: string): Promise<null | Task> | null | Task;
   listRejectedTasksByProject(projectId: string): Promise<Task[]>;
   listUnfinishedTasks(): Promise<Task[]>;
+  updateTask?(
+    taskId: string,
+    patch: { session_id: string },
+  ): Promise<null | Task>;
 };
 
 type CreateDeveloperOptions = {
@@ -446,7 +450,104 @@ export const createDeveloper = ({
       return;
     }
 
+    const recoverUnavailableAssignedSession = async () => {
+      if (task.pull_request_url) {
+        const { category } =
+          await pullRequestStatusProvider.getTaskPullRequestStatus(task);
+        onLaneEvent?.({
+          event: "noop",
+          lane_name: "developer",
+          project_id: task.project_id,
+          session_id: task.session_id ?? undefined,
+          summary: `Developer lane skipped assigned task ${task.task_id}: pull request follow-up category ${category} is not unavailable session recovery scope.`,
+          task_id: task.task_id,
+        });
+
+        return;
+      }
+
+      const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
+      if (unmetDependencyIds.length > 0) {
+        onLaneEvent?.({
+          event: "noop",
+          lane_name: "developer",
+          project_id: task.project_id,
+          session_id: task.session_id ?? undefined,
+          summary: `Developer lane skipped assigned task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
+          task_id: task.task_id,
+        });
+
+        return;
+      }
+
+      if (!taskRepository.updateTask) {
+        throw new Error(
+          "Task repository does not support rebinding unavailable assigned sessions",
+        );
+      }
+
+      let createdSession: ManagedDeveloperSession | null = null;
+
+      try {
+        const directory = await ensureProjectWorkspace(task);
+        createdSession = await sessionManager.createSession({
+          directory,
+          model: {
+            modelID: task.global_model_id,
+            providerID: task.global_provider_id,
+          },
+          prompt: buildTaskSessionPrompt(task),
+          title: `AIM Developer Recovery: ${task.title}`,
+        });
+
+        const recoveredTask = await taskRepository.updateTask(task.task_id, {
+          session_id: createdSession.sessionId,
+        });
+
+        if (
+          recoveredTask?.session_id === createdSession.sessionId &&
+          !recoveredTask.done
+        ) {
+          activeSessions.set(createdSession.sessionId, createdSession);
+          onLaneEvent?.({
+            event: "success",
+            lane_name: "developer",
+            project_id: task.project_id,
+            session_id: createdSession.sessionId,
+            summary: `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${createdSession.sessionId}.`,
+            task_id: task.task_id,
+          });
+          createdSession = null;
+
+          return;
+        }
+
+        await createdSession[Symbol.asyncDispose]();
+        onLaneEvent?.({
+          event: "noop",
+          lane_name: "developer",
+          project_id: task.project_id,
+          session_id: createdSession.sessionId,
+          summary: `Developer lane skipped unavailable session recovery for task ${task.task_id}: another session claimed it or the task finished.`,
+          task_id: task.task_id,
+        });
+        createdSession = null;
+      } catch (error) {
+        if (createdSession) {
+          await createdSession[Symbol.asyncDispose]();
+        }
+
+        throw error;
+      }
+    };
+
     const sessionState = task.opencode_session?.state;
+    if (!sessionState) {
+      await recoverUnavailableAssignedSession();
+
+      return;
+    }
+
     if (sessionState !== "pending") {
       onLaneEvent?.({
         event: "noop",
