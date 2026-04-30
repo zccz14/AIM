@@ -303,6 +303,8 @@ export type CoordinatorProposalTaskPoolItem = {
   done?: boolean;
   result?: string;
   status?: string;
+  worktree_path?: string | null;
+  pull_request_url?: string | null;
   source_metadata?: {
     [key: string]: unknown;
   };

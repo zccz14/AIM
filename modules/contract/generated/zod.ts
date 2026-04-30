@@ -264,6 +264,8 @@ const CoordinatorProposalTaskPoolItem = z
     done: z.boolean().optional(),
     result: z.string().optional(),
     status: z.string().optional(),
+    worktree_path: z.union([z.string(), z.null()]).optional(),
+    pull_request_url: z.union([z.string(), z.null()]).optional(),
     source_metadata: z.object({}).partial().strict().passthrough().optional(),
   })
   .strict();

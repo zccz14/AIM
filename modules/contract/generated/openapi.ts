@@ -2573,6 +2573,12 @@ export const openApiDocument = {
           status: {
             type: "string",
           },
+          worktree_path: {
+            type: ["string", "null"],
+          },
+          pull_request_url: {
+            type: ["string", "null"],
+          },
           source_metadata: {
             type: "object",
             additionalProperties: true,
