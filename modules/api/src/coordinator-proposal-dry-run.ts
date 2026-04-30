@@ -14,13 +14,13 @@ type SourceEvaluation = {
 
 type TaskPoolItem = {
   done?: boolean;
-  pull_request_url?: string;
+  pull_request_url?: null | string;
   result?: string;
   source_metadata?: Record<string, unknown>;
   status?: string;
   task_id: string;
   title: string;
-  worktree_path?: string;
+  worktree_path?: null | string;
 };
 
 type EvaluationGap = {
@@ -127,7 +127,7 @@ const getStringMetadata = (
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 };
 
-const getStringField = (value: undefined | string) =>
+const getStringField = (value: null | string | undefined) =>
   typeof value === "string" && value.trim().length > 0 ? value : null;
 
 const matchesSource = (task: TaskPoolItem, evaluation: EvaluationGap) =>
