@@ -796,7 +796,7 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
   await expect(page.getByText("Research Fit")).toHaveCount(0);
 });
 
-test("shows project token totals and the heaviest task attribution without sensitive usage details", async ({
+test("shows project token totals, heaviest task attribution, and partial failure details", async ({
   page,
 }) => {
   await page.route("**/api/projects/*/token-usage", async (route) => {
@@ -808,8 +808,8 @@ test("shows project token totals and the heaviest task attribution without sensi
             {
               code: "OPENCODE_MESSAGES_UNAVAILABLE",
               message:
-                "OpenCode message fetch failed with API key sk-live-secret and raw prompt content.",
-              root_session_id: "ses_sensitive_root",
+                "OpenCode messages are temporarily unavailable; retry after the session store recovers.",
+              root_session_id: "ses_unavailable_root",
               task_id: "task-main",
             },
           ],
@@ -833,9 +833,14 @@ test("shows project token totals and the heaviest task attribution without sensi
   ).toBeVisible();
   await expect(usage.getByText("550 tokens / $2.50")).toBeVisible();
   await expect(usage.getByText("1 usage lookup failed")).toBeVisible();
-  await expect(usage.getByText("sk-live-secret")).toHaveCount(0);
-  await expect(usage.getByText("raw prompt content")).toHaveCount(0);
-  await expect(usage.getByText("ses_sensitive_root")).toHaveCount(0);
+  await expect(
+    usage.getByText("task-main / ses_unavailable_root"),
+  ).toBeVisible();
+  await expect(
+    usage.getByText(
+      "OpenCode messages are temporarily unavailable; retry after the session store recovers.",
+    ),
+  ).toBeVisible();
 });
 
 test("shows project token usage empty and query failure states", async ({

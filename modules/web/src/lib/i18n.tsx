@@ -254,7 +254,7 @@ const messages = {
     projectTokenUsageBreakdown: "Breakdown",
     projectTokenUsageCost: "Cost",
     projectTokenUsageDescription:
-      "Read-only project totals from recorded OpenCode token usage. Details stay limited to aggregate counts and task attribution.",
+      "Read-only project totals from recorded OpenCode token usage, task attribution, and collection failures.",
     projectTokenUsageEmpty: "No token usage recorded",
     projectTokenUsageEmptyDescription:
       "Project token and cost totals will appear after AIM records OpenCode usage for this project.",
@@ -602,7 +602,7 @@ const messages = {
     projectTokenUsageBreakdown: "明细",
     projectTokenUsageCost: "成本",
     projectTokenUsageDescription:
-      "来自已记录 OpenCode token usage 的只读项目总量。详情仅限聚合计数和任务归因。",
+      "来自已记录 OpenCode token usage 的只读项目总量、任务归因和采集失败。",
     projectTokenUsageEmpty: "尚无 token usage 记录",
     projectTokenUsageEmptyDescription:
       "AIM 为此项目记录 OpenCode usage 后，这里会显示项目 token 和成本总量。",

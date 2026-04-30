@@ -424,9 +424,27 @@ const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
                 ) : null}
               </div>
               {failureCount > 0 ? (
-                <p
-                  className={sectionCopy}
-                >{`${failureCount} ${t("projectTokenUsageFailureUnit")}`}</p>
+                <div className={panelStack}>
+                  <p
+                    className={sectionCopy}
+                  >{`${failureCount} ${t("projectTokenUsageFailureUnit")}`}</p>
+                  <div className={taskList}>
+                    {usage.failures.map((failure) => (
+                      <div
+                        className={taskListItem}
+                        key={`${failure.task_id}-${failure.root_session_id}-${failure.code}`}
+                      >
+                        <div className={panelStack}>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="destructive">{failure.code}</Badge>
+                            <strong>{`${failure.task_id} / ${failure.root_session_id}`}</strong>
+                          </div>
+                          <p className={sectionCopy}>{failure.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </>
           ) : null}
