@@ -275,6 +275,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
           global_provider_id TEXT NOT NULL,
           global_model_id TEXT NOT NULL,
           optimizer_enabled INTEGER NOT NULL DEFAULT 0,
+          token_budget_limit REAL,
           token_warning_threshold REAL,
           cost_warning_threshold REAL,
           created_at TEXT NOT NULL,
@@ -282,8 +283,8 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
         )
       `);
       database.exec(`
-        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, optimizer_enabled, token_warning_threshold, cost_warning_threshold, created_at, updated_at)
-        SELECT id, name, project_path, global_provider_id, global_model_id, 0, NULL, NULL, created_at, updated_at
+        INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, optimizer_enabled, token_budget_limit, token_warning_threshold, cost_warning_threshold, created_at, updated_at)
+        SELECT id, name, project_path, global_provider_id, global_model_id, 0, NULL, NULL, NULL, created_at, updated_at
         FROM projects_legacy_project_path
       `);
       database.exec("DROP TABLE projects_legacy_project_path");
@@ -390,6 +391,9 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
       database.exec(
         "ALTER TABLE projects ADD COLUMN token_warning_threshold REAL",
       );
+    }
+    if (!projectColumns.has("token_budget_limit")) {
+      database.exec("ALTER TABLE projects ADD COLUMN token_budget_limit REAL");
     }
     if (!projectColumns.has("cost_warning_threshold")) {
       database.exec(

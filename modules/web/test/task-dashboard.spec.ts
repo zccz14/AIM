@@ -120,6 +120,7 @@ const buildProject = ({
   name = "Main project",
   optimizerEnabled = false,
   projectId = "00000000-0000-4000-8000-000000000010",
+  tokenBudgetLimit = null,
   tokenWarningThreshold = null,
   costWarningThreshold = null,
 }: {
@@ -130,6 +131,7 @@ const buildProject = ({
   name?: string;
   optimizerEnabled?: boolean;
   projectId?: string;
+  tokenBudgetLimit?: number | null;
   tokenWarningThreshold?: number | null;
 } = {}) => ({
   id: projectId,
@@ -138,6 +140,7 @@ const buildProject = ({
   global_provider_id: globalProviderId,
   global_model_id: globalModelId,
   optimizer_enabled: optimizerEnabled,
+  token_budget_limit: tokenBudgetLimit,
   token_warning_threshold: tokenWarningThreshold,
   cost_warning_threshold: costWarningThreshold,
   created_at: "2026-04-26T00:00:00.000Z",
@@ -203,6 +206,7 @@ const buildProjectTokenUsage = ({
   messages = 3,
   output = 450,
   projectId = "00000000-0000-4000-8000-000000000010",
+  tokenBudget = null,
   tasks = [
     {
       task_id: "task-main",
@@ -254,6 +258,12 @@ const buildProjectTokenUsage = ({
   messages?: number;
   output?: number;
   projectId?: string;
+  tokenBudget?: {
+    exhausted: boolean;
+    limit: number | null;
+    remaining: number | null;
+    used: number;
+  } | null;
   tasks?: Array<{
     failures: Array<{
       code: "OPENCODE_MESSAGES_UNAVAILABLE";
@@ -287,6 +297,12 @@ const buildProjectTokenUsage = ({
     messages,
   },
   budget_warning: budgetWarning,
+  token_budget: tokenBudget ?? {
+    exhausted: false,
+    limit: null,
+    remaining: null,
+    used: total,
+  },
   tasks,
   sessions: tasks.map((task) => ({
     root_session_id: task.session_id,
@@ -433,6 +449,12 @@ const routeProjectOptimizerStatus = async (
             token_warning_threshold: null,
             cost_warning_threshold: null,
             message: null,
+          },
+          token_budget: {
+            exhausted: false,
+            limit: null,
+            remaining: null,
+            used: 0,
           },
         },
       }),
@@ -1743,6 +1765,12 @@ test("shows project optimizer config and runtime observability separately", asyn
             token_warning_threshold: null,
             cost_warning_threshold: null,
             message: null,
+          },
+          token_budget: {
+            exhausted: false,
+            limit: null,
+            remaining: null,
+            used: 105,
           },
         },
         recent_events: [

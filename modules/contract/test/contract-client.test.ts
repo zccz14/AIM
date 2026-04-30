@@ -68,6 +68,12 @@ const projectTokenUsageResponse = {
     cost_warning_threshold: null,
     message: null,
   },
+  token_budget: {
+    exhausted: false,
+    limit: null,
+    remaining: null,
+    used: 42,
+  },
   failures: [],
   project_id: "00000000-0000-4000-8000-000000000001",
   sessions: [

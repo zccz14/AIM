@@ -624,6 +624,12 @@ describe("contract package baseline", () => {
             cost_warning_threshold: null,
             message: null,
           },
+          token_budget: {
+            exhausted: false,
+            limit: null,
+            remaining: null,
+            used: 105,
+          },
         },
         recent_events: [
           {
@@ -660,6 +666,12 @@ describe("contract package baseline", () => {
           token_warning_threshold: null,
           cost_warning_threshold: null,
           message: null,
+        },
+        token_budget: {
+          exhausted: false,
+          limit: null,
+          remaining: null,
+          used: 105,
         },
       },
       recent_events: [
@@ -741,12 +753,14 @@ describe("contract package baseline", () => {
         global_provider_id: "anthropic",
         global_model_id: "claude-sonnet-4-5",
         optimizer_enabled: false,
+        token_budget_limit: 1200,
         token_warning_threshold: 1000,
         cost_warning_threshold: null,
         created_at: "2026-04-30T00:00:00.000Z",
         updated_at: "2026-04-30T00:00:00.000Z",
       }),
     ).toMatchObject({
+      token_budget_limit: 1200,
       token_warning_threshold: 1000,
       cost_warning_threshold: null,
     });
@@ -769,6 +783,12 @@ describe("contract package baseline", () => {
           cost_warning_threshold: null,
           message:
             "Project token usage exceeds the configured token warning threshold.",
+        },
+        token_budget: {
+          exhausted: false,
+          limit: 1000,
+          remaining: 500,
+          used: 500,
         },
         tasks: [],
         sessions: [],

@@ -33,6 +33,10 @@ export type Project = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled: boolean;
+  /**
+   * Cumulative Director-granted hard token budget. Null means no hard grant is configured.
+   */
+  token_budget_limit: number | null;
   token_warning_threshold: number | null;
   cost_warning_threshold: number | null;
   readonly created_at: string;
@@ -45,6 +49,10 @@ export type CreateProjectRequest = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled?: boolean;
+  /**
+   * Cumulative Director-granted hard token budget. Null means no hard grant is configured.
+   */
+  token_budget_limit?: number | null;
   token_warning_threshold?: number | null;
   cost_warning_threshold?: number | null;
 };
@@ -55,6 +63,10 @@ export type PatchProjectRequest = {
   global_provider_id?: string;
   global_model_id?: string;
   optimizer_enabled?: boolean;
+  /**
+   * Raising this value grants additional cumulative budget without resetting consumed usage.
+   */
+  token_budget_limit?: number | null;
   token_warning_threshold?: number | null;
   cost_warning_threshold?: number | null;
 };
@@ -165,6 +177,7 @@ export type ProjectOptimizerTokenUsageSummary = {
   availability: ProjectOptimizerTokenUsageAvailability;
   totals: ProjectTokenUsageTotals;
   budget_warning: ProjectTokenBudgetWarning;
+  token_budget: ProjectTokenBudgetStatus;
   /**
    * Number of project root sessions considered for the summary.
    */
@@ -204,6 +217,25 @@ export type ProjectTokenBudgetWarning = {
   message: string | null;
 };
 
+export type ProjectTokenBudgetStatus = {
+  /**
+   * Cumulative Director-granted hard token budget. Null means no hard limit is configured.
+   */
+  limit: number | null;
+  /**
+   * Cumulative project token usage counted from tracked sessions.
+   */
+  used: number;
+  /**
+   * Remaining Director-granted tokens, or null when no hard limit is configured.
+   */
+  remaining: number | null;
+  /**
+   * True when cumulative usage has reached or exceeded the granted limit.
+   */
+  exhausted: boolean;
+};
+
 export type ProjectTokenUsageFailure = {
   code: "OPENCODE_MESSAGES_UNAVAILABLE";
   message: string;
@@ -231,6 +263,7 @@ export type ProjectTokenUsageResponse = {
   project_id: string;
   totals: ProjectTokenUsageTotals;
   budget_warning: ProjectTokenBudgetWarning;
+  token_budget: ProjectTokenBudgetStatus;
   tasks: Array<ProjectTokenUsageTask>;
   sessions: Array<ProjectTokenUsageSession>;
   failures: Array<ProjectTokenUsageFailure>;
@@ -631,6 +664,10 @@ export type ProjectWritable = {
   global_provider_id: string;
   global_model_id: string;
   optimizer_enabled: boolean;
+  /**
+   * Cumulative Director-granted hard token budget. Null means no hard grant is configured.
+   */
+  token_budget_limit: number | null;
   token_warning_threshold: number | null;
   cost_warning_threshold: number | null;
 };

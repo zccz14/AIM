@@ -1685,6 +1685,7 @@ export const openApiDocument = {
           "global_provider_id",
           "global_model_id",
           "optimizer_enabled",
+          "token_budget_limit",
           "token_warning_threshold",
           "cost_warning_threshold",
           "created_at",
@@ -1714,6 +1715,12 @@ export const openApiDocument = {
           },
           optimizer_enabled: {
             type: "boolean",
+          },
+          token_budget_limit: {
+            type: ["number", "null"],
+            minimum: 0,
+            description:
+              "Cumulative Director-granted hard token budget. Null means no hard grant is configured.",
           },
           token_warning_threshold: {
             type: ["number", "null"],
@@ -1764,6 +1771,12 @@ export const openApiDocument = {
           optimizer_enabled: {
             type: "boolean",
           },
+          token_budget_limit: {
+            type: ["number", "null"],
+            minimum: 0,
+            description:
+              "Cumulative Director-granted hard token budget. Null means no hard grant is configured.",
+          },
           token_warning_threshold: {
             type: ["number", "null"],
             minimum: 0,
@@ -1796,6 +1809,12 @@ export const openApiDocument = {
           },
           optimizer_enabled: {
             type: "boolean",
+          },
+          token_budget_limit: {
+            type: ["number", "null"],
+            minimum: 0,
+            description:
+              "Raising this value grants additional cumulative budget without resetting consumed usage.",
           },
           token_warning_threshold: {
             type: ["number", "null"],
@@ -2107,6 +2126,7 @@ export const openApiDocument = {
           "availability",
           "totals",
           "budget_warning",
+          "token_budget",
           "root_session_count",
           "failed_root_session_count",
           "failure_summary",
@@ -2120,6 +2140,9 @@ export const openApiDocument = {
           },
           budget_warning: {
             $ref: "#/components/schemas/ProjectTokenBudgetWarning",
+          },
+          token_budget: {
+            $ref: "#/components/schemas/ProjectTokenBudgetStatus",
           },
           root_session_count: {
             type: "integer",
@@ -2226,6 +2249,36 @@ export const openApiDocument = {
           },
         },
       },
+      ProjectTokenBudgetStatus: {
+        type: "object",
+        additionalProperties: false,
+        required: ["limit", "used", "remaining", "exhausted"],
+        properties: {
+          limit: {
+            type: ["number", "null"],
+            minimum: 0,
+            description:
+              "Cumulative Director-granted hard token budget. Null means no hard limit is configured.",
+          },
+          used: {
+            type: "number",
+            minimum: 0,
+            description:
+              "Cumulative project token usage counted from tracked sessions.",
+          },
+          remaining: {
+            type: ["number", "null"],
+            minimum: 0,
+            description:
+              "Remaining Director-granted tokens, or null when no hard limit is configured.",
+          },
+          exhausted: {
+            type: "boolean",
+            description:
+              "True when cumulative usage has reached or exceeded the granted limit.",
+          },
+        },
+      },
       ProjectTokenUsageFailure: {
         type: "object",
         additionalProperties: false,
@@ -2316,6 +2369,7 @@ export const openApiDocument = {
           "project_id",
           "totals",
           "budget_warning",
+          "token_budget",
           "tasks",
           "sessions",
           "failures",
@@ -2330,6 +2384,9 @@ export const openApiDocument = {
           },
           budget_warning: {
             $ref: "#/components/schemas/ProjectTokenBudgetWarning",
+          },
+          token_budget: {
+            $ref: "#/components/schemas/ProjectTokenBudgetStatus",
           },
           tasks: {
             type: "array",

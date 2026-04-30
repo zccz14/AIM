@@ -19,6 +19,12 @@ const defaultBudgetWarning = {
   cost_warning_threshold: null,
   message: null,
 };
+const defaultTokenBudget = {
+  exhausted: false,
+  limit: null,
+  remaining: null,
+  used: 0,
+};
 
 let previousOpenCodeBaseUrl: string | undefined;
 let previousProjectRoot: string | undefined;
@@ -165,6 +171,7 @@ describe("optimizer routes", () => {
       token_usage: {
         availability: "no_sessions",
         budget_warning: defaultBudgetWarning,
+        token_budget: defaultTokenBudget,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,
@@ -202,6 +209,7 @@ describe("optimizer routes", () => {
       token_usage: {
         availability: "no_sessions",
         budget_warning: defaultBudgetWarning,
+        token_budget: defaultTokenBudget,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,
@@ -242,6 +250,7 @@ describe("optimizer routes", () => {
       token_usage: {
         availability: "no_sessions",
         budget_warning: defaultBudgetWarning,
+        token_budget: defaultTokenBudget,
         failed_root_session_count: 0,
         failure_summary: null,
         root_session_count: 0,

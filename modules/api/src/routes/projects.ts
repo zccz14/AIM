@@ -17,6 +17,7 @@ import type { Hono } from "hono";
 
 import type { OptimizerSystem } from "../optimizer-system.js";
 import {
+  buildProjectTokenBudgetStatus,
   buildProjectTokenBudgetWarning,
   type ProjectBudgetThresholds,
 } from "../project-budget-warning.js";
@@ -205,6 +206,7 @@ const summarizeTokenUsageAggregation = (
       thresholds,
       aggregation.totals,
     ),
+    token_budget: buildProjectTokenBudgetStatus(thresholds, aggregation.totals),
     failed_root_session_count: failedRootSessionCount,
     failure_summary:
       failedRootSessionCount === 0
@@ -438,6 +440,7 @@ export const registerProjectRoutes = (
     const response = projectTokenUsageResponseSchema.parse({
       failures,
       budget_warning: buildProjectTokenBudgetWarning(project, totals),
+      token_budget: buildProjectTokenBudgetStatus(project, totals),
       project_id: projectId,
       sessions: sessionUsages,
       tasks: taskUsages,

@@ -796,6 +796,49 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
+  it("skips starting a new session when the project token budget is exhausted", async () => {
+    vi.useFakeTimers();
+    const budgetExhaustedTask = createTask({
+      task_id: "task-budget-exhausted",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([budgetExhaustedTask]),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      canStartTask: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "Project token budget exhausted: 1100 used of 1000 granted.",
+      }),
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "idle",
+          project_id: budgetExhaustedTask.project_id,
+          task_id: budgetExhaustedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) => laneEvent.task_id === budgetExhaustedTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain("Project token budget exhausted");
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
   it("binds an unassigned task after all dependencies are resolved", async () => {
     vi.useFakeTimers();
     const eligibleTask = createTask({
