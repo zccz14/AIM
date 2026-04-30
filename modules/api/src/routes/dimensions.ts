@@ -62,6 +62,53 @@ const buildDuplicateEvaluationError = ({
 const requireDimensionId = (dimensionId: string | undefined) =>
   dimensionId ?? "dimension-unknown";
 
+const requiredEvaluationSections = [
+  {
+    label: "baseline_ref",
+    pattern: /^\s*(?:#{1,6}\s*)?baseline[_ -]ref\s*:/im,
+  },
+  {
+    label: "readme_claim_to_evidence_protocol",
+    pattern:
+      /^\s*(?:#{1,6}\s*)?readme[_ -]claim[_ -]to[_ -]evidence[_ -]protocol\s*:/im,
+  },
+  {
+    label: "dimension_evaluation",
+    pattern: /^\s*(?:#{1,6}\s*)?dimension[_ -]evaluation\s*:/im,
+  },
+  {
+    label: "gap_analysis",
+    pattern: /^\s*(?:#{1,6}\s*)?gap[_ -]analysis\s*:/im,
+  },
+  {
+    label: "coordinator_handoff",
+    pattern: /^\s*(?:#{1,6}\s*)?coordinator[_ -]handoff\s*:/im,
+  },
+  {
+    label: "confidence/limits",
+    pattern: /^\s*(?:#{1,6}\s*)?confidence(?:\s*\/\s*|[_ -])limits\s*:/im,
+  },
+] as const;
+
+const findMissingEvaluationSections = (evaluation: string) =>
+  requiredEvaluationSections
+    .filter(({ pattern }) => !pattern.test(evaluation))
+    .map(({ label }) => label);
+
+const validateDimensionEvaluationStructure = (evaluation: string) => {
+  const missingSections = findMissingEvaluationSections(evaluation);
+
+  if (missingSections.length === 0) {
+    return null;
+  }
+
+  return buildValidationError(
+    `Invalid dimension evaluation structure: missing ${missingSections.join(
+      ", ",
+    )}. Include baseline_ref, readme_claim_to_evidence_protocol, dimension_evaluation, gap_analysis, coordinator_handoff, and confidence/limits sections before creating the evaluation.`,
+  );
+};
+
 const parseProjectId = (request: Request) => {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("project_id");
@@ -108,6 +155,17 @@ const parseCreateDimensionEvaluationRequest = async (request: Request) => {
   if (!result.success) {
     return {
       error: buildValidationError("Invalid dimension evaluation payload"),
+      ok: false as const,
+    };
+  }
+
+  const structureError = validateDimensionEvaluationStructure(
+    result.data.evaluation,
+  );
+
+  if (structureError) {
+    return {
+      error: structureError,
       ok: false as const,
     };
   }

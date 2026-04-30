@@ -26,6 +26,18 @@ const useProjectRoot = async (name: string) => {
 const jsonHeaders = { "content-type": "application/json" };
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
 
+const structuredManagerEvaluation = [
+  "baseline_ref: origin/main abc1234",
+  "readme_claim_to_evidence_protocol: compared README claims to route and contract evidence.",
+  "dimension_evaluation: API shape is clear and covered.",
+  "gap_analysis: no blocking gap remains for this dimension.",
+  "coordinator_handoff: no Task Pool change is required.",
+  "confidence/limits: high confidence; limited to route-level evidence.",
+].join("\n\n");
+
+const structuredManagerEvaluationForCommit = (commitSha: string) =>
+  structuredManagerEvaluation.replace("abc1234", commitSha);
+
 const createProject = async (app: ReturnType<typeof createApp>) => {
   const response = await app.request("/projects", {
     method: "POST",
@@ -160,7 +172,7 @@ describe("dimension routes", () => {
           commit_sha: "abc1234",
           evaluator_model: "anthropic/claude-sonnet-4-5",
           score: 81,
-          evaluation: "优秀：API shape is clear and covered.",
+          evaluation: structuredManagerEvaluation,
         }),
       },
     );
@@ -175,7 +187,7 @@ describe("dimension routes", () => {
       commit_sha: "abc1234",
       evaluator_model: "anthropic/claude-sonnet-4-5",
       score: 81,
-      evaluation: "优秀：API shape is clear and covered.",
+      evaluation: structuredManagerEvaluation,
     });
     expect(firstEvaluation.id).toEqual(expect.any(String));
 
@@ -189,7 +201,7 @@ describe("dimension routes", () => {
           commit_sha: "abc1235",
           evaluator_model: "anthropic/claude-sonnet-4-5",
           score: 101,
-          evaluation: "Out of range.",
+          evaluation: structuredManagerEvaluationForCommit("abc1235"),
         }),
       },
     );
@@ -219,7 +231,7 @@ describe("dimension routes", () => {
       commit_sha: "abc1234",
       evaluator_model: "anthropic/claude-sonnet-4-5",
       score: 81,
-      evaluation: "优秀：API shape is clear and covered.",
+      evaluation: structuredManagerEvaluation,
     };
 
     const firstEvaluationResponse = await app.request(
@@ -241,7 +253,10 @@ describe("dimension routes", () => {
         body: JSON.stringify({
           ...evaluationPayload,
           score: 99,
-          evaluation: "Duplicate write for the same baseline.",
+          evaluation: structuredManagerEvaluation.replace(
+            "dimension_evaluation: API shape is clear and covered.",
+            "dimension_evaluation: Duplicate write for the same baseline.",
+          ),
         }),
       },
     );
@@ -269,6 +284,79 @@ describe("dimension routes", () => {
     expect(repeatedDuplicateError).toEqual(expectedDuplicateError);
   });
 
+  it("requires structured Manager handoff sections for dimension evaluations", async () => {
+    await useProjectRoot("structured-evaluations");
+
+    const app = createApp();
+    const project = await createProject(app);
+    const createdDimension = await (
+      await createDimension(app, project.id)
+    ).json();
+
+    const postEvaluation = (commitSha: string, evaluation: string) =>
+      app.request(`/dimensions/${createdDimension.id}/evaluations`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          project_id: project.id,
+          commit_sha: commitSha,
+          evaluator_model: "anthropic/claude-sonnet-4-5",
+          score: 81,
+          evaluation,
+        }),
+      });
+
+    const validResponse = await postEvaluation(
+      "abc1234",
+      structuredManagerEvaluation,
+    );
+
+    expect(validResponse.status).toBe(201);
+    await expect(validResponse.json()).resolves.toMatchObject({
+      evaluation: structuredManagerEvaluation,
+    });
+
+    const missingCoordinatorHandoff = await postEvaluation(
+      "abc1235",
+      structuredManagerEvaluation.replace(
+        "coordinator_handoff: no Task Pool change is required.\n\n",
+        "",
+      ),
+    );
+
+    expect(missingCoordinatorHandoff.status).toBe(400);
+    await expect(missingCoordinatorHandoff.json()).resolves.toEqual({
+      code: "DIMENSION_VALIDATION_ERROR",
+      message:
+        "Invalid dimension evaluation structure: missing coordinator_handoff. Include baseline_ref, readme_claim_to_evidence_protocol, dimension_evaluation, gap_analysis, coordinator_handoff, and confidence/limits sections before creating the evaluation.",
+    });
+
+    const missingGapAnalysis = await postEvaluation(
+      "abc1236",
+      structuredManagerEvaluation.replace(
+        "gap_analysis: no blocking gap remains for this dimension.\n\n",
+        "",
+      ),
+    );
+
+    expect(missingGapAnalysis.status).toBe(400);
+    await expect(missingGapAnalysis.json()).resolves.toMatchObject({
+      message: expect.stringContaining("missing gap_analysis"),
+    });
+
+    const freeTextResponse = await postEvaluation(
+      "abc1237",
+      "优秀：API shape is clear and covered.",
+    );
+
+    expect(freeTextResponse.status).toBe(400);
+    await expect(freeTextResponse.json()).resolves.toMatchObject({
+      message: expect.stringContaining(
+        "missing baseline_ref, readme_claim_to_evidence_protocol, dimension_evaluation, gap_analysis, coordinator_handoff, confidence/limits",
+      ),
+    });
+  });
+
   it("keeps project mismatch evaluation errors as validation errors", async () => {
     await useProjectRoot("evaluation-project-mismatch");
 
@@ -288,7 +376,7 @@ describe("dimension routes", () => {
           commit_sha: "abc1234",
           evaluator_model: "anthropic/claude-sonnet-4-5",
           score: 81,
-          evaluation: "Project mismatch.",
+          evaluation: structuredManagerEvaluation,
         }),
       },
     );
@@ -317,7 +405,7 @@ describe("dimension routes", () => {
         commit_sha: "abc1234",
         evaluator_model: "anthropic/claude-sonnet-4-5",
         score: 61,
-        evaluation: "稳定：covered enough to use.",
+        evaluation: structuredManagerEvaluation,
       }),
     });
 
