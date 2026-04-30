@@ -118,11 +118,14 @@ const getSessionTokenAggregates = (sessions: OpenCodeSession[]) =>
     },
   );
 
-const formatSessionTokenSummary = (session: OpenCodeSession) => {
+const formatSessionTokenSummary = (
+  session: OpenCodeSession,
+  noUsageLabel: string,
+) => {
   const total = getSessionTokenTotal(session);
 
   if (total === 0) {
-    return "No usage";
+    return noUsageLabel;
   }
 
   return `${formatTokenCount(total)} tokens`;
@@ -151,18 +154,31 @@ const formatSessionStatusBreakdown = (
   return `${labels.pending} ${pendingCount} / ${labels.resolved} ${resolvedCount} / ${labels.rejected} ${rejectedCount}`;
 };
 
-const TokenBreakdown = ({ session }: { session: OpenCodeSession }) => {
+const TokenBreakdown = ({
+  labels,
+  session,
+}: {
+  labels: {
+    cachedTokens: string;
+    cacheWriteTokens: string;
+    inputTokens: string;
+    outputTokens: string;
+    reasoningTokens: string;
+    tokenUsageDetail: string;
+  };
+  session: OpenCodeSession;
+}) => {
   const fields = [
-    ["Input tokens", session.input_tokens],
-    ["Cached tokens", session.cached_tokens],
-    ["Cache write tokens", session.cache_write_tokens],
-    ["Output tokens", session.output_tokens],
-    ["Reasoning tokens", session.reasoning_tokens],
+    [labels.inputTokens, session.input_tokens],
+    [labels.cachedTokens, session.cached_tokens],
+    [labels.cacheWriteTokens, session.cache_write_tokens],
+    [labels.outputTokens, session.output_tokens],
+    [labels.reasoningTokens, session.reasoning_tokens],
   ] as const;
 
   return (
     <div className="flex max-w-xl flex-col gap-2">
-      <p className={tableMeta}>Token usage detail</p>
+      <p className={tableMeta}>{labels.tokenUsageDetail}</p>
       <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-5">
         {fields.map(([label, value]) => (
           <div className="flex flex-col gap-1 border p-2" key={label}>
@@ -326,35 +342,41 @@ export const OpenCodeSessionsPage = () => {
                 {tokenAggregates ? (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                     <div className="flex flex-col gap-1">
-                      <p className={tableMeta}>Input</p>
+                      <p className={tableMeta}>{t("openCodeTokenInput")}</p>
                       <p className="m-0 font-mono text-sm text-foreground">
-                        Input {formatTokenCount(tokenAggregates.input_tokens)}
+                        {t("openCodeTokenInput")}{" "}
+                        {formatTokenCount(tokenAggregates.input_tokens)}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className={tableMeta}>Cached input</p>
+                      <p className={tableMeta}>
+                        {t("openCodeTokenCachedInput")}
+                      </p>
                       <p className="m-0 font-mono text-sm text-foreground">
-                        Cached input{" "}
+                        {t("openCodeTokenCachedInput")}{" "}
                         {formatTokenCount(tokenAggregates.cached_tokens)}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className={tableMeta}>Cache writes</p>
+                      <p className={tableMeta}>
+                        {t("openCodeTokenCacheWrites")}
+                      </p>
                       <p className="m-0 font-mono text-sm text-foreground">
-                        Cache writes{" "}
+                        {t("openCodeTokenCacheWrites")}{" "}
                         {formatTokenCount(tokenAggregates.cache_write_tokens)}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className={tableMeta}>Output</p>
+                      <p className={tableMeta}>{t("openCodeTokenOutput")}</p>
                       <p className="m-0 font-mono text-sm text-foreground">
-                        Output {formatTokenCount(tokenAggregates.output_tokens)}
+                        {t("openCodeTokenOutput")}{" "}
+                        {formatTokenCount(tokenAggregates.output_tokens)}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className={tableMeta}>Reasoning</p>
+                      <p className={tableMeta}>{t("openCodeTokenReasoning")}</p>
                       <p className="m-0 font-mono text-sm text-foreground">
-                        Reasoning{" "}
+                        {t("openCodeTokenReasoning")}{" "}
                         {formatTokenCount(tokenAggregates.reasoning_tokens)}
                       </p>
                     </div>
@@ -364,7 +386,7 @@ export const OpenCodeSessionsPage = () => {
               {refreshUsageMutation.isError ? (
                 <Alert variant="destructive">
                   <AlertCircle aria-hidden="true" />
-                  <AlertTitle>Refresh usage failed</AlertTitle>
+                  <AlertTitle>{t("refreshUsageFailed")}</AlertTitle>
                   <AlertDescription>
                     {getOpenCodeSessionsErrorMessage(
                       refreshUsageMutation.error,
@@ -399,7 +421,7 @@ export const OpenCodeSessionsPage = () => {
                         {t("updatedAt")}
                       </th>
                       <th className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0">
-                        Usage
+                        {t("usage")}
                       </th>
                       <th className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0">
                         {t("sessionSignal")}
@@ -441,7 +463,10 @@ export const OpenCodeSessionsPage = () => {
                           <td className="border-t p-4">
                             <div className="flex max-w-52 flex-col gap-1">
                               <Badge className="w-fit" variant="outline">
-                                {formatSessionTokenSummary(session)}
+                                {formatSessionTokenSummary(
+                                  session,
+                                  t("noUsage"),
+                                )}
                               </Badge>
                               {getSessionTokenTotal(session) > 0 ? (
                                 <p className="m-0 text-xs/relaxed text-muted-foreground">
@@ -452,7 +477,17 @@ export const OpenCodeSessionsPage = () => {
                           </td>
                           <td className="border-t p-4">
                             <div className="flex flex-col gap-3">
-                              <TokenBreakdown session={session} />
+                              <TokenBreakdown
+                                labels={{
+                                  cachedTokens: t("cachedTokens"),
+                                  cacheWriteTokens: t("cacheWriteTokens"),
+                                  inputTokens: t("inputTokens"),
+                                  outputTokens: t("outputTokens"),
+                                  reasoningTokens: t("reasoningTokens"),
+                                  tokenUsageDetail: t("tokenUsageDetail"),
+                                }}
+                                session={session}
+                              />
                               {continuePrompt ? (
                                 <Badge className="w-fit" variant="outline">
                                   {t("continuePromptReady")}
@@ -511,7 +546,7 @@ export const OpenCodeSessionsPage = () => {
                                     data-icon="inline-start"
                                   />
                                 ) : null}
-                                Refresh usage
+                                {t("refreshUsage")}
                               </Button>
                               {canContinue(session) ? (
                                 <Button
