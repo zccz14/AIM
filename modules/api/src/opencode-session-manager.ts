@@ -88,6 +88,33 @@ export const withContinuation = (prompt: string) =>
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+const getErrorStatus = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  if ("status" in error && typeof error.status === "number") {
+    return error.status;
+  }
+
+  const response = "response" in error ? error.response : undefined;
+  if (
+    response &&
+    typeof response === "object" &&
+    "status" in response &&
+    typeof response.status === "number"
+  ) {
+    return response.status;
+  }
+
+  return undefined;
+};
+
+const isOpenCodeSessionNotFoundError = (error: unknown) =>
+  getErrorStatus(error) === 404 ||
+  (error instanceof Error &&
+    /session .*not found|not found/i.test(error.message));
+
 const sleep = (milliseconds: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
     if (signal.aborted) {
@@ -199,10 +226,29 @@ export const createOpenCodeSessionManager = ({
 
           const prompt = session.continue_prompt?.trim();
           if (prompt) {
-            const latestMessageTime = await getLatestMessageTime(
-              client,
-              session.session_id,
-            );
+            let latestMessageTime: number;
+
+            try {
+              latestMessageTime = await getLatestMessageTime(
+                client,
+                session.session_id,
+              );
+            } catch (error) {
+              if (!isOpenCodeSessionNotFoundError(error)) {
+                throw error;
+              }
+
+              try {
+                await repository.deleteSessionById(session.session_id);
+              } catch (deleteError) {
+                console.warn("OpenCode dangling session cleanup failed", {
+                  error: summarizeError(deleteError),
+                  session_id: session.session_id,
+                });
+              }
+
+              continue;
+            }
 
             if (Date.now() - latestMessageTime >= staleAfterMilliseconds) {
               const lastAttempt = lastContinuationAttemptBySessionId.get(
