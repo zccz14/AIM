@@ -114,6 +114,7 @@ const createTask = async (
 };
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 
   if (previousProjectRoot === undefined) {
@@ -365,6 +366,105 @@ describe("project token usage route", () => {
       ],
     });
     expect(JSON.stringify(body)).not.toContain("ghp_");
+  });
+
+  it("returns partial token usage when an OpenCode root session fetch exceeds the collection timeout", async () => {
+    vi.useFakeTimers();
+    await useProjectRoot("opencode-fetch-timeout");
+    const app = createRouteApp();
+
+    const project = await createProject(app, "timeout-project");
+    await createSession(app, "slow-session");
+    await createSession(app, "fast-session");
+    const slowTask = await createTask(app, {
+      projectId: project.id,
+      sessionId: "slow-session",
+      title: "Slow task",
+    });
+    const fastTask = await createTask(app, {
+      projectId: project.id,
+      sessionId: "fast-session",
+      title: "Fast task",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+
+        if (url === "http://opencode.test/session/slow-session/message") {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("collection timed out", "AbortError"));
+            });
+          });
+        }
+
+        if (url === "http://opencode.test/session/fast-session/message") {
+          return Response.json([
+            {
+              info: {
+                cost: 1,
+                id: "fast-message",
+                role: "assistant",
+                sessionID: "fast-session",
+                tokens: { input: 2, output: 3, total: 5 },
+              },
+              parts: [],
+            },
+          ]);
+        }
+
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const responsePromise = app.request(projectTokenUsagePath(project.id));
+    await vi.runAllTimersAsync();
+    const response = await Promise.race([
+      responsePromise,
+      Promise.resolve("request still pending"),
+    ]);
+
+    expect(response).not.toBe("request still pending");
+    expect((response as Response).status).toBe(200);
+    const body = await (response as Response).json();
+    expect(body).toMatchObject({
+      project_id: project.id,
+      totals: {
+        cache: { read: 0, write: 0 },
+        cost: 1,
+        input: 2,
+        messages: 1,
+        output: 3,
+        reasoning: 0,
+        total: 5,
+      },
+      sessions: [
+        {
+          failure: {
+            code: "OPENCODE_MESSAGES_UNAVAILABLE",
+            message: expect.stringContaining("slow-session"),
+          },
+          root_session_id: "slow-session",
+          task_id: slowTask.task_id,
+          title: "Slow task",
+        },
+        {
+          failure: null,
+          root_session_id: "fast-session",
+          task_id: fastTask.task_id,
+          title: "Fast task",
+        },
+      ],
+      failures: [
+        {
+          code: "OPENCODE_MESSAGES_UNAVAILABLE",
+          message: expect.stringContaining("slow-session"),
+          root_session_id: "slow-session",
+          task_id: slowTask.task_id,
+        },
+      ],
+    });
   });
 
   it("returns a project-scoped not found error for unknown projects", async () => {

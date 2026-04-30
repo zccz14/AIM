@@ -121,11 +121,21 @@ const findSubSessionIds = (messages: OpenCodeMessage[]) =>
       ),
   );
 
-const fetchSessionMessages = async (baseUrl: string, sessionId: string) => {
+type StatTokensBySessionIdOptions = {
+  signal?: AbortSignal;
+};
+
+const fetchSessionMessages = async (
+  baseUrl: string,
+  sessionId: string,
+  options: StatTokensBySessionIdOptions = {},
+) => {
   const url = `${baseUrl.replace(/\/+$/, "")}/session/${encodeURIComponent(
     sessionId,
   )}/message`;
-  const response = await fetch(url);
+  const response = options.signal
+    ? await fetch(url, { signal: options.signal })
+    : await fetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -139,6 +149,7 @@ const fetchSessionMessages = async (baseUrl: string, sessionId: string) => {
 export const statTokensBySessionId = async (
   baseUrl: string,
   sessionId: string,
+  options: StatTokensBySessionIdOptions = {},
 ): Promise<TokenStats> => {
   const visited = new Set<string>();
   const collect = async (
@@ -150,13 +161,15 @@ export const statTokensBySessionId = async (
 
     visited.add(currentSessionId);
 
-    const messages = await fetchSessionMessages(baseUrl, currentSessionId);
+    const messages = await fetchSessionMessages(baseUrl, currentSessionId, {
+      signal: options.signal,
+    });
     const currentStats = statTokens(messages, currentSessionId).messages;
-    const childStats = await Promise.all(
-      findSubSessionIds(messages).map((childSessionId) =>
-        collect(childSessionId),
-      ),
-    );
+    const childStats: MessageTokenStat[][] = [];
+
+    for (const childSessionId of findSubSessionIds(messages)) {
+      childStats.push(await collect(childSessionId));
+    }
 
     return [...currentStats, ...childStats.flat()];
   };

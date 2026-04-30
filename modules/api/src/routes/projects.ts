@@ -32,6 +32,21 @@ const projectTokenUsageRoutePath = projectTokenUsagePath.replace(
   "{projectId}",
   ":projectId",
 );
+const projectTokenUsageSessionTimeoutMs = 10_000;
+
+const createTimeoutSignal = (timeoutMs: number) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort(
+      new DOMException("OpenCode message collection timed out", "AbortError"),
+    );
+  }, timeoutMs);
+
+  return {
+    dispose: () => clearTimeout(timeout),
+    signal: controller.signal,
+  };
+};
 
 const buildNotFoundError = (projectId: string) =>
   taskErrorSchema.parse({
@@ -269,8 +284,12 @@ export const registerProjectRoutes = (
     const failures: ProjectTokenUsageAggregation["failures"] = [];
 
     for (const task of tasks) {
+      const timeout = createTimeoutSignal(projectTokenUsageSessionTimeoutMs);
+
       try {
-        const stats = await statTokensBySessionId(baseUrl, task.session_id);
+        const stats = await statTokensBySessionId(baseUrl, task.session_id, {
+          signal: timeout.signal,
+        });
         const taskTotals = toTokenUsageTotals(stats);
 
         addTokenUsageTotals(totals, taskTotals);
@@ -311,6 +330,8 @@ export const registerProjectRoutes = (
           title: task.title,
           totals: taskTotals,
         });
+      } finally {
+        timeout.dispose();
       }
     }
 
