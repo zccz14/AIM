@@ -14,6 +14,12 @@ const taskCommandHelperSourceUrl = new URL(
   import.meta.url,
 );
 const mainProjectId = "00000000-0000-4000-8000-000000000001";
+const defaultBudgetWarning = {
+  status: "not_configured",
+  token_warning_threshold: null,
+  cost_warning_threshold: null,
+  message: null,
+};
 const optimizerStatus = {
   project_id: mainProjectId,
   optimizer_enabled: true,
@@ -23,6 +29,7 @@ const optimizerStatus = {
   current_baseline_commit_sha: "abc123",
   token_usage: {
     availability: "partial",
+    budget_warning: defaultBudgetWarning,
     failed_root_session_count: 1,
     failure_summary: "Token usage unavailable for 1 of 2 root sessions.",
     root_session_count: 2,
@@ -59,6 +66,7 @@ const optimizerStatusWithoutEvents = {
   current_baseline_commit_sha: null,
   token_usage: {
     availability: "no_sessions",
+    budget_warning: defaultBudgetWarning,
     failed_root_session_count: 0,
     failure_summary: null,
     root_session_count: 0,
@@ -78,6 +86,7 @@ const projectTokenUsageFailureMessage =
   "OpenCode messages unavailable for root-session-2; retry after the session is accessible.";
 const projectTokenUsage = {
   project_id: mainProjectId,
+  budget_warning: defaultBudgetWarning,
   totals: {
     input: 100,
     output: 50,
@@ -174,6 +183,7 @@ const projectTokenUsage = {
 };
 const emptyProjectTokenUsage = {
   project_id: "00000000-0000-4000-8000-000000000002",
+  budget_warning: defaultBudgetWarning,
   totals: {
     input: 0,
     output: 0,
@@ -195,6 +205,8 @@ const projects = [
     global_provider_id: "anthropic",
     global_model_id: "claude-sonnet-4-5",
     optimizer_enabled: true,
+    token_warning_threshold: null,
+    cost_warning_threshold: null,
     created_at: "2026-04-20T00:00:00.000Z",
     updated_at: "2026-04-20T00:00:00.000Z",
   },
@@ -205,6 +217,8 @@ const projects = [
     global_provider_id: "ntnl-openai",
     global_model_id: "gpt-5.5",
     optimizer_enabled: false,
+    token_warning_threshold: null,
+    cost_warning_threshold: null,
     created_at: "2026-04-21T00:00:00.000Z",
     updated_at: "2026-04-21T00:00:00.000Z",
   },
