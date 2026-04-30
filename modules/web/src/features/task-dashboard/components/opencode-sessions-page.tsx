@@ -1,4 +1,7 @@
-import type { OpenCodeSession } from "@aim-ai/contract";
+import type {
+  OpenCodeSession,
+  OpenCodeSessionListResponse,
+} from "@aim-ai/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 
@@ -32,6 +35,7 @@ import { useI18n } from "../../../lib/i18n.js";
 import {
   continueOpenCodeSession,
   continuePendingOpenCodeSessions,
+  refreshOpenCodeSessionTokenUsageById,
 } from "../api/task-dashboard-api.js";
 import {
   getOpenCodeSessionsErrorMessage,
@@ -85,6 +89,55 @@ const getSessionModel = (session: OpenCodeSession, fallback: string) => {
 const canContinue = (session: OpenCodeSession) =>
   session.state === "pending" && Boolean(session.continue_prompt?.trim());
 
+const formatTokenCount = (value: number) =>
+  new Intl.NumberFormat().format(value);
+
+const getSessionTokenTotal = (session: OpenCodeSession) =>
+  session.input_tokens +
+  session.cached_tokens +
+  session.cache_write_tokens +
+  session.output_tokens +
+  session.reasoning_tokens;
+
+const getSessionTokenAggregates = (sessions: OpenCodeSession[]) =>
+  sessions.reduce(
+    (totals, session) => ({
+      input_tokens: totals.input_tokens + session.input_tokens,
+      cached_tokens: totals.cached_tokens + session.cached_tokens,
+      cache_write_tokens:
+        totals.cache_write_tokens + session.cache_write_tokens,
+      output_tokens: totals.output_tokens + session.output_tokens,
+      reasoning_tokens: totals.reasoning_tokens + session.reasoning_tokens,
+    }),
+    {
+      input_tokens: 0,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      output_tokens: 0,
+      reasoning_tokens: 0,
+    },
+  );
+
+const formatSessionTokenSummary = (
+  session: OpenCodeSession,
+  noUsageLabel: string,
+) => {
+  const total = getSessionTokenTotal(session);
+
+  if (total === 0) {
+    return noUsageLabel;
+  }
+
+  return `${formatTokenCount(total)} tokens`;
+};
+
+const formatSessionTokenShortBreakdown = (session: OpenCodeSession) =>
+  `in ${formatTokenCount(session.input_tokens)} / cache ${formatTokenCount(
+    session.cached_tokens,
+  )}+${formatTokenCount(session.cache_write_tokens)} / out ${formatTokenCount(
+    session.output_tokens,
+  )} / reason ${formatTokenCount(session.reasoning_tokens)}`;
+
 const countSessionsByState = (
   sessions: OpenCodeSession[],
   state: OpenCodeSession["state"],
@@ -99,6 +152,45 @@ const formatSessionStatusBreakdown = (
   const rejectedCount = countSessionsByState(sessions, "rejected");
 
   return `${labels.pending} ${pendingCount} / ${labels.resolved} ${resolvedCount} / ${labels.rejected} ${rejectedCount}`;
+};
+
+const TokenBreakdown = ({
+  labels,
+  session,
+}: {
+  labels: {
+    cachedTokens: string;
+    cacheWriteTokens: string;
+    inputTokens: string;
+    outputTokens: string;
+    reasoningTokens: string;
+    tokenUsageDetail: string;
+  };
+  session: OpenCodeSession;
+}) => {
+  const fields = [
+    [labels.inputTokens, session.input_tokens],
+    [labels.cachedTokens, session.cached_tokens],
+    [labels.cacheWriteTokens, session.cache_write_tokens],
+    [labels.outputTokens, session.output_tokens],
+    [labels.reasoningTokens, session.reasoning_tokens],
+  ] as const;
+
+  return (
+    <div className="flex max-w-xl flex-col gap-2">
+      <p className={tableMeta}>{labels.tokenUsageDetail}</p>
+      <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-5">
+        {fields.map(([label, value]) => (
+          <div className="flex flex-col gap-1 border p-2" key={label}>
+            <dt className={tableMeta}>{label}</dt>
+            <dd className="m-0 font-mono text-foreground">
+              {formatTokenCount(value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
 };
 
 const SessionLongTextField = ({
@@ -159,6 +251,24 @@ export const OpenCodeSessionsPage = () => {
     mutationFn: continueOpenCodeSession,
     onSuccess: invalidateSessions,
   });
+  const refreshUsageMutation = useMutation({
+    mutationFn: refreshOpenCodeSessionTokenUsageById,
+    onSuccess: (updatedSession) => {
+      queryClient.setQueryData<OpenCodeSessionListResponse>(
+        openCodeSessionsQueryKey,
+        (current) =>
+          current
+            ? {
+                items: current.items.map((session) =>
+                  session.session_id === updatedSession.session_id
+                    ? updatedSession
+                    : session,
+                ),
+              }
+            : current,
+      );
+    },
+  });
   const continuableSessions = sessionsQuery.isSuccess
     ? sessionsQuery.data.items.filter(canContinue)
     : [];
@@ -168,6 +278,9 @@ export const OpenCodeSessionsPage = () => {
         rejected: t("openCodeSessionRejected"),
         resolved: t("openCodeSessionResolved"),
       })
+    : null;
+  const tokenAggregates = sessionsQuery.isSuccess
+    ? getSessionTokenAggregates(sessionsQuery.data.items)
     : null;
 
   return (
@@ -219,12 +332,68 @@ export const OpenCodeSessionsPage = () => {
 
           {sessionsQuery.isSuccess && sessionsQuery.data.items.length > 0 ? (
             <div className={pageStack}>
-              <div className="border p-4">
-                <p className={eyebrow}>{t("openCodeSessions")}</p>
-                <p className="m-0 text-2xl font-medium tracking-tight">
-                  {statusBreakdown}
-                </p>
+              <div className="grid gap-3 border p-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
+                <div className="flex flex-col gap-1">
+                  <p className={eyebrow}>{t("openCodeSessions")}</p>
+                  <p className="m-0 text-2xl font-medium tracking-tight">
+                    {statusBreakdown}
+                  </p>
+                </div>
+                {tokenAggregates ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="flex flex-col gap-1">
+                      <p className={tableMeta}>{t("openCodeTokenInput")}</p>
+                      <p className="m-0 font-mono text-sm text-foreground">
+                        {t("openCodeTokenInput")}{" "}
+                        {formatTokenCount(tokenAggregates.input_tokens)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className={tableMeta}>
+                        {t("openCodeTokenCachedInput")}
+                      </p>
+                      <p className="m-0 font-mono text-sm text-foreground">
+                        {t("openCodeTokenCachedInput")}{" "}
+                        {formatTokenCount(tokenAggregates.cached_tokens)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className={tableMeta}>
+                        {t("openCodeTokenCacheWrites")}
+                      </p>
+                      <p className="m-0 font-mono text-sm text-foreground">
+                        {t("openCodeTokenCacheWrites")}{" "}
+                        {formatTokenCount(tokenAggregates.cache_write_tokens)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className={tableMeta}>{t("openCodeTokenOutput")}</p>
+                      <p className="m-0 font-mono text-sm text-foreground">
+                        {t("openCodeTokenOutput")}{" "}
+                        {formatTokenCount(tokenAggregates.output_tokens)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className={tableMeta}>{t("openCodeTokenReasoning")}</p>
+                      <p className="m-0 font-mono text-sm text-foreground">
+                        {t("openCodeTokenReasoning")}{" "}
+                        {formatTokenCount(tokenAggregates.reasoning_tokens)}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
+              {refreshUsageMutation.isError ? (
+                <Alert variant="destructive">
+                  <AlertCircle aria-hidden="true" />
+                  <AlertTitle>{t("refreshUsageFailed")}</AlertTitle>
+                  <AlertDescription>
+                    {getOpenCodeSessionsErrorMessage(
+                      refreshUsageMutation.error,
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <div className="flex justify-end">
                 <Button
                   disabled={
@@ -250,6 +419,9 @@ export const OpenCodeSessionsPage = () => {
                       </th>
                       <th className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0">
                         {t("updatedAt")}
+                      </th>
+                      <th className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0">
+                        {t("usage")}
                       </th>
                       <th className="border-t bg-muted p-4 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground first:border-t-0">
                         {t("sessionSignal")}
@@ -289,7 +461,33 @@ export const OpenCodeSessionsPage = () => {
                             <p className={tableMeta}>{session.updated_at}</p>
                           </td>
                           <td className="border-t p-4">
-                            <div className="flex flex-col gap-1">
+                            <div className="flex max-w-52 flex-col gap-1">
+                              <Badge className="w-fit" variant="outline">
+                                {formatSessionTokenSummary(
+                                  session,
+                                  t("noUsage"),
+                                )}
+                              </Badge>
+                              {getSessionTokenTotal(session) > 0 ? (
+                                <p className="m-0 text-xs/relaxed text-muted-foreground">
+                                  {formatSessionTokenShortBreakdown(session)}
+                                </p>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="border-t p-4">
+                            <div className="flex flex-col gap-3">
+                              <TokenBreakdown
+                                labels={{
+                                  cachedTokens: t("cachedTokens"),
+                                  cacheWriteTokens: t("cacheWriteTokens"),
+                                  inputTokens: t("inputTokens"),
+                                  outputTokens: t("outputTokens"),
+                                  reasoningTokens: t("reasoningTokens"),
+                                  tokenUsageDetail: t("tokenUsageDetail"),
+                                }}
+                                session={session}
+                              />
                               {continuePrompt ? (
                                 <Badge className="w-fit" variant="outline">
                                   {t("continuePromptReady")}
@@ -324,11 +522,15 @@ export const OpenCodeSessionsPage = () => {
                             </div>
                           </td>
                           <td className="border-t p-4">
-                            {canContinue(session) ? (
+                            <div className="flex flex-col items-start gap-2">
                               <Button
-                                disabled={continueSessionMutation.isPending}
+                                disabled={
+                                  refreshUsageMutation.isPending &&
+                                  refreshUsageMutation.variables ===
+                                    session.session_id
+                                }
                                 onClick={() =>
-                                  continueSessionMutation.mutate(
+                                  refreshUsageMutation.mutate(
                                     session.session_id,
                                   )
                                 }
@@ -336,9 +538,32 @@ export const OpenCodeSessionsPage = () => {
                                 type="button"
                                 variant="outline"
                               >
-                                {t("continue")}
+                                {refreshUsageMutation.isPending &&
+                                refreshUsageMutation.variables ===
+                                  session.session_id ? (
+                                  <LoaderCircle
+                                    className="animate-spin"
+                                    data-icon="inline-start"
+                                  />
+                                ) : null}
+                                {t("refreshUsage")}
                               </Button>
-                            ) : null}
+                              {canContinue(session) ? (
+                                <Button
+                                  disabled={continueSessionMutation.isPending}
+                                  onClick={() =>
+                                    continueSessionMutation.mutate(
+                                      session.session_id,
+                                    )
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  {t("continue")}
+                                </Button>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       );

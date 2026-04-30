@@ -18,6 +18,7 @@ import {
   dimensionsPath,
   directorClarificationListResponseSchema,
   directorClarificationSchema,
+  type OpenCodeSession,
   type OpenCodeSessionContinueBulkResponse,
   type OpenCodeSessionContinueResult,
   type OpenCodeSessionListResponse,
@@ -26,7 +27,9 @@ import {
   openCodeSessionContinuePendingPath,
   openCodeSessionContinueResultSchema,
   openCodeSessionListResponseSchema,
+  openCodeSessionSchema,
   openCodeSessionsPath,
+  openCodeSessionTokenUsageRefreshPath,
   type PatchDirectorClarificationRequest,
   patchDirectorClarificationRequestSchema,
   projectDirectorClarificationByIdPath,
@@ -138,6 +141,9 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
     session_id?: string;
   }): Promise<TaskListResponse>;
   listOpenCodeSessions(): Promise<OpenCodeSessionListResponse>;
+  refreshOpenCodeSessionTokenUsageById(
+    sessionId: string,
+  ): Promise<OpenCodeSession>;
   continuePendingOpenCodeSessions(): Promise<OpenCodeSessionContinueBulkResponse>;
   continueOpenCodeSession(
     sessionId: string,
@@ -242,6 +248,12 @@ const buildOpenCodeSessionContinuePath = (sessionId: string) =>
     encodeURIComponent(sessionId),
   );
 
+const buildOpenCodeSessionTokenUsageRefreshPath = (sessionId: string) =>
+  openCodeSessionTokenUsageRefreshPath.replace(
+    "{sessionId}",
+    encodeURIComponent(sessionId),
+  );
+
 export const createWebApiClient = (
   baseUrl = readServerBaseUrl(),
 ): WebApiClient => {
@@ -305,6 +317,31 @@ export const createWebApiClient = (
 
       return openCodeSessionListResponseSchema.parse(
         (await response.json()) as OpenCodeSessionListResponse,
+      );
+    },
+
+    async refreshOpenCodeSessionTokenUsageById(sessionId) {
+      const [requestInput, requestInit] = await toAbsoluteRequestInit(
+        resolvedBaseUrl,
+        buildOpenCodeSessionTokenUsageRefreshPath(sessionId),
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+          },
+        },
+      );
+      const response = await fetch(requestInput, requestInit);
+
+      if (!response.ok) {
+        throw new ContractClientError(
+          response.status,
+          taskErrorSchema.parse((await response.json()) as TaskError) as never,
+        );
+      }
+
+      return openCodeSessionSchema.parse(
+        (await response.json()) as OpenCodeSession,
       );
     },
 
