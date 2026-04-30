@@ -166,6 +166,7 @@ describe("optimizer system", () => {
       expect.objectContaining({
         logger,
         sessionManager: openCodeSessionManager,
+        sessionRepository: continuationSessionRepository,
         taskRepository,
       }),
     );

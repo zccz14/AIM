@@ -262,6 +262,7 @@ export const createOptimizerSystem = async ({
         logger,
         onLaneEvent: laneEvents.record,
         sessionManager: openCodeSessionManager,
+        sessionRepository: continuationSessionRepository,
         taskRepository,
       }),
     );

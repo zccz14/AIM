@@ -35,6 +35,16 @@ type PullRequestStatusProvider = {
   }>;
 };
 
+type DeveloperSessionRepository = {
+  getSessionById(sessionId: string):
+    | { session_id: string; state: "pending" | "rejected" | "resolved" }
+    | null
+    | Promise<{
+        session_id: string;
+        state: "pending" | "rejected" | "resolved";
+      } | null>;
+};
+
 type DeveloperTaskRepository = {
   assignSessionIfUnassigned(
     taskId: string,
@@ -55,6 +65,7 @@ type CreateDeveloperOptions = {
   onLaneEvent?: (event: OptimizerLaneEventInput) => void;
   pullRequestStatusProvider?: PullRequestStatusProvider;
   sessionManager: DeveloperSessionManager;
+  sessionRepository: DeveloperSessionRepository;
   taskRepository: DeveloperTaskRepository;
 };
 
@@ -253,6 +264,7 @@ export const createDeveloper = ({
   onLaneEvent,
   pullRequestStatusProvider = defaultPullRequestStatusProvider,
   sessionManager,
+  sessionRepository,
   taskRepository,
 }: CreateDeveloperOptions): AsyncDisposable => {
   const stack = new AsyncDisposableStack();
@@ -541,12 +553,14 @@ export const createDeveloper = ({
       }
     };
 
-    const sessionState = task.opencode_session?.state;
-    if (!sessionState) {
+    const session = await sessionRepository.getSessionById(task.session_id);
+    if (!session) {
       await recoverUnavailableAssignedSession();
 
       return;
     }
+
+    const sessionState = session.state;
 
     if (sessionState !== "pending") {
       onLaneEvent?.({
