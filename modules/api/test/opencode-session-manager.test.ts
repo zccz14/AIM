@@ -8,6 +8,7 @@ vi.mock("@opencode-ai/sdk", () => ({
 
 type StoredSession = {
   continue_prompt: null | string;
+  created_at: string;
   model_id?: null | string;
   provider_id?: null | string;
   session_id: string;
@@ -16,10 +17,19 @@ type StoredSession = {
 
 const createRepository = () => {
   const sessions: StoredSession[] = [];
+  const sessionReferences = new Map<
+    string,
+    {
+      coordinator_state_project_ids: string[];
+      manager_state_project_ids: string[];
+      task_ids: string[];
+    }
+  >();
 
   return {
     [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     async createSession(input: {
+      created_at?: string;
       continue_prompt?: null | string;
       model_id?: null | string;
       provider_id?: null | string;
@@ -27,6 +37,7 @@ const createRepository = () => {
     }) {
       const session: StoredSession = {
         continue_prompt: input.continue_prompt ?? null,
+        created_at: input.created_at ?? new Date().toISOString(),
         model_id: input.model_id ?? null,
         provider_id: input.provider_id ?? null,
         session_id: input.session_id,
@@ -41,6 +52,29 @@ const createRepository = () => {
       return filter.state
         ? sessions.filter((session) => session.state === filter.state)
         : [...sessions];
+    },
+    deleteSessionById: vi.fn((sessionId: string) => {
+      const sessionIndex = sessions.findIndex(
+        (session) => session.session_id === sessionId,
+      );
+      if (sessionIndex >= 0) {
+        sessions.splice(sessionIndex, 1);
+      }
+    }),
+    getSessionReferences: vi.fn(
+      (sessionId: string) =>
+        sessionReferences.get(sessionId) ?? {
+          coordinator_state_project_ids: [],
+          manager_state_project_ids: [],
+          task_ids: [],
+        },
+    ),
+    referenceSession(sessionId: string) {
+      sessionReferences.set(sessionId, {
+        coordinator_state_project_ids: [],
+        manager_state_project_ids: [],
+        task_ids: [`task-${sessionId}`],
+      });
     },
   };
 };
@@ -125,6 +159,7 @@ describe("createOpenCodeSessionManager", () => {
       provider_id: "anthropic",
       session_id: "session-pending",
     });
+    repository.referenceSession("session-pending");
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
@@ -165,6 +200,7 @@ describe("createOpenCodeSessionManager", () => {
       continue_prompt: "Do not send yet.",
       session_id: "session-fresh",
     });
+    repository.referenceSession("session-fresh");
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
@@ -205,6 +241,7 @@ describe("createOpenCodeSessionManager", () => {
       continue_prompt: "Recover after scan failure.",
       session_id: "session-after-scan-error",
     });
+    repository.referenceSession("session-after-scan-error");
     const listSessions = vi
       .spyOn(repository, "listSessions")
       .mockRejectedValueOnce(new Error("temporary repository failure"));
@@ -256,10 +293,12 @@ describe("createOpenCodeSessionManager", () => {
       continue_prompt: "First recovery prompt.",
       session_id: "session-prompt-fails",
     });
+    repository.referenceSession("session-prompt-fails");
     await repository.createSession({
       continue_prompt: "Second recovery prompt.",
       session_id: "session-prompt-continues",
     });
+    repository.referenceSession("session-prompt-continues");
     const promptAsync = vi
       .fn()
       .mockRejectedValueOnce(new Error("temporary prompt failure"))
@@ -311,6 +350,7 @@ describe("createOpenCodeSessionManager", () => {
       continue_prompt: "Recover only once for now.",
       session_id: "session-throttled",
     });
+    repository.referenceSession("session-throttled");
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
@@ -360,6 +400,143 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("skips orphan pending AIM sessions inside the cleanup grace window without prompting them", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover orphan.",
+      created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-under-grace",
+    });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const abort = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort,
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(messages).not.toHaveBeenCalled();
+    expect(promptAsync).not.toHaveBeenCalled();
+    expect(abort).not.toHaveBeenCalled();
+    expect(repository.deleteSessionById).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("deletes orphan pending AIM sessions past the cleanup grace window even when the runtime session is absent", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover dangling orphan.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-expired",
+    });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const abort = vi.fn().mockRejectedValue(new Error("session not found"));
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort,
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(abort).toHaveBeenCalledWith({
+      path: { id: "session-orphan-expired" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-orphan-expired",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(messages).not.toHaveBeenCalled();
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("continues pending session patrol when orphan cleanup fails for one session", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "First orphan.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-delete-fails",
+    });
+    await repository.createSession({
+      continue_prompt: "Second orphan.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-delete-continues",
+    });
+    repository.deleteSessionById.mockImplementationOnce(() => {
+      throw new Error("temporary delete failure");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const abort = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort,
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync: vi.fn().mockResolvedValue({}),
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1001);
+
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode pending session recovery failed",
+      {
+        error: "temporary delete failure",
+        session_id: "session-orphan-delete-fails",
+      },
+    );
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-orphan-delete-continues",
+    );
+    expect(abort).toHaveBeenCalledWith({
+      path: { id: "session-orphan-delete-continues" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
   });
 
   it("pushes explicit continuation prompts with selected model metadata", async () => {

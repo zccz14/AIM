@@ -50,6 +50,7 @@ type TaskRepository = {
 
 type ContinuationSession = {
   continue_prompt: null | string;
+  created_at: string;
   model_id?: null | string;
   provider_id?: null | string;
   reason: null | string;
@@ -65,7 +66,13 @@ type ContinuationSessionRepository = AsyncDisposable & {
     provider_id?: null | string;
     session_id: string;
   }): Promise<ContinuationSession>;
+  deleteSessionById(sessionId: string): void;
   getSessionById(sessionId: string): null | ContinuationSession;
+  getSessionReferences(sessionId: string): {
+    coordinator_state_project_ids: string[];
+    manager_state_project_ids: string[];
+    task_ids: string[];
+  };
   listSessions(filter: {
     state?: "pending" | "rejected" | "resolved";
   }): ContinuationSession[] | Promise<ContinuationSession[]>;

@@ -9,9 +9,22 @@ type OpenCodeSessionRepository = AsyncDisposable & {
     provider_id?: null | string;
     session_id: string;
   }): Promise<unknown> | unknown;
+  deleteSessionById(sessionId: string): Promise<unknown> | unknown;
+  getSessionReferences(sessionId: string):
+    | {
+        coordinator_state_project_ids: string[];
+        manager_state_project_ids: string[];
+        task_ids: string[];
+      }
+    | Promise<{
+        coordinator_state_project_ids: string[];
+        manager_state_project_ids: string[];
+        task_ids: string[];
+      }>;
   listSessions(filter: { state?: OpenCodeSessionState }):
     | Array<{
         continue_prompt: null | string;
+        created_at: string;
         model_id?: null | string;
         provider_id?: null | string;
         session_id: string;
@@ -20,6 +33,7 @@ type OpenCodeSessionRepository = AsyncDisposable & {
     | Promise<
         Array<{
           continue_prompt: null | string;
+          created_at: string;
           model_id?: null | string;
           provider_id?: null | string;
           session_id: string;
@@ -61,6 +75,7 @@ export type OpenCodeSessionManager = AsyncDisposable & {
 };
 
 const staleAfterMilliseconds = 30 * 60 * 1000;
+const orphanCleanupGraceMilliseconds = 5 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
 const continuationRetryThrottleMilliseconds = staleAfterMilliseconds;
 const continuationTerminalInstructions = `
@@ -105,6 +120,24 @@ const getLatestMessageTime = async (
   return latestMessage?.info.time.created ?? 0;
 };
 
+const hasSessionReferences = ({
+  coordinator_state_project_ids,
+  manager_state_project_ids,
+  task_ids,
+}: Awaited<ReturnType<OpenCodeSessionRepository["getSessionReferences"]>>) =>
+  task_ids.length > 0 ||
+  manager_state_project_ids.length > 0 ||
+  coordinator_state_project_ids.length > 0;
+
+const isOlderThanOrphanGrace = (createdAt: string) => {
+  const createdAtTime = Date.parse(createdAt);
+
+  return (
+    !Number.isNaN(createdAtTime) &&
+    Date.now() - createdAtTime >= orphanCleanupGraceMilliseconds
+  );
+};
+
 export const createOpenCodeSessionManager = ({
   baseUrl,
   repository,
@@ -141,6 +174,29 @@ export const createOpenCodeSessionManager = ({
         }
 
         try {
+          const sessionReferences = await repository.getSessionReferences(
+            session.session_id,
+          );
+          if (!hasSessionReferences(sessionReferences)) {
+            if (isOlderThanOrphanGrace(session.created_at)) {
+              try {
+                await client.session.abort({
+                  path: { id: session.session_id },
+                  throwOnError: true,
+                });
+              } catch (error) {
+                console.warn("OpenCode orphan runtime cleanup failed", {
+                  error: summarizeError(error),
+                  session_id: session.session_id,
+                });
+              }
+
+              await repository.deleteSessionById(session.session_id);
+            }
+
+            continue;
+          }
+
           const prompt = session.continue_prompt?.trim();
           if (prompt) {
             const latestMessageTime = await getLatestMessageTime(
