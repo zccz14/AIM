@@ -24,6 +24,8 @@ const opencodeSessionResolvePath = (sessionId: string) =>
   `/opencode/sessions/${sessionId}/resolve`;
 const opencodeSessionRejectPath = (sessionId: string) =>
   `/opencode/sessions/${sessionId}/reject`;
+const opencodeSessionTokenUsageRefreshPath = (sessionId: string) =>
+  `/opencode/sessions/${sessionId}/token-usage/refresh`;
 const opencodeSessionContinuePath = (sessionId: string) =>
   `/opencode/sessions/${sessionId}/continue`;
 const opencodeSessionsContinuePendingPath =
@@ -844,6 +846,116 @@ describe("opencode session routes", () => {
       reason: "blocked",
       session_id: "session-token-rejected",
       state: "rejected",
+    });
+  });
+
+  it("manually refreshes one OpenCode session token usage without settling the session", async () => {
+    await useProjectRoot("refresh-token-usage");
+    const app = createApp();
+    const tokenSnapshots = [
+      {
+        cacheRead: 300,
+        cacheWrite: 400,
+        input: 100,
+        output: 200,
+        reasoning: 50,
+      },
+      { cacheRead: 3, cacheWrite: 4, input: 1, output: 2, reasoning: 5 },
+    ];
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      expect(String(input)).toBe(
+        "http://localhost:4096/session/session-refresh/message",
+      );
+      const snapshot = tokenSnapshots[Math.min(fetch.mock.calls.length - 1, 1)];
+
+      return Response.json([
+        {
+          info: {
+            id: `assistant-message-${fetch.mock.calls.length}`,
+            role: "assistant",
+            sessionID: "session-refresh",
+            tokens: {
+              cache: { read: snapshot.cacheRead, write: snapshot.cacheWrite },
+              input: snapshot.input,
+              output: snapshot.output,
+              reasoning: snapshot.reasoning,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-refresh",
+        continue_prompt: "Continue until refreshed.",
+      }),
+    });
+
+    const firstRefreshResponse = await app.request(
+      opencodeSessionTokenUsageRefreshPath("session-refresh"),
+      { method: "POST" },
+    );
+    const secondRefreshResponse = await app.request(
+      opencodeSessionTokenUsageRefreshPath("session-refresh"),
+      { method: "POST" },
+    );
+
+    expect(firstRefreshResponse.status).toBe(200);
+    await expect(firstRefreshResponse.json()).resolves.toMatchObject({
+      cached_tokens: 300,
+      cache_write_tokens: 400,
+      input_tokens: 100,
+      output_tokens: 200,
+      reasoning_tokens: 50,
+      reason: null,
+      session_id: "session-refresh",
+      state: "pending",
+      value: null,
+    });
+    expect(secondRefreshResponse.status).toBe(200);
+    await expect(secondRefreshResponse.json()).resolves.toMatchObject({
+      cached_tokens: 3,
+      cache_write_tokens: 4,
+      input_tokens: 1,
+      output_tokens: 2,
+      reasoning_tokens: 5,
+      reason: null,
+      session_id: "session-refresh",
+      state: "pending",
+      value: null,
+    });
+    await expect(
+      (await app.request(opencodeSessionPath("session-refresh"))).json(),
+    ).resolves.toMatchObject({
+      cached_tokens: 3,
+      cache_write_tokens: 4,
+      input_tokens: 1,
+      output_tokens: 2,
+      reasoning_tokens: 5,
+      reason: null,
+      session_id: "session-refresh",
+      state: "pending",
+      value: null,
+    });
+  });
+
+  it("returns not found when refreshing token usage for a missing OpenCode session", async () => {
+    await useProjectRoot("refresh-token-usage-missing-session");
+    const app = createApp();
+
+    const response = await app.request(
+      opencodeSessionTokenUsageRefreshPath("session-missing"),
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "TASK_NOT_FOUND",
+      message: "OpenCode session session-missing was not found",
     });
   });
 

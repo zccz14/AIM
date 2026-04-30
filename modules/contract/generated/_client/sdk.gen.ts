@@ -116,6 +116,9 @@ import type {
   PutTaskWorktreePathByIdData,
   PutTaskWorktreePathByIdErrors,
   PutTaskWorktreePathByIdResponses,
+  RefreshOpenCodeSessionTokenUsageByIdData,
+  RefreshOpenCodeSessionTokenUsageByIdErrors,
+  RefreshOpenCodeSessionTokenUsageByIdResponses,
   RejectOpenCodeSessionByIdData,
   RejectOpenCodeSessionByIdErrors,
   RejectOpenCodeSessionByIdResponses,
@@ -306,6 +309,20 @@ export const rejectOpenCodeSessionById = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Refresh token usage for an AIM-controlled OpenCode session promise
+ */
+export const refreshOpenCodeSessionTokenUsageById = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<RefreshOpenCodeSessionTokenUsageByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RefreshOpenCodeSessionTokenUsageByIdResponses,
+    RefreshOpenCodeSessionTokenUsageByIdErrors,
+    ThrowOnError
+  >({ url: "/opencode/sessions/{sessionId}/token-usage/refresh", ...options });
 
 /**
  * List projects

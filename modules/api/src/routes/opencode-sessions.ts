@@ -10,6 +10,7 @@ import {
   openCodeSessionSettleRequestSchema,
   openCodeSessionStateSchema,
   openCodeSessionsPath,
+  openCodeSessionTokenUsageRefreshPath,
   patchOpenCodeSessionRequestSchema,
   taskErrorSchema,
 } from "@aim-ai/contract";
@@ -37,6 +38,8 @@ const openCodeSessionRejectRoutePath = openCodeSessionRejectPath.replace(
   "{sessionId}",
   ":sessionId",
 );
+const openCodeSessionTokenUsageRefreshRoutePath =
+  openCodeSessionTokenUsageRefreshPath.replace("{sessionId}", ":sessionId");
 
 const buildNotFoundError = (sessionId: string) =>
   taskErrorSchema.parse({
@@ -234,7 +237,7 @@ export const registerOpenCodeSessionRoutes = (
         sessionId,
       );
 
-      getRepository().updateSessionTokenUsage(sessionId, {
+      return getRepository().updateSessionTokenUsage(sessionId, {
         cached_tokens: stats.totals.cache.read,
         cache_write_tokens: stats.totals.cache.write,
         input_tokens: stats.totals.input,
@@ -246,6 +249,8 @@ export const registerOpenCodeSessionRoutes = (
         error: error instanceof Error ? error.message : String(error),
         session_id: sessionId,
       });
+
+      return getRepository().getSessionById(sessionId);
     }
   };
 
@@ -434,6 +439,20 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     return context.json(await pushContinuePrompt(session), 200);
+  });
+
+  app.post(openCodeSessionTokenUsageRefreshRoutePath, async (context) => {
+    const sessionId = requireSessionId(context.req.param("sessionId"));
+    const session = getRepository().getSessionById(sessionId);
+
+    if (!session) {
+      return context.json(buildNotFoundError(sessionId), 404);
+    }
+
+    return context.json(
+      (await updateSessionTokenUsage(sessionId)) ?? session,
+      200,
+    );
   });
 
   app.patch(openCodeSessionByIdRoutePath, async (context) => {

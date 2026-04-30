@@ -353,6 +353,7 @@ describe("contract package baseline", () => {
       "openCodeSessionSchema",
       "openCodeSessionSettleRequestSchema",
       "openCodeSessionStateSchema",
+      "openCodeSessionTokenUsageRefreshPath",
       "openCodeSessionsPath",
       "opencodeModelCombinationSchema",
       "opencodeModelsPath",
@@ -439,6 +440,11 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.openCodeSessionRejectPath
+      ],
+    ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[
+        contractModule.openCodeSessionTokenUsageRefreshPath
       ],
     ).toBeDefined();
     expect(contractModule).not.toHaveProperty("optimizerStatusPath");

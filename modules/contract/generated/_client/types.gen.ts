@@ -1033,6 +1033,35 @@ export type RejectOpenCodeSessionByIdResponses = {
 export type RejectOpenCodeSessionByIdResponse =
   RejectOpenCodeSessionByIdResponses[keyof RejectOpenCodeSessionByIdResponses];
 
+export type RefreshOpenCodeSessionTokenUsageByIdData = {
+  body?: never;
+  path: {
+    sessionId: string;
+  };
+  query?: never;
+  url: "/opencode/sessions/{sessionId}/token-usage/refresh";
+};
+
+export type RefreshOpenCodeSessionTokenUsageByIdErrors = {
+  /**
+   * OpenCode session promise not found
+   */
+  404: ErrorResponse;
+};
+
+export type RefreshOpenCodeSessionTokenUsageByIdError =
+  RefreshOpenCodeSessionTokenUsageByIdErrors[keyof RefreshOpenCodeSessionTokenUsageByIdErrors];
+
+export type RefreshOpenCodeSessionTokenUsageByIdResponses = {
+  /**
+   * Updated OpenCode session promise
+   */
+  200: OpenCodeSession;
+};
+
+export type RefreshOpenCodeSessionTokenUsageByIdResponse =
+  RefreshOpenCodeSessionTokenUsageByIdResponses[keyof RefreshOpenCodeSessionTokenUsageByIdResponses];
+
 export type ListProjectsData = {
   body?: never;
   path?: never;
