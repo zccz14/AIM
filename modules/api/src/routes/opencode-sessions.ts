@@ -18,6 +18,7 @@ import type { Hono } from "hono";
 import { execGh } from "../exec-file.js";
 import { createOpenCodeSessionManager } from "../opencode-session-manager.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
+import { statTokensBySessionId } from "../stat-tokens.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const openCodeSessionByIdRoutePath = openCodeSessionByIdPath.replace(
@@ -224,6 +225,28 @@ export const registerOpenCodeSessionRoutes = (
     };
 
     return adapter;
+  };
+
+  const updateSessionTokenUsage = async (sessionId: string) => {
+    try {
+      const stats = await statTokensBySessionId(
+        process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
+        sessionId,
+      );
+
+      getRepository().updateSessionTokenUsage(sessionId, {
+        cached_tokens: stats.totals.cache.read,
+        cache_write_tokens: stats.totals.cache.write,
+        input_tokens: stats.totals.input,
+        output_tokens: stats.totals.output,
+        reasoning_tokens: stats.totals.reasoning,
+      });
+    } catch (error) {
+      console.warn("OpenCode session token usage collection failed", {
+        error: error instanceof Error ? error.message : String(error),
+        session_id: sessionId,
+      });
+    }
   };
 
   const pushContinuePrompt = async (session: {
@@ -457,6 +480,8 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     if (session.state !== "pending") {
+      await updateSessionTokenUsage(sessionId);
+
       return new Response(null, { status: 204 });
     }
 
@@ -471,6 +496,7 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     getRepository().settleSession(sessionId, "resolved", input.data);
+    await updateSessionTokenUsage(sessionId);
 
     return new Response(null, { status: 204 });
   });
@@ -490,6 +516,8 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     if (session.state !== "pending") {
+      await updateSessionTokenUsage(sessionId);
+
       return new Response(null, { status: 204 });
     }
 
@@ -504,6 +532,7 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     getRepository().settleSession(sessionId, "rejected", input.data);
+    await updateSessionTokenUsage(sessionId);
 
     return new Response(null, { status: 204 });
   });
