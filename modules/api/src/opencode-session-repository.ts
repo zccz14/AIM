@@ -30,6 +30,10 @@ type OpenCodeSessionRow = {
   value: null | string;
 };
 
+type SessionReferenceRow = {
+  id: string;
+};
+
 type OpenCodeSessionRepositoryOptions = {
   projectRoot?: string;
 };
@@ -153,6 +157,33 @@ export const createOpenCodeSessionRepository = (
     SET input_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, output_tokens = ?, reasoning_tokens = ?, updated_at = ?
     WHERE session_id = ?
   `);
+  const deleteByIdStatement = database.prepare(`
+    DELETE FROM ${tableName}
+    WHERE session_id = ?
+  `);
+  const getTaskReferencesStatement = database.prepare(`
+    SELECT task_id AS id
+    FROM tasks
+    WHERE session_id = ?
+    ORDER BY task_id ASC
+  `);
+  const getManagerStateReferencesStatement = database.prepare(`
+    SELECT project_id AS id
+    FROM manager_states
+    WHERE session_id = ?
+    ORDER BY project_id ASC
+  `);
+  const getCoordinatorStateReferencesStatement = database.prepare(`
+    SELECT project_id AS id
+    FROM coordinator_states
+    WHERE session_id = ?
+    ORDER BY project_id ASC
+  `);
+
+  const getReferenceIds = (
+    statement: typeof getTaskReferencesStatement,
+    sessionId: string,
+  ) => (statement.all(sessionId) as SessionReferenceRow[]).map((row) => row.id);
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
@@ -202,6 +233,26 @@ export const createOpenCodeSessionRepository = (
         | undefined;
 
       return row ? mapOpenCodeSessionRow(row) : null;
+    },
+    deleteSessionById(sessionId: string): void {
+      deleteByIdStatement.run(sessionId);
+    },
+    getSessionReferences(sessionId: string): {
+      coordinator_state_project_ids: string[];
+      manager_state_project_ids: string[];
+      task_ids: string[];
+    } {
+      return {
+        coordinator_state_project_ids: getReferenceIds(
+          getCoordinatorStateReferencesStatement,
+          sessionId,
+        ),
+        manager_state_project_ids: getReferenceIds(
+          getManagerStateReferencesStatement,
+          sessionId,
+        ),
+        task_ids: getReferenceIds(getTaskReferencesStatement, sessionId),
+      };
     },
     listSessions(
       filter: { state?: OpenCodeSessionState } = {},
