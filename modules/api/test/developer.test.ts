@@ -20,6 +20,27 @@ const createSessionManager = () => ({
   pushContinuationPrompt: vi.fn().mockResolvedValue(undefined),
 });
 
+type CreateDeveloperInput = Parameters<typeof createDeveloper>[0];
+
+const createTestDeveloper = (
+  options: Omit<CreateDeveloperInput, "sessionRepository"> & {
+    sessionRepository?: CreateDeveloperInput["sessionRepository"];
+  },
+) =>
+  createDeveloper({
+    sessionRepository: {
+      getSessionById: vi.fn(async (sessionId: string) => {
+        const tasks = await options.taskRepository.listUnfinishedTasks();
+
+        return (
+          tasks.find((task) => task.session_id === sessionId)
+            ?.opencode_session ?? null
+        );
+      }),
+    },
+    ...options,
+  });
+
 const createOpenCodeSession = (
   overrides: NonNullable<Task["opencode_session"]>,
 ): NonNullable<Task["opencode_session"]> => ({
@@ -105,7 +126,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const baselineRepository = createBaselineRepository();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       sessionManager,
       taskRepository: repository,
@@ -164,7 +185,7 @@ describe("developer", () => {
       }),
     };
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
@@ -218,7 +239,7 @@ describe("developer", () => {
         .mockResolvedValueOnce({ category: "review_blocked" }),
     };
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
@@ -259,7 +280,7 @@ describe("developer", () => {
       }),
     };
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
@@ -322,7 +343,7 @@ describe("developer", () => {
     const baselineRepository = createBaselineRepository();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       onLaneEvent,
       sessionManager,
@@ -359,6 +380,51 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
+  it("continues an assigned pending session found by explicit session lookup", async () => {
+    vi.useFakeTimers();
+    const assignedTask = createTask({
+      session_id: "session-existing",
+      worktree_path: "/repo/.worktrees/task-1",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
+      updateTask: vi.fn(),
+    };
+    const sessionRepository = {
+      getSessionById: vi.fn().mockResolvedValue(
+        createOpenCodeSession({
+          session_id: "session-existing",
+          state: "pending",
+        }),
+      ),
+    };
+    const sessionManager = createSessionManager();
+
+    const developer = createTestDeveloper({
+      sessionManager,
+      sessionRepository,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: "session-existing",
+        }),
+      );
+    });
+    expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
+      "session-existing",
+    );
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.updateTask).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
   it("recovers an assigned task whose OpenCode session record is unavailable", async () => {
     vi.useFakeTimers();
     const unavailableTask = createTask({
@@ -386,7 +452,7 @@ describe("developer", () => {
     );
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -443,7 +509,7 @@ describe("developer", () => {
       }),
     };
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       pullRequestStatusProvider,
       sessionManager,
@@ -494,7 +560,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -549,7 +615,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -604,7 +670,7 @@ describe("developer", () => {
       }),
     };
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       pullRequestStatusProvider,
       sessionManager,
@@ -652,7 +718,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -701,7 +767,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -751,7 +817,7 @@ describe("developer", () => {
     };
     const sessionManager = createSessionManager();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       sessionManager,
       taskRepository: repository,
     });
@@ -785,7 +851,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const onLaneEvent = vi.fn();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -827,7 +893,7 @@ describe("developer", () => {
     sessionManager.createSession.mockResolvedValue(activeSession);
     const baselineRepository = createBaselineRepository();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       sessionManager,
       taskRepository: repository,
@@ -860,7 +926,7 @@ describe("developer", () => {
     sessionManager.createSession.mockResolvedValue(lostRaceSession);
     const baselineRepository = createBaselineRepository();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       sessionManager,
       taskRepository: repository,
@@ -911,7 +977,7 @@ describe("developer", () => {
     const sessionManager = createSessionManager();
     const baselineRepository = createBaselineRepository();
 
-    const developer = createDeveloper({
+    const developer = createTestDeveloper({
       baselineRepository,
       sessionManager,
       taskRepository: repository,
