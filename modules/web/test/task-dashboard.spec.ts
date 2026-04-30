@@ -25,6 +25,8 @@ const buildTask = ({
   status = "pending",
   taskId,
   updatedAt = "2026-04-19T00:00:00.000Z",
+  worktreePath = null,
+  pullRequestUrl = null,
 }: {
   dependencies?: string[];
   done?: boolean;
@@ -41,6 +43,8 @@ const buildTask = ({
   status?: string;
   taskId: string;
   updatedAt?: string;
+  worktreePath?: string | null;
+  pullRequestUrl?: string | null;
 }) => ({
   task_id: taskId,
   title: spec.split("\n", 1)[0] ?? spec,
@@ -50,8 +54,8 @@ const buildTask = ({
   global_provider_id: "anthropic",
   global_model_id: "claude-sonnet-4-5",
   session_id: null,
-  worktree_path: null,
-  pull_request_url: null,
+  worktree_path: worktreePath,
+  pull_request_url: pullRequestUrl,
   dependencies,
   result,
   source_metadata: {},
@@ -961,6 +965,7 @@ test("shows read-only Coordinator dry-run proposal summary without task batch wr
                 }),
                 buildTask({
                   done: true,
+                  pullRequestUrl: "https://github.com/example/main/pull/21",
                   result:
                     "Rejected because stale planning evidence overlapped.",
                   spec: "Rejected project dry-run feedback",
@@ -980,8 +985,10 @@ test("shows read-only Coordinator dry-run proposal summary without task batch wr
             : [
                 buildTask({
                   dependencies: ["task-resolved"],
+                  pullRequestUrl: "https://github.com/example/main/pull/20",
                   spec: "Active main task",
                   taskId: "task-main",
+                  worktreePath: "/repo/.worktrees/task-main",
                 }),
                 buildTask({
                   gitOriginUrl: "https://github.com/example/research.git",
@@ -1066,12 +1073,28 @@ test("shows read-only Coordinator dry-run proposal summary without task batch wr
   expect(dryRunRequests[0]).toMatchObject({
     project_id: "00000000-0000-4000-8000-000000000010",
     currentBaselineCommit: currentBaselineCommitSha,
-    taskPool: [expect.objectContaining({ task_id: "task-main" })],
-    rejectedTasks: [expect.objectContaining({ task_id: "task-rejected" })],
+    taskPool: [
+      expect.objectContaining({
+        task_id: "task-main",
+        worktree_path: "/repo/.worktrees/task-main",
+        pull_request_url: "https://github.com/example/main/pull/20",
+      }),
+    ],
+    rejectedTasks: [
+      expect.objectContaining({
+        task_id: "task-rejected",
+        worktree_path: null,
+        pull_request_url: "https://github.com/example/main/pull/21",
+      }),
+    ],
     staleTaskFeedback: [
       expect.objectContaining({
         reason: "Rejected because stale planning evidence overlapped.",
-        task: expect.objectContaining({ task_id: "task-rejected" }),
+        task: expect.objectContaining({
+          task_id: "task-rejected",
+          worktree_path: null,
+          pull_request_url: "https://github.com/example/main/pull/21",
+        }),
       }),
     ],
   });

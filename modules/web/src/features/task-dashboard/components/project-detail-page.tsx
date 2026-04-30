@@ -127,6 +127,8 @@ const toDryRunTaskPoolItem = (
   done: task.isDone,
   result: task.result,
   status: task.contractStatus,
+  worktree_path: task.worktreePath,
+  pull_request_url: task.pullRequestUrl,
   source_metadata: {
     latest_origin_main_commit: currentBaselineCommit,
   },
