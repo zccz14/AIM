@@ -129,6 +129,7 @@ export type ProjectOptimizerStatusResponse = {
    * Current origin/main baseline commit when the project workspace is available.
    */
   current_baseline_commit_sha?: string | null;
+  token_usage: ProjectOptimizerTokenUsageSummary;
   /**
    * Bounded recent optimizer lane events for this project, newest first.
    */
@@ -141,6 +142,29 @@ export type ProjectOptimizerStatusResponse = {
     task_id?: string;
     session_id?: string;
   }>;
+};
+
+export type ProjectOptimizerTokenUsageAvailability =
+  | "available"
+  | "partial"
+  | "unavailable"
+  | "no_sessions";
+
+export type ProjectOptimizerTokenUsageSummary = {
+  availability: ProjectOptimizerTokenUsageAvailability;
+  totals: ProjectTokenUsageTotals;
+  /**
+   * Number of project root sessions considered for the summary.
+   */
+  root_session_count: number;
+  /**
+   * Number of root sessions whose OpenCode messages could not be read.
+   */
+  failed_root_session_count: number;
+  /**
+   * Generic availability diagnostic without session content or secret detail.
+   */
+  failure_summary: string | null;
 };
 
 export type ProjectTokenUsageTotals = {

@@ -113,6 +113,25 @@ const toTokenUsageTotals = (stats: TokenStats) => ({
   total: stats.totals.total,
 });
 
+type ProjectTokenUsageAggregation = {
+  failures: ReturnType<typeof buildOpenCodeMessagesFailure>[];
+  sessionUsages: {
+    failure: ReturnType<typeof buildOpenCodeMessagesFailure> | null;
+    root_session_id: string;
+    task_id: string;
+    title: string;
+    totals: ReturnType<typeof zeroTokenUsageTotals>;
+  }[];
+  taskUsages: {
+    failures: ReturnType<typeof buildOpenCodeMessagesFailure>[];
+    session_id: string;
+    task_id: string;
+    title: string;
+    totals: ReturnType<typeof zeroTokenUsageTotals>;
+  }[];
+  totals: ReturnType<typeof zeroTokenUsageTotals>;
+};
+
 const redactSensitiveErrorDetail = (message: string) =>
   message.replace(/gh[pousr]_[A-Za-z0-9_]{20,}/g, "[REDACTED]");
 
@@ -142,6 +161,35 @@ const taskHasRootSession = (
   task: Task,
 ): task is Task & { session_id: string } =>
   typeof task.session_id === "string" && task.session_id.trim().length > 0;
+
+const summarizeTokenUsageAggregation = (
+  aggregation: Pick<
+    ProjectTokenUsageAggregation,
+    "failures" | "sessionUsages" | "totals"
+  >,
+) => {
+  const rootSessionCount = aggregation.sessionUsages.length;
+  const failedRootSessionCount = aggregation.failures.length;
+  const availability =
+    rootSessionCount === 0
+      ? "no_sessions"
+      : failedRootSessionCount === 0
+        ? "available"
+        : failedRootSessionCount === rootSessionCount
+          ? "unavailable"
+          : "partial";
+
+  return {
+    availability,
+    failed_root_session_count: failedRootSessionCount,
+    failure_summary:
+      failedRootSessionCount === 0
+        ? null
+        : `Token usage unavailable for ${failedRootSessionCount} of ${rootSessionCount} root sessions.`,
+    root_session_count: rootSessionCount,
+    totals: aggregation.totals,
+  };
+};
 
 type RegisterProjectRoutesOptions = {
   optimizerSystem?: OptimizerSystem;
@@ -206,6 +254,67 @@ export const registerProjectRoutes = (
       createTaskRepository({ projectRoot });
 
     return repository;
+  };
+
+  const collectProjectTokenUsage = async (
+    projectId: string,
+  ): Promise<ProjectTokenUsageAggregation> => {
+    const baseUrl = process.env.OPENCODE_BASE_URL ?? "http://localhost:4096";
+    const tasks = (await getRepository().listTasks({ project_id: projectId }))
+      .filter(taskHasRootSession)
+      .sort((left, right) => left.created_at.localeCompare(right.created_at));
+    const totals = zeroTokenUsageTotals();
+    const taskUsages: ProjectTokenUsageAggregation["taskUsages"] = [];
+    const sessionUsages: ProjectTokenUsageAggregation["sessionUsages"] = [];
+    const failures: ProjectTokenUsageAggregation["failures"] = [];
+
+    for (const task of tasks) {
+      try {
+        const stats = await statTokensBySessionId(baseUrl, task.session_id);
+        const taskTotals = toTokenUsageTotals(stats);
+
+        addTokenUsageTotals(totals, taskTotals);
+        taskUsages.push({
+          failures: [],
+          session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+        sessionUsages.push({
+          failure: null,
+          root_session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+      } catch (error) {
+        const failure = buildOpenCodeMessagesFailure({
+          error,
+          rootSessionId: task.session_id,
+          taskId: task.task_id,
+        });
+        const taskTotals = zeroTokenUsageTotals();
+
+        failures.push(failure);
+        taskUsages.push({
+          failures: [failure],
+          session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+        sessionUsages.push({
+          failure,
+          root_session_id: task.session_id,
+          task_id: task.task_id,
+          title: task.title,
+          totals: taskTotals,
+        });
+      }
+    }
+
+    return { failures, sessionUsages, taskUsages, totals };
   };
 
   app.get(projectsPath, async (context) => {
@@ -276,6 +385,9 @@ export const registerProjectRoutes = (
             })
           : optimizerStatus.blocker_summary,
       recent_events: optimizerStatus?.recent_events ?? [],
+      token_usage: summarizeTokenUsageAggregation(
+        await collectProjectTokenUsage(projectId),
+      ),
     });
 
     return context.json(response, 200);
@@ -289,60 +401,8 @@ export const registerProjectRoutes = (
       return context.json(buildNotFoundError(projectId), 404);
     }
 
-    const baseUrl = process.env.OPENCODE_BASE_URL ?? "http://localhost:4096";
-    const tasks = (await getRepository().listTasks({ project_id: projectId }))
-      .filter(taskHasRootSession)
-      .sort((left, right) => left.created_at.localeCompare(right.created_at));
-    const totals = zeroTokenUsageTotals();
-    const taskUsages = [];
-    const sessionUsages = [];
-    const failures = [];
-
-    for (const task of tasks) {
-      try {
-        const stats = await statTokensBySessionId(baseUrl, task.session_id);
-        const taskTotals = toTokenUsageTotals(stats);
-
-        addTokenUsageTotals(totals, taskTotals);
-        taskUsages.push({
-          failures: [],
-          session_id: task.session_id,
-          task_id: task.task_id,
-          title: task.title,
-          totals: taskTotals,
-        });
-        sessionUsages.push({
-          failure: null,
-          root_session_id: task.session_id,
-          task_id: task.task_id,
-          title: task.title,
-          totals: taskTotals,
-        });
-      } catch (error) {
-        const failure = buildOpenCodeMessagesFailure({
-          error,
-          rootSessionId: task.session_id,
-          taskId: task.task_id,
-        });
-        const taskTotals = zeroTokenUsageTotals();
-
-        failures.push(failure);
-        taskUsages.push({
-          failures: [failure],
-          session_id: task.session_id,
-          task_id: task.task_id,
-          title: task.title,
-          totals: taskTotals,
-        });
-        sessionUsages.push({
-          failure,
-          root_session_id: task.session_id,
-          task_id: task.task_id,
-          title: task.title,
-          totals: taskTotals,
-        });
-      }
-    }
+    const { failures, sessionUsages, taskUsages, totals } =
+      await collectProjectTokenUsage(projectId);
 
     const response = projectTokenUsageResponseSchema.parse({
       failures,

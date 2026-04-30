@@ -384,6 +384,21 @@ const routeProjectOptimizerStatus = async (
         blocker_summary: null,
         current_baseline_commit_sha: currentBaseline,
         recent_events: [],
+        token_usage: {
+          availability: "no_sessions",
+          failed_root_session_count: 0,
+          failure_summary: null,
+          root_session_count: 0,
+          totals: {
+            cache: { read: 0, write: 0 },
+            cost: 0,
+            input: 0,
+            messages: 0,
+            output: 0,
+            reasoning: 0,
+            total: 0,
+          },
+        },
       }),
     });
   });
@@ -1612,6 +1627,21 @@ test("shows project optimizer config and runtime observability separately", asyn
         runtime_active: false,
         blocker_summary:
           "Optimizer lane developer_follow_up error: gh failed with token [REDACTED]. Check optimizer logs and fix the lane blocker before expecting new scans.",
+        token_usage: {
+          availability: "partial",
+          failed_root_session_count: 1,
+          failure_summary: "Token usage unavailable for 1 of 2 root sessions.",
+          root_session_count: 2,
+          totals: {
+            cache: { read: 30, write: 40 },
+            cost: 1.25,
+            input: 10,
+            messages: 1,
+            output: 20,
+            reasoning: 5,
+            total: 105,
+          },
+        },
         recent_events: [
           {
             event: "failure",
@@ -1657,6 +1687,14 @@ test("shows project optimizer config and runtime observability separately", asyn
     optimizerRegion.getByText("task-lane-history", { exact: true }),
   ).toBeVisible();
   await expect(optimizerRegion.getByText("Check optimizer logs")).toBeVisible();
+  await expect(optimizerRegion.getByText("Token usage status")).toBeVisible();
+  await expect(optimizerRegion.getByText("Partial usage data")).toBeVisible();
+  await expect(optimizerRegion.getByText("105 tokens / $1.25")).toBeVisible();
+  await expect(
+    optimizerRegion.getByText(
+      "Token usage unavailable for 1 of 2 root sessions.",
+    ),
+  ).toBeVisible();
   await expect(optimizerRegion.getByText("[REDACTED]")).toBeVisible();
   await expect(optimizerRegion.getByText("ghp_1234567890")).toHaveCount(0);
 });

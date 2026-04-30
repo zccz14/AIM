@@ -598,6 +598,21 @@ describe("contract package baseline", () => {
         optimizer_enabled: true,
         runtime_active: true,
         blocker_summary: null,
+        token_usage: {
+          availability: "available",
+          failed_root_session_count: 0,
+          failure_summary: null,
+          root_session_count: 1,
+          totals: {
+            cache: { read: 30, write: 40 },
+            cost: 1.25,
+            input: 10,
+            messages: 1,
+            output: 20,
+            reasoning: 5,
+            total: 105,
+          },
+        },
         recent_events: [
           {
             event: "failure",
@@ -614,6 +629,21 @@ describe("contract package baseline", () => {
       optimizer_enabled: true,
       runtime_active: true,
       blocker_summary: null,
+      token_usage: {
+        availability: "available",
+        failed_root_session_count: 0,
+        failure_summary: null,
+        root_session_count: 1,
+        totals: {
+          cache: { read: 30, write: 40 },
+          cost: 1.25,
+          input: 10,
+          messages: 1,
+          output: 20,
+          reasoning: 5,
+          total: 105,
+        },
+      },
       recent_events: [
         {
           event: "failure",
@@ -639,6 +669,21 @@ describe("contract package baseline", () => {
         recent_scan_at: "2026-04-27T10:00:00.000Z",
         blocker_summary: null,
         recent_events: [],
+        token_usage: {
+          availability: "unknown",
+          failed_root_session_count: 0,
+          failure_summary: null,
+          root_session_count: 0,
+          totals: {
+            cache: { read: 0, write: 0 },
+            cost: 0,
+            input: 0,
+            messages: 0,
+            output: 0,
+            reasoning: 0,
+            total: 0,
+          },
+        },
       }).success,
     ).toBe(false);
   });
