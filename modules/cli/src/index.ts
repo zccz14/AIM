@@ -5,6 +5,7 @@ import DimensionEvaluationsListCommand from "./commands/dimension/evaluations/li
 import DimensionListCommand from "./commands/dimension/list.js";
 import DirectorClarificationsCreateCommand from "./commands/director/clarifications/create.js";
 import DirectorClarificationsListCommand from "./commands/director/clarifications/list.js";
+import DirectorClarificationsStatusCommand from "./commands/director/clarifications/status.js";
 import HealthCommand from "./commands/health.js";
 import ProjectOptimizerStatusCommand from "./commands/project/optimizer/status.js";
 import ServerStartCommand from "./commands/server/start.js";
@@ -27,7 +28,11 @@ const serverCommandNames = new Set(["start"]);
 const dimensionCommandNames = new Set(["list"]);
 const dimensionEvaluationsCommandNames = new Set(["list"]);
 const coordinatorProposalCommandNames = new Set(["dry-run"]);
-const directorClarificationsCommandNames = new Set(["create", "list"]);
+const directorClarificationsCommandNames = new Set([
+  "create",
+  "list",
+  "status",
+]);
 
 const normalizeCommandArgs = (args: string[]) => {
   if (args[0] === "server" && serverCommandNames.has(args[1] ?? "")) {
@@ -83,6 +88,7 @@ export const commands = {
   "dimension:list": DimensionListCommand,
   "director:clarifications:create": DirectorClarificationsCreateCommand,
   "director:clarifications:list": DirectorClarificationsListCommand,
+  "director:clarifications:status": DirectorClarificationsStatusCommand,
   health: HealthCommand,
   "project:optimizer:status": ProjectOptimizerStatusCommand,
   "server:start": ServerStartCommand,

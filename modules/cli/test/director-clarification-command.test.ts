@@ -86,6 +86,16 @@ const startDirectorClarificationServer = async () => {
       return;
     }
 
+    if (
+      request.method === "PATCH" &&
+      path ===
+        `/api/projects/${projectId}/director/clarifications/${clarification.id}`
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ...clarification, ...json }));
+      return;
+    }
+
     response.writeHead(404, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
@@ -217,6 +227,47 @@ describe("director clarification cli commands", () => {
     });
   });
 
+  it("updates a Director clarification status and prints the returned record", async () => {
+    const server = await startDirectorClarificationServer();
+
+    const result = await runCli([
+      "director",
+      "clarifications",
+      "status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      projectId,
+      "--clarification-id",
+      "clarification-1",
+      "--status",
+      "addressed",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/projects/${projectId}/director/clarifications/clarification-1`,
+      json: { status: "addressed" },
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        id: "clarification-1",
+        project_id: projectId,
+        dimension_id: null,
+        kind: "clarification",
+        message: "Should this be split into separate tasks?",
+        status: "addressed",
+        created_at: "2026-04-20T00:00:00.000Z",
+        updated_at: "2026-04-20T00:00:00.000Z",
+      },
+    });
+  });
+
   it("preserves Director clarification API errors on stderr", async () => {
     const server = await startDirectorClarificationServer();
 
@@ -228,6 +279,32 @@ describe("director clarification cli commands", () => {
       `${server.baseUrl}/api`,
       "--project-id",
       "missing",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "DIRECTOR_CLARIFICATION_NOT_FOUND",
+        message: "missing clarification",
+      },
+    });
+  });
+
+  it("preserves Director clarification status API errors on stderr", async () => {
+    const server = await startDirectorClarificationServer();
+
+    const result = await runCli([
+      "director:clarifications:status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      "missing",
+      "--clarification-id",
+      "clarification-1",
+      "--status",
+      "dismissed",
     ]);
 
     expect(result.exitCode).toBe(1);
@@ -265,6 +342,35 @@ describe("director clarification cli commands", () => {
       error: {
         code: "CLI_INVALID_FLAG_VALUE",
         message: "invalid --kind value: question",
+      },
+    });
+    expect(server.requests).toEqual([]);
+  });
+
+  it("rejects unsupported Director clarification statuses before any request", async () => {
+    const server = await startDirectorClarificationServer();
+
+    const result = await runCli([
+      "director",
+      "clarifications",
+      "status",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      projectId,
+      "--clarification-id",
+      "clarification-1",
+      "--status",
+      "closed",
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      error: {
+        code: "CLI_INVALID_FLAG_VALUE",
+        message: "invalid --status value: closed",
       },
     });
     expect(server.requests).toEqual([]);
