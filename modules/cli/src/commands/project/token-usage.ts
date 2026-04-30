@@ -12,6 +12,7 @@ type ProjectTokenUsageFailure = ProjectTokenUsageResponse["failures"][number];
 
 const sanitizeFailure = (failure: ProjectTokenUsageFailure) => ({
   code: failure.code,
+  message: failure.message,
   root_session_id: failure.root_session_id,
   task_id: failure.task_id,
 });

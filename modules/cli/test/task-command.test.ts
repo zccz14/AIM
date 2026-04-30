@@ -74,6 +74,8 @@ const optimizerStatusWithoutEvents = {
   },
   recent_events: [],
 };
+const projectTokenUsageFailureMessage =
+  "OpenCode messages unavailable for root-session-2; retry after the session is accessible.";
 const projectTokenUsage = {
   project_id: mainProjectId,
   totals: {
@@ -117,8 +119,7 @@ const projectTokenUsage = {
       failures: [
         {
           code: "OPENCODE_MESSAGES_UNAVAILABLE",
-          message:
-            "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+          message: projectTokenUsageFailureMessage,
           root_session_id: "root-session-2",
           task_id: "task-2",
         },
@@ -156,8 +157,7 @@ const projectTokenUsage = {
       },
       failure: {
         code: "OPENCODE_MESSAGES_UNAVAILABLE",
-        message:
-          "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+        message: projectTokenUsageFailureMessage,
         root_session_id: "root-session-2",
         task_id: "task-2",
       },
@@ -166,8 +166,7 @@ const projectTokenUsage = {
   failures: [
     {
       code: "OPENCODE_MESSAGES_UNAVAILABLE",
-      message:
-        "failed to read prompt text sk-ant-secret api_token=secret provider_secret=secret",
+      message: projectTokenUsageFailureMessage,
       root_session_id: "root-session-2",
       task_id: "task-2",
     },
@@ -1059,6 +1058,7 @@ describe("task cli command baseline", () => {
             totals: projectTokenUsage.sessions[1]?.totals,
             failure: {
               code: "OPENCODE_MESSAGES_UNAVAILABLE",
+              message: projectTokenUsageFailureMessage,
               root_session_id: "root-session-2",
               task_id: "task-2",
             },
@@ -1067,6 +1067,7 @@ describe("task cli command baseline", () => {
         failures: [
           {
             code: "OPENCODE_MESSAGES_UNAVAILABLE",
+            message: projectTokenUsageFailureMessage,
             root_session_id: "root-session-2",
             task_id: "task-2",
           },
