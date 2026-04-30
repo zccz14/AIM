@@ -44,6 +44,16 @@ const optimizerStatusWithoutEvents = {
   current_baseline_commit_sha: null,
   recent_events: [],
 };
+const project = {
+  id: mainProjectId,
+  name: "Main Project",
+  git_origin_url: "https://github.com/example/main.git",
+  global_provider_id: "anthropic",
+  global_model_id: "claude-sonnet-4-5",
+  optimizer_enabled: true,
+  created_at: "2026-04-20T00:00:00.000Z",
+  updated_at: "2026-04-20T00:00:00.000Z",
+};
 
 type RecordedRequest = {
   method: string;
@@ -80,7 +90,7 @@ beforeAll(async () => {
   }
 });
 
-const startTaskServer = async () => {
+const startTaskServer = async ({ projects = [project] } = {}) => {
   const requests: RecordedRequest[] = [];
   const task = {
     task_id: "task-1",
@@ -154,6 +164,12 @@ const startTaskServer = async () => {
               : [],
         }),
       );
+      return;
+    }
+
+    if (request.method === "GET" && path === "/api/projects") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ items: projects }));
       return;
     }
 
@@ -500,6 +516,69 @@ describe("task cli command baseline", () => {
           },
         ],
       },
+    });
+  });
+
+  it("registers project list with stable project discovery fields", async () => {
+    const server = await startTaskServer();
+
+    const result = await runCli([
+      "project",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/api/projects",
+      searchParams: {},
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        items: [
+          {
+            project_id: mainProjectId,
+            id: mainProjectId,
+            name: "Main Project",
+            git_origin_url: "https://github.com/example/main.git",
+            provider: "anthropic",
+            model: "claude-sonnet-4-5",
+            global_provider_id: "anthropic",
+            global_model_id: "claude-sonnet-4-5",
+            optimizer_enabled: true,
+          },
+        ],
+      },
+    });
+  });
+
+  it("prints an empty project list through the colon command form", async () => {
+    const server = await startTaskServer({ projects: [] });
+
+    const result = await runCli([
+      "project:list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/api/projects",
+      searchParams: {},
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: { items: [] },
     });
   });
 

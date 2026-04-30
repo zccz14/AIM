@@ -7,6 +7,7 @@ import DirectorClarificationsCreateCommand from "./commands/director/clarificati
 import DirectorClarificationsListCommand from "./commands/director/clarifications/list.js";
 import DirectorClarificationsStatusCommand from "./commands/director/clarifications/status.js";
 import HealthCommand from "./commands/health.js";
+import ProjectListCommand from "./commands/project/list.js";
 import ProjectOptimizerStatusCommand from "./commands/project/optimizer/status.js";
 import ServerStartCommand from "./commands/server/start.js";
 import TaskCreateCommand from "./commands/task/create.js";
@@ -33,6 +34,7 @@ const directorClarificationsCommandNames = new Set([
   "list",
   "status",
 ]);
+const projectCommandNames = new Set(["list"]);
 
 const normalizeCommandArgs = (args: string[]) => {
   if (args[0] === "server" && serverCommandNames.has(args[1] ?? "")) {
@@ -71,6 +73,10 @@ const normalizeCommandArgs = (args: string[]) => {
     return [`director:clarifications:${args[2]}`, ...args.slice(3)];
   }
 
+  if (args[0] === "project" && projectCommandNames.has(args[1] ?? "")) {
+    return [`project:${args[1]}`, ...args.slice(2)];
+  }
+
   if (
     args[0] === "project" &&
     args[1] === "optimizer" &&
@@ -90,6 +96,7 @@ export const commands = {
   "director:clarifications:list": DirectorClarificationsListCommand,
   "director:clarifications:status": DirectorClarificationsStatusCommand,
   health: HealthCommand,
+  "project:list": ProjectListCommand,
   "project:optimizer:status": ProjectOptimizerStatusCommand,
   "server:start": ServerStartCommand,
   "task:create": TaskCreateCommand,
