@@ -13,6 +13,7 @@ export default class DirectorClarificationsListCommand extends Command {
 
   static override flags = {
     "base-url": Flags.string({ description: "API base URL" }),
+    "dimension-id": Flags.string({ description: "Dimension id filter" }),
     "project-id": Flags.string({ description: "Project id" }),
   };
 
@@ -24,7 +25,11 @@ export default class DirectorClarificationsListCommand extends Command {
       const client = createAimContractClient(
         requireFlag(flags["base-url"], "base-url"),
       );
-      const clarifications = await client.listDirectorClarifications(projectId);
+      const dimensionId = flags["dimension-id"];
+      const clarifications = await client.listDirectorClarifications(
+        projectId,
+        dimensionId ? { dimension_id: dimensionId } : undefined,
+      );
 
       writeSuccess(this, {
         items: clarifications.items.map((clarification) => ({

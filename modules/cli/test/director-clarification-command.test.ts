@@ -70,7 +70,9 @@ const startDirectorClarificationServer = async () => {
 
     if (
       request.method === "GET" &&
-      path === `/api/projects/${projectId}/director/clarifications`
+      (path === `/api/projects/${projectId}/director/clarifications` ||
+        path ===
+          `/api/projects/${projectId}/director/clarifications?dimension_id=dimension-1`)
     ) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ items: [clarification] }));
@@ -164,6 +166,46 @@ describe("director clarification cli commands", () => {
     expect(server.requests[0]).toMatchObject({
       method: "GET",
       path: `/api/projects/${projectId}/director/clarifications`,
+      json: null,
+    });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: {
+        items: [
+          {
+            id: "clarification-1",
+            kind: "clarification",
+            status: "open",
+            prompt: "Should this be split into separate tasks?",
+            created_at: "2026-04-20T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+  });
+
+  it("passes dimension id filter when listing Director clarification summaries", async () => {
+    const server = await startDirectorClarificationServer();
+
+    const result = await runCli([
+      "director",
+      "clarifications",
+      "list",
+      "--base-url",
+      `${server.baseUrl}/api`,
+      "--project-id",
+      projectId,
+      "--dimension-id",
+      "dimension-1",
+    ]);
+
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    expect(server.requests[0]).toMatchObject({
+      method: "GET",
+      path: `/api/projects/${projectId}/director/clarifications?dimension_id=dimension-1`,
       json: null,
     });
     expect(JSON.parse(result.stdout)).toEqual({
