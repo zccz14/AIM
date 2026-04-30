@@ -1022,6 +1022,8 @@ components:
         - global_provider_id
         - global_model_id
         - optimizer_enabled
+        - token_warning_threshold
+        - cost_warning_threshold
         - created_at
         - updated_at
       properties:
@@ -1043,6 +1045,16 @@ components:
           minLength: 1
         optimizer_enabled:
           type: boolean
+        token_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        cost_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
         created_at:
           type: string
           format: date-time
@@ -1074,6 +1086,16 @@ components:
           minLength: 1
         optimizer_enabled:
           type: boolean
+        token_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        cost_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
     PatchProjectRequest:
       type: object
       additionalProperties: false
@@ -1092,6 +1114,16 @@ components:
           minLength: 1
         optimizer_enabled:
           type: boolean
+        token_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        cost_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
     ProjectListResponse:
       type: object
       additionalProperties: false
@@ -1369,6 +1401,7 @@ components:
       required:
         - availability
         - totals
+        - budget_warning
         - root_session_count
         - failed_root_session_count
         - failure_summary
@@ -1377,6 +1410,8 @@ components:
           $ref: "#/components/schemas/ProjectOptimizerTokenUsageAvailability"
         totals:
           $ref: "#/components/schemas/ProjectTokenUsageTotals"
+        budget_warning:
+          $ref: "#/components/schemas/ProjectTokenBudgetWarning"
         root_session_count:
           type: integer
           minimum: 0
@@ -1434,6 +1469,38 @@ components:
         messages:
           type: integer
           minimum: 0
+    ProjectTokenBudgetWarningStatus:
+      type: string
+      enum:
+        - not_configured
+        - within_budget
+        - exceeded
+    ProjectTokenBudgetWarning:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - token_warning_threshold
+        - cost_warning_threshold
+        - message
+      properties:
+        status:
+          $ref: "#/components/schemas/ProjectTokenBudgetWarningStatus"
+        token_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        cost_warning_threshold:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        message:
+          type:
+            - string
+            - "null"
+          minLength: 1
     ProjectTokenUsageFailure:
       type: object
       additionalProperties: false
@@ -1512,6 +1579,7 @@ components:
       required:
         - project_id
         - totals
+        - budget_warning
         - tasks
         - sessions
         - failures
@@ -1521,6 +1589,8 @@ components:
           format: uuid
         totals:
           $ref: "#/components/schemas/ProjectTokenUsageTotals"
+        budget_warning:
+          $ref: "#/components/schemas/ProjectTokenBudgetWarning"
         tasks:
           type: array
           items:

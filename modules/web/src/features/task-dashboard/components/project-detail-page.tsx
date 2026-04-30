@@ -43,6 +43,12 @@ const formatTokens = (count: number) =>
 
 const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
 
+const formatOptionalTokenThreshold = (threshold: number | null) =>
+  threshold === null ? null : formatTokens(threshold);
+
+const formatOptionalCostThreshold = (threshold: number | null) =>
+  threshold === null ? null : formatCost(threshold);
+
 const normalizeGapText = (value: string) =>
   value
     .toLowerCase()
@@ -363,6 +369,13 @@ const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
   const failureCount = usage?.failures.length ?? 0;
   const hasUsage =
     (usage?.totals.total ?? 0) > 0 || (usage?.totals.cost ?? 0) > 0;
+  const budgetWarning = usage?.budget_warning;
+  const tokenThreshold = budgetWarning
+    ? formatOptionalTokenThreshold(budgetWarning.token_warning_threshold)
+    : null;
+  const costThreshold = budgetWarning
+    ? formatOptionalCostThreshold(budgetWarning.cost_warning_threshold)
+    : null;
 
   return (
     <section aria-label={t("projectTokenUsageRegion")} className={pageStack}>
@@ -407,6 +420,24 @@ const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
                   <strong>{`${usage.totals.messages} ${t("projectTokenUsageMessageUnit")}`}</strong>
                 </div>
               </div>
+              {budgetWarning?.status === "exceeded" ? (
+                <div className={panelStack}>
+                  <Badge variant="destructive">
+                    {t("projectBudgetWarning")}
+                  </Badge>
+                  {budgetWarning.message ? (
+                    <p className={sectionCopy}>{budgetWarning.message}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {tokenThreshold ? (
+                      <span>{`${t("projectTokenWarningThreshold")} ${tokenThreshold}`}</span>
+                    ) : null}
+                    {costThreshold ? (
+                      <span>{`${t("projectCostWarningThreshold")} ${costThreshold}`}</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               <div className={panelStack}>
                 <p className={eyebrow}>{t("projectTokenUsageHeaviestTask")}</p>
                 {heaviestTask ? (

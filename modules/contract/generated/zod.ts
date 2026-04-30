@@ -110,6 +110,8 @@ const CreateProjectRequest = z
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
     optimizer_enabled: z.boolean().optional(),
+    token_warning_threshold: z.union([z.number(), z.null()]).optional(),
+    cost_warning_threshold: z.union([z.number(), z.null()]).optional(),
   })
   .strict();
 const Project = z
@@ -120,6 +122,8 @@ const Project = z
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
     optimizer_enabled: z.boolean(),
+    token_warning_threshold: z.union([z.number(), z.null()]),
+    cost_warning_threshold: z.union([z.number(), z.null()]),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
   })
@@ -132,6 +136,8 @@ const PatchProjectRequest = z
     global_provider_id: z.string().min(1),
     global_model_id: z.string().min(1),
     optimizer_enabled: z.boolean(),
+    token_warning_threshold: z.union([z.number(), z.null()]),
+    cost_warning_threshold: z.union([z.number(), z.null()]),
   })
   .partial()
   .strict();
@@ -154,10 +160,24 @@ const ProjectTokenUsageTotals = z
     messages: z.number().int().gte(0),
   })
   .strict();
+const ProjectTokenBudgetWarningStatus = z.enum([
+  "not_configured",
+  "within_budget",
+  "exceeded",
+]);
+const ProjectTokenBudgetWarning = z
+  .object({
+    status: ProjectTokenBudgetWarningStatus,
+    token_warning_threshold: z.union([z.number(), z.null()]),
+    cost_warning_threshold: z.union([z.number(), z.null()]),
+    message: z.union([z.string(), z.null()]),
+  })
+  .strict();
 const ProjectOptimizerTokenUsageSummary = z
   .object({
     availability: ProjectOptimizerTokenUsageAvailability,
     totals: ProjectTokenUsageTotals,
+    budget_warning: ProjectTokenBudgetWarning,
     root_session_count: z.number().int().gte(0),
     failed_root_session_count: z.number().int().gte(0),
     failure_summary: z.union([z.string(), z.null()]),
@@ -216,6 +236,7 @@ const ProjectTokenUsageResponse = z
   .object({
     project_id: z.string().uuid(),
     totals: ProjectTokenUsageTotals,
+    budget_warning: ProjectTokenBudgetWarning,
     tasks: z.array(ProjectTokenUsageTask),
     sessions: z.array(ProjectTokenUsageSession),
     failures: z.array(ProjectTokenUsageFailure),
@@ -605,6 +626,8 @@ export const schemas = {
   PatchProjectRequest,
   ProjectOptimizerTokenUsageAvailability,
   ProjectTokenUsageTotals,
+  ProjectTokenBudgetWarningStatus,
+  ProjectTokenBudgetWarning,
   ProjectOptimizerTokenUsageSummary,
   ProjectOptimizerStatusResponse,
   ProjectTokenUsageFailure,

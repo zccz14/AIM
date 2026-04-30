@@ -11,6 +11,7 @@ const routesTempRoot = join(
   "modules-api-project-token-usage-routes",
 );
 const projectsPath = "/projects";
+const projectByIdPath = (projectId: string) => `/projects/${projectId}`;
 const opencodeSessionsPath = "/opencode/sessions";
 const tasksPath = "/tasks";
 const projectTokenUsagePath = (projectId: string) =>
@@ -241,6 +242,12 @@ describe("project token usage route", () => {
         reasoning: 55,
         total: 1155,
       },
+      budget_warning: {
+        status: "not_configured",
+        token_warning_threshold: null,
+        cost_warning_threshold: null,
+        message: null,
+      },
       tasks: [
         {
           failures: [],
@@ -305,6 +312,71 @@ describe("project token usage route", () => {
       },
       sessions: [],
       failures: [],
+    });
+  });
+
+  it("persists optional project token budget thresholds and warns when usage exceeds them", async () => {
+    await useProjectRoot("project-budget-warning");
+    const app = createRouteApp();
+
+    const project = await createProject(app, "budget-project");
+    const patchResponse = await app.request(projectByIdPath(project.id), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        token_warning_threshold: 1000,
+        cost_warning_threshold: 10,
+      }),
+    });
+    await createSession(app, "budget-session");
+    await createTask(app, {
+      projectId: project.id,
+      sessionId: "budget-session",
+      title: "Budgeted task",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          {
+            info: {
+              cost: 3.75,
+              id: "budget-message",
+              role: "assistant",
+              sessionID: "budget-session",
+              tokens: {
+                cache: { read: 0, write: 0 },
+                input: 600,
+                output: 500,
+                reasoning: 100,
+                total: 1200,
+              },
+            },
+            parts: [],
+          },
+        ]),
+      ),
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      token_warning_threshold: 1000,
+      cost_warning_threshold: 10,
+    });
+
+    const response = await app.request(projectTokenUsagePath(project.id));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      project_id: project.id,
+      totals: { cost: 3.75, total: 1200 },
+      budget_warning: {
+        status: "exceeded",
+        token_warning_threshold: 1000,
+        cost_warning_threshold: 10,
+        message:
+          "Project token usage exceeds the configured token warning threshold.",
+      },
     });
   });
 

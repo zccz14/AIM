@@ -618,6 +618,12 @@ describe("contract package baseline", () => {
             reasoning: 5,
             total: 105,
           },
+          budget_warning: {
+            status: "not_configured",
+            token_warning_threshold: null,
+            cost_warning_threshold: null,
+            message: null,
+          },
         },
         recent_events: [
           {
@@ -648,6 +654,12 @@ describe("contract package baseline", () => {
           output: 20,
           reasoning: 5,
           total: 105,
+        },
+        budget_warning: {
+          status: "not_configured",
+          token_warning_threshold: null,
+          cost_warning_threshold: null,
+          message: null,
         },
       },
       recent_events: [
@@ -692,6 +704,83 @@ describe("contract package baseline", () => {
         },
       }).success,
     ).toBe(false);
+  });
+
+  it("exports project token budget warning thresholds and usage warning status", () => {
+    expect(
+      contractModule.createProjectRequestSchema.parse({
+        name: "Budgeted project",
+        git_origin_url: "https://github.com/example/budgeted.git",
+        global_provider_id: "anthropic",
+        global_model_id: "claude-sonnet-4-5",
+        token_warning_threshold: 1000,
+        cost_warning_threshold: 5,
+      }),
+    ).toEqual({
+      name: "Budgeted project",
+      git_origin_url: "https://github.com/example/budgeted.git",
+      global_provider_id: "anthropic",
+      global_model_id: "claude-sonnet-4-5",
+      token_warning_threshold: 1000,
+      cost_warning_threshold: 5,
+    });
+    expect(
+      contractModule.patchProjectRequestSchema.parse({
+        token_warning_threshold: null,
+        cost_warning_threshold: 7.5,
+      }),
+    ).toEqual({
+      token_warning_threshold: null,
+      cost_warning_threshold: 7.5,
+    });
+    expect(
+      contractModule.projectSchema.parse({
+        id: mainProjectId,
+        name: "Budgeted project",
+        git_origin_url: "https://github.com/example/budgeted.git",
+        global_provider_id: "anthropic",
+        global_model_id: "claude-sonnet-4-5",
+        optimizer_enabled: false,
+        token_warning_threshold: 1000,
+        cost_warning_threshold: null,
+        created_at: "2026-04-30T00:00:00.000Z",
+        updated_at: "2026-04-30T00:00:00.000Z",
+      }),
+    ).toMatchObject({
+      token_warning_threshold: 1000,
+      cost_warning_threshold: null,
+    });
+
+    expect(
+      contractModule.projectTokenUsageResponseSchema.parse({
+        project_id: mainProjectId,
+        totals: {
+          cache: { read: 0, write: 0 },
+          cost: 3.75,
+          input: 200,
+          messages: 2,
+          output: 300,
+          reasoning: 0,
+          total: 500,
+        },
+        budget_warning: {
+          status: "exceeded",
+          token_warning_threshold: 400,
+          cost_warning_threshold: null,
+          message:
+            "Project token usage exceeds the configured token warning threshold.",
+        },
+        tasks: [],
+        sessions: [],
+        failures: [],
+      }).budget_warning,
+    ).toEqual({
+      status: "exceeded",
+      token_warning_threshold: 400,
+      cost_warning_threshold: null,
+      message:
+        "Project token usage exceeds the configured token warning threshold.",
+    });
   });
 
   it("exports the Director clarification status patch contract", () => {

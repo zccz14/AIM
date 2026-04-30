@@ -27,6 +27,8 @@ export type ProjectFormInput = {
   globalProviderId: string;
   globalModelId: string;
   optimizerEnabled: boolean;
+  tokenWarningThreshold: number | null;
+  costWarningThreshold: number | null;
 };
 
 export type TaskDashboardResponse = {
@@ -110,6 +112,8 @@ export const createProject = async (
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
     optimizer_enabled: input.optimizerEnabled,
+    token_warning_threshold: input.tokenWarningThreshold,
+    cost_warning_threshold: input.costWarningThreshold,
     name: input.name,
     git_origin_url: input.gitOriginUrl,
   });
@@ -125,6 +129,8 @@ export const updateProject = async (
     global_model_id: input.globalModelId,
     global_provider_id: input.globalProviderId,
     optimizer_enabled: input.optimizerEnabled,
+    token_warning_threshold: input.tokenWarningThreshold,
+    cost_warning_threshold: input.costWarningThreshold,
     name: input.name,
     git_origin_url: input.gitOriginUrl,
   });

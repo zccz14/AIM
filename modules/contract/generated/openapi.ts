@@ -1685,6 +1685,8 @@ export const openApiDocument = {
           "global_provider_id",
           "global_model_id",
           "optimizer_enabled",
+          "token_warning_threshold",
+          "cost_warning_threshold",
           "created_at",
           "updated_at",
         ],
@@ -1712,6 +1714,14 @@ export const openApiDocument = {
           },
           optimizer_enabled: {
             type: "boolean",
+          },
+          token_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
+          cost_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
           },
           created_at: {
             type: "string",
@@ -1754,6 +1764,14 @@ export const openApiDocument = {
           optimizer_enabled: {
             type: "boolean",
           },
+          token_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
+          cost_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
         },
       },
       PatchProjectRequest: {
@@ -1778,6 +1796,14 @@ export const openApiDocument = {
           },
           optimizer_enabled: {
             type: "boolean",
+          },
+          token_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
+          cost_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
           },
         },
       },
@@ -2080,6 +2106,7 @@ export const openApiDocument = {
         required: [
           "availability",
           "totals",
+          "budget_warning",
           "root_session_count",
           "failed_root_session_count",
           "failure_summary",
@@ -2090,6 +2117,9 @@ export const openApiDocument = {
           },
           totals: {
             $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          budget_warning: {
+            $ref: "#/components/schemas/ProjectTokenBudgetWarning",
           },
           root_session_count: {
             type: "integer",
@@ -2162,6 +2192,37 @@ export const openApiDocument = {
           messages: {
             type: "integer",
             minimum: 0,
+          },
+        },
+      },
+      ProjectTokenBudgetWarningStatus: {
+        type: "string",
+        enum: ["not_configured", "within_budget", "exceeded"],
+      },
+      ProjectTokenBudgetWarning: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "status",
+          "token_warning_threshold",
+          "cost_warning_threshold",
+          "message",
+        ],
+        properties: {
+          status: {
+            $ref: "#/components/schemas/ProjectTokenBudgetWarningStatus",
+          },
+          token_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
+          cost_warning_threshold: {
+            type: ["number", "null"],
+            minimum: 0,
+          },
+          message: {
+            type: ["string", "null"],
+            minLength: 1,
           },
         },
       },
@@ -2251,7 +2312,14 @@ export const openApiDocument = {
       ProjectTokenUsageResponse: {
         type: "object",
         additionalProperties: false,
-        required: ["project_id", "totals", "tasks", "sessions", "failures"],
+        required: [
+          "project_id",
+          "totals",
+          "budget_warning",
+          "tasks",
+          "sessions",
+          "failures",
+        ],
         properties: {
           project_id: {
             type: "string",
@@ -2259,6 +2327,9 @@ export const openApiDocument = {
           },
           totals: {
             $ref: "#/components/schemas/ProjectTokenUsageTotals",
+          },
+          budget_warning: {
+            $ref: "#/components/schemas/ProjectTokenBudgetWarning",
           },
           tasks: {
             type: "array",
