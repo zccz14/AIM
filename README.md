@@ -224,6 +224,18 @@ aim director clarifications list --base-url http://localhost:8192 --project-id <
 aim director clarifications create --base-url http://localhost:8192 --project-id <project-id> --kind clarification --prompt "Which target outcome should Manager prioritize?"
 ```
 
+本地观测已落地的 AIM 只读状态时，可以用 CLI 查询当前维度、评估历史、Coordinator dry-run proposal 和项目优化器状态：
+
+```bash
+aim dimension list --base-url http://localhost:8192 --project-id <project-id>
+
+aim dimension evaluations list --base-url http://localhost:8192 --dimension-id <dimension-id>
+
+aim coordinator proposal dry-run --base-url http://localhost:8192 --stdin < proposal.json
+
+aim project optimizer status --base-url http://localhost:8192 --project-id <project-id>
+```
+
 构建并验证：`pnpm build`
 
 - 在 repo 根执行时，固定等价于先运行所有 workspace 包的 `build`，再运行 repo-only 的 typecheck、lint、Vitest、OpenAPI 与 changeset 校验。
