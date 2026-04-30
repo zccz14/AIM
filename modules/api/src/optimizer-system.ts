@@ -22,7 +22,9 @@ import type {
 import { createOpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneRecentEvent } from "./optimizer-lane-events.js";
 import { createOptimizerLaneEventRecorder } from "./optimizer-lane-events.js";
+import { buildProjectTokenBudgetWarning } from "./project-budget-warning.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
+import { statTokensBySessionId } from "./stat-tokens.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
   optimizer_enabled?: boolean | number;
@@ -37,6 +39,7 @@ type TaskRepository = {
     projectId: string,
   ): null | CoordinatorProject | Promise<null | CoordinatorProject>;
   listProjects(): Project[];
+  listTasks(filters?: { project_id?: string }): Promise<Task[]> | Task[];
   listRejectedTasksByProject(projectId: string): Promise<Task[]>;
   listUnfinishedTasks(): Promise<Task[]>;
 };
@@ -114,6 +117,58 @@ type CreateOptimizerSystemOptions = {
 
 const getErrorSummary = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const zeroTokenUsageTotals = () => ({
+  cache: { read: 0, write: 0 },
+  cost: 0,
+  input: 0,
+  messages: 0,
+  output: 0,
+  reasoning: 0,
+  total: 0,
+});
+
+const addTokenStats = (
+  totals: ReturnType<typeof zeroTokenUsageTotals>,
+  stats: Awaited<ReturnType<typeof statTokensBySessionId>>,
+) => {
+  totals.cache.read += stats.totals.cache.read;
+  totals.cache.write += stats.totals.cache.write;
+  totals.cost += stats.totals.cost;
+  totals.input += stats.totals.input;
+  totals.messages += stats.totals.messages;
+  totals.output += stats.totals.output;
+  totals.reasoning += stats.totals.reasoning;
+  totals.total += stats.totals.total;
+};
+
+const collectProjectBudgetWarning = async ({
+  baseUrl,
+  project,
+  taskRepository,
+}: {
+  baseUrl: string;
+  project: Project;
+  taskRepository: TaskRepository;
+}) => {
+  const totals = zeroTokenUsageTotals();
+  const tasks = (await taskRepository.listTasks({ project_id: project.id }))
+    .filter((task) => typeof task.session_id === "string")
+    .sort((left, right) => left.created_at.localeCompare(right.created_at));
+
+  for (const task of tasks) {
+    if (!task.session_id) {
+      continue;
+    }
+
+    addTokenStats(
+      totals,
+      await statTokensBySessionId(baseUrl, task.session_id),
+    );
+  }
+
+  return buildProjectTokenBudgetWarning(project, totals);
+};
 
 const isConfiguredProject = (project: Project) =>
   Boolean(project.global_provider_id.trim() && project.global_model_id.trim());
@@ -262,6 +317,12 @@ export const createOptimizerSystem = async ({
           coordinatorStateRepository,
           dimensionRepository,
           onLaneEvent: laneEvents.record,
+          budgetWarningProvider: () =>
+            collectProjectBudgetWarning({
+              baseUrl: coordinatorConfig.baseUrl,
+              project,
+              taskRepository,
+            }),
           projectDirectory: () =>
             ensureProjectWorkspace({
               git_origin_url: project.git_origin_url,

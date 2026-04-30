@@ -14,6 +14,7 @@ import type {
 import { execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
+import type { ProjectBudgetWarning } from "./project-budget-warning.js";
 
 type CoordinatorProject = Omit<Project, "optimizer_enabled"> & {
   optimizer_enabled?: boolean | number;
@@ -64,6 +65,10 @@ type CoordinatorStateRepository = {
 type CreateCoordinatorOptions = {
   activeTaskThreshold?: number;
   baselineRepository?: BaselineRepository;
+  budgetWarningProvider?: (input: {
+    project: CoordinatorProject;
+    projectId: string;
+  }) => ProjectBudgetWarning | Promise<ProjectBudgetWarning>;
   continuationSessionRepository?: ContinuationSessionRepository;
   coordinatorStateRepository?: CoordinatorStateRepository;
   dimensionRepository: DimensionRepository;
@@ -100,6 +105,13 @@ const defaultBaselineRepository: BaselineRepository = {
     };
   },
 };
+
+const defaultBudgetWarningProvider = () => ({
+  cost_warning_threshold: null,
+  message: null,
+  status: "not_configured" as const,
+  token_warning_threshold: null,
+});
 
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -403,6 +415,31 @@ export const createCoordinator = (
         lane_name: "coordinator",
         project_id: projectId,
         summary: "Coordinator lane idle: coordinator session already active.",
+      });
+      return;
+    }
+
+    let budgetWarning: ProjectBudgetWarning;
+    try {
+      budgetWarning = await (
+        options.budgetWarningProvider ?? defaultBudgetWarningProvider
+      )({ project, projectId });
+    } catch (error) {
+      options.onLaneEvent?.({
+        event: "failure",
+        lane_name: "coordinator",
+        project_id: projectId,
+        summary: `Coordinator lane skipped task-pool planning because project token usage could not be collected: ${summarizeError(error)}. Restore token usage collection or clear the budget uncertainty before expecting automatic Task Pool refill.`,
+      });
+      return;
+    }
+
+    if (budgetWarning.status === "exceeded") {
+      options.onLaneEvent?.({
+        event: "idle",
+        lane_name: "coordinator",
+        project_id: projectId,
+        summary: `Coordinator lane blocked by project budget warning: ${budgetWarning.message ?? "Project budget warning threshold exceeded."}`,
       });
       return;
     }

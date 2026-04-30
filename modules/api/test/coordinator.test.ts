@@ -285,6 +285,135 @@ describe("coordinator", () => {
     expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
+  it("skips Coordinator planning when the project budget warning is exceeded", async () => {
+    const events: unknown[] = [];
+    const repositories = createBelowThresholdRepositories();
+    const sessionManager = {
+      createSession: vi.fn(),
+    };
+    const budgetWarningProvider = vi.fn(async () => ({
+      cost_warning_threshold: null,
+      message:
+        "Project token usage exceeds the configured token warning threshold.",
+      status: "exceeded" as const,
+      token_warning_threshold: 1000,
+    }));
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      budgetWarningProvider,
+      onLaneEvent: (event) => events.push(event),
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(budgetWarningProvider).toHaveBeenCalledWith({
+      project,
+      projectId: project.id,
+    });
+    expect(
+      repositories.dimensionRepository.listDimensions,
+    ).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: "idle",
+        lane_name: "coordinator",
+        project_id: project.id,
+        summary: expect.stringContaining(
+          "Coordinator lane blocked by project budget warning",
+        ),
+      }),
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
+  it.each([
+    ["within_budget" as const, "within configured project budget"],
+    ["not_configured" as const, "without configured project budget thresholds"],
+  ])("creates Coordinator planning when the project budget warning is %s", async (status) => {
+    const repositories = createBelowThresholdRepositories();
+    const sessionHandle = {
+      [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
+      sessionId: `coordinator-session-${status}`,
+    };
+    const sessionManager = {
+      createSession: vi.fn(async () => sessionHandle),
+    };
+    const budgetWarningProvider = vi.fn(async () => ({
+      cost_warning_threshold: null,
+      message: null,
+      status,
+      token_warning_threshold: status === "within_budget" ? 1000 : null,
+    }));
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      budgetWarningProvider,
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(budgetWarningProvider).toHaveBeenCalledOnce();
+    expect(sessionManager.createSession).toHaveBeenCalledOnce();
+
+    await coordinator[Symbol.asyncDispose]();
+    expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  });
+
+  it("skips Coordinator planning with an actionable lane event when token usage collection fails", async () => {
+    const events: unknown[] = [];
+    const repositories = createBelowThresholdRepositories();
+    const sessionManager = {
+      createSession: vi.fn(),
+    };
+    const budgetWarningProvider = vi.fn(async () => {
+      throw new Error("OpenCode token usage request timed out");
+    });
+
+    const { createCoordinator } = await import("../src/coordinator.js");
+    const coordinator = createCoordinator(project.id, {
+      ...repositories,
+      budgetWarningProvider,
+      onLaneEvent: (event) => events.push(event),
+      projectDirectory: "/repo/workspace/project-1",
+      sessionManager,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(
+      repositories.dimensionRepository.listDimensions,
+    ).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: "failure",
+        lane_name: "coordinator",
+        project_id: project.id,
+        summary: expect.stringContaining(
+          "Coordinator lane skipped task-pool planning because project token usage could not be collected",
+        ),
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        summary: expect.stringContaining(
+          "OpenCode token usage request timed out",
+        ),
+      }),
+    );
+
+    await coordinator[Symbol.asyncDispose]();
+  });
+
   it("instructs Coordinator planning to use proposal dry-run evidence before batch writes", async () => {
     const dimension = createDimension("dimension-dry-run");
     const taskRepository = {
