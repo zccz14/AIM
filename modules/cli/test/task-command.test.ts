@@ -20,6 +20,12 @@ const defaultBudgetWarning = {
   cost_warning_threshold: null,
   message: null,
 };
+const defaultTokenBudget = {
+  limit: null,
+  used: 0,
+  remaining: null,
+  exhausted: false,
+};
 const optimizerStatus = {
   project_id: mainProjectId,
   optimizer_enabled: true,
@@ -30,6 +36,7 @@ const optimizerStatus = {
   token_usage: {
     availability: "partial",
     budget_warning: defaultBudgetWarning,
+    token_budget: { ...defaultTokenBudget, used: 105 },
     failed_root_session_count: 1,
     failure_summary: "Token usage unavailable for 1 of 2 root sessions.",
     root_session_count: 2,
@@ -67,6 +74,7 @@ const optimizerStatusWithoutEvents = {
   token_usage: {
     availability: "no_sessions",
     budget_warning: defaultBudgetWarning,
+    token_budget: defaultTokenBudget,
     failed_root_session_count: 0,
     failure_summary: null,
     root_session_count: 0,
@@ -87,6 +95,7 @@ const projectTokenUsageFailureMessage =
 const projectTokenUsage = {
   project_id: mainProjectId,
   budget_warning: defaultBudgetWarning,
+  token_budget: { ...defaultTokenBudget, used: 190 },
   totals: {
     input: 100,
     output: 50,
@@ -184,6 +193,7 @@ const projectTokenUsage = {
 const emptyProjectTokenUsage = {
   project_id: "00000000-0000-4000-8000-000000000002",
   budget_warning: defaultBudgetWarning,
+  token_budget: defaultTokenBudget,
   totals: {
     input: 0,
     output: 0,
@@ -205,6 +215,7 @@ const projects = [
     global_provider_id: "anthropic",
     global_model_id: "claude-sonnet-4-5",
     optimizer_enabled: true,
+    token_budget_limit: null,
     token_warning_threshold: null,
     cost_warning_threshold: null,
     created_at: "2026-04-20T00:00:00.000Z",
@@ -217,6 +228,7 @@ const projects = [
     global_provider_id: "ntnl-openai",
     global_model_id: "gpt-5.5",
     optimizer_enabled: false,
+    token_budget_limit: null,
     token_warning_threshold: null,
     cost_warning_threshold: null,
     created_at: "2026-04-21T00:00:00.000Z",
