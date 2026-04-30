@@ -482,15 +482,36 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
       tasks.dependencies,
       tasks.result,
       tasks.source_metadata,
-      opencode_sessions.state AS session_state,
+      NULL AS session_state,
       tasks.created_at,
       tasks.updated_at
     FROM ${tasksTableName} AS tasks
     INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
-    LEFT JOIN opencode_sessions ON opencode_sessions.session_id = tasks.session_id
     ORDER BY tasks.created_at ASC, tasks.rowid ASC
   `);
   const getTaskByIdStatement = database.prepare(`
+    SELECT
+      tasks.task_id,
+      tasks.title,
+      tasks.task_spec,
+      tasks.project_id,
+      projects.git_origin_url AS git_origin_url,
+      projects.global_provider_id AS global_provider_id,
+      projects.global_model_id AS global_model_id,
+      tasks.session_id,
+      tasks.worktree_path,
+      tasks.pull_request_url,
+      tasks.dependencies,
+      tasks.result,
+      tasks.source_metadata,
+      NULL AS session_state,
+      tasks.created_at,
+      tasks.updated_at
+    FROM ${tasksTableName} AS tasks
+    INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+    WHERE tasks.task_id = ?
+  `);
+  const getTaskByIdWithSessionStateStatement = database.prepare(`
     SELECT
       tasks.task_id,
       tasks.title,
@@ -819,9 +840,9 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
             continue;
           }
 
-          const currentTask = getTaskByIdStatement.get(operation.task_id) as
-            | TaskRow
-            | undefined;
+          const currentTask = getTaskByIdWithSessionStateStatement.get(
+            operation.task_id,
+          ) as TaskRow | undefined;
 
           if (!currentTask) {
             throw new Error(
@@ -864,6 +885,49 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
         filters.status === undefined
       ) {
         const rows = listTasksStatement.all() as TaskRow[];
+
+        return Promise.resolve(rows.map(mapTaskRow));
+      }
+
+      if (filters.done === undefined && filters.status === undefined) {
+        const whereClauses: string[] = [];
+        const parameters: Array<number | string> = [];
+
+        if (filters.project_id !== undefined) {
+          whereClauses.push("tasks.project_id = ?");
+          parameters.push(filters.project_id);
+        }
+
+        if (filters.session_id !== undefined) {
+          whereClauses.push("tasks.session_id = ?");
+          parameters.push(filters.session_id);
+        }
+
+        const rows = database
+          .prepare(`
+            SELECT
+              tasks.task_id,
+              tasks.title,
+              tasks.task_spec,
+              tasks.project_id,
+              projects.git_origin_url AS git_origin_url,
+              projects.global_provider_id AS global_provider_id,
+              projects.global_model_id AS global_model_id,
+              tasks.session_id,
+              tasks.worktree_path,
+              tasks.pull_request_url,
+              tasks.dependencies,
+              tasks.result,
+              tasks.source_metadata,
+              NULL AS session_state,
+              tasks.created_at,
+              tasks.updated_at
+            FROM ${tasksTableName} AS tasks
+            INNER JOIN ${projectsTableName} AS projects ON projects.id = tasks.project_id
+            WHERE ${whereClauses.join(" AND ")}
+            ORDER BY tasks.created_at ASC, tasks.rowid ASC
+          `)
+          .all(...parameters) as TaskRow[];
 
         return Promise.resolve(rows.map(mapTaskRow));
       }

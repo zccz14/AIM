@@ -162,6 +162,9 @@ const parseCreateTaskRequest = async (request: Request) => {
   return { data: result.data, ok: true as const };
 };
 
+const isDoneTaskStatus = (status: TaskStatus) =>
+  status === "resolved" || status === "rejected";
+
 const parseCreateTaskBatchRequest = async (
   request: Request,
   currentBaselineFactsProvider: CurrentBaselineFactsProvider,
@@ -908,12 +911,19 @@ export const registerTaskRoutes = (
         .map((session) => [session.session_id, session]),
     );
 
-    return tasks.map((task) => ({
-      ...task,
-      opencode_session: task.session_id
+    return tasks.map((task) => {
+      const opencodeSession = task.session_id
         ? (sessions.get(task.session_id) ?? null)
-        : null,
-    }));
+        : null;
+      const status = opencodeSession?.state ?? task.status;
+
+      return {
+        ...task,
+        done: isDoneTaskStatus(status),
+        opencode_session: opencodeSession,
+        status,
+      };
+    });
   };
   const getCurrentBaselineCommit = async () => {
     try {
