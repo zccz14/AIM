@@ -62,6 +62,12 @@ const dryRunResponse = {
 };
 
 const projectTokenUsageResponse = {
+  budget_warning: {
+    status: "not_configured",
+    token_warning_threshold: null,
+    cost_warning_threshold: null,
+    message: null,
+  },
   failures: [],
   project_id: "00000000-0000-4000-8000-000000000001",
   sessions: [
