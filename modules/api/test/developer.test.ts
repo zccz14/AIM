@@ -359,6 +359,168 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
+  it("recovers an assigned task whose OpenCode session record is unavailable", async () => {
+    vi.useFakeTimers();
+    const unavailableTask = createTask({
+      session_id: "session-missing",
+      task_id: "task-unavailable-session",
+      worktree_path: "/repo/.worktrees/task-unavailable-session",
+    });
+    const recoveredTask = createTask({
+      ...unavailableTask,
+      opencode_session: createOpenCodeSession({
+        session_id: "session-recovered",
+        state: "pending",
+      }),
+      session_id: "session-recovered",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([unavailableTask]),
+      updateTask: vi.fn().mockResolvedValue(recoveredTask),
+    };
+    const sessionManager = createSessionManager();
+    sessionManager.createSession.mockResolvedValue(
+      createSessionHandle("session-recovered"),
+    );
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.updateTask).toHaveBeenCalledWith(
+        unavailableTask.task_id,
+        { session_id: "session-recovered" },
+      );
+    });
+    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(unavailableTask);
+    expect(sessionManager.createSession).toHaveBeenCalledWith({
+      directory: unavailableTask.worktree_path,
+      model: {
+        modelID: unavailableTask.global_model_id,
+        providerID: unavailableTask.global_provider_id,
+      },
+      prompt: buildTaskSessionPrompt(unavailableTask),
+      title: `AIM Developer Recovery: ${unavailableTask.title}`,
+    });
+    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
+    expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+    expect(onLaneEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "success",
+        project_id: unavailableTask.project_id,
+        session_id: "session-recovered",
+        task_id: unavailableTask.task_id,
+      }),
+    );
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("skips unavailable assigned sessions for PR follow-up work", async () => {
+    vi.useFakeTimers();
+    const prTask = createTask({
+      pull_request_url: "https://github.com/example/repo/pull/6",
+      session_id: "session-missing-pr",
+      task_id: "task-unavailable-pr",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([prTask]),
+      updateTask: vi.fn(),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+    const pullRequestStatusProvider = {
+      getTaskPullRequestStatus: vi.fn().mockResolvedValue({
+        category: "waiting_checks",
+      }),
+    };
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      pullRequestStatusProvider,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: prTask.project_id,
+          session_id: "session-missing-pr",
+          task_id: prTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) =>
+        laneEvent.event === "noop" && laneEvent.task_id === prTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain(
+      "pull request follow-up category waiting_checks",
+    );
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.updateTask).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("skips unavailable assigned sessions while a dependency is not resolved", async () => {
+    vi.useFakeTimers();
+    const blockedTask = createTask({
+      dependencies: ["dependency-pending"],
+      session_id: "session-missing-blocked",
+      task_id: "task-unavailable-blocked",
+    });
+    const dependencyTask = createTask({
+      status: "pending",
+      task_id: "dependency-pending",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      getTaskById: vi.fn().mockResolvedValue(dependencyTask),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([blockedTask]),
+      updateTask: vi.fn(),
+    };
+    const sessionManager = createSessionManager();
+    const onLaneEvent = vi.fn();
+
+    const developer = createDeveloper({
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "noop",
+          project_id: blockedTask.project_id,
+          session_id: "session-missing-blocked",
+          task_id: blockedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) =>
+        laneEvent.event === "noop" && laneEvent.task_id === blockedTask.task_id,
+    )?.[0];
+    expect(event?.summary).toContain("dependency-pending");
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+    expect(repository.updateTask).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
   it("skips assigned tasks whose OpenCode session is already settled", async () => {
     vi.useFakeTimers();
     const resolvedTask = createTask({
