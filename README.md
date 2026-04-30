@@ -252,3 +252,4 @@ aim project:token-usage --base-url http://localhost:8192 --project-id <project-i
 以下文档同样属于 AIM Director 视角的内容，具有同等重要性，建议 AIM Manager 阅读：
 
 - [Web GUI Scoped README](modules/web/README.md)
+- [OpenCode Session Manager](docs/directors/opencode-session-manager.md) 非常重要的抽象层设计，决定 AIM 如何与 OpenCode 交互。
