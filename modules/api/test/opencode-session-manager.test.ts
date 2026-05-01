@@ -151,7 +151,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(repository[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("sends the stored prompt with persisted model when a pending session has no messages for 30 minutes", async () => {
+  it("sends the stored prompt with persisted model when the latest message is older than 5 minutes", async () => {
     const repository = createRepository();
     await repository.createSession({
       continue_prompt: "Recover the session.",
@@ -165,7 +165,16 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
-        messages: vi.fn().mockResolvedValue({ data: [] }),
+        messages: vi.fn().mockResolvedValue({
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 6 * 60 * 1000 },
+              },
+              parts: [],
+            },
+          ],
+        }),
         promptAsync,
       },
     });
@@ -194,7 +203,7 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
-  it("does not prompt a pending session whose latest message is newer than 30 minutes", async () => {
+  it("does not prompt a pending session whose latest message is newer than 5 minutes", async () => {
     const repository = createRepository();
     await repository.createSession({
       continue_prompt: "Do not send yet.",
@@ -210,7 +219,7 @@ describe("createOpenCodeSessionManager", () => {
           data: [
             {
               info: {
-                time: { created: Date.now() - 29 * 60 * 1000 },
+                time: { created: Date.now() - 4 * 60 * 1000 },
               },
               parts: [],
             },
@@ -269,6 +278,47 @@ describe("createOpenCodeSessionManager", () => {
     });
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-dangling",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("deletes a referenced pending AIM session with no continuation prompt when OpenCode reports its messages are not found", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: null,
+      session_id: "session-dangling-without-prompt",
+    });
+    repository.referenceSession("session-dangling-without-prompt");
+    const messages = vi.fn().mockRejectedValue({ response: { status: 404 } });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(messages).toHaveBeenCalledWith({
+      path: { id: "session-dangling-without-prompt" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-dangling-without-prompt",
     );
     expect(repository.listSessions({ state: "pending" })).toEqual([]);
     expect(promptAsync).not.toHaveBeenCalled();
@@ -494,7 +544,7 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
-  it("does not repeat a stale continuation prompt inside the retry throttle window", async () => {
+  it("can repeat a stale continuation prompt on the next patrol when messages still report the same stale timestamp", async () => {
     const repository = createRepository();
     await repository.createSession({
       continue_prompt: "Recover only once for now.",
@@ -520,9 +570,9 @@ describe("createOpenCodeSessionManager", () => {
     });
 
     await vi.advanceTimersByTimeAsync(1);
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(2001);
 
-    expect(promptAsync).toHaveBeenCalledTimes(1);
+    expect(promptAsync).toHaveBeenCalledTimes(2);
 
     await manager[Symbol.asyncDispose]();
   });
