@@ -85,17 +85,35 @@ const mockGitAndGh = ({
       checks: [{ context: "API / test" }, { context: "Web / test" }],
     },
   }),
+  branchProtectionError = null,
   commitSha = "abc1234",
   repo = JSON.stringify({
     defaultBranchRef: { name: "main" },
     nameWithOwner: "example/main",
   }),
-  rulesets = JSON.stringify([{ enforcement: "active", name: "Main gate" }]),
+  rulesetDetails = {
+    "repos/example/main/rulesets/1": JSON.stringify({
+      rules: [
+        {
+          parameters: {
+            required_status_checks: [{ context: "Build" }],
+            strict_required_status_checks_policy: true,
+          },
+          type: "required_status_checks",
+        },
+      ],
+    }),
+  },
+  rulesets = JSON.stringify([
+    { enforcement: "active", id: 1, name: "Main gate" },
+  ]),
   workflows = "API\tactive\nWeb\tactive\n",
 }: {
+  branchProtectionError?: Error | null;
   branchProtection?: string;
   commitSha?: string;
   repo?: string;
+  rulesetDetails?: Record<string, Error | string>;
   rulesets?: string;
   workflows?: string;
 } = {}) => {
@@ -104,7 +122,7 @@ const mockGitAndGh = ({
       command: string,
       args: string[],
       _options: unknown,
-      callback: (error: null, stdout: string) => void,
+      callback: (error: Error | null, stdout: string) => void,
     ) => {
       if (command === "git") {
         callback(null, args[0] === "rev-parse" ? `${commitSha}\n` : "");
@@ -126,6 +144,11 @@ const mockGitAndGh = ({
         args[0] === "api" &&
         args[1] === "repos/example/main/branches/main/protection"
       ) {
+        if (branchProtectionError) {
+          callback(branchProtectionError, "");
+          return;
+        }
+
         callback(null, branchProtection);
         return;
       }
@@ -137,6 +160,20 @@ const mockGitAndGh = ({
       ) {
         callback(null, rulesets);
         return;
+      }
+
+      if (command === "gh" && args[0] === "api") {
+        const detail = rulesetDetails[args[1] ?? ""];
+
+        if (detail instanceof Error) {
+          callback(detail, "");
+          return;
+        }
+
+        if (typeof detail === "string") {
+          callback(null, detail);
+          return;
+        }
       }
 
       callback(null, "");
@@ -270,10 +307,86 @@ describe("manager", () => {
       "GitHub Actions workflows: API (active); Web (active).",
     );
     expect(prompt).toContain("Required checks: API / test; Web / test.");
-    expect(prompt).toContain("Branch rulesets: Main gate (active).");
+    expect(prompt).toContain(
+      "Branch rulesets: Main gate (active; required checks: Build; strict: true).",
+    );
     expect(prompt).toContain(
       "Use this read-only GitHub gate evidence when evaluating CI and validation reliability dimensions.",
     );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("includes ruleset required checks when branch protection required-check evidence is unavailable", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGitAndGh({
+      branchProtectionError: new Error("HTTP 404: branch protection disabled"),
+      commitSha: "def5678",
+    });
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-ci"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain(
+      "Evidence limit: branch protection or required checks evidence unavailable",
+    );
+    expect(prompt).toContain("HTTP 404: branch protection disabled");
+    expect(prompt).toContain(
+      "Branch rulesets: Main gate (active; required checks: Build; strict: true).",
+    );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("includes a ruleset detail evidence limit when active ruleset detail reading fails", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGitAndGh({
+      commitSha: "def5678",
+      rulesetDetails: {
+        "repos/example/main/rulesets/1": new Error("HTTP 403: forbidden"),
+      },
+    });
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-ci"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Branch rulesets: Main gate (active).");
+    expect(prompt).toContain(
+      "Evidence limit: branch ruleset detail evidence unavailable for Main gate",
+    );
+    expect(prompt).toContain("HTTP 403: forbidden");
 
     await manager[Symbol.asyncDispose]();
   });

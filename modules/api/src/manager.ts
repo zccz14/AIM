@@ -19,6 +19,7 @@ const heartbeatIntervalMs = 10_000;
 const maxRecentCommitEvidenceChars = 4_000;
 const maxRecentCommitEvidenceLines = 100;
 const maxRecentCommitReadErrorChars = 600;
+const maxRulesetDetailQueries = 5;
 const dependencyEvidenceLimit = 12;
 const dependencyRiskSummaryMaxLength = 3_000;
 const dependencyAuditTimeoutMs = 15_000;
@@ -154,27 +155,211 @@ const summarizeRequiredChecks = (output: string) => {
     : "Evidence limit: branch protection did not report required checks.";
 };
 
-const summarizeRulesets = (output: string) => {
+const normalizeGhApiTarget = (value: string) => {
+  const trimmed = value.trim();
+
+  if (trimmed.startsWith("https://api.github.com/")) {
+    return trimmed.slice("https://api.github.com/".length);
+  }
+
+  return trimmed.startsWith("repos/") ? trimmed : null;
+};
+
+const readRulesetDetailTarget = (
+  nameWithOwner: string,
+  ruleset: Record<string, unknown>,
+) => {
+  const id = ruleset.id;
+
+  if (typeof id === "number" || typeof id === "string") {
+    const normalizedId = String(id).trim();
+
+    if (normalizedId.length > 0) {
+      return `repos/${nameWithOwner}/rulesets/${normalizedId}`;
+    }
+  }
+
+  for (const key of ["url", "self_url"] as const) {
+    const target = readStringProperty(ruleset, key);
+    const normalized = target ? normalizeGhApiTarget(target) : null;
+
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const links = asRecord(ruleset._links) ?? asRecord(ruleset.links);
+  const selfLink = asRecord(links?.self);
+  const selfHref = readStringProperty(selfLink, "href");
+
+  return selfHref ? normalizeGhApiTarget(selfHref) : null;
+};
+
+const formatStrictPolicy = (value: unknown): string | null => {
+  if (typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  const record = asRecord(value);
+
+  if (!record) {
+    return null;
+  }
+
+  if (typeof record.enabled === "boolean") {
+    return String(record.enabled);
+  }
+
+  if (typeof record.strict === "boolean") {
+    return String(record.strict);
+  }
+
+  return null;
+};
+
+const readCheckContext = (value: unknown) => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  const record = asRecord(value);
+
+  return (
+    readStringProperty(record, "context") ??
+    readStringProperty(record, "name") ??
+    readStringProperty(record, "check_name")
+  );
+};
+
+const collectRequiredStatusChecks = (value: unknown) => {
+  const contexts: string[] = [];
+
+  const collect = (candidate: unknown) => {
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) {
+        const context = readCheckContext(item);
+
+        if (context) {
+          contexts.push(context);
+        }
+      }
+    }
+  };
+
+  const parameters = asRecord(value);
+  const requiredStatusChecks = parameters?.required_status_checks;
+  const nestedRequiredStatusChecks = asRecord(requiredStatusChecks);
+
+  collect(requiredStatusChecks);
+  collect(parameters?.contexts);
+  collect(parameters?.checks);
+  collect(nestedRequiredStatusChecks?.contexts);
+  collect(nestedRequiredStatusChecks?.checks);
+  collect(nestedRequiredStatusChecks?.required_status_checks);
+
+  return [...new Set(contexts)].sort();
+};
+
+const readRulesetRequiredChecks = (output: string) => {
+  const ruleset = asRecord(parseJson(output));
+  const rules = Array.isArray(ruleset?.rules) ? ruleset.rules : [];
+  const contexts: string[] = [];
+  let strict: string | null = null;
+
+  for (const rule of rules) {
+    const record = asRecord(rule);
+
+    if (readStringProperty(record, "type") !== "required_status_checks") {
+      continue;
+    }
+
+    const parameters = asRecord(record?.parameters);
+    contexts.push(...collectRequiredStatusChecks(parameters));
+    strict ??=
+      formatStrictPolicy(parameters?.strict_required_status_checks_policy) ??
+      formatStrictPolicy(parameters?.strict) ??
+      formatStrictPolicy(
+        asRecord(parameters?.required_status_checks)
+          ?.strict_required_status_checks_policy,
+      ) ??
+      formatStrictPolicy(asRecord(parameters?.required_status_checks)?.strict);
+  }
+
+  return { contexts: [...new Set(contexts)].sort(), strict };
+};
+
+const summarizeRulesets = async (
+  output: string,
+  nameWithOwner: string,
+  readRulesetDetail: (target: string) => Promise<string>,
+) => {
   const rulesets = parseJson(output);
-  const summaries = Array.isArray(rulesets)
-    ? rulesets
-        .map((ruleset) => {
-          const record = asRecord(ruleset);
-          const name = readStringProperty(record, "name");
-          const enforcement = readStringProperty(record, "enforcement");
+  const detailLimits: string[] = [];
+  let detailQueries = 0;
+  const summaries: string[] = [];
 
-          if (!name) {
-            return null;
+  if (Array.isArray(rulesets)) {
+    for (const ruleset of rulesets) {
+      const record = asRecord(ruleset);
+      const name = readStringProperty(record, "name");
+      const enforcement = readStringProperty(record, "enforcement");
+
+      if (!name) {
+        continue;
+      }
+
+      const attributes = enforcement ? [enforcement] : [];
+
+      if (enforcement === "active") {
+        const target = readRulesetDetailTarget(nameWithOwner, record ?? {});
+
+        if (!target) {
+          detailLimits.push(
+            `Evidence limit: branch ruleset detail evidence unavailable for ${name}: no detail target reported.`,
+          );
+        } else if (detailQueries >= maxRulesetDetailQueries) {
+          detailLimits.push(
+            `Evidence limit: branch ruleset detail evidence unavailable for ${name}: bounded to ${maxRulesetDetailQueries} active ruleset detail queries.`,
+          );
+        } else {
+          detailQueries += 1;
+
+          try {
+            const detail = readRulesetRequiredChecks(
+              await readRulesetDetail(target),
+            );
+
+            if (detail.contexts.length > 0) {
+              attributes.push(`required checks: ${detail.contexts.join("; ")}`);
+            }
+
+            if (detail.strict) {
+              attributes.push(`strict: ${detail.strict}`);
+            }
+          } catch (err) {
+            detailLimits.push(
+              `Evidence limit: branch ruleset detail evidence unavailable for ${name}: ${errorMessage(err)}.`,
+            );
           }
+        }
+      }
 
-          return enforcement ? `${name} (${enforcement})` : name;
-        })
-        .filter((ruleset): ruleset is string => ruleset !== null)
-    : [];
+      summaries.push(
+        attributes.length > 0 ? `${name} (${attributes.join("; ")})` : name,
+      );
+    }
+  }
 
-  return summaries.length > 0
-    ? `Branch rulesets: ${summaries.join("; ")}.`
-    : "Evidence limit: gh reported no branch rulesets.";
+  const summary =
+    summaries.length > 0
+      ? `Branch rulesets: ${summaries.join("; ")}.`
+      : "Evidence limit: gh reported no branch rulesets.";
+
+  return [summary, ...detailLimits].join("\n");
 };
 
 const collectCiGateEvidence = async (projectDirectory: string) => {
@@ -235,11 +420,13 @@ const collectCiGateEvidence = async (projectDirectory: string) => {
 
     try {
       lines.push(
-        summarizeRulesets(
+        await summarizeRulesets(
           await gh(projectDirectory, [
             "api",
             `repos/${nameWithOwner}/rulesets?targets=branch`,
           ]),
+          nameWithOwner,
+          (target) => gh(projectDirectory, ["api", target]),
         ),
       );
     } catch (err) {
