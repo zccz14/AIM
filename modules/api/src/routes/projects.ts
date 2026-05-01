@@ -374,6 +374,17 @@ export const registerProjectRoutes = (
     }
   });
 
+  app.get(projectByIdRoutePath, async (context) => {
+    const projectId = requireProjectId(context.req.param("projectId"));
+    const project = await getRepository().getProjectById(projectId);
+
+    if (!project) {
+      return context.json(buildNotFoundError(projectId), 404);
+    }
+
+    return context.json(project, 200);
+  });
+
   app.patch(projectByIdRoutePath, async (context) => {
     const projectId = requireProjectId(context.req.param("projectId"));
     const patch = await parsePatchProjectRequest(context.req.raw);

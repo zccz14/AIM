@@ -121,6 +121,20 @@ const projectTokenUsageResponse = {
   },
 };
 
+const projectResponse = {
+  id: "00000000-0000-4000-8000-000000000001",
+  name: "project-detail",
+  git_origin_url: "https://github.com/example/project-detail.git",
+  global_provider_id: "anthropic",
+  global_model_id: "claude-sonnet-4-5",
+  optimizer_enabled: true,
+  token_budget_limit: null,
+  token_warning_threshold: null,
+  cost_warning_threshold: null,
+  created_at: "2026-04-26T00:00:00.000Z",
+  updated_at: "2026-04-26T00:00:00.000Z",
+};
+
 describe("contract client coordinator proposal dry-run", () => {
   it("posts the provided request to the read-only dry-run endpoint", async () => {
     const requests: Array<{ method: string; path: string; json: unknown }> = [];
@@ -194,5 +208,70 @@ describe("contract client project token usage", () => {
         json: null,
       },
     ]);
+  });
+});
+
+describe("contract client project detail", () => {
+  it("gets a project by id from the read-only project endpoint", async () => {
+    const requests: Array<{ method: string; path: string; json: unknown }> = [];
+    const client = createContractClient({
+      fetch: async (input, init) => {
+        const request =
+          input instanceof Request
+            ? input
+            : new Request(new URL(String(input), "http://127.0.0.1"), init);
+        const url = new URL(request.url, "http://127.0.0.1");
+        const bodyText = await request.text();
+
+        requests.push({
+          method: request.method,
+          path: url.pathname,
+          json: bodyText ? JSON.parse(bodyText) : null,
+        });
+
+        return new Response(JSON.stringify(projectResponse), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        });
+      },
+    });
+
+    await expect(
+      client.getProjectById("00000000-0000-4000-8000-000000000001"),
+    ).resolves.toEqual(projectResponse);
+    expect(requests).toEqual([
+      {
+        method: "GET",
+        path: "/projects/00000000-0000-4000-8000-000000000001",
+        json: null,
+      },
+    ]);
+  });
+
+  it("throws PROJECT_NOT_FOUND errors from the project detail endpoint", async () => {
+    const client = createContractClient({
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            code: "PROJECT_NOT_FOUND",
+            message:
+              "Project 00000000-0000-4000-8000-000000000001 was not found",
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 404,
+          },
+        ),
+    });
+
+    await expect(
+      client.getProjectById("00000000-0000-4000-8000-000000000001"),
+    ).rejects.toMatchObject({
+      error: {
+        code: "PROJECT_NOT_FOUND",
+        message: "Project 00000000-0000-4000-8000-000000000001 was not found",
+      },
+      status: 404,
+    });
   });
 });

@@ -583,12 +583,12 @@ export const createTaskRepository = (options: TaskRepositoryOptions = {}) => {
 
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
-    getProjectById(projectId: string): Promise<null | ProjectRow> {
+    getProjectById(projectId: string): Promise<null | Project> {
       const project = getProjectByIdStatement.get(projectId) as
         | ProjectRow
         | undefined;
 
-      return Promise.resolve(project ?? null);
+      return Promise.resolve(project ? mapProjectRow(project) : null);
     },
     listProjects(): Project[] {
       const rows = listProjectsStatement.all() as ProjectRow[];
