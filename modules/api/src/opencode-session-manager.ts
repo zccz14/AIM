@@ -76,10 +76,9 @@ export type OpenCodeSessionManager = AsyncDisposable & {
   ): Promise<void>;
 };
 
-const staleAfterMilliseconds = 30 * 60 * 1000;
+const staleAfterMilliseconds = 5 * 60 * 1000;
 const orphanCleanupGraceMilliseconds = 5 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
-const continuationRetryThrottleMilliseconds = staleAfterMilliseconds;
 const continuationTerminalInstructions = `
 
 Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
@@ -158,10 +157,6 @@ export const createOpenCodeSessionManager = ({
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
   const client = createOpencodeClient({ baseUrl });
-  const lastContinuationAttemptBySessionId = new Map<
-    string,
-    { attemptedAt: number; latestMessageTime: number }
-  >();
   stack.use(repository);
 
   const watchPendingSessions = async () => {
@@ -210,67 +205,51 @@ export const createOpenCodeSessionManager = ({
             continue;
           }
 
-          const prompt = session.continue_prompt?.trim();
-          if (prompt) {
-            let latestMessageTime: number;
+          let latestMessageTime: number;
+
+          try {
+            latestMessageTime = await getLatestMessageTime(
+              client,
+              session.session_id,
+            );
+          } catch (error) {
+            if (!isOpenCodeSessionNotFoundError(error)) {
+              throw error;
+            }
 
             try {
-              latestMessageTime = await getLatestMessageTime(
-                client,
-                session.session_id,
-              );
-            } catch (error) {
-              if (!isOpenCodeSessionNotFoundError(error)) {
-                throw error;
-              }
-
-              try {
-                await repository.deleteSessionById(session.session_id);
-              } catch (deleteError) {
-                console.warn("OpenCode dangling session cleanup failed", {
-                  error: summarizeError(deleteError),
-                  session_id: session.session_id,
-                });
-              }
-
-              continue;
+              await repository.deleteSessionById(session.session_id);
+            } catch (deleteError) {
+              console.warn("OpenCode dangling session cleanup failed", {
+                error: summarizeError(deleteError),
+                session_id: session.session_id,
+              });
             }
 
-            if (Date.now() - latestMessageTime >= staleAfterMilliseconds) {
-              const lastAttempt = lastContinuationAttemptBySessionId.get(
-                session.session_id,
-              );
-              if (
-                lastAttempt?.latestMessageTime === latestMessageTime &&
-                Date.now() - lastAttempt.attemptedAt <
-                  continuationRetryThrottleMilliseconds
-              ) {
-                continue;
-              }
+            continue;
+          }
 
-              const model =
-                session.provider_id && session.model_id
-                  ? {
-                      modelID: session.model_id,
-                      providerID: session.provider_id,
-                    }
-                  : undefined;
+          const prompt = session.continue_prompt?.trim();
+          if (
+            prompt &&
+            Date.now() - latestMessageTime >= staleAfterMilliseconds
+          ) {
+            const model =
+              session.provider_id && session.model_id
+                ? {
+                    modelID: session.model_id,
+                    providerID: session.provider_id,
+                  }
+                : undefined;
 
-              lastContinuationAttemptBySessionId.set(session.session_id, {
-                attemptedAt: Date.now(),
-                latestMessageTime,
-              });
-              await client.session.promptAsync({
-                body: {
-                  model,
-                  parts: [{ text: withContinuation(prompt), type: "text" }],
-                },
-                path: { id: session.session_id },
-                throwOnError: true,
-              });
-            } else {
-              lastContinuationAttemptBySessionId.delete(session.session_id);
-            }
+            await client.session.promptAsync({
+              body: {
+                model,
+                parts: [{ text: withContinuation(prompt), type: "text" }],
+              },
+              path: { id: session.session_id },
+              throwOnError: true,
+            });
           }
         } catch (error) {
           console.warn("OpenCode pending session recovery failed", {
