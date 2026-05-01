@@ -7,6 +7,7 @@ import {
   projectByIdPath,
   projectOptimizerStatusPath,
   projectOptimizerStatusResponseSchema,
+  projectSchema,
   projectsPath,
   projectTokenUsagePath,
   projectTokenUsageResponseSchema,
@@ -38,6 +39,9 @@ const projectTokenUsageRoutePath = projectTokenUsagePath.replace(
   ":projectId",
 );
 const projectTokenUsageSessionTimeoutMs = 10_000;
+type RepositoryProject = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof createTaskRepository>["getProjectById"]>>
+>;
 
 const createTimeoutSignal = (timeoutMs: number) => {
   const controller = new AbortController();
@@ -95,6 +99,12 @@ const parsePatchProjectRequest = async (request: Request) => {
 
 const requireProjectId = (projectId: string | undefined) =>
   projectId ?? "project-unknown";
+
+const toProjectResponse = (project: RepositoryProject) =>
+  projectSchema.parse({
+    ...project,
+    optimizer_enabled: Boolean(project.optimizer_enabled),
+  });
 
 const zeroTokenUsageTotals = () => ({
   cache: { read: 0, write: 0 },
@@ -372,6 +382,17 @@ export const registerProjectRoutes = (
         400,
       );
     }
+  });
+
+  app.get(projectByIdRoutePath, async (context) => {
+    const projectId = requireProjectId(context.req.param("projectId"));
+    const project = await getRepository().getProjectById(projectId);
+
+    if (!project) {
+      return context.json(buildNotFoundError(projectId), 404);
+    }
+
+    return context.json(toProjectResponse(project), 200);
   });
 
   app.patch(projectByIdRoutePath, async (context) => {

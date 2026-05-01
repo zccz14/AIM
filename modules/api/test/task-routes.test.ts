@@ -300,6 +300,21 @@ describe("task routes", () => {
       items: [createdProject],
     });
 
+    const getResponse = await app.request(`/projects/${createdProject.id}`);
+
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toEqual(createdProject);
+
+    const missingGetResponse = await app.request(
+      "/projects/00000000-0000-4000-8000-000000000099",
+    );
+
+    expect(missingGetResponse.status).toBe(404);
+    await expect(missingGetResponse.json()).resolves.toEqual({
+      code: "PROJECT_NOT_FOUND",
+      message: "Project 00000000-0000-4000-8000-000000000099 was not found",
+    });
+
     const patchResponse = await app.request(`/projects/${createdProject.id}`, {
       method: "PATCH",
       headers: {

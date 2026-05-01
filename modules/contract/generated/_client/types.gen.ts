@@ -1193,6 +1193,35 @@ export type DeleteProjectByIdResponses = {
 export type DeleteProjectByIdResponse =
   DeleteProjectByIdResponses[keyof DeleteProjectByIdResponses];
 
+export type GetProjectByIdData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}";
+};
+
+export type GetProjectByIdErrors = {
+  /**
+   * Project not found
+   */
+  404: ErrorResponse;
+};
+
+export type GetProjectByIdError =
+  GetProjectByIdErrors[keyof GetProjectByIdErrors];
+
+export type GetProjectByIdResponses = {
+  /**
+   * Project detail
+   */
+  200: Project;
+};
+
+export type GetProjectByIdResponse =
+  GetProjectByIdResponses[keyof GetProjectByIdResponses];
+
 export type PatchProjectByIdData = {
   body: PatchProjectRequest;
   path: {

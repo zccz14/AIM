@@ -57,6 +57,9 @@ import type {
   GetOpenCodeSessionByIdData,
   GetOpenCodeSessionByIdErrors,
   GetOpenCodeSessionByIdResponses,
+  GetProjectByIdData,
+  GetProjectByIdErrors,
+  GetProjectByIdResponses,
   GetProjectOptimizerStatusData,
   GetProjectOptimizerStatusErrors,
   GetProjectOptimizerStatusResponses,
@@ -362,6 +365,18 @@ export const deleteProjectById = <ThrowOnError extends boolean = false>(
   (options.client ?? client).delete<
     DeleteProjectByIdResponses,
     DeleteProjectByIdErrors,
+    ThrowOnError
+  >({ url: "/projects/{projectId}", ...options });
+
+/**
+ * Read a project
+ */
+export const getProjectById = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectByIdData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectByIdResponses,
+    GetProjectByIdErrors,
     ThrowOnError
   >({ url: "/projects/{projectId}", ...options });
 
