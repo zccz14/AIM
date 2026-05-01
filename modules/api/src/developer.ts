@@ -16,11 +16,7 @@ type BaselineRepository = {
   getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
 };
 
-type DeveloperSessionCreator = Pick<OpenCodeSessionManager, "createSession">;
-type DeveloperSessionManager = Pick<
-  OpenCodeSessionManager,
-  "createSession" | "pushContinuationPrompt"
->;
+type DeveloperSessionManager = Pick<OpenCodeSessionManager, "createSession">;
 
 type PullRequestFollowupView = {
   autoMergeRequest?: unknown;
@@ -78,7 +74,7 @@ type CreateDeveloperOptions = {
 };
 
 type ManagedDeveloperSession = Awaited<
-  ReturnType<DeveloperSessionCreator["createSession"]>
+  ReturnType<DeveloperSessionManager["createSession"]>
 >;
 
 const heartbeatMs = 1000;
@@ -378,20 +374,12 @@ export const createDeveloper = ({
     );
 
     if (task.session_id) {
-      await sessionManager.pushContinuationPrompt({
-        model: {
-          modelID: task.global_model_id,
-          providerID: task.global_provider_id,
-        },
-        prompt,
-        sessionId: task.session_id,
-      });
       onLaneEvent?.({
-        event: "success",
+        event: "noop",
         lane_name: "developer",
         project_id: task.project_id,
         session_id: task.session_id,
-        summary: `Developer lane continued merged PR settlement for task ${task.task_id}.`,
+        summary: `Developer lane skipped merged PR settlement for task ${task.task_id}: external session continuation is disabled.`,
         task_id: task.task_id,
       });
 
@@ -597,20 +585,12 @@ export const createDeveloper = ({
       return;
     }
 
-    await sessionManager.pushContinuationPrompt({
-      model: {
-        modelID: task.global_model_id,
-        providerID: task.global_provider_id,
-      },
-      prompt: buildTaskSessionPrompt(task),
-      sessionId: task.session_id,
-    });
     onLaneEvent?.({
-      event: "success",
+      event: "noop",
       lane_name: "developer",
       project_id: task.project_id,
       session_id: task.session_id,
-      summary: `Developer lane continued assigned pending session ${task.session_id} for task ${task.task_id}.`,
+      summary: `Developer lane skipped assigned pending session ${task.session_id} for task ${task.task_id}: external session continuation is disabled.`,
       task_id: task.task_id,
     });
   };

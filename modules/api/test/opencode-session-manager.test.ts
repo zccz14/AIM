@@ -1228,57 +1228,6 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
-  it("pushes explicit continuation prompts with selected model metadata", async () => {
-    const repository = createRepository();
-    const promptAsync = vi.fn().mockResolvedValue({});
-
-    mockCreateOpencodeClient.mockReturnValue({
-      session: {
-        create: vi.fn(),
-        messages: vi.fn().mockResolvedValue({ data: [] }),
-        promptAsync,
-      },
-    });
-
-    const { createOpenCodeSessionManager } = await import(
-      "../src/opencode-session-manager.js"
-    );
-    const manager = createOpenCodeSessionManager({
-      apiBaseUrl: "http://aim.example.test",
-      baseUrl: "http://127.0.0.1:54321",
-      repository,
-    });
-
-    await manager.pushContinuationPrompt({
-      model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-      prompt: "Continue explicitly.",
-      sessionId: "session-explicit",
-    });
-
-    const sentText = promptAsync.mock.calls[0]?.[0].body.parts[0].text;
-    expect(sentText).toContain("Continue explicitly.");
-    expect(sentText).toContain("AIM Session Settlement Protocol");
-    expect(sentText).toContain(
-      "http://aim.example.test/opencode/sessions/session-explicit/resolve",
-    );
-    expect(sentText).toContain(
-      "http://aim.example.test/opencode/sessions/session-explicit/reject",
-    );
-    expect(sentText).toContain("curl");
-    expect(sentText).not.toContain("aim_session_resolve");
-    expect(sentText).not.toContain("aim_session_reject");
-    expect(promptAsync).toHaveBeenCalledWith({
-      body: {
-        model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-        parts: [{ text: sentText, type: "text" }],
-      },
-      path: { id: "session-explicit" },
-      throwOnError: true,
-    });
-
-    await manager[Symbol.asyncDispose]();
-  });
-
   it("appends terminal settlement instructions without changing the original prompt", async () => {
     const { withContinuation } = await import(
       "../src/opencode-session-manager.js"

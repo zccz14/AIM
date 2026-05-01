@@ -9,8 +9,6 @@ import type {
   DirectorClarificationStatus,
   OpenCodeModelsResponse,
   OpenCodeSession,
-  OpenCodeSessionContinueBulkResponse,
-  OpenCodeSessionContinueResult,
   OpenCodeSessionListResponse,
   Project,
   ProjectListResponse,
@@ -170,21 +168,6 @@ export const refreshOpenCodeSessionTokenUsageById = async (
   const client = createWebApiClient();
 
   return client.refreshOpenCodeSessionTokenUsageById(sessionId);
-};
-
-export const continuePendingOpenCodeSessions =
-  async (): Promise<OpenCodeSessionContinueBulkResponse> => {
-    const client = createWebApiClient();
-
-    return client.continuePendingOpenCodeSessions();
-  };
-
-export const continueOpenCodeSession = async (
-  sessionId: string,
-): Promise<OpenCodeSessionContinueResult> => {
-  const client = createWebApiClient();
-
-  return client.continueOpenCodeSession(sessionId);
 };
 
 export const listDirectorClarifications = async (

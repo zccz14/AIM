@@ -12,8 +12,6 @@ export {
   healthPath,
   openApiDocument,
   openCodeSessionByIdPath,
-  openCodeSessionContinuePath,
-  openCodeSessionContinuePendingPath,
   openCodeSessionRejectPath,
   openCodeSessionResolvePath,
   openCodeSessionsPath,
@@ -69,10 +67,6 @@ export const projectTokenUsageResponseSchema =
 export const openCodeSessionSchema = schemas.OpenCodeSession;
 export const openCodeSessionListResponseSchema =
   schemas.OpenCodeSessionListResponse;
-export const openCodeSessionContinueResultSchema =
-  schemas.OpenCodeSessionContinueResult;
-export const openCodeSessionContinueBulkResponseSchema =
-  schemas.OpenCodeSessionContinueBulkResponse;
 export const openCodeSessionStateSchema = schemas.OpenCodeSessionState;
 export const createOpenCodeSessionRequestSchema =
   schemas.CreateOpenCodeSessionRequest;
@@ -148,12 +142,6 @@ export type ProjectTokenUsageResponse = Infer<
 export type OpenCodeSession = Infer<typeof openCodeSessionSchema>;
 export type OpenCodeSessionListResponse = Infer<
   typeof openCodeSessionListResponseSchema
->;
-export type OpenCodeSessionContinueResult = Infer<
-  typeof openCodeSessionContinueResultSchema
->;
-export type OpenCodeSessionContinueBulkResponse = Infer<
-  typeof openCodeSessionContinueBulkResponseSchema
 >;
 export type OpenCodeSessionState = Infer<typeof openCodeSessionStateSchema>;
 export type CreateOpenCodeSessionRequest = Input<

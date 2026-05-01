@@ -19,13 +19,7 @@ import {
   directorClarificationListResponseSchema,
   directorClarificationSchema,
   type OpenCodeSession,
-  type OpenCodeSessionContinueBulkResponse,
-  type OpenCodeSessionContinueResult,
   type OpenCodeSessionListResponse,
-  openCodeSessionContinueBulkResponseSchema,
-  openCodeSessionContinuePath,
-  openCodeSessionContinuePendingPath,
-  openCodeSessionContinueResultSchema,
   openCodeSessionListResponseSchema,
   openCodeSessionSchema,
   openCodeSessionsPath,
@@ -144,10 +138,6 @@ type WebApiClient = ReturnType<typeof createContractClient> & {
   refreshOpenCodeSessionTokenUsageById(
     sessionId: string,
   ): Promise<OpenCodeSession>;
-  continuePendingOpenCodeSessions(): Promise<OpenCodeSessionContinueBulkResponse>;
-  continueOpenCodeSession(
-    sessionId: string,
-  ): Promise<OpenCodeSessionContinueResult>;
   listDimensions(query: { project_id: string }): Promise<DimensionListResponse>;
   listDimensionEvaluations(
     dimensionId: string,
@@ -241,12 +231,6 @@ const buildProjectDirectorClarificationByIdPath = (
 
 const buildTaskPullRequestStatusPath = (taskId: string) =>
   taskPullRequestStatusPath.replace("{taskId}", encodeURIComponent(taskId));
-
-const buildOpenCodeSessionContinuePath = (sessionId: string) =>
-  openCodeSessionContinuePath.replace(
-    "{sessionId}",
-    encodeURIComponent(sessionId),
-  );
 
 const buildOpenCodeSessionTokenUsageRefreshPath = (sessionId: string) =>
   openCodeSessionTokenUsageRefreshPath.replace(
@@ -342,56 +326,6 @@ export const createWebApiClient = (
 
       return openCodeSessionSchema.parse(
         (await response.json()) as OpenCodeSession,
-      );
-    },
-
-    async continuePendingOpenCodeSessions() {
-      const [requestInput, requestInit] = await toAbsoluteRequestInit(
-        resolvedBaseUrl,
-        openCodeSessionContinuePendingPath,
-        {
-          method: "POST",
-          headers: {
-            accept: "application/json",
-          },
-        },
-      );
-      const response = await fetch(requestInput, requestInit);
-
-      if (!response.ok) {
-        throw new ContractClientError(
-          response.status,
-          taskErrorSchema.parse((await response.json()) as TaskError) as never,
-        );
-      }
-
-      return openCodeSessionContinueBulkResponseSchema.parse(
-        (await response.json()) as OpenCodeSessionContinueBulkResponse,
-      );
-    },
-
-    async continueOpenCodeSession(sessionId) {
-      const [requestInput, requestInit] = await toAbsoluteRequestInit(
-        resolvedBaseUrl,
-        buildOpenCodeSessionContinuePath(sessionId),
-        {
-          method: "POST",
-          headers: {
-            accept: "application/json",
-          },
-        },
-      );
-      const response = await fetch(requestInput, requestInit);
-
-      if (!response.ok) {
-        throw new ContractClientError(
-          response.status,
-          taskErrorSchema.parse((await response.json()) as TaskError) as never,
-        );
-      }
-
-      return openCodeSessionContinueResultSchema.parse(
-        (await response.json()) as OpenCodeSessionContinueResult,
       );
     },
 
