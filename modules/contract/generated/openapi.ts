@@ -1852,6 +1852,8 @@ export const openApiDocument = {
           "value",
           "reason",
           "continue_prompt",
+          "title",
+          "project_id",
           "provider_id",
           "model_id",
           "input_tokens",
@@ -1879,6 +1881,13 @@ export const openApiDocument = {
           },
           continue_prompt: {
             type: ["string", "null"],
+          },
+          title: {
+            type: ["string", "null"],
+          },
+          project_id: {
+            type: ["string", "null"],
+            format: "uuid",
           },
           provider_id: {
             type: ["string", "null"],
@@ -2004,6 +2013,13 @@ export const openApiDocument = {
           },
           continue_prompt: {
             type: ["string", "null"],
+          },
+          title: {
+            type: ["string", "null"],
+          },
+          project_id: {
+            type: ["string", "null"],
+            format: "uuid",
           },
           provider_id: {
             type: ["string", "null"],

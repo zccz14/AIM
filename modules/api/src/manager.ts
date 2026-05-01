@@ -820,6 +820,7 @@ export const createManager = ({
           recentCommitEvidence,
           dependencyEvidence,
         ),
+        projectId: project.id,
         title: `AIM Manager evaluation (${project.id})`,
       });
       sessions.use(session);

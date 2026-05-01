@@ -1445,6 +1445,8 @@ describe("contract package baseline", () => {
         value: null,
         reason: null,
         continue_prompt: "Continue.",
+        title: "AIM Developer: Session 1",
+        project_id: "00000000-0000-4000-8000-000000000101",
         provider_id: "anthropic",
         model_id: "claude-sonnet-4-5",
         input_tokens: 10,
@@ -1463,11 +1465,13 @@ describe("contract package baseline", () => {
       input_tokens: 10,
       model_id: "claude-sonnet-4-5",
       output_tokens: 20,
+      project_id: "00000000-0000-4000-8000-000000000101",
       provider_id: "anthropic",
       reasoning_tokens: 5,
       session_id: "session-1",
       stale: false,
       state: "pending",
+      title: "AIM Developer: Session 1",
     });
     expect(
       contractModule.openCodeSessionContinueResultSchema.parse({

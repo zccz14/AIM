@@ -83,6 +83,8 @@ export type OpenCodeSession = {
   value: string | null;
   reason: string | null;
   continue_prompt: string | null;
+  title: string | null;
+  project_id: string | null;
   provider_id: string | null;
   model_id: string | null;
   input_tokens: number;
@@ -124,6 +126,8 @@ export type OpenCodeSessionContinueBulkResponse = {
 export type CreateOpenCodeSessionRequest = {
   session_id: string;
   continue_prompt?: string | null;
+  title?: string | null;
+  project_id?: string | null;
   provider_id?: string | null;
   model_id?: string | null;
 };
@@ -682,6 +686,8 @@ export type OpenCodeSessionWritable = {
   value: string | null;
   reason: string | null;
   continue_prompt: string | null;
+  title: string | null;
+  project_id: string | null;
   provider_id: string | null;
   model_id: string | null;
   input_tokens: number;

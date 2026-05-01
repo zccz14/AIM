@@ -489,6 +489,7 @@ export const createCoordinator = (
           rejectedTasks,
           threshold,
         }),
+        projectId: project.id,
         title: `AIM Coordinator task-pool session (${project.id})`,
       });
       options.coordinatorStateRepository?.upsertCoordinatorState({

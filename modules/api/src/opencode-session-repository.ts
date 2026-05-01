@@ -21,11 +21,13 @@ type OpenCodeSessionRow = {
   input_tokens: number;
   model_id: null | string;
   output_tokens: number;
+  project_id: null | string;
   reason: null | string;
   reasoning_tokens: number;
   provider_id: null | string;
   session_id: string;
   state: OpenCodeSessionState;
+  title: null | string;
   updated_at: string;
   value: null | string;
 };
@@ -85,12 +87,14 @@ const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
     input_tokens: row.input_tokens,
     model_id: row.model_id,
     output_tokens: row.output_tokens,
+    project_id: row.project_id,
     provider_id: row.provider_id,
     reason: row.reason,
     reasoning_tokens: row.reasoning_tokens,
     session_id: row.session_id,
     stale: isStalePendingSession(row),
     state: row.state,
+    title: row.title,
     updated_at: row.updated_at,
     value: row.value,
   });
@@ -115,6 +119,8 @@ export const createOpenCodeSessionRepository = (
       value,
       reason,
       continue_prompt,
+      title,
+      project_id,
       provider_id,
       model_id,
       input_tokens,
@@ -124,20 +130,20 @@ export const createOpenCodeSessionRepository = (
       reasoning_tokens,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getByIdStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, title, project_id, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     WHERE session_id = ?
   `);
   const listStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, title, project_id, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     ORDER BY created_at ASC, session_id ASC
   `);
   const listByStateStatement = database.prepare(`
-    SELECT session_id, state, value, reason, continue_prompt, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
+    SELECT session_id, state, value, reason, continue_prompt, title, project_id, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
     WHERE state = ?
     ORDER BY created_at ASC, session_id ASC
@@ -199,11 +205,13 @@ export const createOpenCodeSessionRepository = (
         cache_write_tokens: 0,
         input_tokens: 0,
         output_tokens: 0,
+        project_id: input.project_id ?? null,
         reasoning_tokens: 0,
         provider_id: input.provider_id ?? null,
         reason: null,
         session_id: input.session_id,
         state: "pending",
+        title: input.title ?? null,
         updated_at: timestamp,
         value: null,
       });
@@ -214,6 +222,8 @@ export const createOpenCodeSessionRepository = (
         session.value,
         session.reason,
         session.continue_prompt,
+        session.title,
+        session.project_id,
         session.provider_id,
         session.model_id,
         session.input_tokens,

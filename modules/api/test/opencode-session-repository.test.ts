@@ -55,6 +55,34 @@ afterEach(async () => {
 });
 
 describe("OpenCode session repository", () => {
+  it("persists session title and project owner when creating a session", async () => {
+    const projectRoot = await createProjectRoot("session-metadata");
+    const repository = createOpenCodeSessionRepository({ projectRoot });
+    const database = openDatabase(projectRoot);
+    insertProject(database);
+
+    await repository.createSession({
+      continue_prompt: "Continue.",
+      project_id: projectId,
+      session_id: "session-metadata",
+      title: "AIM Developer: Persist session metadata",
+    });
+
+    expect(
+      database
+        .prepare(
+          "SELECT title, project_id FROM opencode_sessions WHERE session_id = ?",
+        )
+        .get("session-metadata"),
+    ).toEqual({
+      project_id: projectId,
+      title: "AIM Developer: Persist session metadata",
+    });
+    database.close();
+
+    await repository[Symbol.asyncDispose]();
+  });
+
   it("reports explicit downstream owner references for an AIM session row", async () => {
     const projectRoot = await createProjectRoot("session-references");
     const repository = createOpenCodeSessionRepository({ projectRoot });
