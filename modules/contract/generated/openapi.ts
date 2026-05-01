@@ -409,6 +409,37 @@ export const openApiDocument = {
       },
     },
     "/projects/{projectId}": {
+      get: {
+        operationId: "getProjectById",
+        summary: "Read a project",
+        parameters: [
+          {
+            $ref: "#/components/parameters/ProjectIdPathParameter",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Project detail",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Project",
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Project not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
       patch: {
         operationId: "patchProjectById",
         summary: "Update a project",

@@ -9,6 +9,7 @@ import {
   deleteTaskById,
   getDimensionById,
   getHealth,
+  getProjectById,
   getProjectOptimizerStatus,
   getProjectTokenUsage,
   getTaskById,
@@ -52,6 +53,8 @@ import type {
   GetDimensionByIdResponse,
   GetHealthError,
   GetHealthResponse,
+  GetProjectByIdError,
+  GetProjectByIdResponse,
   GetProjectOptimizerStatusError,
   GetProjectOptimizerStatusResponse,
   GetProjectTokenUsageError,
@@ -130,6 +133,7 @@ export type ContractClient = {
     session_id?: string;
   }): Promise<TaskListResponse>;
   listProjects(): Promise<ProjectListResponse>;
+  getProjectById(projectId: string): Promise<Project>;
   createProject(input: CreateProjectRequest): Promise<Project>;
   patchProjectById(
     projectId: string,
@@ -405,6 +409,29 @@ export const createContractClient = ({
 
       return projectSchema.parse(
         result.data satisfies CreateProjectResponse,
+      ) satisfies Project;
+    },
+
+    async getProjectById(projectId) {
+      const result = await getProjectById({
+        client,
+        headers: {
+          accept: "application/json",
+        },
+        path: {
+          projectId,
+        },
+      });
+
+      if (result.error) {
+        throw new ContractClientError(
+          result.response.status,
+          taskErrorSchema.parse(result.error satisfies GetProjectByIdError),
+        );
+      }
+
+      return projectSchema.parse(
+        result.data satisfies GetProjectByIdResponse,
       ) satisfies Project;
     },
 
