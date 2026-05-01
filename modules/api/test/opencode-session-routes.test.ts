@@ -64,7 +64,6 @@ const createRouteAppWithSessionPromptSender = (
   app: createApp({
     currentBaselineFactsProvider: vi.fn().mockResolvedValue({ commit: null }),
     openCodeModelsAdapter: createSupportedOpenCodeModelsAdapter(),
-    openCodeSessionsAdapter: { sendPrompt },
   }),
   sendPrompt,
 });
@@ -311,8 +310,8 @@ describe("opencode session routes", () => {
     });
   });
 
-  it("pushes a pending OpenCode session continue prompt without route-level terminal instructions", async () => {
-    await useProjectRoot("continues-pending-session");
+  it("does not expose a single-session external continue endpoint", async () => {
+    await useProjectRoot("single-session-continue-not-exposed");
     const { app, sendPrompt } = createRouteAppWithSessionPromptSender();
 
     await app.request(opencodeSessionsPath, {
@@ -331,132 +330,29 @@ describe("opencode session routes", () => {
       { method: "POST" },
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      reason: null,
-      session_id: "session-pending",
-      status: "pushed",
-    });
-    expect(sendPrompt).toHaveBeenCalledOnce();
-    expect(sendPrompt).toHaveBeenCalledWith(
-      "session-pending",
-      expect.stringContaining("Continue the AIM-controlled session."),
-      { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-    );
-    const prompt = sendPrompt.mock.calls[0]?.[1] as string;
-    expect(prompt).toBe("Continue the AIM-controlled session.");
-    expect(prompt).not.toContain("call aim_session_resolve");
-    expect(prompt).not.toContain("call aim_session_reject");
+    expect(response.status).toBe(404);
+    expect(sendPrompt).not.toHaveBeenCalled();
   });
 
-  it("skips settled or empty-prompt sessions and returns not found for missing single-session continue", async () => {
-    await useProjectRoot("skips-unpushable-session");
+  it("does not expose a bulk external continue endpoint", async () => {
+    await useProjectRoot("bulk-continue-not-exposed");
     const { app, sendPrompt } = createRouteAppWithSessionPromptSender();
 
     await app.request(opencodeSessionsPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        session_id: "session-resolved",
-        continue_prompt: "Continue after resolution.",
+        session_id: "session-pending",
+        continue_prompt: "Continue the AIM-controlled session.",
       }),
-    });
-    await app.request(opencodeSessionResolvePath("session-resolved"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ value: "done" }),
-    });
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        session_id: "session-empty",
-        continue_prompt: "   ",
-      }),
-    });
-
-    const settledResponse = await app.request(
-      opencodeSessionContinuePath("session-resolved"),
-      { method: "POST" },
-    );
-    const emptyPromptResponse = await app.request(
-      opencodeSessionContinuePath("session-empty"),
-      { method: "POST" },
-    );
-    const missingResponse = await app.request(
-      opencodeSessionContinuePath("session-missing"),
-      { method: "POST" },
-    );
-
-    expect(settledResponse.status).toBe(200);
-    await expect(settledResponse.json()).resolves.toMatchObject({
-      reason: "settled",
-      session_id: "session-resolved",
-      status: "skipped",
-    });
-    expect(emptyPromptResponse.status).toBe(200);
-    await expect(emptyPromptResponse.json()).resolves.toMatchObject({
-      reason: "empty_continue_prompt",
-      session_id: "session-empty",
-      status: "skipped",
-    });
-    expect(missingResponse.status).toBe(404);
-    expect(sendPrompt).not.toHaveBeenCalled();
-  });
-
-  it("bulk-pushes only pending OpenCode session continue prompts and reports per-session results", async () => {
-    await useProjectRoot("continues-all-pending-sessions");
-    const sendPrompt = vi
-      .fn()
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("OpenCode unavailable"));
-    const { app } = createRouteAppWithSessionPromptSender(sendPrompt);
-
-    for (const input of [
-      { session_id: "session-a", continue_prompt: "Continue A." },
-      { session_id: "session-b", continue_prompt: "Continue B." },
-      { session_id: "session-empty", continue_prompt: "" },
-      { session_id: "session-resolved", continue_prompt: "Continue resolved." },
-    ]) {
-      await app.request(opencodeSessionsPath, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
-    }
-    await app.request(opencodeSessionResolvePath("session-resolved"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ value: "done" }),
     });
 
     const response = await app.request(opencodeSessionsContinuePendingPath, {
       method: "POST",
     });
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      counts: { error: 1, pushed: 1, skipped: 2 },
-      items: expect.arrayContaining([
-        { reason: null, session_id: "session-a", status: "pushed" },
-        {
-          reason: expect.stringContaining("OpenCode unavailable"),
-          session_id: "session-b",
-          status: "error",
-        },
-        {
-          reason: "empty_continue_prompt",
-          session_id: "session-empty",
-          status: "skipped",
-        },
-        {
-          reason: "settled",
-          session_id: "session-resolved",
-          status: "skipped",
-        },
-      ]),
-    });
-    expect(sendPrompt).toHaveBeenCalledTimes(2);
+    expect(response.status).toBe(404);
+    expect(sendPrompt).not.toHaveBeenCalled();
   });
 
   it("creates a pending OpenCode session record and reads the persisted prompt", async () => {

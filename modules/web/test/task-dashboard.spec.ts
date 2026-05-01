@@ -2259,7 +2259,6 @@ test("keeps project management available on the Projects page", async ({
 test("opens an OpenCode sessions list page without drilling into session details", async ({
   page,
 }) => {
-  const continueRequests: string[] = [];
   const longContinuePrompt = [
     "Continue with required checks follow-up.",
     "Review the required check timeline before deciding whether to wait or intervene.",
@@ -2277,31 +2276,8 @@ test("opens an OpenCode sessions list page without drilling into session details
   ].join("\n");
 
   await page.route("**/api/opencode/sessions**", async (route) => {
-    const requestUrl = new URL(route.request().url());
-
     if (route.request().method() === "POST") {
-      continueRequests.push(requestUrl.pathname);
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify(
-          requestUrl.pathname.endsWith("/continue_pending")
-            ? {
-                counts: { error: 0, pushed: 1, skipped: 2 },
-                items: [
-                  {
-                    reason: null,
-                    session_id: "ses_pending_review",
-                    status: "pushed",
-                  },
-                ],
-              }
-            : {
-                reason: null,
-                session_id: "ses_pending_review",
-                status: "pushed",
-              },
-        ),
-      });
+      await route.fulfill({ status: 404 });
       return;
     }
 
@@ -2421,10 +2397,10 @@ test("opens an OpenCode sessions list page without drilling into session details
       exact: true,
       name: "Continue all pending sessions",
     }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     sessionsRegion.getByRole("button", { exact: true, name: "Continue" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     sessionsRegion.getByRole("row", { name: /ses_resolved_delivery/ }),
   ).toBeVisible();
@@ -2458,23 +2434,6 @@ test("opens an OpenCode sessions list page without drilling into session details
   await sessionsRegion.getByRole("button", { name: /Reason/ }).click();
   await expect(sessionsRegion.getByText("reason-tail-93fd10")).toBeHidden();
   await expect(page.getByRole("link", { name: /Open session/ })).toHaveCount(0);
-
-  await sessionsRegion
-    .getByRole("button", { exact: true, name: "Continue" })
-    .click();
-  await sessionsRegion
-    .getByRole("button", {
-      exact: true,
-      name: "Continue all pending sessions",
-    })
-    .click();
-
-  await expect
-    .poll(() => continueRequests)
-    .toEqual([
-      "/api/opencode/sessions/ses_pending_review/continue",
-      "/api/opencode/sessions/continue_pending",
-    ]);
 });
 
 test("summarizes OpenCode session token usage and refreshes one session", async ({

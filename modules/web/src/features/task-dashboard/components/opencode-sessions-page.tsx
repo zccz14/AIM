@@ -32,11 +32,7 @@ import {
 } from "../../../components/ui/empty.js";
 import { Skeleton } from "../../../components/ui/skeleton.js";
 import { useI18n } from "../../../lib/i18n.js";
-import {
-  continueOpenCodeSession,
-  continuePendingOpenCodeSessions,
-  refreshOpenCodeSessionTokenUsageById,
-} from "../api/task-dashboard-api.js";
+import { refreshOpenCodeSessionTokenUsageById } from "../api/task-dashboard-api.js";
 import {
   getOpenCodeSessionsErrorMessage,
   openCodeSessionsQueryKey,
@@ -85,9 +81,6 @@ const getSessionModel = (session: OpenCodeSession, fallback: string) => {
 
   return session.model_id ?? fallback;
 };
-
-const canContinue = (session: OpenCodeSession) =>
-  session.state === "pending" && Boolean(session.continue_prompt?.trim());
 
 const formatTokenCount = (value: number) =>
   new Intl.NumberFormat().format(value);
@@ -240,17 +233,6 @@ export const OpenCodeSessionsPage = () => {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const sessionsQuery = useQuery(openCodeSessionsQueryOptions);
-  const invalidateSessions = async () => {
-    await queryClient.invalidateQueries({ queryKey: openCodeSessionsQueryKey });
-  };
-  const continueAllMutation = useMutation({
-    mutationFn: continuePendingOpenCodeSessions,
-    onSuccess: invalidateSessions,
-  });
-  const continueSessionMutation = useMutation({
-    mutationFn: continueOpenCodeSession,
-    onSuccess: invalidateSessions,
-  });
   const refreshUsageMutation = useMutation({
     mutationFn: refreshOpenCodeSessionTokenUsageById,
     onSuccess: (updatedSession) => {
@@ -269,9 +251,6 @@ export const OpenCodeSessionsPage = () => {
       );
     },
   });
-  const continuableSessions = sessionsQuery.isSuccess
-    ? sessionsQuery.data.items.filter(canContinue)
-    : [];
   const statusBreakdown = sessionsQuery.isSuccess
     ? formatSessionStatusBreakdown(sessionsQuery.data.items, {
         pending: t("openCodeSessionPending"),
@@ -394,19 +373,6 @@ export const OpenCodeSessionsPage = () => {
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <div className="flex justify-end">
-                <Button
-                  disabled={
-                    continuableSessions.length === 0 ||
-                    continueAllMutation.isPending
-                  }
-                  onClick={() => continueAllMutation.mutate()}
-                  size="sm"
-                  type="button"
-                >
-                  {t("continueAllPendingSessions")}
-                </Button>
-              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <thead>
@@ -548,21 +514,6 @@ export const OpenCodeSessionsPage = () => {
                                 ) : null}
                                 {t("refreshUsage")}
                               </Button>
-                              {canContinue(session) ? (
-                                <Button
-                                  disabled={continueSessionMutation.isPending}
-                                  onClick={() =>
-                                    continueSessionMutation.mutate(
-                                      session.session_id,
-                                    )
-                                  }
-                                  size="sm"
-                                  type="button"
-                                  variant="outline"
-                                >
-                                  {t("continue")}
-                                </Button>
-                              ) : null}
                             </div>
                           </td>
                         </tr>

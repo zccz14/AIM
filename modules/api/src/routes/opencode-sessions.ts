@@ -1,10 +1,6 @@
 import {
   createOpenCodeSessionRequestSchema,
   openCodeSessionByIdPath,
-  openCodeSessionContinueBulkResponseSchema,
-  openCodeSessionContinuePath,
-  openCodeSessionContinuePendingPath,
-  openCodeSessionContinueResultSchema,
   openCodeSessionRejectPath,
   openCodeSessionResolvePath,
   openCodeSessionSettleRequestSchema,
@@ -17,16 +13,11 @@ import {
 import type { Hono } from "hono";
 
 import { execGh } from "../exec-file.js";
-import { createOpenCodeSessionManager } from "../opencode-session-manager.js";
 import { createOpenCodeSessionRepository } from "../opencode-session-repository.js";
 import { statTokensBySessionId } from "../stat-tokens.js";
 import { createTaskRepository } from "../task-repository.js";
 
 const openCodeSessionByIdRoutePath = openCodeSessionByIdPath.replace(
-  "{sessionId}",
-  ":sessionId",
-);
-const openCodeSessionContinueRoutePath = openCodeSessionContinuePath.replace(
   "{sessionId}",
   ":sessionId",
 );
@@ -66,14 +57,6 @@ const redactSensitiveErrorDetail = (message: string) =>
 
 const requireSessionId = (sessionId: string | undefined) =>
   sessionId ?? "session-unknown";
-
-type OpenCodeSessionPromptSender = {
-  sendPrompt(
-    sessionId: string,
-    prompt: string,
-    model?: { modelID: string; providerID: string },
-  ): Promise<void>;
-};
 
 const getTaskResult = (value: string | undefined) => {
   if (!value?.trim()) {
@@ -170,7 +153,6 @@ const verifyPullRequestMerged = async (pullRequestUrl: string) => {
 };
 
 type RegisterOpenCodeSessionRoutesOptions = {
-  adapter?: OpenCodeSessionPromptSender;
   resourceScope?: Pick<AsyncDisposableStack, "use">;
 };
 
@@ -179,9 +161,6 @@ export const registerOpenCodeSessionRoutes = (
   options: RegisterOpenCodeSessionRoutesOptions = {},
 ) => {
   const projectRoot = process.env.AIM_PROJECT_ROOT;
-  let adapter = options.adapter;
-  let sessionManager: null | ReturnType<typeof createOpenCodeSessionManager> =
-    null;
   let repository: null | ReturnType<typeof createOpenCodeSessionRepository> =
     null;
   let taskRepository: null | ReturnType<typeof createTaskRepository> = null;
@@ -200,32 +179,6 @@ export const registerOpenCodeSessionRoutes = (
 
     return taskRepository;
   };
-  const getAdapter = () => {
-    adapter ??= {
-      sendPrompt: (sessionId, prompt, model) => {
-        sessionManager ??=
-          options.resourceScope?.use(
-            createOpenCodeSessionManager({
-              baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-              repository: getRepository(),
-            }),
-          ) ??
-          createOpenCodeSessionManager({
-            baseUrl: process.env.OPENCODE_BASE_URL ?? "http://localhost:4096",
-            repository: getRepository(),
-          });
-
-        return sessionManager.pushContinuationPrompt({
-          model,
-          prompt,
-          sessionId,
-        });
-      },
-    };
-
-    return adapter;
-  };
-
   const updateSessionTokenUsage = async (sessionId: string) => {
     try {
       const stats = await statTokensBySessionId(
@@ -247,54 +200,6 @@ export const registerOpenCodeSessionRoutes = (
       });
 
       return getRepository().getSessionById(sessionId);
-    }
-  };
-
-  const pushContinuePrompt = async (session: {
-    continue_prompt: null | string;
-    model_id?: null | string;
-    provider_id?: null | string;
-    session_id: string;
-    state: "pending" | "rejected" | "resolved";
-  }) => {
-    const continuePrompt = session.continue_prompt?.trim();
-
-    if (session.state !== "pending") {
-      return openCodeSessionContinueResultSchema.parse({
-        reason: "settled",
-        session_id: session.session_id,
-        status: "skipped",
-      });
-    }
-
-    if (!continuePrompt) {
-      return openCodeSessionContinueResultSchema.parse({
-        reason: "empty_continue_prompt",
-        session_id: session.session_id,
-        status: "skipped",
-      });
-    }
-
-    try {
-      await getAdapter().sendPrompt(
-        session.session_id,
-        continuePrompt,
-        session.provider_id && session.model_id
-          ? { modelID: session.model_id, providerID: session.provider_id }
-          : undefined,
-      );
-
-      return openCodeSessionContinueResultSchema.parse({
-        reason: null,
-        session_id: session.session_id,
-        status: "pushed",
-      });
-    } catch (error) {
-      return openCodeSessionContinueResultSchema.parse({
-        reason: error instanceof Error ? error.message : String(error),
-        session_id: session.session_id,
-        status: "error",
-      });
     }
   };
 
@@ -407,34 +312,6 @@ export const registerOpenCodeSessionRoutes = (
     }
 
     return context.json(session, 200);
-  });
-
-  app.post(openCodeSessionContinuePendingPath, async (context) => {
-    const items = await Promise.all(
-      getRepository()
-        .listSessions()
-        .map((session) => pushContinuePrompt(session)),
-    );
-    const counts = { error: 0, pushed: 0, skipped: 0 };
-    for (const item of items) {
-      counts[item.status] += 1;
-    }
-
-    return context.json(
-      openCodeSessionContinueBulkResponseSchema.parse({ counts, items }),
-      200,
-    );
-  });
-
-  app.post(openCodeSessionContinueRoutePath, async (context) => {
-    const sessionId = requireSessionId(context.req.param("sessionId"));
-    const session = getRepository().getSessionById(sessionId);
-
-    if (!session) {
-      return context.json(buildNotFoundError(sessionId), 404);
-    }
-
-    return context.json(await pushContinuePrompt(session), 200);
   });
 
   app.post(openCodeSessionTokenUsageRefreshRoutePath, async (context) => {

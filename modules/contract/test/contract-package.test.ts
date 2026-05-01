@@ -334,10 +334,6 @@ describe("contract package baseline", () => {
       "healthStatusSchema",
       "openApiDocument",
       "openCodeSessionByIdPath",
-      "openCodeSessionContinueBulkResponseSchema",
-      "openCodeSessionContinuePath",
-      "openCodeSessionContinuePendingPath",
-      "openCodeSessionContinueResultSchema",
       "openCodeSessionListResponseSchema",
       "openCodeSessionRejectPath",
       "openCodeSessionResolvePath",
@@ -411,16 +407,6 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[
         contractModule.openCodeSessionByIdPath
-      ],
-    ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[
-        contractModule.openCodeSessionContinuePendingPath
-      ],
-    ).toBeDefined();
-    expect(
-      contractModule.openApiDocument.paths[
-        contractModule.openCodeSessionContinuePath
       ],
     ).toBeDefined();
     expect(
@@ -1429,12 +1415,6 @@ describe("contract package baseline", () => {
     expect(contractModule.openCodeSessionByIdPath).toBe(
       "/opencode/sessions/{sessionId}",
     );
-    expect(contractModule.openCodeSessionContinuePendingPath).toBe(
-      "/opencode/sessions/continue_pending",
-    );
-    expect(contractModule.openCodeSessionContinuePath).toBe(
-      "/opencode/sessions/{sessionId}/continue",
-    );
     expect(contractModule.openCodeSessionStateSchema.parse("pending")).toBe(
       "pending",
     );
@@ -1473,19 +1453,6 @@ describe("contract package baseline", () => {
       state: "pending",
       title: "AIM Developer: Session 1",
     });
-    expect(
-      contractModule.openCodeSessionContinueResultSchema.parse({
-        reason: null,
-        session_id: "session-1",
-        status: "pushed",
-      }),
-    ).toMatchObject({ session_id: "session-1", status: "pushed" });
-    expect(
-      contractModule.openCodeSessionContinueBulkResponseSchema.parse({
-        counts: { error: 0, pushed: 1, skipped: 0 },
-        items: [{ reason: null, session_id: "session-1", status: "pushed" }],
-      }),
-    ).toMatchObject({ counts: { pushed: 1 } });
   });
 
   it("publishes task CRUD schemas in the shared OpenAPI document", () => {
@@ -1788,12 +1755,12 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.getOpenCodeSessionById).toBeTypeOf(
       "function",
     );
-    await expect(generatedClientModule.continueOpenCodeSessionById).toBeTypeOf(
-      "function",
+    await expect(generatedClientModule).not.toHaveProperty(
+      "continueOpenCodeSessionById",
     );
-    await expect(
-      generatedClientModule.continuePendingOpenCodeSessions,
-    ).toBeTypeOf("function");
+    await expect(generatedClientModule).not.toHaveProperty(
+      "continuePendingOpenCodeSessions",
+    );
     await expect(generatedClientModule.resolveOpenCodeSessionById).toBeTypeOf(
       "function",
     );
@@ -1804,10 +1771,10 @@ describe("contract package baseline", () => {
     expect(generatedOpenApiSource).toContain(
       '"/opencode/sessions/{sessionId}"',
     );
-    expect(generatedOpenApiSource).toContain(
+    expect(generatedOpenApiSource).not.toContain(
       '"/opencode/sessions/continue_pending"',
     );
-    expect(generatedOpenApiSource).toContain(
+    expect(generatedOpenApiSource).not.toContain(
       '"/opencode/sessions/{sessionId}/continue"',
     );
     await expect(readFile(generatedClientUrl, "utf8")).resolves.toContain(
@@ -1817,8 +1784,10 @@ describe("contract package baseline", () => {
     expect(generatedClientSdkSource).toContain("createTaskBatch");
     expect(generatedClientSdkSource).toContain("getTaskSpecById");
     expect(generatedClientSdkSource).toContain("createOpenCodeSession");
-    expect(generatedClientSdkSource).toContain("continueOpenCodeSessionById");
-    expect(generatedClientSdkSource).toContain(
+    expect(generatedClientSdkSource).not.toContain(
+      "continueOpenCodeSessionById",
+    );
+    expect(generatedClientSdkSource).not.toContain(
       "continuePendingOpenCodeSessions",
     );
     await expect(readFile(generatedZodUrl, "utf8")).resolves.toContain(

@@ -17,7 +17,6 @@ const createSessionHandle = (sessionId: string) => ({
 
 const createSessionManager = () => ({
   createSession: vi.fn().mockResolvedValue(createSessionHandle("session-1")),
-  pushContinuationPrompt: vi.fn().mockResolvedValue(undefined),
 });
 
 type CreateDeveloperInput = Parameters<typeof createDeveloper>[0];
@@ -155,7 +154,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("continues merged unresolved PR-backed tasks before assigning a new task", async () => {
+  it("skips externally continuing merged unresolved PR-backed tasks before assigning a new task", async () => {
     vi.useFakeTimers();
     const mergedTask = createTask({
       pull_request_url: "https://github.com/example/repo/pull/1",
@@ -194,11 +193,9 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sessionId: "session-merged",
-        }),
-      );
+      expect(
+        pullRequestStatusProvider.getTaskPullRequestStatus,
+      ).toHaveBeenCalled();
     });
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
     expect(sessionManager.createSession).not.toHaveBeenCalled();
@@ -253,7 +250,6 @@ describe("developer", () => {
         "session-1",
       );
     });
-    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });
@@ -330,7 +326,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("continues an assigned pending session when no unassigned task is available", async () => {
+  it("skips externally continuing an assigned pending session when no unassigned task is available", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -357,36 +353,22 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
+      expect(onLaneEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: {
-            modelID: assignedTask.global_model_id,
-            providerID: assignedTask.global_provider_id,
-          },
-          sessionId: "session-existing",
+          event: "noop",
+          project_id: assignedTask.project_id,
+          session_id: "session-existing",
+          task_id: assignedTask.task_id,
         }),
       );
     });
-    expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: expect.stringContaining(`task_id: ${assignedTask.task_id}`),
-      }),
-    );
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
-    expect(onLaneEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: "success",
-        project_id: assignedTask.project_id,
-        session_id: "session-existing",
-        task_id: assignedTask.task_id,
-      }),
-    );
 
     await developer[Symbol.asyncDispose]();
   });
 
-  it("continues an assigned pending session found by explicit session lookup", async () => {
+  it("skips externally continuing an assigned pending session found by explicit session lookup", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       session_id: "session-existing",
@@ -415,10 +397,8 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.pushContinuationPrompt).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sessionId: "session-existing",
-        }),
+      expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
+        "session-existing",
       );
     });
     expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
@@ -481,7 +461,6 @@ describe("developer", () => {
       projectId: unavailableTask.project_id,
       title: `AIM Developer Recovery: ${unavailableTask.title}`,
     });
-    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
     expect(onLaneEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -646,7 +625,6 @@ describe("developer", () => {
         task_id: rejectedTask.task_id,
       }),
     );
-    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
@@ -694,7 +672,6 @@ describe("developer", () => {
         }),
       );
     });
-    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
@@ -746,7 +723,6 @@ describe("developer", () => {
         laneEvent.event === "noop" && laneEvent.task_id === blockedTask.task_id,
     )?.[0];
     expect(event?.summary).toContain("dependency-pending");
-    expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 

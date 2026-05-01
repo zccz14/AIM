@@ -28,10 +28,6 @@ export type {
 } from "./stat-tokens.js";
 export { statTokens, statTokensBySessionId } from "./stat-tokens.js";
 
-type OpenCodeSessionPromptSender = {
-  sendPrompt(sessionId: string, prompt: string): Promise<void>;
-};
-
 type OpenCodeModelsAdapter = {
   listSupportedModels(): ReturnType<typeof listSupportedModels>;
 };
@@ -42,7 +38,6 @@ type CreateAppOptions = {
   currentBaselineFactsProvider?: CurrentBaselineFactsProvider;
   logger?: ApiLogger;
   openCodeModelsAdapter?: OpenCodeModelsAdapter;
-  openCodeSessionsAdapter?: OpenCodeSessionPromptSender;
   optimizerSystem?: OptimizerSystem;
 };
 
@@ -63,10 +58,7 @@ export const createApp = (_options: CreateAppOptions = {}): AppResource => {
   registerOpenCodeModelRoutes(app, {
     adapter: _options.openCodeModelsAdapter,
   });
-  registerOpenCodeSessionRoutes(app, {
-    adapter: _options.openCodeSessionsAdapter,
-    resourceScope,
-  });
+  registerOpenCodeSessionRoutes(app, { resourceScope });
   registerProjectRoutes(app, {
     optimizerSystem: _options.optimizerSystem,
     resourceScope,

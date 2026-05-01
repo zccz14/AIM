@@ -87,19 +87,10 @@ type OpenCodeSessionMessage = {
   }>;
 };
 
-export type PushOpenCodeSessionContinuationInput = {
-  model?: OpenCodeSessionModel;
-  prompt: string;
-  sessionId: string;
-};
-
 export type OpenCodeSessionManager = AsyncDisposable & {
   createSession(
     input: CreateManagedOpenCodeSessionInput,
   ): Promise<AsyncDisposable & { sessionId: string }>;
-  pushContinuationPrompt(
-    input: PushOpenCodeSessionContinuationInput,
-  ): Promise<void>;
 };
 
 const staleAfterMilliseconds = 5 * 60 * 1000;
@@ -412,21 +403,6 @@ export const createOpenCodeSessionManager = ({
         },
         sessionId: session.data.id,
       };
-    },
-    async pushContinuationPrompt({ model, prompt, sessionId }) {
-      await client.session.promptAsync({
-        body: {
-          model,
-          parts: [
-            {
-              text: withContinuation(prompt, { apiBaseUrl, sessionId }),
-              type: "text",
-            },
-          ],
-        },
-        path: { id: sessionId },
-        throwOnError: true,
-      });
     },
   };
 };
