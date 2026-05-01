@@ -1,5 +1,4 @@
 import {
-  type CreateOpenCodeSessionRequest,
   type OpenCodeSession,
   type OpenCodeSessionSettleRequest,
   type OpenCodeSessionState,
@@ -33,6 +32,22 @@ type OpenCodeSessionRow = {
 };
 
 type SessionReferenceRow = {
+  id: string;
+};
+
+type OpenCodeSessionCreateInput = {
+  continue_prompt?: null | string;
+  model_id?: null | string;
+  project_id: string;
+  provider_id?: null | string;
+  session_id: string;
+  title?: null | string;
+};
+
+type OpenCodeSessionProject = {
+  git_origin_url: string;
+  global_model_id: string;
+  global_provider_id: string;
   id: string;
 };
 
@@ -133,7 +148,7 @@ export const createOpenCodeSessionRepository = (
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const getProjectByIdStatement = database.prepare(`
-    SELECT id
+    SELECT id, git_origin_url, global_provider_id, global_model_id
     FROM projects
     WHERE id = ?
   `);
@@ -199,7 +214,7 @@ export const createOpenCodeSessionRepository = (
   return {
     [Symbol.asyncDispose]: asyncDisposeDatabase,
     async createSession(
-      input: CreateOpenCodeSessionRequest,
+      input: OpenCodeSessionCreateInput,
     ): Promise<OpenCodeSession> {
       const projectId = input.project_id;
 
@@ -208,7 +223,7 @@ export const createOpenCodeSessionRepository = (
       }
 
       const project = getProjectByIdStatement.get(projectId) as
-        | { id: string }
+        | OpenCodeSessionProject
         | undefined;
 
       if (!project) {
@@ -255,6 +270,13 @@ export const createOpenCodeSessionRepository = (
       );
 
       return session;
+    },
+    getProjectById(projectId: string): null | OpenCodeSessionProject {
+      return (
+        (getProjectByIdStatement.get(projectId) as
+          | OpenCodeSessionProject
+          | undefined) ?? null
+      );
     },
     getSessionById(sessionId: string): null | OpenCodeSession {
       const row = getByIdStatement.get(sessionId) as

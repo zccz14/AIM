@@ -20,8 +20,7 @@ const project = {
 
 const createSessionManager = () => ({
   createSession: vi.fn().mockResolvedValue({
-    [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-    sessionId: "session-1",
+    session_id: "session-1",
   }),
 });
 
@@ -236,11 +235,7 @@ describe("manager", () => {
     ).toHaveBeenCalledWith(project.id, "def5678");
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        directory: "/repo/project-1",
-        model: {
-          modelID: project.global_model_id,
-          providerID: project.global_provider_id,
-        },
+        projectId: project.id,
         title: `AIM Manager evaluation (${project.id})`,
       }),
     );

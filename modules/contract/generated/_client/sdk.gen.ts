@@ -20,9 +20,6 @@ import type {
   CreateDirectorClarificationData,
   CreateDirectorClarificationErrors,
   CreateDirectorClarificationResponses,
-  CreateOpenCodeSessionData,
-  CreateOpenCodeSessionErrors,
-  CreateOpenCodeSessionResponses,
   CreateProjectData,
   CreateProjectErrors,
   CreateProjectResponses,
@@ -186,25 +183,6 @@ export const listOpenCodeSessions = <ThrowOnError extends boolean = false>(
     ListOpenCodeSessionsErrors,
     ThrowOnError
   >({ url: "/opencode/sessions", ...options });
-
-/**
- * Create an AIM-controlled OpenCode session promise
- */
-export const createOpenCodeSession = <ThrowOnError extends boolean = false>(
-  options: Options<CreateOpenCodeSessionData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    CreateOpenCodeSessionResponses,
-    CreateOpenCodeSessionErrors,
-    ThrowOnError
-  >({
-    url: "/opencode/sessions",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
 
 /**
  * Read an AIM-controlled OpenCode session promise

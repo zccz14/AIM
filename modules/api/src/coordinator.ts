@@ -335,7 +335,7 @@ export const createCoordinator = (
       return true;
     }
 
-    const { sessionId } = activeSession;
+    const sessionId = activeSession.session_id;
     let continuationSession: null | ContinuationSession;
     try {
       continuationSession =
@@ -475,11 +475,6 @@ export const createCoordinator = (
     });
     try {
       activeSession = await options.sessionManager.createSession({
-        directory,
-        model: {
-          modelID: project.global_model_id,
-          providerID: project.global_provider_id,
-        },
         prompt: buildPrompt({
           activeTasks,
           baselineFacts,
@@ -498,7 +493,7 @@ export const createCoordinator = (
         last_error: null,
         planning_input_hash: inputHash,
         project_id: projectId,
-        session_id: activeSession.sessionId,
+        session_id: activeSession.session_id,
         state: "planning",
         threshold,
       });
@@ -506,8 +501,8 @@ export const createCoordinator = (
         event: "success",
         lane_name: "coordinator",
         project_id: projectId,
-        session_id: activeSession.sessionId,
-        summary: `Coordinator lane created planning session ${activeSession.sessionId}.`,
+        session_id: activeSession.session_id,
+        summary: `Coordinator lane created planning session ${activeSession.session_id}.`,
       });
     } catch (error) {
       options.coordinatorStateRepository?.upsertCoordinatorState({
@@ -552,7 +547,6 @@ export const createCoordinator = (
   stack.defer(async () => {
     abortController.abort();
     await loop;
-    await activeSession?.[Symbol.asyncDispose]();
   });
 
   return {

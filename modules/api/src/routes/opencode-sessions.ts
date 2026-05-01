@@ -1,5 +1,4 @@
 import {
-  createOpenCodeSessionRequestSchema,
   openCodeSessionByIdPath,
   openCodeSessionRejectPath,
   openCodeSessionResolvePath,
@@ -69,20 +68,6 @@ const getTaskResult = (value: string | undefined, payloadName = "result") => {
   }
 
   return { ok: true as const, result: value };
-};
-
-const parseCreateRequest = async (request: Request) => {
-  const payload = await request.json().catch(() => undefined);
-  const result = createOpenCodeSessionRequestSchema.safeParse(payload);
-
-  if (!result.success) {
-    return {
-      error: buildValidationError("Invalid OpenCode session payload"),
-      ok: false as const,
-    };
-  }
-
-  return { data: result.data, ok: true as const };
 };
 
 const parsePatchRequest = async (request: Request) => {
@@ -258,29 +243,6 @@ export const registerOpenCodeSessionRoutes = (
 
     return null;
   };
-
-  app.post(openCodeSessionsPath, async (context) => {
-    const input = await parseCreateRequest(context.req.raw);
-
-    if (!input.ok) {
-      return context.json(input.error, 400);
-    }
-
-    try {
-      const session = await getRepository().createSession(input.data);
-
-      return context.json(session, 201);
-    } catch (error) {
-      return context.json(
-        buildValidationError(
-          error instanceof Error
-            ? error.message
-            : "Invalid OpenCode session operation",
-        ),
-        400,
-      );
-    }
-  });
 
   app.get(openCodeSessionsPath, (context) => {
     const rawState = context.req.query("state");

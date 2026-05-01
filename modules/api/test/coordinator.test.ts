@@ -207,7 +207,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-1",
+      session_id: "coordinator-session-1",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -242,8 +242,7 @@ describe("coordinator", () => {
     expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        directory: "/repo/workspace/project-1",
-        model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
+        projectId: project.id,
         title: "AIM Coordinator task-pool session (project-1)",
       }),
     );
@@ -281,8 +280,6 @@ describe("coordinator", () => {
     );
 
     await coordinator[Symbol.asyncDispose]();
-
-    expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("skips Coordinator planning when the project budget warning is exceeded", async () => {
@@ -339,7 +336,7 @@ describe("coordinator", () => {
     const repositories = createBelowThresholdRepositories();
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: `coordinator-session-${status}`,
+      session_id: `coordinator-session-${status}`,
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -365,7 +362,6 @@ describe("coordinator", () => {
     expect(sessionManager.createSession).toHaveBeenCalledOnce();
 
     await coordinator[Symbol.asyncDispose]();
-    expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("skips Coordinator planning with an actionable lane event when token usage collection fails", async () => {
@@ -440,7 +436,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-dry-run",
+      session_id: "coordinator-session-dry-run",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -537,7 +533,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-active-pool-baselines",
+      session_id: "coordinator-session-active-pool-baselines",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -606,7 +602,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-rejected-with-pool",
+      session_id: "coordinator-session-rejected-with-pool",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -728,7 +724,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-priority-summary",
+      session_id: "coordinator-session-priority-summary",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -796,7 +792,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-current-evaluation",
+      session_id: "coordinator-session-current-evaluation",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -851,7 +847,7 @@ describe("coordinator", () => {
     };
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-after-retry",
+      session_id: "coordinator-session-after-retry",
     };
     const sessionManager = {
       createSession: vi.fn(async () => sessionHandle),
@@ -895,11 +891,11 @@ describe("coordinator", () => {
     const sessionHandles = [
       {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-        sessionId: "coordinator-session-1",
+        session_id: "coordinator-session-1",
       },
       {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-        sessionId: "coordinator-session-2",
+        session_id: "coordinator-session-2",
       },
     ];
     const sessionManager = {
@@ -909,8 +905,8 @@ describe("coordinator", () => {
           throw new Error("unexpected session create");
         }
 
-        sessions.set(session.sessionId, {
-          session_id: session.sessionId,
+        sessions.set(session.session_id, {
+          session_id: session.session_id,
           state: "pending",
         });
         return session;
@@ -949,16 +945,13 @@ describe("coordinator", () => {
     expect(sessions.get("coordinator-session-2")?.state).toBe("pending");
 
     await coordinator[Symbol.asyncDispose]();
-
-    expect(sessionHandles[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
-    expect(sessionHandles[1][Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("does not permanently stall the Coordinator lane after createSession fails", async () => {
     const repositories = createBelowThresholdRepositories();
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-after-create-failure",
+      session_id: "coordinator-session-after-create-failure",
     };
     const sessionManager = {
       createSession: vi
@@ -987,7 +980,6 @@ describe("coordinator", () => {
     expect(sessionManager.createSession).toHaveBeenCalledTimes(2);
 
     await coordinator[Symbol.asyncDispose]();
-    expect(sessionHandle[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("clears the active Coordinator session after settlement observation fails", async () => {
@@ -995,11 +987,11 @@ describe("coordinator", () => {
     const sessionHandles = [
       {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-        sessionId: "coordinator-session-observation-fails",
+        session_id: "coordinator-session-observation-fails",
       },
       {
         [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-        sessionId: "coordinator-session-after-observation-failure",
+        session_id: "coordinator-session-after-observation-failure",
       },
     ];
     let sessionsCreated = 0;
@@ -1042,9 +1034,6 @@ describe("coordinator", () => {
     expect(sessionManager.createSession).toHaveBeenCalledTimes(2);
 
     await coordinator[Symbol.asyncDispose]();
-
-    expect(sessionHandles[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
-    expect(sessionHandles[1][Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it("does not create a duplicate Coordinator session after restart when persisted planning state points at a pending session", async () => {
@@ -1106,7 +1095,7 @@ describe("coordinator", () => {
     });
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-next",
+      session_id: "coordinator-session-next",
     };
     const sessionManager = { createSession: vi.fn(async () => sessionHandle) };
 
@@ -1165,7 +1154,7 @@ describe("coordinator", () => {
     });
     const sessionHandle = {
       [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-      sessionId: "coordinator-session-recovered",
+      session_id: "coordinator-session-recovered",
     };
     const sessionManager = { createSession: vi.fn(async () => sessionHandle) };
 

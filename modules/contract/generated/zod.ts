@@ -69,16 +69,6 @@ const OpenCodeSession = z
 const OpenCodeSessionListResponse = z
   .object({ items: z.array(OpenCodeSession) })
   .strict();
-const CreateOpenCodeSessionRequest = z
-  .object({
-    session_id: z.string().min(1),
-    continue_prompt: z.union([z.string(), z.null()]).optional(),
-    title: z.union([z.string(), z.null()]).optional(),
-    project_id: z.string().uuid(),
-    provider_id: z.union([z.string(), z.null()]).optional(),
-    model_id: z.union([z.string(), z.null()]).optional(),
-  })
-  .strict();
 const PatchOpenCodeSessionRequest = z
   .object({ continue_prompt: z.union([z.string(), z.null()]) })
   .strict();
@@ -609,7 +599,6 @@ export const schemas = {
   OpenCodeSessionState,
   OpenCodeSession,
   OpenCodeSessionListResponse,
-  CreateOpenCodeSessionRequest,
   PatchOpenCodeSessionRequest,
   OpenCodeSessionSettleRequest,
   CreateProjectRequest,

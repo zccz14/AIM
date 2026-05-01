@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app.js";
+import { createOpenCodeSessionRepository } from "../src/opencode-session-repository.js";
 
 const execFileMock = vi.hoisted(() => vi.fn());
 
@@ -111,6 +112,28 @@ const mockGhPullRequestOutput = (stdout: string) => {
   );
 };
 
+const insertOpenCodeSession = async (
+  projectRoot: string,
+  input: {
+    continue_prompt?: string;
+    model_id?: string;
+    provider_id?: string;
+    session_id: string;
+    title?: string;
+  },
+) => {
+  await using repository = createOpenCodeSessionRepository({ projectRoot });
+
+  return repository.createSession({
+    continue_prompt: input.continue_prompt,
+    model_id: input.model_id,
+    project_id: mainProjectId,
+    provider_id: input.provider_id,
+    session_id: input.session_id,
+    title: input.title,
+  });
+};
+
 let previousProjectRoot: string | undefined;
 
 const useProjectRoot = async (
@@ -148,8 +171,25 @@ afterEach(async () => {
 });
 
 describe("opencode session routes", () => {
+  it("does not expose an external OpenCode session create endpoint", async () => {
+    await useProjectRoot("does-not-create-session-by-route");
+    const app = createApp();
+
+    const response = await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        session_id: "session-created-by-route",
+        continue_prompt: "External create should not be accepted.",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+  });
+
   it("lists OpenCode session promises and filters them by state", async () => {
-    await useProjectRoot("lists-and-filters-sessions");
+    const projectRoot = await useProjectRoot("lists-and-filters-sessions");
     const app = createApp();
 
     for (const sessionId of [
@@ -157,17 +197,10 @@ describe("opencode session routes", () => {
       "session-resolved",
       "session-rejected",
     ]) {
-      const createResponse = await app.request(opencodeSessionsPath, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          project_id: mainProjectId,
-          session_id: sessionId,
-          continue_prompt: `Continue ${sessionId}.`,
-        }),
+      await insertOpenCodeSession(projectRoot, {
+        continue_prompt: `Continue ${sessionId}.`,
+        session_id: sessionId,
       });
-
-      expect(createResponse.status).toBe(201);
     }
 
     expect(
@@ -228,17 +261,12 @@ describe("opencode session routes", () => {
   });
 
   it("updates continue_prompt only while an OpenCode session is pending", async () => {
-    await useProjectRoot("patches-pending-session-prompt");
+    const projectRoot = await useProjectRoot("patches-pending-session-prompt");
     const app = createApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-prompt",
-        continue_prompt: "Continue with stale instructions.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue with stale instructions.",
+      session_id: "session-prompt",
     });
 
     const patchResponse = await app.request(
@@ -282,16 +310,11 @@ describe("opencode session routes", () => {
   });
 
   it("validates continue_prompt patch payloads and missing sessions", async () => {
-    await useProjectRoot("validates-patch-session-prompt");
+    const projectRoot = await useProjectRoot("validates-patch-session-prompt");
     const app = createApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-invalid-patch",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      session_id: "session-invalid-patch",
     });
 
     const invalidResponse = await app.request(
@@ -323,19 +346,16 @@ describe("opencode session routes", () => {
   });
 
   it("does not expose a single-session external continue endpoint", async () => {
-    await useProjectRoot("single-session-continue-not-exposed");
+    const projectRoot = await useProjectRoot(
+      "single-session-continue-not-exposed",
+    );
     const { app, sendPrompt } = createRouteAppWithSessionPromptSender();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-pending",
-        continue_prompt: "Continue the AIM-controlled session.",
-        provider_id: "anthropic",
-        model_id: "claude-sonnet-4-5",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue the AIM-controlled session.",
+      model_id: "claude-sonnet-4-5",
+      provider_id: "anthropic",
+      session_id: "session-pending",
     });
 
     const response = await app.request(
@@ -348,17 +368,12 @@ describe("opencode session routes", () => {
   });
 
   it("does not expose a bulk external continue endpoint", async () => {
-    await useProjectRoot("bulk-continue-not-exposed");
+    const projectRoot = await useProjectRoot("bulk-continue-not-exposed");
     const { app, sendPrompt } = createRouteAppWithSessionPromptSender();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-pending",
-        continue_prompt: "Continue the AIM-controlled session.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue the AIM-controlled session.",
+      session_id: "session-pending",
     });
 
     const response = await app.request(opencodeSessionsContinuePendingPath, {
@@ -369,23 +384,14 @@ describe("opencode session routes", () => {
     expect(sendPrompt).not.toHaveBeenCalled();
   });
 
-  it("creates a pending OpenCode session record and reads the persisted prompt", async () => {
+  it("reads a pending OpenCode session record with the persisted prompt", async () => {
     const projectRoot = await useProjectRoot("creates-and-reads-session");
     const app = createApp();
 
-    const createResponse = await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-1",
-        continue_prompt: "Continue the standalone AIM-controlled session.",
-      }),
+    const createdSession = await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue the standalone AIM-controlled session.",
+      session_id: "session-1",
     });
-
-    expect(createResponse.status).toBe(201);
-
-    const createdSession = await createResponse.json();
 
     expect(createdSession).toMatchObject({
       session_id: "session-1",
@@ -446,42 +452,6 @@ describe("opencode session routes", () => {
       cache_write_tokens: 0,
       output_tokens: 0,
       reasoning_tokens: 0,
-    });
-  });
-
-  it("rejects creating OpenCode sessions without an existing project", async () => {
-    await useProjectRoot("rejects-session-without-project");
-    const app = createApp();
-
-    const missingProjectResponse = await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        session_id: "session-missing-project",
-        continue_prompt: "Continue without a project.",
-      }),
-    });
-
-    expect(missingProjectResponse.status).toBe(400);
-    await expect(missingProjectResponse.json()).resolves.toMatchObject({
-      code: "TASK_VALIDATION_ERROR",
-      message: "Invalid OpenCode session payload",
-    });
-
-    const unknownProjectResponse = await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: "00000000-0000-4000-8000-000000000404",
-        session_id: "session-unknown-project",
-        continue_prompt: "Continue with an unknown project.",
-      }),
-    });
-
-    expect(unknownProjectResponse.status).toBe(400);
-    await expect(unknownProjectResponse.json()).resolves.toMatchObject({
-      code: "TASK_VALIDATION_ERROR",
-      message: expect.stringContaining("Project"),
     });
   });
 
@@ -626,16 +596,10 @@ describe("opencode session routes", () => {
 
   it("does not bootstrap legacy optimizer lane state storage", async () => {
     const projectRoot = await useProjectRoot("skips-lane-state-schema");
-    const app = createApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-schema",
-        continue_prompt: "Continue through the plugin-owned session queue.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue through the plugin-owned session queue.",
+      session_id: "session-schema",
     });
 
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -668,16 +632,9 @@ describe("opencode session routes", () => {
       .run("keep me");
     database.close();
 
-    const app = createApp();
-
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-preserve-schema",
-        continue_prompt: "Continue without touching the legacy table.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue without touching the legacy table.",
+      session_id: "session-preserve-schema",
     });
 
     const migratedDatabase = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -693,14 +650,9 @@ describe("opencode session routes", () => {
     const projectRoot = await useProjectRoot("shows-stale-pending-session");
     const app = createApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-stale",
-        continue_prompt: "Continue stale work.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue stale work.",
+      session_id: "session-stale",
     });
 
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
@@ -739,26 +691,16 @@ describe("opencode session routes", () => {
   });
 
   it("settles pending OpenCode sessions through resolve and reject endpoints", async () => {
-    await useProjectRoot("settles-sessions");
+    const projectRoot = await useProjectRoot("settles-sessions");
     const app = createApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-resolved",
-        continue_prompt: "Continue until resolved.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until resolved.",
+      session_id: "session-resolved",
     });
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-rejected",
-        continue_prompt: "Continue until rejected.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until rejected.",
+      session_id: "session-rejected",
     });
 
     const resolveResponse = await app.request(
@@ -800,21 +742,14 @@ describe("opencode session routes", () => {
   });
 
   it("rejects settlement requests that omit the resolved value or rejected reason", async () => {
-    await useProjectRoot("settlement-requires-outcome");
+    const projectRoot = await useProjectRoot("settlement-requires-outcome");
     const app = createApp();
 
     for (const sessionId of ["session-resolve", "session-reject"]) {
-      const createResponse = await app.request(opencodeSessionsPath, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          project_id: mainProjectId,
-          session_id: sessionId,
-          continue_prompt: `Continue ${sessionId}.`,
-        }),
+      await insertOpenCodeSession(projectRoot, {
+        continue_prompt: `Continue ${sessionId}.`,
+        session_id: sessionId,
       });
-
-      expect(createResponse.status).toBe(201);
     }
 
     for (const body of [{}, { value: "   " }]) {
@@ -860,7 +795,7 @@ describe("opencode session routes", () => {
   });
 
   it("records recomputed OpenCode token usage when resolving a session", async () => {
-    await useProjectRoot("resolve-records-token-usage");
+    const projectRoot = await useProjectRoot("resolve-records-token-usage");
     const app = createApp();
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
@@ -896,14 +831,9 @@ describe("opencode session routes", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-token-resolved",
-        continue_prompt: "Continue until resolved.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until resolved.",
+      session_id: "session-token-resolved",
     });
 
     const resolveResponse = await app.request(
@@ -930,7 +860,7 @@ describe("opencode session routes", () => {
   });
 
   it("recomputes and overwrites OpenCode token usage when rejecting a settled session again", async () => {
-    await useProjectRoot("reject-overwrites-token-usage");
+    const projectRoot = await useProjectRoot("reject-overwrites-token-usage");
     const app = createApp();
     const tokenSnapshots = [
       {
@@ -963,14 +893,9 @@ describe("opencode session routes", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-token-rejected",
-        continue_prompt: "Continue until rejected.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until rejected.",
+      session_id: "session-token-rejected",
     });
 
     expect(
@@ -1003,7 +928,7 @@ describe("opencode session routes", () => {
   });
 
   it("manually refreshes one OpenCode session token usage without settling the session", async () => {
-    await useProjectRoot("refresh-token-usage");
+    const projectRoot = await useProjectRoot("refresh-token-usage");
     const app = createApp();
     const tokenSnapshots = [
       {
@@ -1039,14 +964,9 @@ describe("opencode session routes", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-refresh",
-        continue_prompt: "Continue until refreshed.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until refreshed.",
+      session_id: "session-refresh",
     });
 
     const firstRefreshResponse = await app.request(
@@ -1118,14 +1038,9 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-rejected",
-        continue_prompt: "Continue until rejected.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until rejected.",
+      session_id: "session-task-rejected",
     });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
@@ -1139,16 +1054,6 @@ describe("opencode session routes", () => {
       }),
     });
     const createdTask = await taskResponse.json();
-
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-rejected",
-        continue_prompt: "Continue until rejected.",
-      }),
-    });
 
     const rejectResponse = await app.request(
       opencodeSessionRejectPath("session-task-rejected"),
@@ -1175,14 +1080,9 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-idempotent",
-        continue_prompt: "Continue until rejected once.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until rejected once.",
+      session_id: "session-task-idempotent",
     });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
@@ -1196,16 +1096,6 @@ describe("opencode session routes", () => {
       }),
     });
     const createdTask = await taskResponse.json();
-
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-idempotent",
-        continue_prompt: "Continue until rejected once.",
-      }),
-    });
 
     expect(
       await app.request(opencodeSessionRejectPath("session-task-idempotent"), {
@@ -1248,14 +1138,9 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-resolve-no-pr",
-        continue_prompt: "Continue until resolved.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until resolved.",
+      session_id: "session-task-resolve-no-pr",
     });
     await app.request(tasksPath, {
       method: "POST",
@@ -1268,16 +1153,6 @@ describe("opencode session routes", () => {
         title: "Resolve bound task",
       }),
     });
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-resolve-no-pr",
-        continue_prompt: "Continue until resolved.",
-      }),
-    });
-
     const resolveResponse = await app.request(
       opencodeSessionResolvePath("session-task-resolve-no-pr"),
       {
@@ -1302,14 +1177,9 @@ describe("opencode session routes", () => {
     insertProject(projectRoot);
     const app = createRouteApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-missing-result",
-        continue_prompt: "Continue until settled.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until settled.",
+      session_id: "session-task-missing-result",
     });
     await app.request(tasksPath, {
       method: "POST",
@@ -1322,16 +1192,6 @@ describe("opencode session routes", () => {
         title: "Settle bound task",
       }),
     });
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-missing-result",
-        continue_prompt: "Continue until settled.",
-      }),
-    });
-
     const rejectResponse = await app.request(
       opencodeSessionRejectPath("session-task-missing-result"),
       {
@@ -1354,14 +1214,9 @@ describe("opencode session routes", () => {
     mockGhPullRequestOutput(ghMergedPullRequestOutput);
     const app = createRouteApp();
 
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-resolved",
-        continue_prompt: "Continue until resolved.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue until resolved.",
+      session_id: "session-task-resolved",
     });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
@@ -1376,16 +1231,6 @@ describe("opencode session routes", () => {
       }),
     });
     const createdTask = await taskResponse.json();
-    await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-task-resolved",
-        continue_prompt: "Continue until resolved.",
-      }),
-    });
-
     const resolveResponse = await app.request(
       opencodeSessionResolvePath("session-task-resolved"),
       {
@@ -1412,14 +1257,9 @@ describe("opencode session routes", () => {
     mockGhPullRequestOutput(ghMergedPullRequestOutput);
     const app = createRouteApp();
 
-    const createSessionResponse = await app.request(opencodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "developer-session-1",
-        continue_prompt: "Continue the registered Developer task.",
-      }),
+    await insertOpenCodeSession(projectRoot, {
+      continue_prompt: "Continue the registered Developer task.",
+      session_id: "developer-session-1",
     });
     const taskResponse = await app.request(tasksPath, {
       method: "POST",
@@ -1435,7 +1275,6 @@ describe("opencode session routes", () => {
     });
     const createdTask = await taskResponse.json();
 
-    expect(createSessionResponse.status).toBe(201);
     await expect(
       (await app.request(opencodeSessionPath("developer-session-1"))).json(),
     ).resolves.toMatchObject({

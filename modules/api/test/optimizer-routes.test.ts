@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app.js";
+import { createOpenCodeSessionRepository } from "../src/opencode-session-repository.js";
 
 const routesTempRoot = join(
   process.cwd(),
@@ -11,7 +12,6 @@ const routesTempRoot = join(
   "modules-api-optimizer-routes",
 );
 const jsonHeaders = { "content-type": "application/json" };
-const opencodeSessionsPath = "/opencode/sessions";
 const tasksPath = "/tasks";
 const defaultBudgetWarning = {
   status: "not_configured",
@@ -77,21 +77,19 @@ const createProject = async (
 };
 
 const createSession = async (
-  app: ReturnType<typeof createApp>,
+  _app: ReturnType<typeof createApp>,
   projectId: string,
   sessionId: string,
 ) => {
-  const response = await app.request(opencodeSessionsPath, {
-    method: "POST",
-    headers: jsonHeaders,
-    body: JSON.stringify({
-      project_id: projectId,
-      session_id: sessionId,
-      continue_prompt: `Continue ${sessionId}.`,
-    }),
+  await using repository = createOpenCodeSessionRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
   });
 
-  expect(response.status).toBe(201);
+  await repository.createSession({
+    continue_prompt: `Continue ${sessionId}.`,
+    project_id: projectId,
+    session_id: sessionId,
+  });
 };
 
 const createTask = async (

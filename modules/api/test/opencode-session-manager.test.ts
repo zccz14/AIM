@@ -1,3 +1,4 @@
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -84,6 +85,16 @@ const createRepository = () => {
           task_ids: [],
         },
     ),
+    getProjectById: vi.fn((projectId: string) =>
+      projectId === testProjectId
+        ? {
+            git_origin_url: "https://github.com/example/repo.git",
+            global_model_id: "claude-sonnet-4-5",
+            global_provider_id: "anthropic",
+            id: testProjectId,
+          }
+        : null,
+    ),
     referenceSession(sessionId: string) {
       sessionReferences.set(sessionId, {
         coordinator_state_project_ids: [],
@@ -102,14 +113,16 @@ describe("createOpenCodeSessionManager", () => {
     process.env.AIM_HOME = aimHome;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     delete process.env.AIM_HOME;
     vi.useRealTimers();
     vi.resetModules();
     vi.restoreAllMocks();
+    await rm(aimHome, { force: true, recursive: true });
   });
 
-  it("creates an OpenCode session, stores prompt and model metadata, and returns a disposable handle without sending the prompt", async () => {
+  it("creates an OpenCode session from the project workspace and model and returns only the stored session id without sending the prompt", async () => {
+    await mkdir(expectedRuntimeDirectory, { recursive: true });
     const repository = createRepository();
     const create = vi.fn().mockResolvedValue({ data: { id: "session-1" } });
     const promptAsync = vi.fn().mockResolvedValue({});
@@ -133,18 +146,18 @@ describe("createOpenCodeSessionManager", () => {
     });
 
     const session = await manager.createSession({
-      directory: "/repo/.worktrees/task-1",
-      model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
       prompt: "Continue the task.",
       projectId: testProjectId,
       title: "AIM Developer: Task 1",
     });
 
-    expect(session.sessionId).toBe("session-1");
+    expect(session).toEqual({ session_id: "session-1" });
+    expect(session).not.toHaveProperty("sessionId");
+    expect(Symbol.asyncDispose in session).toBe(false);
 
     expect(create).toHaveBeenCalledWith({
       body: { title: "AIM Developer: Task 1" },
-      query: { directory: "/repo/.worktrees/task-1" },
+      query: { directory: expectedRuntimeDirectory },
       throwOnError: true,
     });
     expect(repository.listSessions({ state: "pending" })).toMatchObject([
@@ -159,12 +172,7 @@ describe("createOpenCodeSessionManager", () => {
       },
     ]);
     expect(promptAsync).not.toHaveBeenCalled();
-    await session[Symbol.asyncDispose]();
-    expect(abort).toHaveBeenCalledWith({
-      path: { id: "session-1" },
-      query: { directory: "/repo/.worktrees/task-1" },
-      throwOnError: true,
-    });
+    expect(abort).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();
 
