@@ -247,15 +247,22 @@ export const createOpenCodeSessionManager = ({
           if (!hasSessionReferences(sessionReferences)) {
             if (isOlderThanOrphanGrace(session.created_at)) {
               try {
-                await client.session.abort({
+                await client.session.delete({
                   path: { id: session.session_id },
                   throwOnError: true,
                 });
               } catch (error) {
+                if (isOpenCodeSessionNotFoundError(error)) {
+                  await repository.deleteSessionById(session.session_id);
+                  continue;
+                }
+
                 console.warn("OpenCode orphan runtime cleanup failed", {
                   error: summarizeError(error),
                   session_id: session.session_id,
                 });
+
+                continue;
               }
 
               await repository.deleteSessionById(session.session_id);
