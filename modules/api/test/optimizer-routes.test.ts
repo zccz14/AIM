@@ -78,12 +78,14 @@ const createProject = async (
 
 const createSession = async (
   app: ReturnType<typeof createApp>,
+  projectId: string,
   sessionId: string,
 ) => {
   const response = await app.request(opencodeSessionsPath, {
     method: "POST",
     headers: jsonHeaders,
     body: JSON.stringify({
+      project_id: projectId,
       session_id: sessionId,
       continue_prompt: `Continue ${sessionId}.`,
     }),
@@ -275,7 +277,7 @@ describe("optimizer routes", () => {
       optimizerSystem: { [Symbol.asyncDispose]: async () => undefined },
     });
     const project = await createProject(app, true);
-    await createSession(app, "root-session");
+    await createSession(app, project.id, "root-session");
     await createTask(app, {
       projectId: project.id,
       sessionId: "root-session",
@@ -347,8 +349,8 @@ describe("optimizer routes", () => {
       optimizerSystem: { [Symbol.asyncDispose]: async () => undefined },
     });
     const project = await createProject(app, true);
-    await createSession(app, "successful-session");
-    await createSession(app, "failing-session");
+    await createSession(app, project.id, "successful-session");
+    await createSession(app, project.id, "failing-session");
     await createTask(app, {
       projectId: project.id,
       sessionId: "successful-session",

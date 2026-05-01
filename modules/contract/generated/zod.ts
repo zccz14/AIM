@@ -53,7 +53,7 @@ const OpenCodeSession = z
     reason: z.union([z.string(), z.null()]),
     continue_prompt: z.union([z.string(), z.null()]),
     title: z.union([z.string(), z.null()]),
-    project_id: z.union([z.string(), z.null()]),
+    project_id: z.string().uuid(),
     provider_id: z.union([z.string(), z.null()]),
     model_id: z.union([z.string(), z.null()]),
     input_tokens: z.number().int().gte(0),
@@ -74,7 +74,7 @@ const CreateOpenCodeSessionRequest = z
     session_id: z.string().min(1),
     continue_prompt: z.union([z.string(), z.null()]).optional(),
     title: z.union([z.string(), z.null()]).optional(),
-    project_id: z.union([z.string(), z.null()]).optional(),
+    project_id: z.string().uuid(),
     provider_id: z.union([z.string(), z.null()]).optional(),
     model_id: z.union([z.string(), z.null()]).optional(),
   })

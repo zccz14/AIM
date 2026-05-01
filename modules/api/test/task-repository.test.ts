@@ -80,12 +80,32 @@ const insertOpenCodeSession = (
 ) => {
   const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
   const now = new Date().toISOString();
+  let project = database.prepare("SELECT id FROM projects LIMIT 1").get() as
+    | { id: string }
+    | undefined;
+
+  if (!project) {
+    database
+      .prepare(
+        "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        mainProjectId,
+        "Main project",
+        "https://github.com/example/main.git",
+        "anthropic",
+        "claude-sonnet-4-5",
+        now,
+        now,
+      );
+    project = { id: mainProjectId };
+  }
 
   database
     .prepare(
-      "INSERT INTO opencode_sessions (session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)",
+      "INSERT INTO opencode_sessions (session_id, project_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at) VALUES (?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?)",
     )
-    .run(sessionId, state, now, now);
+    .run(sessionId, project.id, state, now, now);
   database.close();
 };
 

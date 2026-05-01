@@ -1173,9 +1173,7 @@ components:
             - string
             - "null"
         project_id:
-          type:
-            - string
-            - "null"
+          type: string
           format: uuid
         provider_id:
           type:
@@ -1227,6 +1225,7 @@ components:
       additionalProperties: false
       required:
         - session_id
+        - project_id
       properties:
         session_id:
           type: string
@@ -1240,9 +1239,7 @@ components:
             - string
             - "null"
         project_id:
-          type:
-            - string
-            - "null"
+          type: string
           format: uuid
         provider_id:
           type:

@@ -196,7 +196,7 @@ const registerOpenCodeSession = async (
   app.request(contractModule.openCodeSessionsPath, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({ project_id: mainProjectId, session_id: sessionId }),
   });
 
 const useProjectRoot = async (
@@ -617,6 +617,7 @@ describe("task routes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          project_id: mainProjectId,
           session_id: "session-observed",
           continue_prompt: "Continue observed task.",
         }),
@@ -1724,7 +1725,10 @@ describe("task routes", () => {
     await app.request(contractModule.openCodeSessionsPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session_id: "terminal-delete-session" }),
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        session_id: "terminal-delete-session",
+      }),
     });
     const resolvedResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
@@ -1926,7 +1930,10 @@ describe("task routes", () => {
     await app.request(contractModule.openCodeSessionsPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session_id: "session-a-rejected" }),
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        session_id: "session-a-rejected",
+      }),
     });
     await app.request(
       contractModule.openCodeSessionRejectPath.replace(
@@ -2469,6 +2476,7 @@ describe("task routes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          project_id: mainProjectId,
           session_id: "session-stale-no-pr",
           continue_prompt: "Continue the stale no-PR task.",
         }),
@@ -2564,6 +2572,7 @@ describe("task routes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          project_id: mainProjectId,
           session_id: "session-active-no-pr",
           continue_prompt: "Continue active task.",
         }),
