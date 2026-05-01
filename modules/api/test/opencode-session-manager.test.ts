@@ -1245,6 +1245,7 @@ describe("createOpenCodeSessionManager", () => {
 
     const sentText = promptAsync.mock.calls[0]?.[0].body.parts[0].text;
     expect(sentText).toContain("Continue explicitly.");
+    expect(sentText).toContain("AIM Session Settlement Protocol");
     expect(sentText).toContain(
       "http://aim.example.test/opencode/sessions/session-explicit/resolve",
     );
@@ -1252,8 +1253,8 @@ describe("createOpenCodeSessionManager", () => {
       "http://aim.example.test/opencode/sessions/session-explicit/reject",
     );
     expect(sentText).toContain("curl");
-    expect(sentText).not.toContain("call aim_session_resolve");
-    expect(sentText).not.toContain("call aim_session_reject");
+    expect(sentText).not.toContain("aim_session_resolve");
+    expect(sentText).not.toContain("aim_session_reject");
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
@@ -1277,6 +1278,7 @@ describe("createOpenCodeSessionManager", () => {
     });
 
     expect(prompt.startsWith("External prompt.")).toBe(true);
+    expect(prompt).toContain("AIM Session Settlement Protocol");
     expect(prompt).toContain(
       "http://aim.example.test/opencode/sessions/session-helper/resolve",
     );
@@ -1286,8 +1288,9 @@ describe("createOpenCodeSessionManager", () => {
     expect(prompt).toContain("curl");
     expect(prompt).toContain("value");
     expect(prompt).toContain("reason");
-    expect(prompt).not.toContain("call aim_session_resolve");
-    expect(prompt).not.toContain("call aim_session_reject");
+    expect(prompt).not.toContain("aim_session_resolve");
+    expect(prompt).not.toContain("aim_session_reject");
+    expect(prompt).not.toContain("Terminal instruction");
     expect(prompt).toContain("this loop will not end");
   });
 });

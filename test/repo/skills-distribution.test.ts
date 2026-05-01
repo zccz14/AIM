@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, it } from "vitest";
 
@@ -33,6 +33,24 @@ async function readRepoFile(path: string) {
   return await readFile(new URL(path, repoRoot), "utf8");
 }
 
+async function readSkillMarkdownFiles(path = ".agents/skills") {
+  const directory = new URL(`${path}/`, repoRoot);
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = `${path}/${entry.name}`;
+
+      if (entry.isDirectory()) {
+        return await readSkillMarkdownFiles(entryPath);
+      }
+
+      return entry.isFile() && entry.name.endsWith(".md") ? [entryPath] : [];
+    }),
+  );
+
+  return files.flat();
+}
+
 describe("skills distribution", () => {
   it("installs core AIM skills from repo-level agent skills", async () => {
     for (const skillName of coreSkillNames) {
@@ -58,5 +76,26 @@ describe("skills distribution", () => {
           : [],
       ),
     ).toEqual([]);
+  });
+
+  it("keeps skills on the AIM session settlement protocol", async () => {
+    const skillSources = await Promise.all(
+      (await readSkillMarkdownFiles()).map(async (path) => [
+        path,
+        await readRepoFile(path),
+      ]),
+    );
+
+    expect(
+      skillSources.flatMap(([path, source]) =>
+        source.includes("aim_session_resolve") ||
+        source.includes("aim_session_reject")
+          ? [path]
+          : [],
+      ),
+    ).toEqual([]);
+    expect(
+      await readRepoFile(".agents/skills/aim-developer-guide/SKILL.md"),
+    ).toContain("AIM Session Settlement Protocol");
   });
 });

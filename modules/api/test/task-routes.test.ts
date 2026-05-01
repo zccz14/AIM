@@ -2376,10 +2376,14 @@ describe("task routes", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    const body = await response.json();
+    expect(body.recovery_action).toContain("AIM Session Settlement Protocol");
+    expect(body.recovery_action).not.toContain("aim_session_resolve");
+    expect(body.recovery_action).not.toContain("aim_session_reject");
+    expect(body).toMatchObject({
       category: "merged_but_not_resolved",
       recovery_action:
-        "Call aim_session_resolve with the final result now that the pull request is merged.",
+        "Settle the current AIM-managed session using AIM Session Settlement Protocol now that the pull request is merged.",
       summary: "Pull request is merged, but the AIM task is still pending.",
       task_done: false,
       task_status: "pending",
