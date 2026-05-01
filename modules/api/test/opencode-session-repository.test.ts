@@ -83,16 +83,100 @@ describe("OpenCode session repository", () => {
     await repository[Symbol.asyncDispose]();
   });
 
+  it("rejects creating a session without an existing project", async () => {
+    const projectRoot = await createProjectRoot("requires-existing-project");
+    const repository = createOpenCodeSessionRepository({ projectRoot });
+
+    await expect(
+      repository.createSession({
+        continue_prompt: "Continue.",
+        session_id: "session-missing-project",
+      }),
+    ).rejects.toThrow(/project_id/i);
+
+    await expect(
+      repository.createSession({
+        continue_prompt: "Continue.",
+        project_id: "00000000-0000-4000-8000-000000000404",
+        session_id: "session-unknown-project",
+      }),
+    ).rejects.toThrow(/Project .* was not found/i);
+
+    await repository[Symbol.asyncDispose]();
+  });
+
+  it("migrates only legacy sessions that already identify an existing project", async () => {
+    const projectRoot = await createProjectRoot(
+      "legacy-null-project-migration",
+    );
+    const database = openDatabase(projectRoot);
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        git_origin_url TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE opencode_sessions (
+        session_id TEXT PRIMARY KEY,
+        project_id TEXT,
+        state TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    insertProject(database);
+    database
+      .prepare(
+        "INSERT INTO opencode_sessions (session_id, project_id, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run("session-owned", projectId, "pending", timestamp, timestamp);
+    database
+      .prepare(
+        "INSERT INTO opencode_sessions (session_id, project_id, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run("session-null-project", null, "pending", timestamp, timestamp);
+    database
+      .prepare(
+        "INSERT INTO opencode_sessions (session_id, project_id, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(
+        "session-unknown-project",
+        "00000000-0000-4000-8000-000000000404",
+        "pending",
+        timestamp,
+        timestamp,
+      );
+    database.close();
+
+    const repository = createOpenCodeSessionRepository({ projectRoot });
+
+    expect(repository.getSessionById("session-owned")).toMatchObject({
+      project_id: projectId,
+      session_id: "session-owned",
+    });
+    expect(repository.getSessionById("session-null-project")).toBeNull();
+    expect(repository.getSessionById("session-unknown-project")).toBeNull();
+
+    await repository[Symbol.asyncDispose]();
+  });
+
   it("reports explicit downstream owner references for an AIM session row", async () => {
     const projectRoot = await createProjectRoot("session-references");
     const repository = createOpenCodeSessionRepository({ projectRoot });
-    await repository.createSession({
-      continue_prompt: "Continue.",
-      session_id: "session-owned",
-    });
     const database = openDatabase(projectRoot);
     insertProject(database);
-    database
+    database.close();
+    await repository.createSession({
+      continue_prompt: "Continue.",
+      project_id: projectId,
+      session_id: "session-owned",
+    });
+    const referenceDatabase = openDatabase(projectRoot);
+    referenceDatabase
       .prepare(
         `INSERT INTO tasks (
           task_id,
@@ -115,7 +199,7 @@ describe("OpenCode session repository", () => {
         timestamp,
         timestamp,
       );
-    database
+    referenceDatabase
       .prepare(
         `INSERT INTO manager_states (
           project_id,
@@ -136,7 +220,7 @@ describe("OpenCode session repository", () => {
         timestamp,
         timestamp,
       );
-    database
+    referenceDatabase
       .prepare(
         `INSERT INTO coordinator_states (
           project_id,
@@ -161,7 +245,7 @@ describe("OpenCode session repository", () => {
         timestamp,
         timestamp,
       );
-    database.close();
+    referenceDatabase.close();
 
     expect(repository.getSessionReferences("session-owned")).toEqual({
       coordinator_state_project_ids: [projectId],
@@ -180,12 +264,17 @@ describe("OpenCode session repository", () => {
   it("deletes an AIM session row by id without touching unrelated sessions", async () => {
     const projectRoot = await createProjectRoot("delete-session-by-id");
     const repository = createOpenCodeSessionRepository({ projectRoot });
+    const database = openDatabase(projectRoot);
+    insertProject(database);
+    database.close();
     await repository.createSession({
       continue_prompt: "Delete me.",
+      project_id: projectId,
       session_id: "session-delete",
     });
     const keptSession = await repository.createSession({
       continue_prompt: "Keep me.",
+      project_id: projectId,
       session_id: "session-keep",
     });
 

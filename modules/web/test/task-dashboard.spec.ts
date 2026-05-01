@@ -6,7 +6,7 @@ const zeroOpenCodeSessionTokens = {
   cache_write_tokens: 0,
   input_tokens: 0,
   output_tokens: 0,
-  project_id: null,
+  project_id: "00000000-0000-4000-8000-000000000010",
   reasoning_tokens: 0,
   title: null,
 };
@@ -2447,7 +2447,7 @@ test("summarizes OpenCode session token usage and refreshes one session", async 
       value: null,
       reason: null,
       continue_prompt: "Continue after usage refresh.",
-      project_id: null,
+      project_id: "00000000-0000-4000-8000-000000000010",
       provider_id: "anthropic",
       model_id: "claude-sonnet-4-5",
       title: null,

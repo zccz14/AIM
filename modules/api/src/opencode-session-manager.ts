@@ -9,7 +9,7 @@ type OpenCodeSessionRepository = AsyncDisposable & {
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
-    project_id?: null | string;
+    project_id: string;
     provider_id?: null | string;
     session_id: string;
     title?: null | string;

@@ -21,7 +21,7 @@ type OpenCodeSessionRow = {
   input_tokens: number;
   model_id: null | string;
   output_tokens: number;
-  project_id: null | string;
+  project_id: string;
   reason: null | string;
   reasoning_tokens: number;
   provider_id: null | string;
@@ -132,6 +132,11 @@ export const createOpenCodeSessionRepository = (
       updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const getProjectByIdStatement = database.prepare(`
+    SELECT id
+    FROM projects
+    WHERE id = ?
+  `);
   const getByIdStatement = database.prepare(`
     SELECT session_id, state, value, reason, continue_prompt, title, project_id, provider_id, model_id, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at
     FROM ${tableName}
@@ -196,6 +201,20 @@ export const createOpenCodeSessionRepository = (
     async createSession(
       input: CreateOpenCodeSessionRequest,
     ): Promise<OpenCodeSession> {
+      const projectId = input.project_id;
+
+      if (!projectId) {
+        throw new Error("OpenCode session requires project_id");
+      }
+
+      const project = getProjectByIdStatement.get(projectId) as
+        | { id: string }
+        | undefined;
+
+      if (!project) {
+        throw new Error(`Project ${projectId} was not found`);
+      }
+
       const timestamp = new Date().toISOString();
       const session = mapOpenCodeSessionRow({
         continue_prompt: input.continue_prompt ?? null,
@@ -205,7 +224,7 @@ export const createOpenCodeSessionRepository = (
         cache_write_tokens: 0,
         input_tokens: 0,
         output_tokens: 0,
-        project_id: input.project_id ?? null,
+        project_id: project.id,
         reasoning_tokens: 0,
         provider_id: input.provider_id ?? null,
         reason: null,

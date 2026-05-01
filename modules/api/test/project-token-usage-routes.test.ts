@@ -78,12 +78,14 @@ const createProject = async (
 
 const createSession = async (
   app: ReturnType<typeof createApp>,
+  projectId: string,
   sessionId: string,
 ) => {
   const response = await app.request(opencodeSessionsPath, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
+      project_id: projectId,
       session_id: sessionId,
       continue_prompt: `Continue ${sessionId}.`,
     }),
@@ -145,8 +147,8 @@ describe("project token usage route", () => {
 
     const mainProject = await createProject(app, "main-project");
     const isolatedProject = await createProject(app, "isolated-project");
-    await createSession(app, "root-session");
-    await createSession(app, "other-session");
+    await createSession(app, mainProject.id, "root-session");
+    await createSession(app, isolatedProject.id, "other-session");
     const mainTask = await createTask(app, {
       projectId: mainProject.id,
       sessionId: "root-session",
@@ -336,7 +338,7 @@ describe("project token usage route", () => {
         cost_warning_threshold: 10,
       }),
     });
-    await createSession(app, "budget-session");
+    await createSession(app, project.id, "budget-session");
     await createTask(app, {
       projectId: project.id,
       sessionId: "budget-session",
@@ -395,7 +397,7 @@ describe("project token usage route", () => {
     const project = await createProject(app, "hard-budget-project", {
       token_budget_limit: 1000,
     });
-    await createSession(app, "budget-hard-session");
+    await createSession(app, project.id, "budget-hard-session");
     await createTask(app, {
       projectId: project.id,
       sessionId: "budget-hard-session",
@@ -473,7 +475,7 @@ describe("project token usage route", () => {
     const project = await createProject(app, "no-window-budget-project", {
       token_budget_limit: 1000,
     });
-    await createSession(app, "no-window-session");
+    await createSession(app, project.id, "no-window-session");
     await createTask(app, {
       projectId: project.id,
       sessionId: "no-window-session",
@@ -522,7 +524,7 @@ describe("project token usage route", () => {
     const app = createRouteApp();
 
     const project = await createProject(app, "failure-project");
-    await createSession(app, "failing-session");
+    await createSession(app, project.id, "failing-session");
     const task = await createTask(app, {
       projectId: project.id,
       sessionId: "failing-session",
@@ -583,8 +585,8 @@ describe("project token usage route", () => {
     const app = createRouteApp();
 
     const project = await createProject(app, "timeout-project");
-    await createSession(app, "slow-session");
-    await createSession(app, "fast-session");
+    await createSession(app, project.id, "slow-session");
+    await createSession(app, project.id, "fast-session");
     const slowTask = await createTask(app, {
       projectId: project.id,
       sessionId: "slow-session",

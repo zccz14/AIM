@@ -1835,7 +1835,7 @@ export const openApiDocument = {
             type: ["string", "null"],
           },
           project_id: {
-            type: ["string", "null"],
+            type: "string",
             format: "uuid",
           },
           provider_id: {
@@ -1898,7 +1898,7 @@ export const openApiDocument = {
       CreateOpenCodeSessionRequest: {
         type: "object",
         additionalProperties: false,
-        required: ["session_id"],
+        required: ["session_id", "project_id"],
         properties: {
           session_id: {
             type: "string",
@@ -1911,7 +1911,7 @@ export const openApiDocument = {
             type: ["string", "null"],
           },
           project_id: {
-            type: ["string", "null"],
+            type: "string",
             format: "uuid",
           },
           provider_id: {

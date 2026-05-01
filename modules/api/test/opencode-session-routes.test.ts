@@ -84,7 +84,7 @@ const insertProject = (projectRoot: string) => {
   `);
   database
     .prepare(
-      "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT OR IGNORE INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .run(
       mainProjectId,
@@ -113,7 +113,10 @@ const mockGhPullRequestOutput = (stdout: string) => {
 
 let previousProjectRoot: string | undefined;
 
-const useProjectRoot = async (name: string) => {
+const useProjectRoot = async (
+  name: string,
+  options: { seedProject?: boolean } = {},
+) => {
   previousProjectRoot = process.env.AIM_PROJECT_ROOT;
 
   const projectRoot = join(routesTempRoot, name);
@@ -122,6 +125,10 @@ const useProjectRoot = async (name: string) => {
   await mkdir(projectRoot, { recursive: true });
 
   process.env.AIM_PROJECT_ROOT = projectRoot;
+
+  if (options.seedProject ?? true) {
+    insertProject(projectRoot);
+  }
 
   return projectRoot;
 };
@@ -154,6 +161,7 @@ describe("opencode session routes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          project_id: mainProjectId,
           session_id: sessionId,
           continue_prompt: `Continue ${sessionId}.`,
         }),
@@ -227,6 +235,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-prompt",
         continue_prompt: "Continue with stale instructions.",
       }),
@@ -279,7 +288,10 @@ describe("opencode session routes", () => {
     await app.request(opencodeSessionsPath, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session_id: "session-invalid-patch" }),
+      body: JSON.stringify({
+        project_id: mainProjectId,
+        session_id: "session-invalid-patch",
+      }),
     });
 
     const invalidResponse = await app.request(
@@ -318,6 +330,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-pending",
         continue_prompt: "Continue the AIM-controlled session.",
         provider_id: "anthropic",
@@ -342,6 +355,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-pending",
         continue_prompt: "Continue the AIM-controlled session.",
       }),
@@ -363,6 +377,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-1",
         continue_prompt: "Continue the standalone AIM-controlled session.",
       }),
@@ -434,9 +449,46 @@ describe("opencode session routes", () => {
     });
   });
 
+  it("rejects creating OpenCode sessions without an existing project", async () => {
+    await useProjectRoot("rejects-session-without-project");
+    const app = createApp();
+
+    const missingProjectResponse = await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: "session-missing-project",
+        continue_prompt: "Continue without a project.",
+      }),
+    });
+
+    expect(missingProjectResponse.status).toBe(400);
+    await expect(missingProjectResponse.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message: "Invalid OpenCode session payload",
+    });
+
+    const unknownProjectResponse = await app.request(opencodeSessionsPath, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        project_id: "00000000-0000-4000-8000-000000000404",
+        session_id: "session-unknown-project",
+        continue_prompt: "Continue with an unknown project.",
+      }),
+    });
+
+    expect(unknownProjectResponse.status).toBe(400);
+    await expect(unknownProjectResponse.json()).resolves.toMatchObject({
+      code: "TASK_VALIDATION_ERROR",
+      message: expect.stringContaining("Project"),
+    });
+  });
+
   it("migrates existing OpenCode session tables to the documented session schema", async () => {
     const projectRoot = await useProjectRoot(
       "migrates-opencode-session-schema",
+      { seedProject: false },
     );
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
 
@@ -478,7 +530,7 @@ describe("opencode session routes", () => {
     const app = createApp();
     const response = await app.request(opencodeSessionPath("legacy-session"));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(404);
 
     const migratedDatabase = new DatabaseSync(join(projectRoot, "aim.sqlite"));
     const columns = migratedDatabase
@@ -568,20 +620,7 @@ describe("opencode session routes", () => {
         }),
       ]),
     );
-    expect(persisted).toEqual({
-      session_id: "legacy-session",
-      title: null,
-      project_id: null,
-      continue_prompt: "Continue the legacy session.",
-      provider_id: null,
-      model_id: null,
-      state: "pending",
-      input_tokens: 0,
-      cached_tokens: 0,
-      cache_write_tokens: 0,
-      output_tokens: 0,
-      reasoning_tokens: 0,
-    });
+    expect(persisted).toBeUndefined();
     expect(cascadedSession).toBeUndefined();
   });
 
@@ -593,6 +632,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-schema",
         continue_prompt: "Continue through the plugin-owned session queue.",
       }),
@@ -634,6 +674,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-preserve-schema",
         continue_prompt: "Continue without touching the legacy table.",
       }),
@@ -656,6 +697,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-stale",
         continue_prompt: "Continue stale work.",
       }),
@@ -704,6 +746,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-resolved",
         continue_prompt: "Continue until resolved.",
       }),
@@ -712,6 +755,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-rejected",
         continue_prompt: "Continue until rejected.",
       }),
@@ -796,6 +840,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-token-resolved",
         continue_prompt: "Continue until resolved.",
       }),
@@ -862,6 +907,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-token-rejected",
         continue_prompt: "Continue until rejected.",
       }),
@@ -937,6 +983,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-refresh",
         continue_prompt: "Continue until refreshed.",
       }),
@@ -1015,6 +1062,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-rejected",
         continue_prompt: "Continue until rejected.",
       }),
@@ -1036,6 +1084,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-rejected",
         continue_prompt: "Continue until rejected.",
       }),
@@ -1070,6 +1119,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-idempotent",
         continue_prompt: "Continue until rejected once.",
       }),
@@ -1091,6 +1141,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-idempotent",
         continue_prompt: "Continue until rejected once.",
       }),
@@ -1141,6 +1192,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-resolve-no-pr",
         continue_prompt: "Continue until resolved.",
       }),
@@ -1160,6 +1212,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-resolve-no-pr",
         continue_prompt: "Continue until resolved.",
       }),
@@ -1193,6 +1246,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-missing-result",
         continue_prompt: "Continue until settled.",
       }),
@@ -1212,6 +1266,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-missing-result",
         continue_prompt: "Continue until settled.",
       }),
@@ -1243,6 +1298,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-resolved",
         continue_prompt: "Continue until resolved.",
       }),
@@ -1264,6 +1320,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "session-task-resolved",
         continue_prompt: "Continue until resolved.",
       }),
@@ -1299,6 +1356,7 @@ describe("opencode session routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        project_id: mainProjectId,
         session_id: "developer-session-1",
         continue_prompt: "Continue the registered Developer task.",
       }),

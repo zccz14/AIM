@@ -84,7 +84,7 @@ export type OpenCodeSession = {
   reason: string | null;
   continue_prompt: string | null;
   title: string | null;
-  project_id: string | null;
+  project_id: string;
   provider_id: string | null;
   model_id: string | null;
   input_tokens: number;
@@ -108,7 +108,7 @@ export type CreateOpenCodeSessionRequest = {
   session_id: string;
   continue_prompt?: string | null;
   title?: string | null;
-  project_id?: string | null;
+  project_id: string;
   provider_id?: string | null;
   model_id?: string | null;
 };
@@ -668,7 +668,7 @@ export type OpenCodeSessionWritable = {
   reason: string | null;
   continue_prompt: string | null;
   title: string | null;
-  project_id: string | null;
+  project_id: string;
   provider_id: string | null;
   model_id: string | null;
   input_tokens: number;

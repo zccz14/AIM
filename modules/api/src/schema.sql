@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS manager_states (
 CREATE TABLE IF NOT EXISTS opencode_sessions (
   session_id TEXT PRIMARY KEY,
   title TEXT,
-  project_id TEXT,
+  project_id TEXT NOT NULL,
   continue_prompt TEXT,
   provider_id TEXT,
   model_id TEXT,

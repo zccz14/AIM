@@ -36,7 +36,7 @@ const createCurrentOpenCodeSessionsTableSql = `
   CREATE TABLE opencode_sessions (
     session_id TEXT PRIMARY KEY,
     title TEXT,
-    project_id TEXT,
+    project_id TEXT NOT NULL,
     continue_prompt TEXT,
     provider_id TEXT,
     model_id TEXT,
@@ -56,6 +56,11 @@ const createCurrentOpenCodeSessionsTableSql = `
 `;
 
 type TableInfoRow = { name: string };
+
+type TableColumnInfoRow = {
+  name: string;
+  notnull: number;
+};
 
 type ForeignKeyListRow = {
   from: string;
@@ -78,6 +83,20 @@ const tableColumns = (database: DatabaseSync, tableName: string) =>
         .prepare(`PRAGMA table_info(${tableName})`)
         .all() as TableInfoRow[]
     ).map((row) => row.name),
+  );
+
+const tableColumnInfo = (database: DatabaseSync, tableName: string) =>
+  database
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as TableColumnInfoRow[];
+
+const isTableColumnNotNull = (
+  database: DatabaseSync,
+  tableName: string,
+  columnName: string,
+) =>
+  tableColumnInfo(database, tableName).some(
+    (column) => column.name === columnName && column.notnull === 1,
   );
 
 const createCurrentTasksTableSql = `
@@ -217,23 +236,31 @@ const migrateOpenCodeSessionsToDocumentedSchema = (database: DatabaseSync) => {
 
   if (
     hasDocumentedColumns &&
+    isTableColumnNotNull(database, "opencode_sessions", "project_id") &&
     openCodeSessionProjectForeignKeyReferencesProjects(database)
   ) {
     return;
   }
 
   const expression = (column: string, fallback: string) =>
-    columns.has(column) ? column : fallback;
+    columns.has(column)
+      ? `opencode_sessions_legacy_documented_schema.${column}`
+      : fallback;
 
   database.exec(
     "ALTER TABLE opencode_sessions RENAME TO opencode_sessions_legacy_documented_schema",
   );
   database.exec(createCurrentOpenCodeSessionsTableSql);
-  database.exec(`
-    INSERT INTO opencode_sessions (session_id, title, project_id, continue_prompt, provider_id, model_id, state, value, reason, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at)
-    SELECT session_id, ${expression("title", "NULL")}, ${expression("project_id", "NULL")}, ${expression("continue_prompt", "NULL")}, ${expression("provider_id", "NULL")}, ${expression("model_id", "NULL")}, state, ${expression("value", "NULL")}, ${expression("reason", "NULL")}, ${expression("input_tokens", "0")}, ${expression("cached_tokens", "0")}, ${expression("cache_write_tokens", "0")}, ${expression("output_tokens", "0")}, ${expression("reasoning_tokens", "0")}, created_at, updated_at
-    FROM opencode_sessions_legacy_documented_schema
-  `);
+
+  if (columns.has("project_id")) {
+    database.exec(`
+      INSERT INTO opencode_sessions (session_id, title, project_id, continue_prompt, provider_id, model_id, state, value, reason, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at)
+      SELECT opencode_sessions_legacy_documented_schema.session_id, ${expression("title", "NULL")}, opencode_sessions_legacy_documented_schema.project_id, ${expression("continue_prompt", "NULL")}, ${expression("provider_id", "NULL")}, ${expression("model_id", "NULL")}, opencode_sessions_legacy_documented_schema.state, ${expression("value", "NULL")}, ${expression("reason", "NULL")}, ${expression("input_tokens", "0")}, ${expression("cached_tokens", "0")}, ${expression("cache_write_tokens", "0")}, ${expression("output_tokens", "0")}, ${expression("reasoning_tokens", "0")}, opencode_sessions_legacy_documented_schema.created_at, opencode_sessions_legacy_documented_schema.updated_at
+      FROM opencode_sessions_legacy_documented_schema
+      INNER JOIN projects ON projects.id = opencode_sessions_legacy_documented_schema.project_id
+    `);
+  }
+
   database.exec("DROP TABLE opencode_sessions_legacy_documented_schema");
 };
 
@@ -293,6 +320,7 @@ const rewriteProjectIdsToUuids = (database: DatabaseSync) => {
       "director_clarifications",
       "manager_states",
       "coordinator_states",
+      "opencode_sessions",
     ]) {
       const columns = tableColumns(database, tableName);
 

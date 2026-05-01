@@ -39,9 +39,9 @@ const insertProjectAndSession = (
     );
   database
     .prepare(
-      "INSERT INTO opencode_sessions (session_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at) VALUES (?, 'pending', NULL, NULL, NULL, NULL, NULL, ?, ?)",
+      "INSERT INTO opencode_sessions (session_id, project_id, state, value, reason, continue_prompt, provider_id, model_id, created_at, updated_at) VALUES (?, ?, 'pending', NULL, NULL, NULL, NULL, NULL, ?, ?)",
     )
-    .run(sessionId, now, now);
+    .run(sessionId, projectId, now, now);
   database.close();
 };
 
