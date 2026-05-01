@@ -15,6 +15,7 @@ const createSessionHandle = (sessionId: string) => ({
 });
 
 const createSessionManager = () => ({
+  continueSession: vi.fn().mockResolvedValue(undefined),
   createSession: vi.fn().mockResolvedValue(createSessionHandle("session-1")),
 });
 
@@ -317,7 +318,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("skips externally continuing an assigned pending session when no unassigned task is available", async () => {
+  it("continues an assigned pending session when no unassigned task is available", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -344,22 +345,42 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(onLaneEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "noop",
-          project_id: assignedTask.project_id,
-          session_id: "session-existing",
-          task_id: assignedTask.task_id,
-        }),
-      );
+      expect(sessionManager.continueSession).toHaveBeenCalledWith({
+        prompt: expect.stringContaining("Current baseline facts"),
+        sessionId: "session-existing",
+      });
     });
+    expect(sessionManager.continueSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining(baselineFacts.commitSha),
+      sessionId: "session-existing",
+    });
+    expect(sessionManager.continueSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("Current Active Task Pool"),
+      sessionId: "session-existing",
+    });
+    expect(sessionManager.continueSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("Rejected Task feedback"),
+      sessionId: "session-existing",
+    });
+    expect(sessionManager.continueSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("source_baseline_freshness guardrails"),
+      sessionId: "session-existing",
+    });
+    expect(onLaneEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "success",
+        project_id: assignedTask.project_id,
+        session_id: "session-existing",
+        task_id: assignedTask.task_id,
+      }),
+    );
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });
 
-  it("skips externally continuing an assigned pending session found by explicit session lookup", async () => {
+  it("continues an assigned pending session found by explicit session lookup", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       session_id: "session-existing",
@@ -380,17 +401,20 @@ describe("developer", () => {
       ),
     };
     const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
+      baselineRepository,
       sessionManager,
       sessionRepository,
       taskRepository: repository,
     });
 
     await vi.waitFor(() => {
-      expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
-        "session-existing",
-      );
+      expect(sessionManager.continueSession).toHaveBeenCalledWith({
+        prompt: expect.stringContaining("Current baseline facts"),
+        sessionId: "session-existing",
+      });
     });
     expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
       "session-existing",
@@ -398,6 +422,118 @@ describe("developer", () => {
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.updateTask).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("includes same-project active pool and rejected feedback in assigned pending continuation prompts", async () => {
+    vi.useFakeTimers();
+    const assignedTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-existing",
+        state: "pending",
+      }),
+      session_id: "session-existing",
+      task_id: "task-assigned",
+      worktree_path: "/repo/.worktrees/task-assigned",
+    });
+    const activeTask = createTask({
+      session_id: "session-active",
+      source_baseline_freshness: {
+        current_commit: baselineFacts.commitSha,
+        source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        status: "stale",
+        summary: "Task source baseline differs from current origin/main",
+      },
+      task_id: "task-active",
+      title: "Active overlapping work",
+    });
+    const otherProjectTask = createTask({
+      project_id: "00000000-0000-4000-8000-000000000002",
+      session_id: "session-other-project",
+      task_id: "task-other-project",
+      title: "Other project work",
+    });
+    const rejectedTask = createTask({
+      done: true,
+      result: "Rejected because origin/main moved.",
+      status: "rejected",
+      task_id: "task-rejected",
+      title: "Rejected stale work",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([rejectedTask]),
+      listUnfinishedTasks: vi
+        .fn()
+        .mockResolvedValue([assignedTask, activeTask, otherProjectTask]),
+    };
+    const sessionManager = createSessionManager();
+    const baselineRepository = createBaselineRepository();
+
+    const developer = createTestDeveloper({
+      baselineRepository,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.continueSession).toHaveBeenCalled();
+    });
+    const prompt = sessionManager.continueSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain(baselineFacts.commitSha);
+    expect(prompt).toContain("task-assigned");
+    expect(prompt).toContain("task-active");
+    expect(prompt).toContain("Active overlapping work");
+    expect(prompt).not.toContain("task-other-project");
+    expect(prompt).toContain("task-rejected");
+    expect(prompt).toContain("Rejected because origin/main moved.");
+    expect(prompt).toContain("source_baseline_freshness guardrails");
+
+    await developer[Symbol.asyncDispose]();
+  });
+
+  it("emits a failure event when assigned pending session continuation fails", async () => {
+    vi.useFakeTimers();
+    const assignedTask = createTask({
+      opencode_session: createOpenCodeSession({
+        session_id: "session-existing",
+        state: "pending",
+      }),
+      session_id: "session-existing",
+      worktree_path: "/repo/.worktrees/task-1",
+    });
+    const repository = {
+      assignSessionIfUnassigned: vi.fn(),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
+      listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
+    };
+    const sessionManager = createSessionManager();
+    sessionManager.continueSession.mockRejectedValue(new Error("boom"));
+    const baselineRepository = createBaselineRepository();
+    const onLaneEvent = vi.fn();
+
+    const developer = createTestDeveloper({
+      baselineRepository,
+      onLaneEvent,
+      sessionManager,
+      taskRepository: repository,
+    });
+
+    await vi.waitFor(() => {
+      expect(onLaneEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "failure",
+          project_id: assignedTask.project_id,
+          session_id: "session-existing",
+          task_id: assignedTask.task_id,
+        }),
+      );
+    });
+    const event = onLaneEvent.mock.calls.find(
+      ([laneEvent]) => laneEvent.event === "failure",
+    )?.[0];
+    expect(event?.summary).toContain("boom");
 
     await developer[Symbol.asyncDispose]();
   });

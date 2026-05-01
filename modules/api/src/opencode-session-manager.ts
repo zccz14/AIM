@@ -103,6 +103,7 @@ type OpenCodeRuntimeSession = {
 };
 
 export type OpenCodeSessionManager = AsyncDisposable & {
+  continueSession(input: { prompt: string; sessionId: string }): Promise<void>;
   createSession(
     input: CreateManagedOpenCodeSessionInput,
   ): Promise<{ session_id: string }>;
@@ -380,6 +381,17 @@ export const createOpenCodeSessionManager = ({
   return {
     async [Symbol.asyncDispose]() {
       await stack.disposeAsync();
+    },
+    async continueSession({ prompt, sessionId }) {
+      const session = (
+        await repository.listSessions({ state: "pending" })
+      ).find((pendingSession) => pendingSession.session_id === sessionId);
+
+      if (!session) {
+        throw new Error(`Pending OpenCode session ${sessionId} was not found`);
+      }
+
+      await pushContinuation(session, prompt);
     },
     async createSession({ projectId, prompt, title }) {
       const project = await repository.getProjectById(projectId);
