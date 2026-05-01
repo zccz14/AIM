@@ -45,6 +45,10 @@ type OpenCodeSessionRepository = AsyncDisposable & {
       >;
 };
 
+type PendingOpenCodeSession = Awaited<
+  ReturnType<OpenCodeSessionRepository["listSessions"]>
+>[number];
+
 export type CreateOpenCodeSessionManagerOptions = {
   apiBaseUrl?: string;
   baseUrl: string;
@@ -216,6 +220,112 @@ export const createOpenCodeSessionManager = ({
   const client = createOpencodeClient({ baseUrl });
   stack.use(repository);
 
+  const handleOrphanSession = async (session: PendingOpenCodeSession) => {
+    if (!isOlderThanOrphanGrace(session.created_at)) {
+      return;
+    }
+
+    try {
+      await client.session.delete({
+        path: { id: session.session_id },
+        throwOnError: true,
+      });
+    } catch (error) {
+      if (isOpenCodeSessionNotFoundError(error)) {
+        await repository.deleteSessionById(session.session_id);
+        return;
+      }
+
+      console.warn("OpenCode orphan runtime cleanup failed", {
+        error: summarizeError(error),
+        session_id: session.session_id,
+      });
+
+      return;
+    }
+
+    await repository.deleteSessionById(session.session_id);
+  };
+
+  const getLatestMessageTimeOrDeleteDangling = async (sessionId: string) => {
+    try {
+      return await getLatestMessageTime(client, sessionId);
+    } catch (error) {
+      if (!isOpenCodeSessionNotFoundError(error)) {
+        throw error;
+      }
+
+      try {
+        await repository.deleteSessionById(sessionId);
+      } catch (deleteError) {
+        console.warn("OpenCode dangling session cleanup failed", {
+          error: summarizeError(deleteError),
+          session_id: sessionId,
+        });
+      }
+
+      return undefined;
+    }
+  };
+
+  const pushContinuation = async (
+    session: PendingOpenCodeSession,
+    prompt: string,
+  ) => {
+    const model =
+      session.provider_id && session.model_id
+        ? {
+            modelID: session.model_id,
+            providerID: session.provider_id,
+          }
+        : undefined;
+
+    await client.session.promptAsync({
+      body: {
+        model,
+        parts: [
+          {
+            text: withContinuation(prompt, {
+              apiBaseUrl,
+              sessionId: session.session_id,
+            }),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: session.session_id },
+      throwOnError: true,
+    });
+  };
+
+  const handlePendingSession = async (session: PendingOpenCodeSession) => {
+    const sessionReferences = await repository.getSessionReferences(
+      session.session_id,
+    );
+    if (!hasSessionReferences(sessionReferences)) {
+      await handleOrphanSession(session);
+      return;
+    }
+
+    const latestMessageTime = await getLatestMessageTimeOrDeleteDangling(
+      session.session_id,
+    );
+    if (latestMessageTime === undefined) {
+      return;
+    }
+
+    const prompt = session.continue_prompt?.trim();
+    if (!prompt) {
+      return;
+    }
+
+    if (Date.now() - latestMessageTime < staleAfterMilliseconds) {
+      return;
+    }
+
+    await pushContinuation(session, prompt);
+  };
+
   const watchPendingSessions = async () => {
     while (!abortController.signal.aborted) {
       let pendingSessions: Awaited<ReturnType<typeof repository.listSessions>>;
@@ -241,93 +351,10 @@ export const createOpenCodeSessionManager = ({
         }
 
         try {
-          const sessionReferences = await repository.getSessionReferences(
-            session.session_id,
-          );
-          if (!hasSessionReferences(sessionReferences)) {
-            if (isOlderThanOrphanGrace(session.created_at)) {
-              try {
-                await client.session.delete({
-                  path: { id: session.session_id },
-                  throwOnError: true,
-                });
-              } catch (error) {
-                if (isOpenCodeSessionNotFoundError(error)) {
-                  await repository.deleteSessionById(session.session_id);
-                  continue;
-                }
-
-                console.warn("OpenCode orphan runtime cleanup failed", {
-                  error: summarizeError(error),
-                  session_id: session.session_id,
-                });
-
-                continue;
-              }
-
-              await repository.deleteSessionById(session.session_id);
-            }
-
-            continue;
-          }
-
-          let latestMessageTime: number;
-
-          try {
-            latestMessageTime = await getLatestMessageTime(
-              client,
-              session.session_id,
-            );
-          } catch (error) {
-            if (!isOpenCodeSessionNotFoundError(error)) {
-              throw error;
-            }
-
-            try {
-              await repository.deleteSessionById(session.session_id);
-            } catch (deleteError) {
-              console.warn("OpenCode dangling session cleanup failed", {
-                error: summarizeError(deleteError),
-                session_id: session.session_id,
-              });
-            }
-
-            continue;
-          }
-
-          const prompt = session.continue_prompt?.trim();
-          if (
-            prompt &&
-            Date.now() - latestMessageTime >= staleAfterMilliseconds
-          ) {
-            const model =
-              session.provider_id && session.model_id
-                ? {
-                    modelID: session.model_id,
-                    providerID: session.provider_id,
-                  }
-                : undefined;
-
-            await client.session.promptAsync({
-              body: {
-                model,
-                parts: [
-                  {
-                    text: withContinuation(prompt, {
-                      apiBaseUrl,
-                      sessionId: session.session_id,
-                    }),
-                    type: "text",
-                  },
-                ],
-              },
-              path: { id: session.session_id },
-              throwOnError: true,
-            });
-          }
+          await handlePendingSession(session);
         } catch (error) {
           console.warn("OpenCode pending session recovery failed", {
-            error: summarizeError(error),
+            error,
             session_id: session.session_id,
           });
         } finally {
