@@ -83,7 +83,7 @@ const PatchOpenCodeSessionRequest = z
   .object({ continue_prompt: z.union([z.string(), z.null()]) })
   .strict();
 const OpenCodeSessionSettleRequest = z
-  .object({ value: z.string(), reason: z.string() })
+  .object({ value: z.string().min(1), reason: z.string().min(1) })
   .partial()
   .strict();
 const CreateProjectRequest = z

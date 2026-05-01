@@ -799,6 +799,66 @@ describe("opencode session routes", () => {
     });
   });
 
+  it("rejects settlement requests that omit the resolved value or rejected reason", async () => {
+    await useProjectRoot("settlement-requires-outcome");
+    const app = createApp();
+
+    for (const sessionId of ["session-resolve", "session-reject"]) {
+      const createResponse = await app.request(opencodeSessionsPath, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          project_id: mainProjectId,
+          session_id: sessionId,
+          continue_prompt: `Continue ${sessionId}.`,
+        }),
+      });
+
+      expect(createResponse.status).toBe(201);
+    }
+
+    for (const body of [{}, { value: "   " }]) {
+      const response = await app.request(
+        opencodeSessionResolvePath("session-resolve"),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "TASK_VALIDATION_ERROR",
+        message: "Task settlement requires a result payload",
+      });
+    }
+
+    for (const body of [{}, { reason: "   " }]) {
+      const response = await app.request(
+        opencodeSessionRejectPath("session-reject"),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "TASK_VALIDATION_ERROR",
+        message: "Task settlement requires a reason payload",
+      });
+    }
+
+    await expect(
+      (await app.request(opencodeSessionPath("session-resolve"))).json(),
+    ).resolves.toMatchObject({ state: "pending", value: null });
+    await expect(
+      (await app.request(opencodeSessionPath("session-reject"))).json(),
+    ).resolves.toMatchObject({ reason: null, state: "pending" });
+  });
+
   it("records recomputed OpenCode token usage when resolving a session", async () => {
     await useProjectRoot("resolve-records-token-usage");
     const app = createApp();
@@ -1284,7 +1344,7 @@ describe("opencode session routes", () => {
     expect(rejectResponse.status).toBe(400);
     await expect(rejectResponse.json()).resolves.toMatchObject({
       code: "TASK_VALIDATION_ERROR",
-      message: expect.stringContaining("result"),
+      message: expect.stringContaining("reason"),
     });
   });
 

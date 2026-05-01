@@ -2,6 +2,7 @@ import { createOpencodeClient } from "@opencode-ai/sdk";
 
 import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
+import { resolveProjectWorkspacePath } from "./project-workspace.js";
 
 type OpenCodeSessionState = "pending" | "rejected" | "resolved";
 
@@ -85,6 +86,10 @@ type OpenCodeSessionMessage = {
       };
     };
   }>;
+};
+
+type OpenCodeRuntimeSession = {
+  directory?: unknown;
 };
 
 export type OpenCodeSessionManager = AsyncDisposable & {
@@ -180,6 +185,12 @@ const isOlderThanOrphanGrace = (createdAt: string) => {
     Date.now() - createdAtTime >= orphanCleanupGraceMilliseconds
   );
 };
+
+const getRuntimeDirectory = (runtimeSession: unknown) =>
+  typeof (runtimeSession as OpenCodeRuntimeSession | undefined)?.directory ===
+  "string"
+    ? ((runtimeSession as OpenCodeRuntimeSession).directory as string)
+    : null;
 
 export const createOpenCodeSessionManager = ({
   apiBaseUrl = defaultApiBaseUrl,
@@ -277,6 +288,17 @@ export const createOpenCodeSessionManager = ({
       throw new Error(
         `OpenCode session lookup failed with status ${runtimeSession.response.status}`,
       );
+    }
+
+    if (!session.project_id) {
+      await repository.deleteSessionById(session.session_id);
+      return;
+    }
+
+    const expectedDirectory = resolveProjectWorkspacePath(session.project_id);
+    if (getRuntimeDirectory(runtimeSession.data) !== expectedDirectory) {
+      await repository.deleteSessionById(session.session_id);
+      return;
     }
 
     const latestMessageTime = await getLatestMessageTime(

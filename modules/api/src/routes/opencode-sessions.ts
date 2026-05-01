@@ -58,10 +58,12 @@ const redactSensitiveErrorDetail = (message: string) =>
 const requireSessionId = (sessionId: string | undefined) =>
   sessionId ?? "session-unknown";
 
-const getTaskResult = (value: string | undefined) => {
+const getTaskResult = (value: string | undefined, payloadName = "result") => {
   if (!value?.trim()) {
     return {
-      error: buildValidationError("Task settlement requires a result payload"),
+      error: buildValidationError(
+        `Task settlement requires a ${payloadName} payload`,
+      ),
       ok: false as const,
     };
   }
@@ -365,6 +367,11 @@ export const registerOpenCodeSessionRoutes = (
       return context.json(input.error, 400);
     }
 
+    const settlementResult = getTaskResult(input.data.value);
+    if (!settlementResult.ok) {
+      return context.json(settlementResult.error, 400);
+    }
+
     const session = getRepository().getSessionById(sessionId);
 
     if (!session) {
@@ -399,6 +406,11 @@ export const registerOpenCodeSessionRoutes = (
 
     if (!input.ok) {
       return context.json(input.error, 400);
+    }
+
+    const settlementResult = getTaskResult(input.data.reason, "reason");
+    if (!settlementResult.ok) {
+      return context.json(settlementResult.error, 400);
     }
 
     const session = getRepository().getSessionById(sessionId);

@@ -118,7 +118,13 @@ export type PatchOpenCodeSessionRequest = {
 };
 
 export type OpenCodeSessionSettleRequest = {
+  /**
+   * Required non-empty result when resolving a session.
+   */
   value?: string;
+  /**
+   * Required non-empty reason when rejecting a session.
+   */
   reason?: string;
 };
 

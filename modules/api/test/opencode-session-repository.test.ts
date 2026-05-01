@@ -2,7 +2,7 @@ import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createOpenCodeSessionRepository } from "../src/opencode-session-repository.js";
 
@@ -51,6 +51,8 @@ const insertProject = (database: DatabaseSync) => {
 };
 
 afterEach(async () => {
+  vi.useRealTimers();
+  delete process.env.AIM_OPENCODE_SESSION_STALE_AFTER_MS;
   await rm(tempRoot, { force: true, recursive: true });
 });
 
@@ -282,6 +284,33 @@ describe("OpenCode session repository", () => {
 
     expect(repository.getSessionById("session-delete")).toBeNull();
     expect(repository.getSessionById("session-keep")).toEqual(keptSession);
+
+    await repository[Symbol.asyncDispose]();
+  });
+
+  it("marks pending sessions stale after 5 minutes by default", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-28T12:00:00.000Z"));
+    const projectRoot = await createProjectRoot("default-stale-threshold");
+    const repository = createOpenCodeSessionRepository({ projectRoot });
+    const database = openDatabase(projectRoot);
+    insertProject(database);
+    database.close();
+    await repository.createSession({
+      continue_prompt: "Continue.",
+      project_id: projectId,
+      session_id: "session-stale-after-five-minutes",
+    });
+
+    vi.setSystemTime(new Date("2026-04-28T12:04:59.999Z"));
+    expect(
+      repository.getSessionById("session-stale-after-five-minutes"),
+    ).toMatchObject({ stale: false });
+
+    vi.setSystemTime(new Date("2026-04-28T12:05:00.000Z"));
+    expect(
+      repository.getSessionById("session-stale-after-five-minutes"),
+    ).toMatchObject({ stale: true });
 
     await repository[Symbol.asyncDispose]();
   });
