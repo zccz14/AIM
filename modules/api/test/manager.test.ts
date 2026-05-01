@@ -331,6 +331,118 @@ describe("manager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("includes the latest baseline commit name-status touched-file evidence in the Manager session prompt", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        args: string[],
+        _options: unknown,
+        callback: (error: null, stdout: string) => void,
+      ) => {
+        if (args[0] === "rev-parse") {
+          callback(null, "def5678\n");
+          return;
+        }
+
+        if (args[0] === "show") {
+          callback(
+            null,
+            "M\tmodules/api/src/manager.ts\nA\tmodules/api/test/manager.test.ts\n",
+          );
+          return;
+        }
+
+        callback(null, "");
+      },
+    );
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-api"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain(
+      "Latest origin/main commit name-status touched-file evidence",
+    );
+    expect(prompt).toContain("M\tmodules/api/src/manager.ts");
+    expect(prompt).toContain("A\tmodules/api/test/manager.test.ts");
+    expect(prompt).toContain(
+      "Use this evidence when evaluating dimensions about recent commit file complexity",
+    );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("includes a recent commit evidence limitation in the Manager prompt when git cannot read name-status", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        args: string[],
+        _options: unknown,
+        callback: (
+          error: null | Error,
+          stdout: string,
+          stderr?: string,
+        ) => void,
+      ) => {
+        if (args[0] === "rev-parse") {
+          callback(null, "def5678\n");
+          return;
+        }
+
+        if (args[0] === "show") {
+          callback(new Error("show unavailable"), "", "fatal: bad revision");
+          return;
+        }
+
+        callback(null, "");
+      },
+    );
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-api"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain(
+      "Latest origin/main commit name-status touched-file evidence",
+    );
+    expect(prompt).toContain(
+      "Recent commit name-status evidence could not be read",
+    );
+    expect(prompt).toContain("show unavailable");
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("does not overlap heartbeats while a previous heartbeat is still awaiting", async () => {
     vi.useFakeTimers();
     mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
