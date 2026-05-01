@@ -1,3 +1,7 @@
+import { execFile } from "node:child_process";
+import { readFile, stat } from "node:fs/promises";
+import { basename, join } from "node:path";
+
 import type { Project } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
@@ -14,6 +18,14 @@ const heartbeatIntervalMs = 10_000;
 const maxRecentCommitEvidenceChars = 4_000;
 const maxRecentCommitEvidenceLines = 100;
 const maxRecentCommitReadErrorChars = 600;
+const dependencyEvidenceLimit = 12;
+const dependencyRiskSummaryMaxLength = 3_000;
+const dependencyAuditTimeoutMs = 15_000;
+const lockfileNames = new Set([
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+]);
 
 const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
@@ -282,6 +294,163 @@ const recentCommitNameStatusEvidence = async (
   }
 };
 
+const readTrackedFiles = async (projectDirectory: string) => {
+  const output = await git(projectDirectory, ["ls-files"]);
+
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+};
+
+const summarizeManifest = async (
+  projectDirectory: string,
+  relativePath: string,
+) => {
+  const content = await readFile(join(projectDirectory, relativePath), "utf8");
+  const manifest = JSON.parse(content) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    name?: string;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+  };
+
+  return `- ${relativePath}: ${manifest.name ?? "unnamed package"}; dependencies ${Object.keys(manifest.dependencies ?? {}).length}; devDependencies ${Object.keys(manifest.devDependencies ?? {}).length}; peerDependencies ${Object.keys(manifest.peerDependencies ?? {}).length}; optionalDependencies ${Object.keys(manifest.optionalDependencies ?? {}).length}`;
+};
+
+const summarizeLockfile = async (
+  projectDirectory: string,
+  relativePath: string,
+) => {
+  const fileStat = await stat(join(projectDirectory, relativePath));
+
+  return `- ${relativePath}: present; ${fileStat.size} bytes`;
+};
+
+const runDependencyAudit = (projectDirectory: string) =>
+  new Promise<{ output: string; unavailable: null | string }>((resolve) => {
+    execFile(
+      "pnpm",
+      ["audit", "--json", "--prod"],
+      {
+        cwd: projectDirectory,
+        encoding: "utf8",
+        timeout: dependencyAuditTimeoutMs,
+      },
+      (error, stdout, stderr) => {
+        const output = String(stdout ?? "").trim();
+        if (output) {
+          resolve({ output, unavailable: null });
+          return;
+        }
+
+        if (error) {
+          resolve({
+            output: "",
+            unavailable: truncate(
+              `${errorMessage(error)}${stderr ? `; stderr: ${String(stderr).trim()}` : ""}`,
+              dependencyRiskSummaryMaxLength,
+            ),
+          });
+          return;
+        }
+
+        resolve({
+          output:
+            "No production dependency vulnerabilities reported by pnpm audit.",
+          unavailable: null,
+        });
+      },
+    );
+  });
+
+const dependencyEvidencePrompt = async (projectDirectory: string) => {
+  const evidenceLimits: string[] = [];
+  let trackedFiles: string[] = [];
+
+  try {
+    trackedFiles = await readTrackedFiles(projectDirectory);
+  } catch (err) {
+    evidenceLimits.push(
+      `Evidence limit: tracked dependency files unavailable: ${errorMessage(err)}.`,
+    );
+  }
+
+  const manifestPaths = trackedFiles
+    .filter((path) => basename(path) === "package.json")
+    .slice(0, dependencyEvidenceLimit);
+  const lockfilePaths = trackedFiles
+    .filter((path) => lockfileNames.has(basename(path)))
+    .slice(0, dependencyEvidenceLimit);
+
+  const manifestSummaries: string[] = [];
+  for (const manifestPath of manifestPaths) {
+    try {
+      manifestSummaries.push(
+        await summarizeManifest(projectDirectory, manifestPath),
+      );
+    } catch (err) {
+      evidenceLimits.push(
+        `Evidence limit: package manifest ${manifestPath} unavailable: ${errorMessage(err)}.`,
+      );
+    }
+  }
+  if (trackedFiles.length > 0 && manifestSummaries.length === 0) {
+    evidenceLimits.push(
+      "Evidence limit: no tracked package manifests were found.",
+    );
+  }
+
+  const lockfileSummaries: string[] = [];
+  for (const lockfilePath of lockfilePaths) {
+    try {
+      lockfileSummaries.push(
+        await summarizeLockfile(projectDirectory, lockfilePath),
+      );
+    } catch (err) {
+      evidenceLimits.push(
+        `Evidence limit: lockfile ${lockfilePath} state unavailable: ${errorMessage(err)}.`,
+      );
+    }
+  }
+  if (trackedFiles.length > 0 && lockfileSummaries.length === 0) {
+    evidenceLimits.push("Evidence limit: no tracked lockfile was found.");
+  }
+
+  const audit = await runDependencyAudit(projectDirectory);
+  if (audit.unavailable) {
+    evidenceLimits.push(
+      `Evidence limit: dependency risk summary unavailable: ${audit.unavailable}.`,
+    );
+  }
+
+  const manifestSection = manifestSummaries.length
+    ? manifestSummaries.join("\n")
+    : "- Evidence limit: package manifests unavailable.";
+  const lockfileSection = lockfileSummaries.length
+    ? lockfileSummaries.join("\n")
+    : "- Evidence limit: lockfile state unavailable.";
+  const riskSection = audit.output
+    ? truncate(audit.output, dependencyRiskSummaryMaxLength)
+    : "Evidence limit: dependency risk summary unavailable.";
+  const limitSection = evidenceLimits.length
+    ? evidenceLimits.map((limit) => `- ${limit}`).join("\n")
+    : "- No dependency evidence limits recorded.";
+
+  return `Dependency evidence:
+- package manifests:
+${manifestSection}
+- lockfile state:
+${lockfileSection}
+- dependency risk summary:
+${riskSection}
+- evidence limits:
+${limitSection}
+
+Use this read-only dependency evidence when evaluating dependency health. If evidence is missing or partial, state the Evidence limit and confidence limit; dependency evidence collection did not block evaluation.`;
+};
+
 const projectScopedPrompt = (
   prompt: string,
   project: ManagerProject,
@@ -295,6 +464,7 @@ const evaluationPrompt = (
   dimensionIds: string[],
   ciGateEvidence: string,
   recentCommitEvidence: string,
+  dependencyEvidence: string,
 ) => `${projectScopedPrompt(managerPrompt, project)}
 
 Current baseline commit: "${commitSha}".
@@ -302,7 +472,9 @@ ${recentCommitEvidence}
 Evaluate only these dimension_id values for this baseline commit: ${quoteDimensionIds(dimensionIds)}.
 Do not evaluate dimensions outside that explicit list.
 
-${ciGateEvidence}`;
+${ciGateEvidence}
+
+${dependencyEvidence}`;
 
 export const createManager = ({
   dimensionRepository,
@@ -443,6 +615,7 @@ export const createManager = ({
       },
       "Manager missing evaluations found",
     );
+    const dependencyEvidence = await dependencyEvidencePrompt(projectDirectory);
     managerStateRepository.upsertManagerState({
       commit_sha: commitSha,
       dimension_ids_json: missingDimensionIdsJson,
@@ -475,6 +648,7 @@ export const createManager = ({
           canonicalMissingDimensionIds,
           ciGateEvidence,
           recentCommitEvidence,
+          dependencyEvidence,
         ),
         title: `AIM Manager evaluation (${project.id})`,
       });
