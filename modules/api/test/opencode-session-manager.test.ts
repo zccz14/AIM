@@ -497,7 +497,8 @@ describe("createOpenCodeSessionManager", () => {
       session_id: "session-temporary-message-failure",
     });
     repository.referenceSession("session-temporary-message-failure");
-    const messages = vi.fn().mockRejectedValue(new Error("temporary outage"));
+    const messagesError = new Error("temporary outage");
+    const messages = vi.fn().mockRejectedValue(messagesError);
     const promptAsync = vi.fn().mockResolvedValue({});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -527,7 +528,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(warn).toHaveBeenCalledWith(
       "OpenCode pending session recovery failed",
       {
-        error: "temporary outage",
+        error: messagesError,
         session_id: "session-temporary-message-failure",
       },
     );
@@ -669,9 +670,10 @@ describe("createOpenCodeSessionManager", () => {
       session_id: "session-prompt-continues",
     });
     repository.referenceSession("session-prompt-continues");
+    const promptError = new Error("temporary prompt failure");
     const promptAsync = vi
       .fn()
-      .mockRejectedValueOnce(new Error("temporary prompt failure"))
+      .mockRejectedValueOnce(promptError)
       .mockResolvedValue({});
 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -696,7 +698,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(warn).toHaveBeenCalledWith(
       "OpenCode pending session recovery failed",
       {
-        error: "temporary prompt failure",
+        error: promptError,
         session_id: "session-prompt-fails",
       },
     );
@@ -1170,8 +1172,9 @@ describe("createOpenCodeSessionManager", () => {
       created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
       session_id: "session-orphan-delete-continues",
     });
+    const deleteError = new Error("temporary delete failure");
     repository.deleteSessionById.mockImplementationOnce(() => {
-      throw new Error("temporary delete failure");
+      throw deleteError;
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const abort = vi.fn().mockResolvedValue({});
@@ -1200,7 +1203,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(warn).toHaveBeenCalledWith(
       "OpenCode pending session recovery failed",
       {
-        error: "temporary delete failure",
+        error: deleteError,
         session_id: "session-orphan-delete-fails",
       },
     );
