@@ -1,8 +1,8 @@
 # Skills Boundary
 
-This directory is packaged with `@aim-ai/opencode-plugin`.
+This directory is installed directly from the AIM repository with `npx skills add <aim_repo_url>`.
 
-The package ships static skill documentation only:
+The repository ships static skill documentation only:
 
 - `aim-ask-strategy`: Broad AIM pre-execution strategy entry for cases where the next action is not yet clear; read README first, then explore direction choices, open questions, creative/design work, or route-changing clarifications through an initial recommended upper-middle-lower strategy set.
 - `aim-coordinator-guide`: Coordinator decision entry for Task Pool maintenance that forms approvable `POST /tasks/batch` Create and Delete operations before applying atomic Task Pool writes.
@@ -13,6 +13,6 @@ The package ships static skill documentation only:
 - `aim-developer-guide`: Required AIM Developer entry guidance for working an existing Task through AIM Server reading, baseline verification, required worktree/PR flow, AIM reporting, and final resolve or reject handling.
 - `aim-verify-task-spec`: AIM Task Spec validation guidance that separates structural sufficiency from latest-baseline assumption checks.
 - `aim-writing-tests`: AIM test-writing guidance for behavior-oriented tests, legitimate policy or artifact guards, legacy brittle-test migration, and explicit artifact prerequisites.
-- `using-aim`: AIM process guidance for deciding when a more specific AIM packaged skill must be loaded before acting.
+- `using-aim`: AIM process guidance for deciding when a more specific AIM skill must be loaded before acting.
 
-These files define packaging and discovery boundaries only. The plugin does not auto-run workflow automation or background AIM reporting.
+These files define distribution and discovery boundaries only. They do not auto-run workflow automation or background AIM reporting.
