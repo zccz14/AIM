@@ -7,6 +7,7 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteTableSchema } from "./schema.js";
+import { normalizeSqliteDateTime } from "./sqlite-date-time.js";
 import {
   createTaskDatabaseAsyncDispose,
   openTaskDatabase,
@@ -98,7 +99,7 @@ const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
     cached_tokens: row.cached_tokens,
     cache_write_tokens: row.cache_write_tokens,
     continue_prompt: row.continue_prompt,
-    created_at: row.created_at,
+    created_at: normalizeSqliteDateTime(row.created_at),
     input_tokens: row.input_tokens,
     model_id: row.model_id,
     output_tokens: row.output_tokens,
@@ -110,7 +111,7 @@ const mapOpenCodeSessionRow = (row: OpenCodeSessionRow): OpenCodeSession =>
     stale: isStalePendingSession(row),
     state: row.state,
     title: row.title,
-    updated_at: row.updated_at,
+    updated_at: normalizeSqliteDateTime(row.updated_at),
     value: row.value,
   });
 
