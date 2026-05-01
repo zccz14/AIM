@@ -23,12 +23,6 @@ export default defineConfig({
       },
       {
         test: {
-          name: "opencode-plugin",
-          include: ["modules/opencode-plugin/test/**/*.test.ts"],
-        },
-      },
-      {
-        test: {
           name: "repo",
           include: ["test/repo/**/*.test.ts"],
         },

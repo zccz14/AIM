@@ -74,7 +74,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
-          publish: pnpm build && pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance
+          publish: pnpm build && pnpm exec changeset publish --provenance
           commit: "chore: version packages"
           title: "chore: version packages"
         env:

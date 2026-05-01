@@ -113,5 +113,5 @@ If you notice one of these thoughts and a relevant AIM skill exists, load the sk
 
 - This skill is about deciding whether to load a more specific AIM skill.
 - It does not create Tasks, validate Specs, patch AIM lifecycle state, or change GitHub settings by itself.
-- It does not claim any runtime automation. The plugin ships static skill documents only.
+- It does not claim any runtime automation. Repo-level skill distribution ships static skill documents only.
 - It does not weaken `AGENTS.md`, worktree rules, PR rules, or any other repo constraint.

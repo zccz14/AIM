@@ -1,6 +1,5 @@
 ---
 "@aim-ai/api": patch
-"@aim-ai/opencode-plugin": patch
 "@aim-ai/web": patch
 ---
 

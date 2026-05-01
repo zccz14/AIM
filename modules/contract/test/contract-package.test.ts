@@ -15,10 +15,6 @@ const contractPackageTestUrl = new URL(
 );
 const apiPackageUrl = new URL("../../api/package.json", import.meta.url);
 const cliPackageUrl = new URL("../../cli/package.json", import.meta.url);
-const opencodePluginPackageUrl = new URL(
-  "../../opencode-plugin/package.json",
-  import.meta.url,
-);
 const webPackageUrl = new URL("../../web/package.json", import.meta.url);
 const contractEntryUrl = new URL("../dist/index.mjs", import.meta.url);
 const contractTypeDefinitionUrl = new URL(
@@ -161,7 +157,6 @@ let contractPackage: ContractPackageManifest;
 let apiPackage: WorkspacePackageManifest;
 let cliPackage: WorkspacePackageManifest;
 let rootPackage: RootPackageManifest;
-let opencodePluginPackage: WorkspacePackageManifest;
 let webPackage: WorkspacePackageManifest;
 let contractModule: ContractPackageModule;
 let generatedClientModule: GeneratedClientModule;
@@ -182,9 +177,6 @@ beforeAll(async () => {
   ) as WorkspacePackageManifest;
   cliPackage = JSON.parse(
     await readFile(cliPackageUrl, "utf8"),
-  ) as WorkspacePackageManifest;
-  opencodePluginPackage = JSON.parse(
-    await readFile(opencodePluginPackageUrl, "utf8"),
   ) as WorkspacePackageManifest;
   webPackage = JSON.parse(
     await readFile(webPackageUrl, "utf8"),
@@ -215,7 +207,6 @@ describe("contract package baseline", () => {
       ["contract", contractPackage],
       ["api", apiPackage],
       ["cli", cliPackage],
-      ["opencode-plugin", opencodePluginPackage],
       ["web", webPackage],
     ] as const;
 
@@ -299,7 +290,7 @@ describe("contract package baseline", () => {
       "run: pnpm exec playwright install --with-deps chromium firefox",
     );
     expect(releaseWorkflowSource).toContain(
-      "publish: pnpm build && pnpm --filter @aim-ai/opencode-plugin run build && pnpm exec changeset publish --provenance",
+      "publish: pnpm build && pnpm exec changeset publish --provenance",
     );
     expect(releaseWorkflowSource).not.toContain("run: pnpm release:check");
   });
@@ -1753,17 +1744,6 @@ describe("contract package baseline", () => {
       skipTest(
         "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project api",
       ),
-    );
-    expect(opencodePluginPackage.scripts?.build).toBe(
-      "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest",
-    );
-    expect(opencodePluginPackage.scripts?.["test:vitest"]).toBe(
-      skipTest(
-        "pnpm --dir ../.. exec vitest run --config vitest.workspace.ts --project opencode-plugin",
-      ),
-    );
-    expect(opencodePluginPackage.scripts?.["test:pack"]).toContain(
-      "pnpm run build:dist",
     );
     expect(cliPackage.scripts?.build).toBe(
       "pnpm run build:dist && pnpm run test:type && pnpm run test:lint && pnpm run test:vitest && pnpm run test:smoke && pnpm run test:pack",

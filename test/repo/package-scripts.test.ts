@@ -7,7 +7,6 @@ const packageJsonPaths = [
   "modules/api/package.json",
   "modules/cli/package.json",
   "modules/contract/package.json",
-  "modules/opencode-plugin/package.json",
   "modules/web/package.json",
 ];
 
