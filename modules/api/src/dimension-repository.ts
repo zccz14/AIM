@@ -11,6 +11,7 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteSchema } from "./schema.js";
+import { normalizeSqliteDateTime } from "./sqlite-date-time.js";
 import {
   createTaskDatabaseAsyncDispose,
   openTaskDatabase,
@@ -100,8 +101,8 @@ const mapDimensionRow = (row: DimensionRow) =>
     name: row.name,
     goal: row.goal,
     evaluation_method: row.evaluation_method,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: normalizeSqliteDateTime(row.created_at),
+    updated_at: normalizeSqliteDateTime(row.updated_at),
   });
 
 const mapDimensionEvaluationRow = (row: DimensionEvaluationRow) =>
@@ -113,7 +114,7 @@ const mapDimensionEvaluationRow = (row: DimensionEvaluationRow) =>
     evaluator_model: row.evaluator_model,
     score: row.score,
     evaluation: row.evaluation,
-    created_at: row.created_at,
+    created_at: normalizeSqliteDateTime(row.created_at),
   });
 
 const validateTableSchema = (

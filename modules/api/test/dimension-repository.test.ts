@@ -175,6 +175,26 @@ describe("dimension repository", () => {
     ).resolves.toBeNull();
   });
 
+  it("returns contract datetimes with timezone offsets for legacy SQLite dimension timestamps", async () => {
+    const projectRoot = await createProjectRoot("legacy-sqlite-datetimes");
+    const repository = createDimensionRepository({ projectRoot });
+    insertProject(projectRoot, mainProjectId);
+    const dimension = await repository.createDimension(createDimensionInput);
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare("UPDATE dimensions SET updated_at = ? WHERE id = ?")
+      .run("2026-04-27 09:30:00", dimension.id);
+    database.close();
+
+    await expect(repository.listDimensions(mainProjectId)).resolves.toEqual([
+      expect.objectContaining({
+        id: dimension.id,
+        updated_at: "2026-04-27T09:30:00.000Z",
+      }),
+    ]);
+  });
+
   it("creates dimensions under a UUID project id", async () => {
     const projectRoot = await createProjectRoot(
       "creates-dimension-project-uuid",

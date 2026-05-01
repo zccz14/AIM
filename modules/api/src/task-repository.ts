@@ -15,6 +15,7 @@ import {
 } from "@aim-ai/contract";
 
 import { applySqliteIndexSchema, applySqliteTableSchema } from "./schema.js";
+import { normalizeSqliteDateTime } from "./sqlite-date-time.js";
 import {
   createTaskDatabaseAsyncDispose,
   openTaskDatabase,
@@ -245,8 +246,8 @@ const mapTaskRow = (row: TaskRow) => {
     opencode_session: null,
     done: isDoneStatus(status),
     status,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: normalizeSqliteDateTime(row.created_at),
+    updated_at: normalizeSqliteDateTime(row.updated_at),
   });
 };
 
@@ -261,8 +262,8 @@ const mapProjectRow = (row: ProjectRow) =>
     token_budget_limit: row.token_budget_limit,
     token_warning_threshold: row.token_warning_threshold,
     cost_warning_threshold: row.cost_warning_threshold,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: normalizeSqliteDateTime(row.created_at),
+    updated_at: normalizeSqliteDateTime(row.updated_at),
   });
 
 const validateTasksIndexes = (

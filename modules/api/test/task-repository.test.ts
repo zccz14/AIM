@@ -143,6 +143,30 @@ describe("task repository", () => {
     await expect(access(databasePath)).resolves.toBeUndefined();
   });
 
+  it("returns contract datetimes with timezone offsets for legacy SQLite task timestamps", async () => {
+    const projectRoot = await createProjectRoot("legacy-sqlite-datetimes");
+    process.env.AIM_PROJECT_ROOT = projectRoot;
+    const repository = createTaskRepository();
+    const project = await createProject(repository);
+    const task = await repository.createTask({
+      project_id: project.id,
+      task_spec:
+        "keep coordinator heartbeat compatible with contract datetime parsing",
+      title: "Legacy timestamp task",
+    });
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database
+      .prepare("UPDATE tasks SET updated_at = ? WHERE task_id = ?")
+      .run("2026-04-27 09:30:00", task.task_id);
+    database.close();
+
+    const [listedTask] = await repository.listUnfinishedTasks();
+
+    expect(listedTask?.updated_at).toBe("2026-04-27T09:30:00.000Z");
+    expect(() => taskSchema.parse(listedTask)).not.toThrow();
+  });
+
   it("closes its database when an await using scope exits", async () => {
     const projectRoot = await createProjectRoot("await-using-closes-db");
     let repository: ReturnType<typeof createTaskRepository> | undefined;

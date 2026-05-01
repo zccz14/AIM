@@ -85,6 +85,34 @@ describe("OpenCode session repository", () => {
     await repository[Symbol.asyncDispose]();
   });
 
+  it("returns contract datetimes with timezone offsets for legacy SQLite session timestamps", async () => {
+    const projectRoot = await createProjectRoot("legacy-sqlite-datetimes");
+    const repository = createOpenCodeSessionRepository({ projectRoot });
+    const database = openDatabase(projectRoot);
+    insertProject(database);
+    database.close();
+    await repository.createSession({
+      continue_prompt: "Continue.",
+      project_id: projectId,
+      session_id: "session-legacy-datetime",
+    });
+    const updateDatabase = openDatabase(projectRoot);
+
+    updateDatabase
+      .prepare(
+        "UPDATE opencode_sessions SET updated_at = ? WHERE session_id = ?",
+      )
+      .run("2026-04-27 09:30:00", "session-legacy-datetime");
+    updateDatabase.close();
+
+    expect(repository.getSessionById("session-legacy-datetime")).toMatchObject({
+      session_id: "session-legacy-datetime",
+      updated_at: "2026-04-27T09:30:00.000Z",
+    });
+
+    await repository[Symbol.asyncDispose]();
+  });
+
   it("rejects creating a session without an existing project", async () => {
     const projectRoot = await createProjectRoot("requires-existing-project");
     const repository = createOpenCodeSessionRepository({ projectRoot });
