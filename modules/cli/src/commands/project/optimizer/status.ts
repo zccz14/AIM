@@ -46,12 +46,17 @@ const toOptimizerStatusView = (status: ProjectOptimizerStatusResponse) => ({
       lane_name: laneName,
       status: event?.event ?? "unknown",
       summary: event?.summary ?? "No recent events",
+      timestamp: event?.timestamp,
     };
   }),
   recent_events: status.recent_events.map((event) => ({
+    lane_name: event.lane_name,
+    event: event.event,
     timestamp: event.timestamp,
     level: eventLevelByEvent[event.event],
     summary: event.summary,
+    task_id: event.task_id,
+    session_id: event.session_id,
   })),
 });
 

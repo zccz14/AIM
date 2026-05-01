@@ -56,12 +56,16 @@ const optimizerStatus = {
       event: "failure",
       timestamp: "2026-04-29T10:16:30.000Z",
       summary: "Manager lane failed: git fetch failed",
+      task_id: "task-manager-1",
+      session_id: "session-manager-1",
     },
     {
       lane_name: "coordinator",
       event: "success",
       timestamp: "2026-04-29T10:15:30.000Z",
       summary: "Coordinator lane created 2 tasks",
+      task_id: "task-coordinator-1",
+      session_id: "session-coordinator-1",
     },
   ],
 };
@@ -744,11 +748,13 @@ describe("task cli command baseline", () => {
             lane_name: "manager",
             status: "failure",
             summary: "Manager lane failed: git fetch failed",
+            timestamp: "2026-04-29T10:16:30.000Z",
           },
           {
             lane_name: "coordinator",
             status: "success",
             summary: "Coordinator lane created 2 tasks",
+            timestamp: "2026-04-29T10:15:30.000Z",
           },
           {
             lane_name: "developer",
@@ -758,14 +764,22 @@ describe("task cli command baseline", () => {
         ],
         recent_events: [
           {
+            lane_name: "manager",
+            event: "failure",
             timestamp: "2026-04-29T10:16:30.000Z",
             level: "error",
             summary: "Manager lane failed: git fetch failed",
+            task_id: "task-manager-1",
+            session_id: "session-manager-1",
           },
           {
+            lane_name: "coordinator",
+            event: "success",
             timestamp: "2026-04-29T10:15:30.000Z",
             level: "info",
             summary: "Coordinator lane created 2 tasks",
+            task_id: "task-coordinator-1",
+            session_id: "session-coordinator-1",
           },
         ],
       },
@@ -811,6 +825,23 @@ describe("task cli command baseline", () => {
             total: 0,
           },
         },
+        lane_summaries: [
+          {
+            lane_name: "manager",
+            status: "unknown",
+            summary: "No recent events",
+          },
+          {
+            lane_name: "coordinator",
+            status: "unknown",
+            summary: "No recent events",
+          },
+          {
+            lane_name: "developer",
+            status: "unknown",
+            summary: "No recent events",
+          },
+        ],
         recent_events: [],
       },
     });
