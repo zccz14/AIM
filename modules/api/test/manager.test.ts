@@ -278,6 +278,40 @@ describe("manager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("includes bounded dependency evidence limits in the Manager evaluation prompt", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGit("def5678");
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-dependencies"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Dependency evidence");
+    expect(prompt).toContain("package manifests");
+    expect(prompt).toContain("lockfile state");
+    expect(prompt).toContain("dependency risk summary");
+    expect(prompt).toContain("Evidence limit");
+    expect(prompt).toContain(
+      "dependency evidence collection did not block evaluation",
+    );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("includes a diagnostic CI gate evidence limit when GitHub evidence is unavailable", async () => {
     vi.useFakeTimers();
     mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
