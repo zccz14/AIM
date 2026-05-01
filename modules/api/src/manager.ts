@@ -11,6 +11,9 @@ import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 const heartbeatIntervalMs = 10_000;
+const maxRecentCommitEvidenceChars = 4_000;
+const maxRecentCommitEvidenceLines = 100;
+const maxRecentCommitReadErrorChars = 600;
 
 const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
@@ -242,6 +245,43 @@ const collectCiGateEvidence = async (projectDirectory: string) => {
   }
 };
 
+const truncate = (value: string, maxLength: number) =>
+  value.length > maxLength
+    ? `${value.slice(0, maxLength)}... [truncated]`
+    : value;
+
+const recentCommitNameStatusEvidence = async (
+  projectDirectory: string,
+  commitSha: string,
+) => {
+  const command = `git show --name-status --format= --no-renames --max-count=1 ${commitSha}`;
+
+  try {
+    const output = await git(projectDirectory, [
+      "show",
+      "--name-status",
+      "--format=",
+      "--no-renames",
+      "--max-count=1",
+      commitSha,
+    ]);
+    const lines = output.split("\n").filter(Boolean);
+    const displayedLines = lines.slice(0, maxRecentCommitEvidenceLines);
+    const touchedFiles = truncate(
+      displayedLines.join("\n") || "(no touched files reported by git show)",
+      maxRecentCommitEvidenceChars,
+    );
+    const limit =
+      lines.length > displayedLines.length
+        ? `\nEvidence is bounded to the first ${maxRecentCommitEvidenceLines} name-status lines; ${lines.length - displayedLines.length} additional line(s) omitted.`
+        : "";
+
+    return `Latest origin/main commit name-status touched-file evidence from ${command}:\n${touchedFiles}${limit}\nUse this evidence when evaluating dimensions about recent commit file complexity, and cite this source or any stated limitation in relevant dimension_evaluations.`;
+  } catch (err) {
+    return `Latest origin/main commit name-status touched-file evidence from ${command}:\nRecent commit name-status evidence could not be read; evidence limitation: ${truncate(errorMessage(err), maxRecentCommitReadErrorChars)}.\nUse this evidence limitation when evaluating dimensions about recent commit file complexity.`;
+  }
+};
+
 const projectScopedPrompt = (
   prompt: string,
   project: ManagerProject,
@@ -254,9 +294,11 @@ const evaluationPrompt = (
   commitSha: string,
   dimensionIds: string[],
   ciGateEvidence: string,
+  recentCommitEvidence: string,
 ) => `${projectScopedPrompt(managerPrompt, project)}
 
 Current baseline commit: "${commitSha}".
+${recentCommitEvidence}
 Evaluate only these dimension_id values for this baseline commit: ${quoteDimensionIds(dimensionIds)}.
 Do not evaluate dimensions outside that explicit list.
 
@@ -324,6 +366,10 @@ export const createManager = ({
     await git(projectDirectory, ["checkout", "origin/main"]);
     const commitSha = await git(projectDirectory, ["rev-parse", "origin/main"]);
     const ciGateEvidence = await collectCiGateEvidence(projectDirectory);
+    const recentCommitEvidence = await recentCommitNameStatusEvidence(
+      projectDirectory,
+      commitSha,
+    );
     logger?.info(
       {
         commit_sha: commitSha,
@@ -428,6 +474,7 @@ export const createManager = ({
           commitSha,
           canonicalMissingDimensionIds,
           ciGateEvidence,
+          recentCommitEvidence,
         ),
         title: `AIM Manager evaluation (${project.id})`,
       });
