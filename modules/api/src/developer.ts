@@ -219,9 +219,6 @@ const defaultPullRequestStatusProvider: PullRequestStatusProvider = {
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const sleep = (milliseconds: number, signal: AbortSignal) =>
-  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
-
 const withExplicitSourceBaselineFreshness = (task: Task): Task =>
   task.source_baseline_freshness
     ? task
@@ -782,7 +779,9 @@ export const createDeveloper = ({
         );
       }
 
-      await sleep(heartbeatMs, abortController.signal);
+      await cancelableSleep(heartbeatMs, {
+        signal: abortController.signal,
+      }).catch(() => undefined);
     }
   })();
 

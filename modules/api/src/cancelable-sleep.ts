@@ -20,6 +20,7 @@ export const cancelableSleep = (
 
     const abort = () => {
       clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
       reject(signal?.reason);
     };
 

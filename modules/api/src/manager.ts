@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import type { Project } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import { cancelableSleep } from "./cancelable-sleep.js";
 import { execGh, execGit } from "./exec-file.js";
 import type {
   ManagerState,
@@ -493,26 +494,8 @@ export const createManager = ({
   let running = true;
   let lastError: null | string = null;
   let lastScanAt: null | string = null;
-  let sleepTimer: NodeJS.Timeout | undefined;
-  let wakeSleep: (() => void) | undefined;
   let loopPromise: Promise<void> | null = null;
-
-  const sleep = () =>
-    new Promise<void>((resolve) => {
-      sleepTimer = setTimeout(() => {
-        sleepTimer = undefined;
-        wakeSleep = undefined;
-        resolve();
-      }, heartbeatIntervalMs);
-      wakeSleep = () => {
-        if (sleepTimer) {
-          clearTimeout(sleepTimer);
-          sleepTimer = undefined;
-        }
-        wakeSleep = undefined;
-        resolve();
-      };
-    });
+  const sleepAbortController = new AbortController();
 
   const heartbeat = async () => {
     onLaneEvent?.({
@@ -732,7 +715,7 @@ export const createManager = ({
 
   stack.defer(async () => {
     disposed = true;
-    wakeSleep?.();
+    sleepAbortController.abort();
     await loopPromise;
     running = false;
     logger?.info(
@@ -754,15 +737,12 @@ export const createManager = ({
       await runHeartbeat();
 
       if (!disposed) {
-        await sleep();
+        await cancelableSleep(heartbeatIntervalMs, {
+          signal: sleepAbortController.signal,
+        }).catch(() => undefined);
       }
     }
   })().finally(() => {
-    if (sleepTimer) {
-      clearTimeout(sleepTimer);
-      sleepTimer = undefined;
-    }
-    wakeSleep = undefined;
     running = false;
   });
 

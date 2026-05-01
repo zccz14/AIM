@@ -49,4 +49,38 @@ describe("cancelableSleep", () => {
       vi.useRealTimers();
     }
   });
+
+  it("removes the abort listener when aborted while waiting", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const reason = new Error("stop while waiting");
+      const controller = new AbortController();
+      const addEventListenerSpy = vi.spyOn(
+        controller.signal,
+        "addEventListener",
+      );
+      const removeEventListenerSpy = vi.spyOn(
+        controller.signal,
+        "removeEventListener",
+      );
+      const result = cancelableSleep(100, { signal: controller.signal });
+      const abortListener = addEventListenerSpy.mock.calls.find(
+        ([event]) => event === "abort",
+      )?.[1];
+
+      controller.abort(reason);
+
+      await expect(result).rejects.toBe(reason);
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "abort",
+        abortListener,
+      );
+
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

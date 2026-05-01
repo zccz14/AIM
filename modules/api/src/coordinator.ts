@@ -117,9 +117,6 @@ const defaultBudgetWarningProvider = () => ({
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const sleep = (milliseconds: number, signal: AbortSignal) =>
-  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
-
 const resolveProjectDirectory = (
   projectDirectory: CreateCoordinatorOptions["projectDirectory"],
 ) =>
@@ -545,7 +542,9 @@ export const createCoordinator = (
           project_id: projectId,
         });
       }
-      await sleep(heartbeatMs, abortController.signal);
+      await cancelableSleep(heartbeatMs, {
+        signal: abortController.signal,
+      }).catch(() => undefined);
     }
   })();
 
