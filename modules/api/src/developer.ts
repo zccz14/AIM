@@ -16,7 +16,10 @@ type BaselineRepository = {
   getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
 };
 
-type DeveloperSessionManager = Pick<OpenCodeSessionManager, "createSession">;
+type DeveloperSessionManager = Pick<
+  OpenCodeSessionManager,
+  "continueSession" | "createSession"
+>;
 
 type PullRequestFollowupView = {
   autoMergeRequest?: unknown;
@@ -339,6 +342,26 @@ export const createDeveloper = ({
     };
   };
 
+  const buildContinuationPrompt = async (
+    task: Task,
+    unfinishedTasks: Task[],
+  ) => {
+    const directory = await ensureProjectWorkspace(task);
+    const [baselineFacts, rejectedTasks] = await Promise.all([
+      baselineRepository.getLatestBaselineFacts(directory),
+      taskRepository.listRejectedTasksByProject(task.project_id),
+    ]);
+    const activeTasks = unfinishedTasks
+      .filter((activeTask) => activeTask.project_id === task.project_id)
+      .map(withExplicitSourceBaselineFreshness);
+
+    return buildTaskSessionPrompt(withExplicitSourceBaselineFreshness(task), {
+      activeTasks,
+      baselineFacts,
+      rejectedTasks,
+    });
+  };
+
   const continueMergedPullRequestSettlement = async (
     task: Task,
     unfinishedTasks: Task[],
@@ -392,6 +415,7 @@ export const createDeveloper = ({
   const continueAssignedPendingSession = async (
     task: Task,
     tasksById: Map<string, Task>,
+    unfinishedTasks: Task[],
   ) => {
     if (!task.session_id) {
       return;
@@ -520,12 +544,17 @@ export const createDeveloper = ({
       return;
     }
 
+    const prompt = await buildContinuationPrompt(task, unfinishedTasks);
+    await sessionManager.continueSession({
+      prompt,
+      sessionId: task.session_id,
+    });
     onLaneEvent?.({
-      event: "noop",
+      event: "success",
       lane_name: "developer",
       project_id: task.project_id,
       session_id: task.session_id,
-      summary: `Developer lane skipped assigned pending session ${task.session_id} for task ${task.task_id}: external session continuation is disabled.`,
+      summary: `Developer lane continued assigned pending session ${task.session_id} for task ${task.task_id}.`,
       task_id: task.task_id,
     });
   };
@@ -663,7 +692,7 @@ export const createDeveloper = ({
         }
 
         try {
-          await continueAssignedPendingSession(task, tasksById);
+          await continueAssignedPendingSession(task, tasksById, tasks);
         } catch (error) {
           logger?.error(
             {

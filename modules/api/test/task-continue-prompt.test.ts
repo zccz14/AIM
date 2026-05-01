@@ -75,7 +75,7 @@ describe("buildTaskSessionPrompt", () => {
     expect(prompt).toMatch(/continue the existing lifecycle/i);
   });
 
-  it("does not serialize provided baseline, active pool, or rejected feedback into the developer prompt", () => {
+  it("serializes provided baseline, active pool, and rejected feedback into the developer prompt", () => {
     const prompt = buildTaskSessionPrompt(createTask(), {
       activeTasks: [
         createTask({ task_id: "task-active", title: "Active work" }),
@@ -90,11 +90,15 @@ describe("buildTaskSessionPrompt", () => {
       ],
     });
 
-    expect(prompt).not.toContain("a9979ba9487edf2d822e10ae7b651c98be3d175d");
-    expect(prompt).not.toContain("Refactor optimizer system startup lifecycle");
-    expect(prompt).not.toContain("task-active");
-    expect(prompt).not.toContain("Active work");
-    expect(prompt).not.toContain("task-rejected");
-    expect(prompt).not.toContain("Rejected work");
+    expect(prompt).toContain("Current baseline facts");
+    expect(prompt).toContain("a9979ba9487edf2d822e10ae7b651c98be3d175d");
+    expect(prompt).toContain("Refactor optimizer system startup lifecycle");
+    expect(prompt).toContain("Current Active Task Pool");
+    expect(prompt).toContain("task-active");
+    expect(prompt).toContain("Active work");
+    expect(prompt).toContain("Rejected Task feedback");
+    expect(prompt).toContain("task-rejected");
+    expect(prompt).toContain("Rejected work");
+    expect(prompt).toContain("source_baseline_freshness guardrails");
   });
 });
