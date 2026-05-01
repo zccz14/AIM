@@ -9,8 +9,10 @@ type OpenCodeSessionRepository = AsyncDisposable & {
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
+    project_id?: null | string;
     provider_id?: null | string;
     session_id: string;
+    title?: null | string;
   }): Promise<unknown> | unknown;
   deleteSessionById(sessionId: string): Promise<unknown> | unknown;
   getSessionReferences(sessionId: string):
@@ -29,18 +31,22 @@ type OpenCodeSessionRepository = AsyncDisposable & {
         continue_prompt: null | string;
         created_at: string;
         model_id?: null | string;
+        project_id?: null | string;
         provider_id?: null | string;
         session_id: string;
         state: OpenCodeSessionState;
+        title?: null | string;
       }>
     | Promise<
         Array<{
           continue_prompt: null | string;
           created_at: string;
           model_id?: null | string;
+          project_id?: null | string;
           provider_id?: null | string;
           session_id: string;
           state: OpenCodeSessionState;
+          title?: null | string;
         }>
       >;
 };
@@ -59,6 +65,7 @@ export type CreateManagedOpenCodeSessionInput = {
   directory: string;
   model?: OpenCodeSessionModel;
   prompt: string;
+  projectId: string;
   title: string;
 };
 
@@ -379,7 +386,7 @@ export const createOpenCodeSessionManager = ({
     async [Symbol.asyncDispose]() {
       await stack.disposeAsync();
     },
-    async createSession({ directory, model, prompt, title }) {
+    async createSession({ directory, model, projectId, prompt, title }) {
       const session = await client.session.create({
         body: { title },
         query: { directory },
@@ -389,8 +396,10 @@ export const createOpenCodeSessionManager = ({
       await repository.createSession({
         continue_prompt: prompt,
         model_id: model?.modelID ?? null,
+        project_id: projectId,
         provider_id: model?.providerID ?? null,
         session_id: session.data.id,
+        title,
       });
 
       return {

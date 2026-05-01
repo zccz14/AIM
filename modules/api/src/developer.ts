@@ -280,6 +280,7 @@ export const createDeveloper = ({
           providerID: task.global_provider_id,
         },
         prompt: buildTaskSessionPrompt(task),
+        projectId: task.project_id,
         title: `AIM Developer: ${task.title}`,
       });
 
@@ -407,6 +408,7 @@ export const createDeveloper = ({
           providerID: task.global_provider_id,
         },
         prompt,
+        projectId: task.project_id,
         title: `AIM Developer Settlement: ${task.title}`,
       });
 
@@ -499,6 +501,7 @@ export const createDeveloper = ({
             providerID: task.global_provider_id,
           },
           prompt: buildTaskSessionPrompt(task),
+          projectId: task.project_id,
           title: `AIM Developer Recovery: ${task.title}`,
         });
 

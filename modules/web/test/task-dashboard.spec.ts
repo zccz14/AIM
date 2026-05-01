@@ -6,7 +6,9 @@ const zeroOpenCodeSessionTokens = {
   cache_write_tokens: 0,
   input_tokens: 0,
   output_tokens: 0,
+  project_id: null,
   reasoning_tokens: 0,
+  title: null,
 };
 
 const buildTask = ({
@@ -2486,8 +2488,10 @@ test("summarizes OpenCode session token usage and refreshes one session", async 
       value: null,
       reason: null,
       continue_prompt: "Continue after usage refresh.",
+      project_id: null,
       provider_id: "anthropic",
       model_id: "claude-sonnet-4-5",
+      title: null,
       input_tokens: 1200,
       cached_tokens: 300,
       cache_write_tokens: 40,

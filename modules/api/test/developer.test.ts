@@ -148,6 +148,7 @@ describe("developer", () => {
         providerID: initialTask.global_provider_id,
       },
       prompt: buildTaskSessionPrompt(initialTask),
+      projectId: initialTask.project_id,
       title: `AIM Developer: ${initialTask.title}`,
     });
 
@@ -477,6 +478,7 @@ describe("developer", () => {
         providerID: unavailableTask.global_provider_id,
       },
       prompt: buildTaskSessionPrompt(unavailableTask),
+      projectId: unavailableTask.project_id,
       title: `AIM Developer Recovery: ${unavailableTask.title}`,
     });
     expect(sessionManager.pushContinuationPrompt).not.toHaveBeenCalled();

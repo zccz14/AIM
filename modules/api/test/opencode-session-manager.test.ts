@@ -10,9 +10,11 @@ type StoredSession = {
   continue_prompt: null | string;
   created_at: string;
   model_id?: null | string;
+  project_id?: null | string;
   provider_id?: null | string;
   session_id: string;
   state: "pending" | "rejected" | "resolved";
+  title?: null | string;
 };
 
 const createRepository = () => {
@@ -32,16 +34,20 @@ const createRepository = () => {
       created_at?: string;
       continue_prompt?: null | string;
       model_id?: null | string;
+      project_id?: null | string;
       provider_id?: null | string;
       session_id: string;
+      title?: null | string;
     }) {
       const session: StoredSession = {
         continue_prompt: input.continue_prompt ?? null,
         created_at: input.created_at ?? new Date().toISOString(),
         model_id: input.model_id ?? null,
+        project_id: input.project_id ?? null,
         provider_id: input.provider_id ?? null,
         session_id: input.session_id,
         state: "pending",
+        title: input.title ?? null,
       };
 
       sessions.push(session);
@@ -119,6 +125,7 @@ describe("createOpenCodeSessionManager", () => {
       directory: "/repo/.worktrees/task-1",
       model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
       prompt: "Continue the task.",
+      projectId: "00000000-0000-4000-8000-000000000101",
       title: "AIM Developer: Task 1",
     });
 
@@ -133,9 +140,11 @@ describe("createOpenCodeSessionManager", () => {
       {
         continue_prompt: "Continue the task.",
         model_id: "claude-sonnet-4-5",
+        project_id: "00000000-0000-4000-8000-000000000101",
         provider_id: "anthropic",
         session_id: "session-1",
         state: "pending",
+        title: "AIM Developer: Task 1",
       },
     ]);
     expect(promptAsync).not.toHaveBeenCalled();
