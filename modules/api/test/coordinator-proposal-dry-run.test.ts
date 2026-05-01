@@ -373,6 +373,92 @@ describe("coordinator proposal dry-run", () => {
     expect(postBatch).not.toHaveBeenCalled();
   });
 
+  it("does not propose deleting terminal stale feedback tasks", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      evaluations: [],
+      staleTaskFeedback: [
+        {
+          reason: "Rejected as stale historical feedback.",
+          task: {
+            done: true,
+            result: "Rejected: stale baseline and self-overlap.",
+            status: "rejected",
+            task_id: "task-terminal-rejected",
+            title: "Rejected historical task",
+          },
+        },
+        {
+          reason: "Resolved by a newer accepted plan.",
+          task: {
+            done: true,
+            status: "resolved",
+            task_id: "task-terminal-resolved",
+            title: "Resolved historical task",
+          },
+        },
+      ],
+      taskPool: [],
+    });
+
+    expect(dryRun.operations).toEqual([]);
+  });
+
+  it("keeps rejected stale feedback blocking duplicate creates while skipping delete output", () => {
+    const dryRun = buildCoordinatorProposalDryRun({
+      currentBaselineCommit: "abc1234",
+      evaluations: [
+        {
+          source_dimension: sourceDimension,
+          source_evaluation: sourceEvaluation,
+          source_gap: "Replace rejected stale historical coverage.",
+        },
+      ],
+      rejectedTasks: [
+        {
+          done: true,
+          result: "Rejected: stale baseline and self-overlap.",
+          source_metadata: {
+            dimension_evaluation_id: "evaluation-1",
+            dimension_id: "dimension-api",
+          },
+          status: "rejected",
+          task_id: "task-rejected-feedback",
+          title: "Rejected stale task",
+        },
+      ],
+      staleTaskFeedback: [
+        {
+          reason: "Rejected as stale historical feedback.",
+          task: {
+            done: true,
+            result: "Rejected: stale baseline and self-overlap.",
+            source_metadata: {
+              dimension_evaluation_id: "evaluation-1",
+              dimension_id: "dimension-api",
+            },
+            status: "rejected",
+            task_id: "task-rejected-feedback",
+            title: "Rejected stale task",
+          },
+        },
+      ],
+      taskPool: [],
+    });
+
+    expect(dryRun.operations).toEqual([
+      expect.objectContaining({
+        decision: "create",
+        planning_feedback: {
+          blocked: true,
+          reason:
+            "Rejected prior coverage task-rejected-feedback reported stale/self-overlap feedback; re-plan replacement against latest baseline and current Task Pool before validation.",
+          rejected_task_id: "task-rejected-feedback",
+        },
+        task_spec_draft: null,
+      }),
+    ]);
+  });
+
   it("uses top-level Task worktree and PR fields in delete rationale before legacy metadata", () => {
     const dryRun = buildCoordinatorProposalDryRun({
       evaluations: [],

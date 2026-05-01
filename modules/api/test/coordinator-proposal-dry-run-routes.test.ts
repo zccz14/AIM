@@ -230,6 +230,79 @@ describe("coordinator proposal dry-run route", () => {
     });
   });
 
+  it("treats terminal stale feedback as create-blocking context instead of delete candidates", async () => {
+    await useProjectRoot("terminal-stale-feedback");
+    const app = createRouteApp();
+    const project = await createProject(app);
+
+    const response = await app.request(
+      contractModule.coordinatorProposalDryRunPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          project_id: project.id,
+          currentBaselineCommit,
+          evaluations: [
+            {
+              source_dimension: {
+                id: "dimension-terminal-feedback",
+                name: "Terminal feedback",
+              },
+              source_evaluation: {
+                commit_sha: currentBaselineCommit,
+                evaluation: "Rejected feedback should still shape planning.",
+                id: "evaluation-terminal-feedback",
+              },
+              source_gap:
+                "Create replacement without deleting historical feedback.",
+            },
+          ],
+          rejectedTasks: [
+            {
+              done: true,
+              result: "Rejected: stale baseline and self-overlap.",
+              source_metadata: {
+                dimension_evaluation_id: "evaluation-terminal-feedback",
+                dimension_id: "dimension-terminal-feedback",
+              },
+              status: "rejected",
+              task_id: "task-rejected-history",
+              title: "Rejected historical feedback",
+            },
+          ],
+          staleTaskFeedback: [
+            {
+              reason: "Rejected as stale historical feedback.",
+              task: {
+                done: true,
+                result: "Rejected: stale baseline and self-overlap.",
+                status: "rejected",
+                task_id: "task-rejected-history",
+                title: "Rejected historical feedback",
+              },
+            },
+          ],
+          taskPool: [],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+
+    expect(payload.operations).toEqual([
+      expect.objectContaining({
+        decision: "create",
+        planning_feedback: expect.objectContaining({
+          blocked: true,
+          rejected_task_id: "task-rejected-history",
+        }),
+        task_spec_draft: null,
+      }),
+    ]);
+  });
+
   it("accepts top-level task artifact fields and keeps them in rationale", async () => {
     await useProjectRoot("top-level-artifact-fields");
     const app = createRouteApp();
