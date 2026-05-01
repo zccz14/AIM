@@ -788,11 +788,13 @@ describe("createOpenCodeSessionManager", () => {
     const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
     const abort = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         abort,
         create: vi.fn(),
+        delete: deleteSession,
         messages,
         promptAsync,
       },
@@ -811,6 +813,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(messages).not.toHaveBeenCalled();
     expect(promptAsync).not.toHaveBeenCalled();
     expect(abort).not.toHaveBeenCalled();
+    expect(deleteSession).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();
@@ -873,21 +876,23 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
-  it("deletes orphan pending AIM sessions past the cleanup grace window even when the runtime session is absent", async () => {
+  it("deletes orphan pending runtime sessions past the cleanup grace window instead of aborting them", async () => {
     const repository = createRepository();
     await repository.createSession({
-      continue_prompt: "Do not recover dangling orphan.",
+      continue_prompt: "Do not recover expired orphan.",
       created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
       session_id: "session-orphan-expired",
     });
     const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
-    const abort = vi.fn().mockRejectedValue(new Error("session not found"));
+    const abort = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         abort,
         create: vi.fn(),
+        delete: deleteSession,
         messages,
         promptAsync,
       },
@@ -903,16 +908,120 @@ describe("createOpenCodeSessionManager", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(abort).toHaveBeenCalledWith({
+    expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-expired" },
       throwOnError: true,
     });
+    expect(abort).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-orphan-expired",
     );
     expect(repository.listSessions({ state: "pending" })).toEqual([]);
     expect(messages).not.toHaveBeenCalled();
     expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("deletes orphan pending AIM sessions past the cleanup grace window when runtime delete reports not found", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover absent orphan.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-runtime-absent",
+    });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const deleteSession = vi
+      .fn()
+      .mockRejectedValue({ response: { status: 404 } });
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort: vi.fn().mockResolvedValue({}),
+        create: vi.fn(),
+        delete: deleteSession,
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(deleteSession).toHaveBeenCalledWith({
+      path: { id: "session-orphan-runtime-absent" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-orphan-runtime-absent",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(messages).not.toHaveBeenCalled();
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("keeps orphan pending AIM sessions for retry when runtime delete fails for a non-not-found reason", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Retry orphan cleanup later.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-delete-temporary-failure",
+    });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockRejectedValue(new Error("runtime busy"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort: vi.fn().mockResolvedValue({}),
+        create: vi.fn(),
+        delete: deleteSession,
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(deleteSession).toHaveBeenCalledWith({
+      path: { id: "session-orphan-delete-temporary-failure" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).not.toHaveBeenCalled();
+    expect(repository.listSessions({ state: "pending" })).toMatchObject([
+      {
+        session_id: "session-orphan-delete-temporary-failure",
+        state: "pending",
+      },
+    ]);
+    expect(messages).not.toHaveBeenCalled();
+    expect(promptAsync).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode orphan runtime cleanup failed",
+      {
+        error: "runtime busy",
+        session_id: "session-orphan-delete-temporary-failure",
+      },
+    );
 
     await manager[Symbol.asyncDispose]();
   });
@@ -930,12 +1039,14 @@ describe("createOpenCodeSessionManager", () => {
     });
     repository.referenceSession("session-after-orphan-cleanup");
     const abort = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue({});
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         abort,
         create: vi.fn(),
+        delete: deleteSession,
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -951,10 +1062,11 @@ describe("createOpenCodeSessionManager", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(abort).toHaveBeenCalledWith({
+    expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-expired-first" },
       throwOnError: true,
     });
+    expect(abort).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-orphan-expired-first",
     );
@@ -1063,11 +1175,13 @@ describe("createOpenCodeSessionManager", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const abort = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         abort,
         create: vi.fn(),
+        delete: deleteSession,
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync: vi.fn().mockResolvedValue({}),
       },
@@ -1093,10 +1207,11 @@ describe("createOpenCodeSessionManager", () => {
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-orphan-delete-continues",
     );
-    expect(abort).toHaveBeenCalledWith({
+    expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-delete-continues" },
       throwOnError: true,
     });
+    expect(abort).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();
   });
