@@ -1,7 +1,7 @@
 import type { Project } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
-import { execGit } from "./exec-file.js";
+import { execGh, execGit } from "./exec-file.js";
 import type {
   ManagerState,
   ManagerStateInput,
@@ -60,6 +60,11 @@ export type Manager = AsyncDisposable & {
 const git = async (projectDirectory: string, args: string[]) =>
   (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
+const gh = async (projectDirectory: string, args: string[]) =>
+  (
+    await execGh(args, { cwd: projectDirectory, target: projectDirectory })
+  ).trim();
+
 const quoteDimensionIds = (dimensionIds: string[]) =>
   dimensionIds.map((dimensionId) => `"${dimensionId}"`).join(", ");
 
@@ -72,6 +77,171 @@ const dimensionIdsJson = (dimensionIds: string[]) =>
 const errorMessage = (err: unknown) =>
   err instanceof Error ? err.message : String(err);
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
+const readStringProperty = (
+  value: Record<string, unknown> | null,
+  key: string,
+) => {
+  const property = value?.[key];
+
+  return typeof property === "string" && property.trim().length > 0
+    ? property.trim()
+    : null;
+};
+
+const summarizeWorkflows = (output: string) => {
+  const workflows = output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, state] = line.split("\t");
+      const cleanName = name?.trim();
+      const cleanState = state?.trim();
+
+      if (!cleanName) {
+        return null;
+      }
+
+      return cleanState ? `${cleanName} (${cleanState})` : cleanName;
+    })
+    .filter((workflow): workflow is string => workflow !== null);
+
+  return workflows.length > 0
+    ? `GitHub Actions workflows: ${workflows.join("; ")}.`
+    : "Evidence limit: no GitHub Actions workflows were reported by gh.";
+};
+
+const summarizeRequiredChecks = (output: string) => {
+  const protection = asRecord(parseJson(output));
+  const statusChecks = asRecord(protection?.required_status_checks);
+  const checks = Array.isArray(statusChecks?.checks)
+    ? statusChecks.checks
+        .map((check) => readStringProperty(asRecord(check), "context"))
+        .filter((check): check is string => check !== null)
+    : [];
+  const contexts = Array.isArray(statusChecks?.contexts)
+    ? statusChecks.contexts.filter(
+        (context): context is string => typeof context === "string",
+      )
+    : [];
+  const requiredChecks = [...new Set([...checks, ...contexts])].sort();
+
+  return requiredChecks.length > 0
+    ? `Required checks: ${requiredChecks.join("; ")}.`
+    : "Evidence limit: branch protection did not report required checks.";
+};
+
+const summarizeRulesets = (output: string) => {
+  const rulesets = parseJson(output);
+  const summaries = Array.isArray(rulesets)
+    ? rulesets
+        .map((ruleset) => {
+          const record = asRecord(ruleset);
+          const name = readStringProperty(record, "name");
+          const enforcement = readStringProperty(record, "enforcement");
+
+          if (!name) {
+            return null;
+          }
+
+          return enforcement ? `${name} (${enforcement})` : name;
+        })
+        .filter((ruleset): ruleset is string => ruleset !== null)
+    : [];
+
+  return summaries.length > 0
+    ? `Branch rulesets: ${summaries.join("; ")}.`
+    : "Evidence limit: gh reported no branch rulesets.";
+};
+
+const collectCiGateEvidence = async (projectDirectory: string) => {
+  try {
+    const repoOutput = await gh(projectDirectory, [
+      "repo",
+      "view",
+      "--json",
+      "nameWithOwner,defaultBranchRef",
+    ]);
+    const repo = asRecord(parseJson(repoOutput));
+    const nameWithOwner = readStringProperty(repo, "nameWithOwner");
+    const defaultBranchRef = asRecord(repo?.defaultBranchRef);
+    const defaultBranch =
+      readStringProperty(defaultBranchRef, "name") ?? "main";
+
+    if (!nameWithOwner) {
+      return `CI gate evidence for current baseline:\nEvidence limit: GitHub CI gate evidence unavailable: gh repo view did not return nameWithOwner.\nRecord this evidence limit instead of assuming live GitHub Actions, required checks, branch protection, or ruleset state.`;
+    }
+
+    const lines = [
+      "CI gate evidence for current baseline:",
+      `GitHub repository: "${nameWithOwner}".`,
+      `Default branch: "${defaultBranch}".`,
+    ];
+
+    try {
+      lines.push(
+        summarizeWorkflows(
+          await gh(projectDirectory, [
+            "workflow",
+            "list",
+            "--repo",
+            nameWithOwner,
+          ]),
+        ),
+      );
+    } catch (err) {
+      lines.push(
+        `Evidence limit: GitHub Actions workflow evidence unavailable: ${errorMessage(err)}.`,
+      );
+    }
+
+    try {
+      lines.push(
+        summarizeRequiredChecks(
+          await gh(projectDirectory, [
+            "api",
+            `repos/${nameWithOwner}/branches/${defaultBranch}/protection`,
+          ]),
+        ),
+      );
+    } catch (err) {
+      lines.push(
+        `Evidence limit: branch protection or required checks evidence unavailable: ${errorMessage(err)}.`,
+      );
+    }
+
+    try {
+      lines.push(
+        summarizeRulesets(
+          await gh(projectDirectory, [
+            "api",
+            `repos/${nameWithOwner}/rulesets?targets=branch`,
+          ]),
+        ),
+      );
+    } catch (err) {
+      lines.push(
+        `Evidence limit: branch ruleset evidence unavailable: ${errorMessage(err)}.`,
+      );
+    }
+
+    lines.push(
+      "Use this read-only GitHub gate evidence when evaluating CI and validation reliability dimensions.",
+    );
+
+    return lines.join("\n");
+  } catch (err) {
+    return `CI gate evidence for current baseline:\nEvidence limit: GitHub CI gate evidence unavailable: ${errorMessage(err)}.\nRecord this evidence limit instead of assuming live GitHub Actions, required checks, branch protection, or ruleset state.`;
+  }
+};
+
 const projectScopedPrompt = (
   prompt: string,
   project: ManagerProject,
@@ -83,11 +253,14 @@ const evaluationPrompt = (
   project: ManagerProject,
   commitSha: string,
   dimensionIds: string[],
+  ciGateEvidence: string,
 ) => `${projectScopedPrompt(managerPrompt, project)}
 
 Current baseline commit: "${commitSha}".
 Evaluate only these dimension_id values for this baseline commit: ${quoteDimensionIds(dimensionIds)}.
-Do not evaluate dimensions outside that explicit list.`;
+Do not evaluate dimensions outside that explicit list.
+
+${ciGateEvidence}`;
 
 export const createManager = ({
   dimensionRepository,
@@ -150,6 +323,7 @@ export const createManager = ({
     await git(projectDirectory, ["fetch", "origin", "main"]);
     await git(projectDirectory, ["checkout", "origin/main"]);
     const commitSha = await git(projectDirectory, ["rev-parse", "origin/main"]);
+    const ciGateEvidence = await collectCiGateEvidence(projectDirectory);
     logger?.info(
       {
         commit_sha: commitSha,
@@ -253,6 +427,7 @@ export const createManager = ({
           project,
           commitSha,
           canonicalMissingDimensionIds,
+          ciGateEvidence,
         ),
         title: `AIM Manager evaluation (${project.id})`,
       });
