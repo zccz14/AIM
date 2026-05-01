@@ -79,6 +79,71 @@ const mockGit = (commitSha = "abc1234") => {
   );
 };
 
+const mockGitAndGh = ({
+  branchProtection = JSON.stringify({
+    required_status_checks: {
+      checks: [{ context: "API / test" }, { context: "Web / test" }],
+    },
+  }),
+  commitSha = "abc1234",
+  repo = JSON.stringify({
+    defaultBranchRef: { name: "main" },
+    nameWithOwner: "example/main",
+  }),
+  rulesets = JSON.stringify([{ enforcement: "active", name: "Main gate" }]),
+  workflows = "API\tactive\nWeb\tactive\n",
+}: {
+  branchProtection?: string;
+  commitSha?: string;
+  repo?: string;
+  rulesets?: string;
+  workflows?: string;
+} = {}) => {
+  execFileMock.mockImplementation(
+    (
+      command: string,
+      args: string[],
+      _options: unknown,
+      callback: (error: null, stdout: string) => void,
+    ) => {
+      if (command === "git") {
+        callback(null, args[0] === "rev-parse" ? `${commitSha}\n` : "");
+        return;
+      }
+
+      if (command === "gh" && args[0] === "repo" && args[1] === "view") {
+        callback(null, repo);
+        return;
+      }
+
+      if (command === "gh" && args[0] === "workflow" && args[1] === "list") {
+        callback(null, workflows);
+        return;
+      }
+
+      if (
+        command === "gh" &&
+        args[0] === "api" &&
+        args[1] === "repos/example/main/branches/main/protection"
+      ) {
+        callback(null, branchProtection);
+        return;
+      }
+
+      if (
+        command === "gh" &&
+        args[0] === "api" &&
+        args[1] === "repos/example/main/rulesets?targets=branch"
+      ) {
+        callback(null, rulesets);
+        return;
+      }
+
+      callback(null, "");
+    },
+  );
+};
+
 describe("manager", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -173,6 +238,97 @@ describe("manager", () => {
       }),
       "Manager disposed",
     );
+  });
+
+  it("includes read-only GitHub CI gate evidence in the Manager evaluation prompt", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    mockGitAndGh({ commitSha: "def5678" });
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-ci"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("CI gate evidence for current baseline");
+    expect(prompt).toContain('GitHub repository: "example/main".');
+    expect(prompt).toContain('Default branch: "main".');
+    expect(prompt).toContain(
+      "GitHub Actions workflows: API (active); Web (active).",
+    );
+    expect(prompt).toContain("Required checks: API / test; Web / test.");
+    expect(prompt).toContain("Branch rulesets: Main gate (active).");
+    expect(prompt).toContain(
+      "Use this read-only GitHub gate evidence when evaluating CI and validation reliability dimensions.",
+    );
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("includes a diagnostic CI gate evidence limit when GitHub evidence is unavailable", async () => {
+    vi.useFakeTimers();
+    mockEnsureProjectWorkspace.mockResolvedValue("/repo/project-1");
+    execFileMock.mockImplementation(
+      (
+        command: string,
+        args: string[],
+        _options: unknown,
+        callback: (
+          error: Error | null,
+          stdout: string,
+          stderr?: string,
+        ) => void,
+      ) => {
+        if (command === "git") {
+          callback(null, args[0] === "rev-parse" ? "def5678\n" : "");
+          return;
+        }
+
+        callback(new Error("gh auth required"), "", "authentication required");
+      },
+    );
+    const sessionManager = createSessionManager();
+    const { createManager } = await import("../src/manager.js");
+
+    const manager = createManager({
+      dimensionRepository: {
+        listUnevaluatedDimensionIds: vi
+          .fn()
+          .mockResolvedValue(["dimension-ci"]),
+      },
+      managerStateRepository: createManagerStateRepository(),
+      project,
+      sessionManager,
+    });
+
+    await vi.waitFor(() => {
+      expect(sessionManager.createSession).toHaveBeenCalledOnce();
+    });
+
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("CI gate evidence for current baseline");
+    expect(prompt).toContain(
+      "Evidence limit: GitHub CI gate evidence unavailable",
+    );
+    expect(prompt).toContain("gh auth required");
+    expect(prompt).toContain(
+      "Record this evidence limit instead of assuming live GitHub Actions, required checks, branch protection, or ruleset state.",
+    );
+
+    await manager[Symbol.asyncDispose]();
   });
 
   it("does not overlap heartbeats while a previous heartbeat is still awaiting", async () => {
