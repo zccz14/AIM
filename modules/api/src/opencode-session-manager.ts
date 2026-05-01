@@ -45,6 +45,7 @@ type OpenCodeSessionRepository = AsyncDisposable & {
 };
 
 export type CreateOpenCodeSessionManagerOptions = {
+  apiBaseUrl?: string;
   baseUrl: string;
   repository: OpenCodeSessionRepository;
 };
@@ -92,12 +93,33 @@ export type OpenCodeSessionManager = AsyncDisposable & {
 const staleAfterMilliseconds = 5 * 60 * 1000;
 const orphanCleanupGraceMilliseconds = 5 * 60 * 1000;
 const pollSleepMilliseconds = 1000;
-const continuationTerminalInstructions = `
+const defaultApiBaseUrl = "http://localhost:8192";
+const normalizeApiBaseUrl = (apiBaseUrl: string) =>
+  apiBaseUrl.replace(/\/+$/, "") || defaultApiBaseUrl;
+const continuationTerminalInstructions = ({
+  apiBaseUrl,
+  sessionId,
+}: {
+  apiBaseUrl: string;
+  sessionId: string;
+}) => {
+  const normalizedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  const resolveUrl = `${normalizedApiBaseUrl}/opencode/sessions/${sessionId}/resolve`;
+  const rejectUrl = `${normalizedApiBaseUrl}/opencode/sessions/${sessionId}/reject`;
 
-Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
+  return `
 
-export const withContinuation = (prompt: string) =>
-  `${prompt}${continuationTerminalInstructions}`;
+Terminal instruction: when the session objective is complete, settle this session with curl:
+curl -X POST "${resolveUrl}" -H "Content-Type: application/json" --data '{"value":"<final result>"}'
+When the session is unable to proceed or the objective is invalid, settle it with curl:
+curl -X POST "${rejectUrl}" -H "Content-Type: application/json" --data '{"reason":"<failure reason>"}'
+If you do not settle this session through the AIM API, this loop will not end.`;
+};
+
+export const withContinuation = (
+  prompt: string,
+  options: { apiBaseUrl: string; sessionId: string },
+) => `${prompt}${continuationTerminalInstructions(options)}`;
 
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -187,6 +209,7 @@ const isOlderThanOrphanGrace = (createdAt: string) => {
 };
 
 export const createOpenCodeSessionManager = ({
+  apiBaseUrl = defaultApiBaseUrl,
   baseUrl,
   repository,
 }: CreateOpenCodeSessionManagerOptions): OpenCodeSessionManager => {
@@ -281,7 +304,15 @@ export const createOpenCodeSessionManager = ({
             await client.session.promptAsync({
               body: {
                 model,
-                parts: [{ text: withContinuation(prompt), type: "text" }],
+                parts: [
+                  {
+                    text: withContinuation(prompt, {
+                      apiBaseUrl,
+                      sessionId: session.session_id,
+                    }),
+                    type: "text",
+                  },
+                ],
               },
               path: { id: session.session_id },
               throwOnError: true,
@@ -339,7 +370,12 @@ export const createOpenCodeSessionManager = ({
       await client.session.promptAsync({
         body: {
           model,
-          parts: [{ text: withContinuation(prompt), type: "text" }],
+          parts: [
+            {
+              text: withContinuation(prompt, { apiBaseUrl, sessionId }),
+              type: "text",
+            },
+          ],
         },
         path: { id: sessionId },
         throwOnError: true,
