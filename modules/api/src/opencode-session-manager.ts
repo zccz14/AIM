@@ -151,9 +151,6 @@ const isOpenCodeSessionNotFoundError = (error: unknown) =>
   (error instanceof Error &&
     /session .*not found|not found/i.test(error.message));
 
-const sleep = (milliseconds: number, signal: AbortSignal) =>
-  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
-
 const getLatestMessageTime = async (
   client: ReturnType<typeof createOpencodeClient>,
   sessionId: string,
@@ -230,7 +227,9 @@ export const createOpenCodeSessionManager = ({
         console.warn("OpenCode pending session scan failed", {
           error: summarizeError(error),
         });
-        await sleep(pollSleepMilliseconds, abortController.signal);
+        await cancelableSleep(pollSleepMilliseconds, {
+          signal: abortController.signal,
+        }).catch(() => undefined);
 
         continue;
       }
@@ -331,11 +330,15 @@ export const createOpenCodeSessionManager = ({
             session_id: session.session_id,
           });
         } finally {
-          await sleep(pollSleepMilliseconds, abortController.signal);
+          await cancelableSleep(pollSleepMilliseconds, {
+            signal: abortController.signal,
+          }).catch(() => undefined);
         }
       }
 
-      await sleep(pollSleepMilliseconds, abortController.signal);
+      await cancelableSleep(pollSleepMilliseconds, {
+        signal: abortController.signal,
+      }).catch(() => undefined);
     }
   };
   const watchLoop = watchPendingSessions();
