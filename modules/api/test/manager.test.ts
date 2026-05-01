@@ -66,7 +66,10 @@ const createManagerStateRepository = () => {
   };
 };
 
-const mockGit = (commitSha = "abc1234") => {
+const mockGit = (
+  commitSha = "abc1234",
+  latestCommitNameStatus = "def5678\nM\tmodules/api/src/manager.ts\nA\tmodules/api/test/manager.test.ts\n",
+) => {
   execFileMock.mockImplementation(
     (
       _command: string,
@@ -74,7 +77,17 @@ const mockGit = (commitSha = "abc1234") => {
       _options: unknown,
       callback: (error: null, stdout: string) => void,
     ) => {
-      callback(null, args[0] === "rev-parse" ? `${commitSha}\n` : "");
+      if (args[0] === "rev-parse") {
+        callback(null, `${commitSha}\n`);
+        return;
+      }
+
+      if (args[0] === "log") {
+        callback(null, latestCommitNameStatus);
+        return;
+      }
+
+      callback(null, "");
     },
   );
 };
@@ -144,6 +157,21 @@ describe("manager", () => {
     );
     expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
       'Evaluate only these dimension_id values for this baseline commit: "dimension-api", "dimension-docs".',
+    );
+    expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
+      "Latest origin/main commit touched-file evidence from `git log -1 --name-status --format=%H origin/main`:",
+    );
+    expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
+      "commit def5678",
+    );
+    expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
+      "M\tmodules/api/src/manager.ts",
+    );
+    expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
+      "A\tmodules/api/test/manager.test.ts",
+    );
+    expect(sessionManager.createSession.mock.calls[0]?.[0].prompt).toContain(
+      "State this evidence source, or state the evidence limit if it is unavailable or truncated.",
     );
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -11,6 +11,9 @@ import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { ensureProjectWorkspace } from "./project-workspace.js";
 
 const heartbeatIntervalMs = 10_000;
+const latestCommitTouchedFileLimit = 50;
+const latestCommitTouchedFileSource =
+  "git log -1 --name-status --format=%H origin/main";
 
 const managerPrompt = `FOLLOW the aim-manager-guide SKILL.
 
@@ -83,11 +86,47 @@ const evaluationPrompt = (
   project: ManagerProject,
   commitSha: string,
   dimensionIds: string[],
+  latestCommitTouchedFileEvidence: string,
 ) => `${projectScopedPrompt(managerPrompt, project)}
 
 Current baseline commit: "${commitSha}".
 Evaluate only these dimension_id values for this baseline commit: ${quoteDimensionIds(dimensionIds)}.
-Do not evaluate dimensions outside that explicit list.`;
+Do not evaluate dimensions outside that explicit list.
+
+${latestCommitTouchedFileEvidence}`;
+
+const latestCommitTouchedFileEvidence = async (projectDirectory: string) => {
+  try {
+    const output = await git(projectDirectory, [
+      "log",
+      "-1",
+      "--name-status",
+      "--format=%H",
+      "origin/main",
+    ]);
+    const [commitSha, ...fileLines] = output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const includedFileLines = fileLines.slice(0, latestCommitTouchedFileLimit);
+    const truncatedCount = fileLines.length - includedFileLines.length;
+    const fileSummary =
+      includedFileLines.length === 0
+        ? "(no touched files reported)"
+        : includedFileLines.join("\n");
+    const truncationSummary =
+      truncatedCount > 0
+        ? `\n(truncated ${truncatedCount} additional touched file${truncatedCount === 1 ? "" : "s"}; limit ${latestCommitTouchedFileLimit})`
+        : "";
+
+    return `Latest origin/main commit touched-file evidence from \`${latestCommitTouchedFileSource}\`:
+commit ${commitSha || "unknown"}
+${fileSummary}${truncationSummary}
+State this evidence source, or state the evidence limit if it is unavailable or truncated.`;
+  } catch (err) {
+    return `Latest origin/main commit touched-file evidence from \`${latestCommitTouchedFileSource}\` is unavailable. Evidence limit: ${errorMessage(err)}. State this evidence limit instead of inferring touched files.`;
+  }
+};
 
 export const createManager = ({
   dimensionRepository,
@@ -253,6 +292,7 @@ export const createManager = ({
           project,
           commitSha,
           canonicalMissingDimensionIds,
+          await latestCommitTouchedFileEvidence(projectDirectory),
         ),
         title: `AIM Manager evaluation (${project.id})`,
       });
