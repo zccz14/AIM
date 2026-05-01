@@ -384,6 +384,10 @@ export const buildCoordinatorProposalDryRun = ({
   }
 
   for (const { reason, task } of staleTaskFeedback) {
+    if (!isUnfinished(task)) {
+      continue;
+    }
+
     operations.push({
       coverage_judgment: {
         status: "stale_unfinished_task",
