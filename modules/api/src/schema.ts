@@ -32,6 +32,29 @@ const openCodeSessionTokenColumns = [
   "reasoning_tokens",
 ] as const;
 
+const createCurrentOpenCodeSessionsTableSql = `
+  CREATE TABLE opencode_sessions (
+    session_id TEXT PRIMARY KEY,
+    title TEXT,
+    project_id TEXT,
+    continue_prompt TEXT,
+    provider_id TEXT,
+    model_id TEXT,
+    state TEXT NOT NULL,
+    value TEXT,
+    reason TEXT,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    cached_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    reasoning_tokens INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CHECK (state IN ('pending', 'rejected', 'resolved')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  )
+`;
+
 type TableInfoRow = { name: string };
 
 type ForeignKeyListRow = {
@@ -153,6 +176,65 @@ const taskSessionForeignKeyReferencesOpenCodeSessions = (
       foreignKey.to === "session_id" &&
       foreignKey.on_delete.toUpperCase() === "SET NULL",
   );
+};
+
+const openCodeSessionProjectForeignKeyReferencesProjects = (
+  database: DatabaseSync,
+) => {
+  const foreignKeys = database
+    .prepare("PRAGMA foreign_key_list(opencode_sessions)")
+    .all() as ForeignKeyListRow[];
+
+  return foreignKeys.some(
+    (foreignKey) =>
+      foreignKey.from === "project_id" &&
+      foreignKey.table === "projects" &&
+      foreignKey.to === "id" &&
+      foreignKey.on_delete.toUpperCase() === "CASCADE",
+  );
+};
+
+const migrateOpenCodeSessionsToDocumentedSchema = (database: DatabaseSync) => {
+  const columns = tableColumns(database, "opencode_sessions");
+
+  if (!columns.has("session_id")) {
+    return;
+  }
+
+  const hasDocumentedColumns = [
+    "title",
+    "project_id",
+    "continue_prompt",
+    "provider_id",
+    "model_id",
+    "state",
+    "value",
+    "reason",
+    "created_at",
+    "updated_at",
+    ...openCodeSessionTokenColumns,
+  ].every((column) => columns.has(column));
+
+  if (
+    hasDocumentedColumns &&
+    openCodeSessionProjectForeignKeyReferencesProjects(database)
+  ) {
+    return;
+  }
+
+  const expression = (column: string, fallback: string) =>
+    columns.has(column) ? column : fallback;
+
+  database.exec(
+    "ALTER TABLE opencode_sessions RENAME TO opencode_sessions_legacy_documented_schema",
+  );
+  database.exec(createCurrentOpenCodeSessionsTableSql);
+  database.exec(`
+    INSERT INTO opencode_sessions (session_id, title, project_id, continue_prompt, provider_id, model_id, state, value, reason, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens, created_at, updated_at)
+    SELECT session_id, ${expression("title", "NULL")}, ${expression("project_id", "NULL")}, ${expression("continue_prompt", "NULL")}, ${expression("provider_id", "NULL")}, ${expression("model_id", "NULL")}, state, ${expression("value", "NULL")}, ${expression("reason", "NULL")}, ${expression("input_tokens", "0")}, ${expression("cached_tokens", "0")}, ${expression("cache_write_tokens", "0")}, ${expression("output_tokens", "0")}, ${expression("reasoning_tokens", "0")}, created_at, updated_at
+    FROM opencode_sessions_legacy_documented_schema
+  `);
+  database.exec("DROP TABLE opencode_sessions_legacy_documented_schema");
 };
 
 const migrateTasksWithoutOpenCodeSessionForeignKey = (
@@ -404,32 +486,7 @@ export const migrateSqliteProjectPathSchema = (database: DatabaseSync) => {
     migrateTasksWithoutDeveloperModelColumns(database);
     migrateTasksWithoutPersistedLifecycleColumns(database);
     migrateTasksWithoutOpenCodeSessionForeignKey(database);
-
-    const openCodeSessionColumns = tableColumns(database, "opencode_sessions");
-    if (
-      openCodeSessionColumns.has("session_id") &&
-      !openCodeSessionColumns.has("provider_id")
-    ) {
-      database.exec(
-        "ALTER TABLE opencode_sessions ADD COLUMN provider_id TEXT",
-      );
-    }
-    if (
-      openCodeSessionColumns.has("session_id") &&
-      !openCodeSessionColumns.has("model_id")
-    ) {
-      database.exec("ALTER TABLE opencode_sessions ADD COLUMN model_id TEXT");
-    }
-    for (const column of openCodeSessionTokenColumns) {
-      if (
-        openCodeSessionColumns.has("session_id") &&
-        !openCodeSessionColumns.has(column)
-      ) {
-        database.exec(
-          `ALTER TABLE opencode_sessions ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`,
-        );
-      }
-    }
+    migrateOpenCodeSessionsToDocumentedSchema(database);
 
     rewriteProjectIdsToUuids(database);
   } finally {
