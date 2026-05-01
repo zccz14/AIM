@@ -538,6 +538,157 @@ describe("opencode session routes", () => {
     });
   });
 
+  it("migrates existing OpenCode session tables to the documented session schema", async () => {
+    const projectRoot = await useProjectRoot(
+      "migrates-opencode-session-schema",
+    );
+    const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+
+    database.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        git_origin_url TEXT NOT NULL UNIQUE,
+        global_provider_id TEXT NOT NULL,
+        global_model_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    database.exec(`
+      CREATE TABLE opencode_sessions (
+        session_id TEXT PRIMARY KEY,
+        state TEXT NOT NULL,
+        value TEXT,
+        reason TEXT,
+        continue_prompt TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+    database
+      .prepare(
+        "INSERT INTO opencode_sessions (session_id, state, value, reason, continue_prompt, created_at, updated_at) VALUES (?, ?, NULL, NULL, ?, ?, ?)",
+      )
+      .run(
+        "legacy-session",
+        "pending",
+        "Continue the legacy session.",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    database.close();
+
+    const app = createApp();
+    const response = await app.request(opencodeSessionPath("legacy-session"));
+
+    expect(response.status).toBe(200);
+
+    const migratedDatabase = new DatabaseSync(join(projectRoot, "aim.sqlite"));
+    const columns = migratedDatabase
+      .prepare("PRAGMA table_info(opencode_sessions)")
+      .all()
+      .map((column) => (column as { name: string }).name);
+    const foreignKeys = migratedDatabase
+      .prepare("PRAGMA foreign_key_list(opencode_sessions)")
+      .all();
+    const persisted = migratedDatabase
+      .prepare(
+        "SELECT session_id, title, project_id, continue_prompt, provider_id, model_id, state, input_tokens, cached_tokens, cache_write_tokens, output_tokens, reasoning_tokens FROM opencode_sessions WHERE session_id = ?",
+      )
+      .get("legacy-session");
+    migratedDatabase.exec("PRAGMA foreign_keys = ON");
+    migratedDatabase
+      .prepare(
+        "INSERT INTO projects (id, name, git_origin_url, global_provider_id, global_model_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        mainProjectId,
+        "Project",
+        "https://github.com/example/repo.git",
+        "anthropic",
+        "claude-sonnet-4-5",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    migratedDatabase
+      .prepare(
+        "INSERT INTO opencode_sessions (session_id, project_id, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(
+        "project-session",
+        mainProjectId,
+        "pending",
+        "2026-04-26T00:00:00.000Z",
+        "2026-04-26T00:00:00.000Z",
+      );
+    expect(() =>
+      migratedDatabase
+        .prepare(
+          "INSERT INTO opencode_sessions (session_id, state, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+        .run(
+          "invalid-state-session",
+          "archived",
+          "2026-04-26T00:00:00.000Z",
+          "2026-04-26T00:00:00.000Z",
+        ),
+    ).toThrow();
+    migratedDatabase
+      .prepare("DELETE FROM projects WHERE id = ?")
+      .run(mainProjectId);
+    const cascadedSession = migratedDatabase
+      .prepare("SELECT session_id FROM opencode_sessions WHERE session_id = ?")
+      .get("project-session");
+    migratedDatabase.close();
+
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "session_id",
+        "title",
+        "project_id",
+        "continue_prompt",
+        "provider_id",
+        "model_id",
+        "state",
+        "value",
+        "reason",
+        "created_at",
+        "updated_at",
+        "input_tokens",
+        "cached_tokens",
+        "cache_write_tokens",
+        "output_tokens",
+        "reasoning_tokens",
+      ]),
+    );
+    expect(foreignKeys).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "project_id",
+          on_delete: "CASCADE",
+          table: "projects",
+          to: "id",
+        }),
+      ]),
+    );
+    expect(persisted).toEqual({
+      session_id: "legacy-session",
+      title: null,
+      project_id: null,
+      continue_prompt: "Continue the legacy session.",
+      provider_id: null,
+      model_id: null,
+      state: "pending",
+      input_tokens: 0,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      output_tokens: 0,
+      reasoning_tokens: 0,
+    });
+    expect(cascadedSession).toBeUndefined();
+  });
+
   it("does not bootstrap legacy optimizer lane state storage", async () => {
     const projectRoot = await useProjectRoot("skips-lane-state-schema");
     const app = createApp();
