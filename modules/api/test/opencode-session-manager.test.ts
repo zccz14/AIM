@@ -179,22 +179,32 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager, withContinuation } = await import(
+    const { createOpenCodeSessionManager } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
+      apiBaseUrl: "http://aim.example.test",
       baseUrl: "http://127.0.0.1:54321",
       repository,
     });
 
     await vi.advanceTimersByTimeAsync(1);
 
+    const sentText = promptAsync.mock.calls[0]?.[0].body.parts[0].text;
+    expect(sentText).toContain("Recover the session.");
+    expect(sentText).toContain(
+      "http://aim.example.test/opencode/sessions/session-pending/resolve",
+    );
+    expect(sentText).toContain(
+      "http://aim.example.test/opencode/sessions/session-pending/reject",
+    );
+    expect(sentText).toContain("curl");
+    expect(sentText).not.toContain("call aim_session_resolve");
+    expect(sentText).not.toContain("call aim_session_reject");
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-        parts: [
-          { text: withContinuation("Recover the session."), type: "text" },
-        ],
+        parts: [{ text: sentText, type: "text" }],
       },
       path: { id: "session-pending" },
       throwOnError: true,
@@ -371,6 +381,7 @@ describe("createOpenCodeSessionManager", () => {
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
+      apiBaseUrl: "http://aim.example.test",
       baseUrl: "http://127.0.0.1:54321",
       repository,
     });
@@ -382,7 +393,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after child sessions are stale."),
+            text: withContinuation("Recover after child sessions are stale.", {
+              apiBaseUrl: "http://aim.example.test",
+              sessionId: "session-with-stale-child",
+            }),
             type: "text",
           },
         ],
@@ -573,7 +587,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after dangling cleanup failure."),
+            text: withContinuation("Recover after dangling cleanup failure.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-after-dangling-delete-failure",
+            }),
             type: "text",
           },
         ],
@@ -625,7 +642,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after scan failure."),
+            text: withContinuation("Recover after scan failure.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-after-scan-error",
+            }),
             type: "text",
           },
         ],
@@ -684,7 +704,13 @@ describe("createOpenCodeSessionManager", () => {
       body: {
         model: undefined,
         parts: [
-          { text: withContinuation("Second recovery prompt."), type: "text" },
+          {
+            text: withContinuation("Second recovery prompt.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-prompt-continues",
+            }),
+            type: "text",
+          },
         ],
       },
       path: { id: "session-prompt-continues" },
@@ -832,7 +858,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after orphan grace skip."),
+            text: withContinuation("Recover after orphan grace skip.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-after-orphan-grace-skip",
+            }),
             type: "text",
           },
         ],
@@ -938,7 +967,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after orphan cleanup."),
+            text: withContinuation("Recover after orphan cleanup.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-after-orphan-cleanup",
+            }),
             type: "text",
           },
         ],
@@ -999,7 +1031,10 @@ describe("createOpenCodeSessionManager", () => {
         model: undefined,
         parts: [
           {
-            text: withContinuation("Recover after dangling cleanup."),
+            text: withContinuation("Recover after dangling cleanup.", {
+              apiBaseUrl: "http://localhost:8192",
+              sessionId: "session-after-dangling-cleanup",
+            }),
             type: "text",
           },
         ],
@@ -1078,10 +1113,11 @@ describe("createOpenCodeSessionManager", () => {
       },
     });
 
-    const { createOpenCodeSessionManager, withContinuation } = await import(
+    const { createOpenCodeSessionManager } = await import(
       "../src/opencode-session-manager.js"
     );
     const manager = createOpenCodeSessionManager({
+      apiBaseUrl: "http://aim.example.test",
       baseUrl: "http://127.0.0.1:54321",
       repository,
     });
@@ -1092,12 +1128,21 @@ describe("createOpenCodeSessionManager", () => {
       sessionId: "session-explicit",
     });
 
+    const sentText = promptAsync.mock.calls[0]?.[0].body.parts[0].text;
+    expect(sentText).toContain("Continue explicitly.");
+    expect(sentText).toContain(
+      "http://aim.example.test/opencode/sessions/session-explicit/resolve",
+    );
+    expect(sentText).toContain(
+      "http://aim.example.test/opencode/sessions/session-explicit/reject",
+    );
+    expect(sentText).toContain("curl");
+    expect(sentText).not.toContain("call aim_session_resolve");
+    expect(sentText).not.toContain("call aim_session_reject");
     expect(promptAsync).toHaveBeenCalledWith({
       body: {
         model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
-        parts: [
-          { text: withContinuation("Continue explicitly."), type: "text" },
-        ],
+        parts: [{ text: sentText, type: "text" }],
       },
       path: { id: "session-explicit" },
       throwOnError: true,
@@ -1111,11 +1156,23 @@ describe("createOpenCodeSessionManager", () => {
       "../src/opencode-session-manager.js"
     );
 
-    const prompt = withContinuation("External prompt.");
+    const prompt = withContinuation("External prompt.", {
+      apiBaseUrl: "http://aim.example.test",
+      sessionId: "session-helper",
+    });
 
     expect(prompt.startsWith("External prompt.")).toBe(true);
-    expect(prompt).toContain("aim_session_resolve");
-    expect(prompt).toContain("aim_session_reject");
+    expect(prompt).toContain(
+      "http://aim.example.test/opencode/sessions/session-helper/resolve",
+    );
+    expect(prompt).toContain(
+      "http://aim.example.test/opencode/sessions/session-helper/reject",
+    );
+    expect(prompt).toContain("curl");
+    expect(prompt).toContain("value");
+    expect(prompt).toContain("reason");
+    expect(prompt).not.toContain("call aim_session_resolve");
+    expect(prompt).not.toContain("call aim_session_reject");
     expect(prompt).toContain("this loop will not end");
   });
 });

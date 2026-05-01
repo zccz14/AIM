@@ -67,10 +67,6 @@ const redactSensitiveErrorDetail = (message: string) =>
 const requireSessionId = (sessionId: string | undefined) =>
   sessionId ?? "session-unknown";
 
-const continuationTerminalInstructions = `
-
-Terminal instruction: when the session objective is complete, call aim_session_resolve. When the session is unable to proceed or the objective is invalid, call aim_session_reject. If you do not call aim_session_resolve or aim_session_reject, this loop will not end.`;
-
 type OpenCodeSessionPromptSender = {
   sendPrompt(
     sessionId: string,
@@ -282,7 +278,7 @@ export const registerOpenCodeSessionRoutes = (
     try {
       await getAdapter().sendPrompt(
         session.session_id,
-        `${continuePrompt}${continuationTerminalInstructions}`,
+        continuePrompt,
         session.provider_id && session.model_id
           ? { modelID: session.model_id, providerID: session.provider_id }
           : undefined,

@@ -311,7 +311,7 @@ describe("opencode session routes", () => {
     });
   });
 
-  it("pushes a pending OpenCode session continue prompt with terminal instructions", async () => {
+  it("pushes a pending OpenCode session continue prompt without route-level terminal instructions", async () => {
     await useProjectRoot("continues-pending-session");
     const { app, sendPrompt } = createRouteAppWithSessionPromptSender();
 
@@ -344,9 +344,9 @@ describe("opencode session routes", () => {
       { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
     );
     const prompt = sendPrompt.mock.calls[0]?.[1] as string;
-    expect(prompt).toContain("aim_session_resolve");
-    expect(prompt).toContain("aim_session_reject");
-    expect(prompt).toContain("loop will not end");
+    expect(prompt).toBe("Continue the AIM-controlled session.");
+    expect(prompt).not.toContain("call aim_session_resolve");
+    expect(prompt).not.toContain("call aim_session_reject");
   });
 
   it("skips settled or empty-prompt sessions and returns not found for missing single-session continue", async () => {
