@@ -312,9 +312,14 @@ describe("developer", () => {
     );
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining("call aim_session_resolve"),
+        prompt: expect.stringContaining("AIM Session Settlement Protocol"),
       }),
     );
+    const settlementPrompt = sessionManager.createSession.mock.calls.find(
+      ([input]) => input.prompt.includes("Merged PR settlement objective"),
+    )?.[0].prompt;
+    expect(settlementPrompt).not.toContain("aim_session_resolve");
+    expect(settlementPrompt).not.toContain("aim_session_reject");
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining("actionable rejected reason"),

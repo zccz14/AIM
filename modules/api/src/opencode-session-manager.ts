@@ -1,5 +1,6 @@
 import { createOpencodeClient } from "@opencode-ai/sdk";
 
+import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
 
 type OpenCodeSessionState = "pending" | "rejected" | "resolved";
@@ -109,7 +110,7 @@ const continuationTerminalInstructions = ({
 
   return `
 
-Terminal instruction: when the session objective is complete, settle this session with curl:
+${AIM_SESSION_SETTLEMENT_PROTOCOL}: when the session objective is complete, settle this session with curl:
 curl -X POST "${resolveUrl}" -H "Content-Type: application/json" --data '{"value":"<final result>"}'
 When the session is unable to proceed or the objective is invalid, settle it with curl:
 curl -X POST "${rejectUrl}" -H "Content-Type: application/json" --data '{"reason":"<failure reason>"}'

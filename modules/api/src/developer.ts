@@ -1,5 +1,6 @@
 import type { Task } from "@aim-ai/contract";
 
+import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import type { ApiLogger } from "./api-logger.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
 import { execGh, execGit } from "./exec-file.js";
@@ -242,8 +243,8 @@ Merged PR settlement objective:
 - Confirm the GitHub PR is merged before resolving the AIM Task.
 - clean up the task worktree after the PR terminal state is confirmed.
 - refresh the main workspace to origin/main with git fetch origin && git checkout origin/main.
-- Then call aim_session_resolve with a concise final result.
-- If settlement cannot proceed, call aim_session_reject with an actionable rejected reason that names the blocker and next recovery step.
+- Then settle the current AIM-managed session using ${AIM_SESSION_SETTLEMENT_PROTOCOL} with a concise final result.
+- If settlement cannot proceed, settle the current AIM-managed session using ${AIM_SESSION_SETTLEMENT_PROTOCOL} with an actionable rejected reason that names the blocker and next recovery step.
 `;
 
 export const createDeveloper = ({

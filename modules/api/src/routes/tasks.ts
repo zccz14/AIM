@@ -26,6 +26,7 @@ import {
 } from "@aim-ai/contract";
 import type { Hono } from "hono";
 
+import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "../aim-session-settlement-protocol.js";
 import type { ApiLogger } from "../api-logger.js";
 import { execGh } from "../exec-file.js";
 import { listSupportedModels } from "../opencode/list-supported-models.js";
@@ -733,8 +734,7 @@ const buildPullRequestFollowupStatus = (
     return taskPullRequestStatusResponseSchema.parse({
       ...base,
       category: "merged_but_not_resolved",
-      recovery_action:
-        "Call aim_session_resolve with the final result now that the pull request is merged.",
+      recovery_action: `Settle the current AIM-managed session using ${AIM_SESSION_SETTLEMENT_PROTOCOL} now that the pull request is merged.`,
       summary: "Pull request is merged, but the AIM task is still pending.",
     });
   }
