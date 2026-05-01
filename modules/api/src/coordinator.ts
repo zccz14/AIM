@@ -7,6 +7,7 @@ import type {
   Task,
 } from "@aim-ai/contract";
 
+import { cancelableSleep } from "./cancelable-sleep.js";
 import type {
   CoordinatorState,
   CoordinatorStateInput,
@@ -117,23 +118,7 @@ const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 const sleep = (milliseconds: number, signal: AbortSignal) =>
-  new Promise<void>((resolve) => {
-    if (signal.aborted) {
-      resolve();
-
-      return;
-    }
-
-    const timeout = setTimeout(resolve, milliseconds);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        resolve();
-      },
-      { once: true },
-    );
-  });
+  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
 
 const resolveProjectDirectory = (
   projectDirectory: CreateCoordinatorOptions["projectDirectory"],

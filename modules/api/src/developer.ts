@@ -1,6 +1,7 @@
 import type { Task } from "@aim-ai/contract";
 
 import type { ApiLogger } from "./api-logger.js";
+import { cancelableSleep } from "./cancelable-sleep.js";
 import { execGh, execGit } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
@@ -219,23 +220,7 @@ const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 const sleep = (milliseconds: number, signal: AbortSignal) =>
-  new Promise<void>((resolve) => {
-    if (signal.aborted) {
-      resolve();
-
-      return;
-    }
-
-    const timeout = setTimeout(resolve, milliseconds);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        resolve();
-      },
-      { once: true },
-    );
-  });
+  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
 
 const withExplicitSourceBaselineFreshness = (task: Task): Task =>
   task.source_baseline_freshness
