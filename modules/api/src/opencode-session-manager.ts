@@ -259,8 +259,6 @@ export const createOpenCodeSessionManager = ({
                 Date.now() - lastAttempt.attemptedAt <
                   continuationRetryThrottleMilliseconds
               ) {
-                await sleep(pollSleepMilliseconds, abortController.signal);
-
                 continue;
               }
 
@@ -293,9 +291,9 @@ export const createOpenCodeSessionManager = ({
             error: summarizeError(error),
             session_id: session.session_id,
           });
+        } finally {
+          await sleep(pollSleepMilliseconds, abortController.signal);
         }
-
-        await sleep(pollSleepMilliseconds, abortController.signal);
       }
 
       await sleep(pollSleepMilliseconds, abortController.signal);
