@@ -61,6 +61,19 @@ type OpenCodeSessionModel = {
   providerID: string;
 };
 
+type OpenCodeSessionMessage = {
+  info: {
+    time: { created: number };
+  };
+  parts?: Array<{
+    state?: {
+      metadata?: {
+        sessionId?: unknown;
+      };
+    };
+  }>;
+};
+
 export type PushOpenCodeSessionContinuationInput = {
   model?: OpenCodeSessionModel;
   prompt: string;
@@ -122,14 +135,37 @@ const sleep = (milliseconds: number, signal: AbortSignal) =>
 const getLatestMessageTime = async (
   client: ReturnType<typeof createOpencodeClient>,
   sessionId: string,
+  visited = new Set<string>(),
 ) => {
+  if (visited.has(sessionId)) {
+    return 0;
+  }
+
+  visited.add(sessionId);
+
   const response = await client.session.messages({
     path: { id: sessionId },
     throwOnError: true,
   });
-  const latestMessage = response.data.at(-1);
+  const messages = response.data as OpenCodeSessionMessage[];
+  const latestMessage = messages.at(-1);
+  let latestMessageTime = latestMessage?.info.time.created ?? 0;
 
-  return latestMessage?.info.time.created ?? 0;
+  for (const childSessionId of messages.flatMap((message) =>
+    (message.parts ?? [])
+      .map((part) => part.state?.metadata?.sessionId)
+      .filter(
+        (childSessionId): childSessionId is string =>
+          typeof childSessionId === "string",
+      ),
+  )) {
+    latestMessageTime = Math.max(
+      latestMessageTime,
+      await getLatestMessageTime(client, childSessionId, visited),
+    );
+  }
+
+  return latestMessageTime;
 };
 
 const hasSessionReferences = ({

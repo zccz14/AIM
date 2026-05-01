@@ -244,6 +244,156 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("does not prompt when the root session is stale but a sub-session has a message newer than 5 minutes", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not send while sub-session is active.",
+      session_id: "session-with-active-child",
+    });
+    repository.referenceSession("session-with-active-child");
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const messages = vi.fn(async ({ path }: { path: { id: string } }) => {
+      if (path.id === "session-with-active-child") {
+        return {
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 6 * 60 * 1000 },
+              },
+              parts: [
+                {
+                  state: { metadata: { sessionId: "active-child-session" } },
+                  tool: "task",
+                  type: "tool",
+                },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (path.id === "active-child-session") {
+        return {
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 4 * 60 * 1000 },
+              },
+              parts: [],
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected session messages request: ${path.id}`);
+    });
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(messages).toHaveBeenCalledWith({
+      path: { id: "active-child-session" },
+      throwOnError: true,
+    });
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("prompts when the root session and all sub-sessions have latest messages older than 5 minutes", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Recover after child sessions are stale.",
+      session_id: "session-with-stale-child",
+    });
+    repository.referenceSession("session-with-stale-child");
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const messages = vi.fn(async ({ path }: { path: { id: string } }) => {
+      if (path.id === "session-with-stale-child") {
+        return {
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 8 * 60 * 1000 },
+              },
+              parts: [
+                {
+                  state: { metadata: { sessionId: "stale-child-session" } },
+                  tool: "task",
+                  type: "tool",
+                },
+              ],
+            },
+          ],
+        };
+      }
+
+      if (path.id === "stale-child-session") {
+        return {
+          data: [
+            {
+              info: {
+                time: { created: Date.now() - 6 * 60 * 1000 },
+              },
+              parts: [],
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected session messages request: ${path.id}`);
+    });
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager, withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [
+          {
+            text: withContinuation("Recover after child sessions are stale."),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: "session-with-stale-child" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("deletes a referenced pending AIM session when OpenCode reports its messages are not found", async () => {
     const repository = createRepository();
     await repository.createSession({
