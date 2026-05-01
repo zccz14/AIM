@@ -133,6 +133,9 @@ type _generatedClientExportsTaskCrud = Assert<
 type _generatedClientExportsProjectTokenUsage = Assert<
   HasExport<GeneratedClientModule, "getProjectTokenUsage">
 >;
+type _generatedClientExportsProjectDetail = Assert<
+  HasExport<GeneratedClientModule, "getProjectById">
+>;
 type _generatedTypesExportTaskCrud = Assert<
   HasExport<GeneratedTypesModule, "Task"> &
     HasExport<GeneratedTypesModule, "CreateTaskRequest"> &
