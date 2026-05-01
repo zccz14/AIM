@@ -11,8 +11,7 @@ vi.mock("../src/project-workspace.js", () => ({
 }));
 
 const createSessionHandle = (sessionId: string) => ({
-  [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
-  sessionId,
+  session_id: sessionId,
 });
 
 const createSessionManager = () => ({
@@ -137,15 +136,7 @@ describe("developer", () => {
         "session-1",
       );
     });
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(
-      initialTaskWithoutFreshness,
-    );
     expect(sessionManager.createSession).toHaveBeenCalledWith({
-      directory: `/repo/.worktrees/${initialTask.task_id}`,
-      model: {
-        modelID: initialTask.global_model_id,
-        providerID: initialTask.global_provider_id,
-      },
       prompt: buildTaskSessionPrompt(initialTask),
       projectId: initialTask.project_id,
       title: `AIM Developer: ${initialTask.title}`,
@@ -450,13 +441,7 @@ describe("developer", () => {
         { session_id: "session-recovered" },
       );
     });
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(unavailableTask);
     expect(sessionManager.createSession).toHaveBeenCalledWith({
-      directory: unavailableTask.worktree_path,
-      model: {
-        modelID: unavailableTask.global_model_id,
-        providerID: unavailableTask.global_provider_id,
-      },
       prompt: buildTaskSessionPrompt(unavailableTask),
       projectId: unavailableTask.project_id,
       title: `AIM Developer Recovery: ${unavailableTask.title}`,
@@ -854,7 +839,6 @@ describe("developer", () => {
         "session-1",
       );
     });
-    expect(mockEnsureProjectWorkspace).toHaveBeenCalledWith(eligibleTask);
     expect(sessionManager.createSession).toHaveBeenCalledOnce();
 
     await developer[Symbol.asyncDispose]();
@@ -904,7 +888,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("disposing stops future heartbeats and releases active session handles", async () => {
+  it("disposing stops future heartbeats without owning OpenCode lifecycle handles", async () => {
     vi.useFakeTimers();
     const activeSession = createSessionHandle("session-1");
     const initialTask = createTask();
@@ -933,10 +917,9 @@ describe("developer", () => {
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(repository.listUnfinishedTasks).toHaveBeenCalledOnce();
-    expect(activeSession[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
-  it("releases a created session when atomic assignment loses the race", async () => {
+  it("leaves orphan cleanup to the session manager when atomic assignment loses the race", async () => {
     vi.useFakeTimers();
     const lostRaceSession = createSessionHandle("new-session");
     const repository = {
@@ -964,8 +947,6 @@ describe("developer", () => {
         "new-session",
       );
     });
-
-    expect(lostRaceSession[Symbol.asyncDispose]).toHaveBeenCalledOnce();
 
     await developer[Symbol.asyncDispose]();
   });

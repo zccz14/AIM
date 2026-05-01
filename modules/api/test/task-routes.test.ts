@@ -6,6 +6,7 @@ import ts from "typescript";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as contractModule from "../../contract/src/index.js";
 import * as apiModule from "../src/app.js";
+import { createOpenCodeSessionRepository } from "../src/opencode-session-repository.js";
 
 const execFileMock = vi.hoisted(() => vi.fn());
 
@@ -190,14 +191,18 @@ const createTaskRouteApp = (
   });
 
 const registerOpenCodeSession = async (
-  app: ReturnType<typeof createTaskRouteApp>,
   sessionId: string,
-) =>
-  app.request(contractModule.openCodeSessionsPath, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ project_id: mainProjectId, session_id: sessionId }),
+  projectId = mainProjectId,
+) => {
+  await using repository = createOpenCodeSessionRepository({
+    projectRoot: process.env.AIM_PROJECT_ROOT,
   });
+
+  return repository.createSession({
+    project_id: projectId,
+    session_id: sessionId,
+  });
+};
 
 const useProjectRoot = async (
   name: string,
@@ -250,22 +255,6 @@ describe("task routes", () => {
 
     const app = createTaskRouteApp();
 
-    await app.request(contractModule.openCodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session_id: "session-a-rejected" }),
-    });
-    await app.request(
-      contractModule.openCodeSessionRejectPath.replace(
-        "{sessionId}",
-        "session-a-rejected",
-      ),
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reason: "already done" }),
-      },
-    );
     const createResponse = await app.request("/projects", {
       method: "POST",
       headers: {
@@ -403,7 +392,7 @@ describe("task routes", () => {
     await useProjectRoot("persists-developer-model-fields");
 
     const app = createTaskRouteApp();
-    await registerOpenCodeSession(app, "session-1");
+    await registerOpenCodeSession("session-1");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -547,7 +536,7 @@ describe("task routes", () => {
     await useProjectRoot("persists-create-and-read");
 
     const app = createTaskRouteApp();
-    await registerOpenCodeSession(app, "session-1");
+    await registerOpenCodeSession("session-1");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -611,20 +600,7 @@ describe("task routes", () => {
     await useProjectRoot("surfaces-task-opencode-session-state");
 
     const app = createTaskRouteApp();
-    const sessionResponse = await app.request(
-      contractModule.openCodeSessionsPath,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          project_id: mainProjectId,
-          session_id: "session-observed",
-          continue_prompt: "Continue observed task.",
-        }),
-      },
-    );
-
-    expect(sessionResponse.status).toBe(201);
+    await registerOpenCodeSession("session-observed");
 
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
@@ -1722,14 +1698,7 @@ describe("task routes", () => {
 
     const app = createTaskRouteApp();
     const project = { id: mainProjectId };
-    await app.request(contractModule.openCodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "terminal-delete-session",
-      }),
-    });
+    await registerOpenCodeSession("terminal-delete-session");
     const resolvedResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -1865,7 +1834,7 @@ describe("task routes", () => {
 
     const logger = createLogger();
     const app = createTaskRouteApp({ logger });
-    await registerOpenCodeSession(app, "session-1");
+    await registerOpenCodeSession("session-1");
     const response = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -1925,16 +1894,9 @@ describe("task routes", () => {
     await useProjectRoot("filters-list");
 
     const app = createTaskRouteApp();
-    await registerOpenCodeSession(app, "session-a");
-    await registerOpenCodeSession(app, "session-b");
-    await app.request(contractModule.openCodeSessionsPath, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        project_id: mainProjectId,
-        session_id: "session-a-rejected",
-      }),
-    });
+    await registerOpenCodeSession("session-a");
+    await registerOpenCodeSession("session-b");
+    await registerOpenCodeSession("session-a-rejected");
     await app.request(
       contractModule.openCodeSessionRejectPath.replace(
         "{sessionId}",
@@ -2103,7 +2065,7 @@ describe("task routes", () => {
     await useProjectRoot("patches-task");
 
     const app = createTaskRouteApp();
-    await registerOpenCodeSession(app, "session-7");
+    await registerOpenCodeSession("session-7");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -2170,7 +2132,7 @@ describe("task routes", () => {
     await useProjectRoot("patches-nullable-fields");
 
     const app = createTaskRouteApp();
-    await registerOpenCodeSession(app, "session-9");
+    await registerOpenCodeSession("session-9");
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -2470,20 +2432,7 @@ describe("task routes", () => {
       summary: "Task is pending without an assigned OpenCode session or PR.",
     });
 
-    const staleSessionResponse = await app.request(
-      contractModule.openCodeSessionsPath,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          project_id: mainProjectId,
-          session_id: "session-stale-no-pr",
-          continue_prompt: "Continue the stale no-PR task.",
-        }),
-      },
-    );
-
-    expect(staleSessionResponse.status).toBe(201);
+    await registerOpenCodeSession("session-stale-no-pr");
 
     const database = new DatabaseSync(join(projectRoot, "aim.sqlite"));
     database
@@ -2525,7 +2474,7 @@ describe("task routes", () => {
 
     const worktreePath =
       "/Users/alice/Projects/AIM/.worktrees/sensitive-task-worktree";
-    await registerOpenCodeSession(app, "missing-session-no-pr");
+    await registerOpenCodeSession("missing-session-no-pr");
     const worktreeTaskResponse = await app.request(contractModule.tasksPath, {
       method: "POST",
       headers: {
@@ -2566,20 +2515,7 @@ describe("task routes", () => {
     await useProjectRoot("pull-request-status-no-pr-active-session");
 
     const app = createTaskRouteApp();
-    const sessionResponse = await app.request(
-      contractModule.openCodeSessionsPath,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          project_id: mainProjectId,
-          session_id: "session-active-no-pr",
-          continue_prompt: "Continue active task.",
-        }),
-      },
-    );
-
-    expect(sessionResponse.status).toBe(201);
+    await registerOpenCodeSession("session-active-no-pr");
 
     const createResponse = await app.request(contractModule.tasksPath, {
       method: "POST",

@@ -73,10 +73,6 @@ type CreateDeveloperOptions = {
   taskRepository: DeveloperTaskRepository;
 };
 
-type ManagedDeveloperSession = Awaited<
-  ReturnType<DeveloperSessionManager["createSession"]>
->;
-
 const heartbeatMs = 1000;
 
 const git = async (projectDirectory: string, args: string[]) =>
@@ -255,70 +251,49 @@ export const createDeveloper = ({
 }: CreateDeveloperOptions): AsyncDisposable => {
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
-  const activeSessions = new Map<string, ManagedDeveloperSession>();
 
   const bindTask = async (task: Task) => {
-    let createdSession: ManagedDeveloperSession | null = null;
+    onLaneEvent?.({
+      event: "start",
+      lane_name: "developer",
+      project_id: task.project_id,
+      summary: `Developer lane started session assignment for task ${task.task_id}.`,
+      task_id: task.task_id,
+    });
+    const createdSession = await sessionManager.createSession({
+      prompt: buildTaskSessionPrompt(task),
+      projectId: task.project_id,
+      title: `AIM Developer: ${task.title}`,
+    });
 
-    try {
+    const assignedTask = await taskRepository.assignSessionIfUnassigned(
+      task.task_id,
+      createdSession.session_id,
+    );
+
+    if (
+      assignedTask?.session_id === createdSession.session_id &&
+      !assignedTask.done
+    ) {
       onLaneEvent?.({
-        event: "start",
+        event: "success",
         lane_name: "developer",
         project_id: task.project_id,
-        summary: `Developer lane started session assignment for task ${task.task_id}.`,
+        session_id: createdSession.session_id,
+        summary: `Developer lane assigned task ${task.task_id} to session ${createdSession.session_id}.`,
         task_id: task.task_id,
       });
-      const directory = await ensureProjectWorkspace(task);
-      createdSession = await sessionManager.createSession({
-        directory,
-        model: {
-          modelID: task.global_model_id,
-          providerID: task.global_provider_id,
-        },
-        prompt: buildTaskSessionPrompt(task),
-        projectId: task.project_id,
-        title: `AIM Developer: ${task.title}`,
-      });
-
-      const assignedTask = await taskRepository.assignSessionIfUnassigned(
-        task.task_id,
-        createdSession.sessionId,
-      );
-
-      if (
-        assignedTask?.session_id === createdSession.sessionId &&
-        !assignedTask.done
-      ) {
-        activeSessions.set(createdSession.sessionId, createdSession);
-        onLaneEvent?.({
-          event: "success",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: createdSession.sessionId,
-          summary: `Developer lane assigned task ${task.task_id} to session ${createdSession.sessionId}.`,
-          task_id: task.task_id,
-        });
-        createdSession = null;
-        return;
-      }
-
-      await createdSession[Symbol.asyncDispose]();
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: createdSession.sessionId,
-        summary: `Developer lane skipped task ${task.task_id}: another session already claimed it or the task finished.`,
-        task_id: task.task_id,
-      });
-      createdSession = null;
-    } catch (error) {
-      if (createdSession) {
-        await createdSession[Symbol.asyncDispose]();
-      }
-
-      throw error;
+      return;
     }
+
+    onLaneEvent?.({
+      event: "noop",
+      lane_name: "developer",
+      project_id: task.project_id,
+      session_id: createdSession.session_id,
+      summary: `Developer lane skipped task ${task.task_id}: another session already claimed it or the task finished.`,
+      task_id: task.task_id,
+    });
   };
 
   const getUnmetDependencyIds = async (
@@ -368,7 +343,7 @@ export const createDeveloper = ({
     task: Task,
     unfinishedTasks: Task[],
   ) => {
-    const { directory, prompt } = await buildSettlementPromptContext(
+    const { prompt } = await buildSettlementPromptContext(
       task,
       unfinishedTasks,
     );
@@ -386,51 +361,31 @@ export const createDeveloper = ({
       return;
     }
 
-    let createdSession: ManagedDeveloperSession | null = null;
+    const createdSession = await sessionManager.createSession({
+      prompt,
+      projectId: task.project_id,
+      title: `AIM Developer Settlement: ${task.title}`,
+    });
 
-    try {
-      createdSession = await sessionManager.createSession({
-        directory,
-        model: {
-          modelID: task.global_model_id,
-          providerID: task.global_provider_id,
-        },
-        prompt,
-        projectId: task.project_id,
-        title: `AIM Developer Settlement: ${task.title}`,
+    const assignedTask = await taskRepository.assignSessionIfUnassigned(
+      task.task_id,
+      createdSession.session_id,
+    );
+
+    if (
+      assignedTask?.session_id === createdSession.session_id &&
+      !assignedTask.done
+    ) {
+      onLaneEvent?.({
+        event: "success",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: createdSession.session_id,
+        summary: `Developer lane assigned merged PR settlement task ${task.task_id} to session ${createdSession.session_id}.`,
+        task_id: task.task_id,
       });
 
-      const assignedTask = await taskRepository.assignSessionIfUnassigned(
-        task.task_id,
-        createdSession.sessionId,
-      );
-
-      if (
-        assignedTask?.session_id === createdSession.sessionId &&
-        !assignedTask.done
-      ) {
-        activeSessions.set(createdSession.sessionId, createdSession);
-        onLaneEvent?.({
-          event: "success",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: createdSession.sessionId,
-          summary: `Developer lane assigned merged PR settlement task ${task.task_id} to session ${createdSession.sessionId}.`,
-          task_id: task.task_id,
-        });
-        createdSession = null;
-
-        return;
-      }
-
-      await createdSession[Symbol.asyncDispose]();
-      createdSession = null;
-    } catch (error) {
-      if (createdSession) {
-        await createdSession[Symbol.asyncDispose]();
-      }
-
-      throw error;
+      return;
     }
   };
 
@@ -478,60 +433,40 @@ export const createDeveloper = ({
         );
       }
 
-      let createdSession: ManagedDeveloperSession | null = null;
+      const createdSession = await sessionManager.createSession({
+        prompt: buildTaskSessionPrompt(task),
+        projectId: task.project_id,
+        title: `AIM Developer Recovery: ${task.title}`,
+      });
 
-      try {
-        const directory = await ensureProjectWorkspace(task);
-        createdSession = await sessionManager.createSession({
-          directory,
-          model: {
-            modelID: task.global_model_id,
-            providerID: task.global_provider_id,
-          },
-          prompt: buildTaskSessionPrompt(task),
-          projectId: task.project_id,
-          title: `AIM Developer Recovery: ${task.title}`,
-        });
+      const recoveredTask = await taskRepository.updateTask(task.task_id, {
+        session_id: createdSession.session_id,
+      });
 
-        const recoveredTask = await taskRepository.updateTask(task.task_id, {
-          session_id: createdSession.sessionId,
-        });
-
-        if (
-          recoveredTask?.session_id === createdSession.sessionId &&
-          !recoveredTask.done
-        ) {
-          activeSessions.set(createdSession.sessionId, createdSession);
-          onLaneEvent?.({
-            event: "success",
-            lane_name: "developer",
-            project_id: task.project_id,
-            session_id: createdSession.sessionId,
-            summary: `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${createdSession.sessionId}.`,
-            task_id: task.task_id,
-          });
-          createdSession = null;
-
-          return;
-        }
-
-        await createdSession[Symbol.asyncDispose]();
+      if (
+        recoveredTask?.session_id === createdSession.session_id &&
+        !recoveredTask.done
+      ) {
         onLaneEvent?.({
-          event: "noop",
+          event: "success",
           lane_name: "developer",
           project_id: task.project_id,
-          session_id: createdSession.sessionId,
-          summary: `Developer lane skipped unavailable session recovery for task ${task.task_id}: another session claimed it or the task finished.`,
+          session_id: createdSession.session_id,
+          summary: `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${createdSession.session_id}.`,
           task_id: task.task_id,
         });
-        createdSession = null;
-      } catch (error) {
-        if (createdSession) {
-          await createdSession[Symbol.asyncDispose]();
-        }
 
-        throw error;
+        return;
       }
+
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: createdSession.session_id,
+        summary: `Developer lane skipped unavailable session recovery for task ${task.task_id}: another session claimed it or the task finished.`,
+        task_id: task.task_id,
+      });
     };
 
     const session = await sessionRepository.getSessionById(task.session_id);
@@ -772,11 +707,6 @@ export const createDeveloper = ({
   stack.defer(async () => {
     abortController.abort();
     await loop;
-    const sessions = [...activeSessions.values()];
-    activeSessions.clear();
-    await Promise.all(
-      sessions.map((session) => session[Symbol.asyncDispose]()),
-    );
   });
 
   return {

@@ -2,7 +2,10 @@ import { createOpencodeClient } from "@opencode-ai/sdk";
 
 import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
-import { resolveProjectWorkspacePath } from "./project-workspace.js";
+import {
+  ensureProjectWorkspace,
+  resolveProjectWorkspacePath,
+} from "./project-workspace.js";
 
 type OpenCodeSessionState = "pending" | "rejected" | "resolved";
 
@@ -16,6 +19,20 @@ type OpenCodeSessionRepository = AsyncDisposable & {
     title?: null | string;
   }): Promise<unknown> | unknown;
   deleteSessionById(sessionId: string): Promise<unknown> | unknown;
+  getProjectById(projectId: string):
+    | {
+        git_origin_url: string;
+        global_model_id: string;
+        global_provider_id: string;
+        id: string;
+      }
+    | null
+    | Promise<{
+        git_origin_url: string;
+        global_model_id: string;
+        global_provider_id: string;
+        id: string;
+      } | null>;
   getSessionReferences(sessionId: string):
     | {
         coordinator_state_project_ids: string[];
@@ -63,16 +80,9 @@ export type CreateOpenCodeSessionManagerOptions = {
 };
 
 export type CreateManagedOpenCodeSessionInput = {
-  directory: string;
-  model?: OpenCodeSessionModel;
   prompt: string;
   projectId: string;
   title: string;
-};
-
-type OpenCodeSessionModel = {
-  modelID: string;
-  providerID: string;
 };
 
 type OpenCodeSessionMessage = {
@@ -95,7 +105,7 @@ type OpenCodeRuntimeSession = {
 export type OpenCodeSessionManager = AsyncDisposable & {
   createSession(
     input: CreateManagedOpenCodeSessionInput,
-  ): Promise<AsyncDisposable & { sessionId: string }>;
+  ): Promise<{ session_id: string }>;
 };
 
 const staleAfterMilliseconds = 5 * 60 * 1000;
@@ -371,7 +381,20 @@ export const createOpenCodeSessionManager = ({
     async [Symbol.asyncDispose]() {
       await stack.disposeAsync();
     },
-    async createSession({ directory, model, projectId, prompt, title }) {
+    async createSession({ projectId, prompt, title }) {
+      const project = await repository.getProjectById(projectId);
+      if (!project) {
+        throw new Error(`Project ${projectId} was not found`);
+      }
+
+      const directory = await ensureProjectWorkspace({
+        git_origin_url: project.git_origin_url,
+        project_id: project.id,
+      });
+      const model = {
+        modelID: project.global_model_id,
+        providerID: project.global_provider_id,
+      };
       const session = await client.session.create({
         body: { title },
         query: { directory },
@@ -387,16 +410,7 @@ export const createOpenCodeSessionManager = ({
         title,
       });
 
-      return {
-        async [Symbol.asyncDispose]() {
-          await client.session.abort({
-            path: { id: session.data.id },
-            query: { directory },
-            throwOnError: true,
-          });
-        },
-        sessionId: session.data.id,
-      };
+      return { session_id: session.data.id };
     },
   };
 };

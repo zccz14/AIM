@@ -132,42 +132,6 @@ export const openApiDocument = {
           },
         },
       },
-      post: {
-        operationId: "createOpenCodeSession",
-        summary: "Create an AIM-controlled OpenCode session promise",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/CreateOpenCodeSessionRequest",
-              },
-            },
-          },
-        },
-        responses: {
-          "201": {
-            description: "Created OpenCode session promise",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/OpenCodeSession",
-                },
-              },
-            },
-          },
-          "400": {
-            description: "Invalid OpenCode session payload",
-            content: {
-              "application/json": {
-                schema: {
-                  $ref: "#/components/schemas/ErrorResponse",
-                },
-              },
-            },
-          },
-        },
-      },
     },
     "/opencode/sessions/{sessionId}": {
       get: {
@@ -1892,33 +1856,6 @@ export const openApiDocument = {
             items: {
               $ref: "#/components/schemas/OpenCodeSession",
             },
-          },
-        },
-      },
-      CreateOpenCodeSessionRequest: {
-        type: "object",
-        additionalProperties: false,
-        required: ["session_id", "project_id"],
-        properties: {
-          session_id: {
-            type: "string",
-            minLength: 1,
-          },
-          continue_prompt: {
-            type: ["string", "null"],
-          },
-          title: {
-            type: ["string", "null"],
-          },
-          project_id: {
-            type: "string",
-            format: "uuid",
-          },
-          provider_id: {
-            type: ["string", "null"],
-          },
-          model_id: {
-            type: ["string", "null"],
           },
         },
       },

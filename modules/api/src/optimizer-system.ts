@@ -59,14 +59,26 @@ type ContinuationSession = {
   value: null | string;
 };
 
+type ContinuationSessionProject = Pick<
+  Project,
+  "git_origin_url" | "global_model_id" | "global_provider_id" | "id"
+>;
+
 type ContinuationSessionRepository = AsyncDisposable & {
   createSession(input: {
     continue_prompt?: null | string;
     model_id?: null | string;
+    project_id: string;
     provider_id?: null | string;
     session_id: string;
   }): Promise<ContinuationSession>;
   deleteSessionById(sessionId: string): void;
+  getProjectById(
+    projectId: string,
+  ):
+    | null
+    | ContinuationSessionProject
+    | Promise<null | ContinuationSessionProject>;
   getSessionById(sessionId: string): null | ContinuationSession;
   getSessionReferences(sessionId: string): {
     coordinator_state_project_ids: string[];

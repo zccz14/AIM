@@ -673,8 +673,6 @@ export const createManager = ({
   sessionManager,
 }: CreateManagerOptions): Manager => {
   const stack = new AsyncDisposableStack();
-  const sessions = new AsyncDisposableStack();
-  stack.use(sessions);
 
   let disposed = false;
   let disposePromise: Promise<void> | null = null;
@@ -807,11 +805,6 @@ export const createManager = ({
 
     try {
       const session = await sessionManager.createSession({
-        directory: projectDirectory,
-        model: {
-          modelID: project.global_model_id,
-          providerID: project.global_provider_id,
-        },
         prompt: evaluationPrompt(
           project,
           commitSha,
@@ -823,20 +816,19 @@ export const createManager = ({
         projectId: project.id,
         title: `AIM Manager evaluation (${project.id})`,
       });
-      sessions.use(session);
       managerStateRepository.upsertManagerState({
         commit_sha: commitSha,
         dimension_ids_json: missingDimensionIdsJson,
         last_error: null,
         project_id: project.id,
-        session_id: session.sessionId,
+        session_id: session.session_id,
         state: "evaluating",
       });
       logger?.info(
         {
           event: "manager_session_created",
           project_id: project.id,
-          session_id: session.sessionId,
+          session_id: session.session_id,
         },
         "Manager session created",
       );
@@ -844,7 +836,7 @@ export const createManager = ({
         {
           event: "manager_session_succeeded",
           project_id: project.id,
-          session_id: session.sessionId,
+          session_id: session.session_id,
         },
         "Manager session succeeded",
       );
@@ -852,8 +844,8 @@ export const createManager = ({
         event: "success",
         lane_name: "manager",
         project_id: project.id,
-        session_id: session.sessionId,
-        summary: `Manager lane created evaluation session ${session.sessionId}.`,
+        session_id: session.session_id,
+        summary: `Manager lane created evaluation session ${session.session_id}.`,
       });
     } catch (err) {
       managerStateRepository.upsertManagerState({

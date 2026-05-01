@@ -68,8 +68,6 @@ export const openCodeSessionSchema = schemas.OpenCodeSession;
 export const openCodeSessionListResponseSchema =
   schemas.OpenCodeSessionListResponse;
 export const openCodeSessionStateSchema = schemas.OpenCodeSessionState;
-export const createOpenCodeSessionRequestSchema =
-  schemas.CreateOpenCodeSessionRequest;
 export const patchOpenCodeSessionRequestSchema =
   schemas.PatchOpenCodeSessionRequest;
 export const openCodeSessionSettleRequestSchema =
@@ -144,9 +142,6 @@ export type OpenCodeSessionListResponse = Infer<
   typeof openCodeSessionListResponseSchema
 >;
 export type OpenCodeSessionState = Infer<typeof openCodeSessionStateSchema>;
-export type CreateOpenCodeSessionRequest = Input<
-  typeof createOpenCodeSessionRequestSchema
->;
 export type PatchOpenCodeSessionRequest = Infer<
   typeof patchOpenCodeSessionRequestSchema
 >;
@@ -224,8 +219,6 @@ export type OpenCodeSessionSchema = typeof openCodeSessionSchema;
 export type OpenCodeSessionListResponseSchema =
   typeof openCodeSessionListResponseSchema;
 export type OpenCodeSessionStateSchema = typeof openCodeSessionStateSchema;
-export type CreateOpenCodeSessionRequestSchema =
-  typeof createOpenCodeSessionRequestSchema;
 export type PatchOpenCodeSessionRequestSchema =
   typeof patchOpenCodeSessionRequestSchema;
 export type OpenCodeSessionSettleRequestSchema =
@@ -290,9 +283,6 @@ export type ParsedProjectOptimizerStatusResponse =
 export type ParsedProjectTokenUsageResponse = ProjectTokenUsageResponse;
 export type ParsedOpenCodeSession = OpenCodeSession;
 export type ParsedOpenCodeSessionListResponse = OpenCodeSessionListResponse;
-export type ParsedCreateOpenCodeSessionRequest = Output<
-  typeof createOpenCodeSessionRequestSchema
->;
 export type ParsedPatchOpenCodeSessionRequest = PatchOpenCodeSessionRequest;
 export type ParsedOpenCodeSessionSettleRequest = OpenCodeSessionSettleRequest;
 export type ParsedTask = Task;

@@ -104,15 +104,6 @@ export type OpenCodeSessionListResponse = {
   items: Array<OpenCodeSession>;
 };
 
-export type CreateOpenCodeSessionRequest = {
-  session_id: string;
-  continue_prompt?: string | null;
-  title?: string | null;
-  project_id: string;
-  provider_id?: string | null;
-  model_id?: string | null;
-};
-
 export type PatchOpenCodeSessionRequest = {
   continue_prompt: string | null;
 };
@@ -879,33 +870,6 @@ export type ListOpenCodeSessionsResponses = {
 
 export type ListOpenCodeSessionsResponse =
   ListOpenCodeSessionsResponses[keyof ListOpenCodeSessionsResponses];
-
-export type CreateOpenCodeSessionData = {
-  body: CreateOpenCodeSessionRequest;
-  path?: never;
-  query?: never;
-  url: "/opencode/sessions";
-};
-
-export type CreateOpenCodeSessionErrors = {
-  /**
-   * Invalid OpenCode session payload
-   */
-  400: ErrorResponse;
-};
-
-export type CreateOpenCodeSessionError =
-  CreateOpenCodeSessionErrors[keyof CreateOpenCodeSessionErrors];
-
-export type CreateOpenCodeSessionResponses = {
-  /**
-   * Created OpenCode session promise
-   */
-  201: OpenCodeSession;
-};
-
-export type CreateOpenCodeSessionResponse =
-  CreateOpenCodeSessionResponses[keyof CreateOpenCodeSessionResponses];
 
 export type GetOpenCodeSessionByIdData = {
   body?: never;

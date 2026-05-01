@@ -311,7 +311,6 @@ describe("contract package baseline", () => {
       "createDimensionEvaluationRequestSchema",
       "createDimensionRequestSchema",
       "createDirectorClarificationRequestSchema",
-      "createOpenCodeSessionRequestSchema",
       "createProjectRequestSchema",
       "createTaskBatchRequestSchema",
       "createTaskRequestSchema",
@@ -404,6 +403,16 @@ describe("contract package baseline", () => {
     expect(
       contractModule.openApiDocument.paths[contractModule.openCodeSessionsPath],
     ).toBeDefined();
+    expect(
+      contractModule.openApiDocument.paths[contractModule.openCodeSessionsPath],
+    ).not.toHaveProperty("post");
+    expect(
+      contractModule.openApiDocument.components.schemas,
+    ).not.toHaveProperty("CreateOpenCodeSessionRequest");
+    expect(contractModule).not.toHaveProperty(
+      "createOpenCodeSessionRequestSchema",
+    );
+    expect(contractModule).not.toHaveProperty("CreateOpenCodeSessionRequest");
     expect(
       contractModule.openApiDocument.paths[
         contractModule.openCodeSessionByIdPath
@@ -1749,8 +1758,8 @@ describe("contract package baseline", () => {
     await expect(generatedClientModule.deleteTaskById).toBeTypeOf("function");
     await expect(generatedClientModule).not.toHaveProperty("resolveTaskById");
     await expect(generatedClientModule).not.toHaveProperty("rejectTaskById");
-    await expect(generatedClientModule.createOpenCodeSession).toBeTypeOf(
-      "function",
+    await expect(generatedClientModule).not.toHaveProperty(
+      "createOpenCodeSession",
     );
     await expect(generatedClientModule.getOpenCodeSessionById).toBeTypeOf(
       "function",
@@ -1783,7 +1792,7 @@ describe("contract package baseline", () => {
     expect(generatedClientSdkSource).toContain("listTasks");
     expect(generatedClientSdkSource).toContain("createTaskBatch");
     expect(generatedClientSdkSource).toContain("getTaskSpecById");
-    expect(generatedClientSdkSource).toContain("createOpenCodeSession");
+    expect(generatedClientSdkSource).not.toContain("createOpenCodeSession");
     expect(generatedClientSdkSource).not.toContain(
       "continueOpenCodeSessionById",
     );
