@@ -1,5 +1,7 @@
 import { createOpencodeClient } from "@opencode-ai/sdk";
 
+import { cancelableSleep } from "./cancelable-sleep.js";
+
 type OpenCodeSessionState = "pending" | "rejected" | "resolved";
 
 type OpenCodeSessionRepository = AsyncDisposable & {
@@ -116,23 +118,7 @@ const isOpenCodeSessionNotFoundError = (error: unknown) =>
     /session .*not found|not found/i.test(error.message));
 
 const sleep = (milliseconds: number, signal: AbortSignal) =>
-  new Promise<void>((resolve) => {
-    if (signal.aborted) {
-      resolve();
-
-      return;
-    }
-
-    const timeout = setTimeout(resolve, milliseconds);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        resolve();
-      },
-      { once: true },
-    );
-  });
+  cancelableSleep(milliseconds, { signal }).catch(() => undefined);
 
 const getLatestMessageTime = async (
   client: ReturnType<typeof createOpencodeClient>,
