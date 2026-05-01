@@ -87,6 +87,37 @@ const findMainGap = (reports: DashboardDimensionReportItem[]) =>
         : scoreDiff;
     })[0];
 
+const managerSummarySectionLabels = ["gap_analysis", "coordinator_handoff"];
+
+const getManagerSummarySection = (evaluation: string, label: string) => {
+  const sectionMatch = new RegExp(
+    `(?:^|\\n)${label}:\\s*(.*?)(?=\\n[a-z][a-z_]+:\\s*|$)`,
+    "s",
+  ).exec(evaluation);
+
+  if (!sectionMatch) {
+    return null;
+  }
+
+  const sectionText = (sectionMatch[1] ?? "")
+    .split("\n")
+    .map((line) => line.trim().replace(/^-\s*/, ""))
+    .filter(Boolean)
+    .join("; ");
+
+  return sectionText.length > 0 ? `${label}: ${sectionText}` : null;
+};
+
+const getManagerEvaluationSummary = (evaluation: string) => {
+  const sections = managerSummarySectionLabels.flatMap((label) => {
+    const summary = getManagerSummarySection(evaluation, label);
+
+    return summary ? [summary] : [];
+  });
+
+  return sections.length > 0 ? sections : null;
+};
+
 const hasUnfinishedCoverage = (
   mainGap: DashboardDimensionReportItem | undefined,
   tasks: DashboardTask[],
@@ -526,6 +557,9 @@ export const ProjectDetailPage = ({
     (report) => report.dimension.project_id === project.id,
   );
   const mainGap = findMainGap(dimensions);
+  const targetGapEvaluationSummary = mainGap?.latestEvaluation
+    ? getManagerEvaluationSummary(mainGap.latestEvaluation.evaluation)
+    : null;
   const isCoveredByUnfinishedTasks = hasUnfinishedCoverage(
     mainGap,
     activeTasks,
@@ -603,9 +637,19 @@ export const ProjectDetailPage = ({
               {mainGap?.latestEvaluation ? (
                 <>
                   <strong>{mainGap.dimension.name}</strong>
-                  <p className={sectionCopy}>
-                    {mainGap.latestEvaluation.evaluation}
-                  </p>
+                  {targetGapEvaluationSummary ? (
+                    <div className={panelStack}>
+                      {targetGapEvaluationSummary.map((summary) => (
+                        <p className={sectionCopy} key={summary}>
+                          {summary}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={sectionCopy}>
+                      {mainGap.latestEvaluation.evaluation}
+                    </p>
+                  )}
                   <Badge variant="outline">
                     {mainGap.latestEvaluation.score}/100
                   </Badge>

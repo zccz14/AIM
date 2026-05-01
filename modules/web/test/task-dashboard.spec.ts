@@ -849,6 +849,73 @@ test("opens project detail with project-scoped dimensions and task pool stats", 
   await expect(page.getByText("Research Fit")).toHaveCount(0);
 });
 
+test("shows Manager gap sections as the target gap cockpit summary", async ({
+  page,
+}) => {
+  const managerEvaluation = `baseline_ref:
+origin/main baseline contains baseline_ref protocol details that should not become cockpit main copy.
+
+readme_claim_to_evidence_protocol:
+Long README claim to evidence protocol text should stay out of the target gap cockpit summary.
+
+dimension_evaluation:
+The dimension has enough evidence for a Manager section summary.
+
+gap_analysis:
+- dimension: README Fit
+  status: readme_ahead
+  gap: Cockpit lacks a deterministic target gap summary.
+  impact: Long Manager protocol sections should not be the main cockpit copy.
+
+coordinator_handoff:
+- focus: Target gap cockpit copy
+  reason: Use Manager gap and handoff fields for Coordinator triage.
+  suggested_route: consider_create
+
+confidence_and_limits:
+- confidence: high
+  limits:
+  - Browser-only assertion.`;
+
+  await page.route("**/api/dimensions/*/evaluations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          buildDimensionEvaluation({
+            evaluation: managerEvaluation,
+            score: 61,
+          }),
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const cockpit = page.getByRole("region", { name: "Target-gap cockpit" });
+
+  await expect(cockpit.getByText("README Fit", { exact: true })).toBeVisible();
+  await expect(cockpit.getByText("61/100", { exact: true })).toBeVisible();
+  await expect(
+    cockpit.getByRole("link", { name: "Review README Fit gap path" }),
+  ).toBeVisible();
+  await expect(
+    cockpit.getByText(
+      "gap_analysis: dimension: README Fit; status: readme_ahead; gap: Cockpit lacks a deterministic target gap summary.; impact: Long Manager protocol sections should not be the main cockpit copy.",
+    ),
+  ).toBeVisible();
+  await expect(
+    cockpit.getByText(
+      "coordinator_handoff: focus: Target gap cockpit copy; reason: Use Manager gap and handoff fields for Coordinator triage.; suggested_route: consider_create",
+    ),
+  ).toBeVisible();
+  await expect(cockpit.getByText("baseline_ref:")).toHaveCount(0);
+  await expect(
+    cockpit.getByText("readme_claim_to_evidence_protocol:"),
+  ).toHaveCount(0);
+});
+
 test("shows project token totals, heaviest task attribution, and partial failure details", async ({
   page,
 }) => {
