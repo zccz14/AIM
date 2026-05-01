@@ -590,6 +590,60 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
+  it("waits before processing the next pending session after skipping an orphan inside the cleanup grace window", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover orphan yet.",
+      created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-under-grace-first",
+    });
+    await repository.createSession({
+      continue_prompt: "Recover after orphan grace skip.",
+      session_id: "session-after-orphan-grace-skip",
+    });
+    repository.referenceSession("session-after-orphan-grace-skip");
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort: vi.fn().mockResolvedValue({}),
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager, withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [
+          {
+            text: withContinuation("Recover after orphan grace skip."),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: "session-after-orphan-grace-skip" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
   it("deletes orphan pending AIM sessions past the cleanup grace window even when the runtime session is absent", async () => {
     const repository = createRepository();
     await repository.createSession({
@@ -630,6 +684,129 @@ describe("createOpenCodeSessionManager", () => {
     expect(repository.listSessions({ state: "pending" })).toEqual([]);
     expect(messages).not.toHaveBeenCalled();
     expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("waits before processing the next pending session after orphan cleanup", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Clean up expired orphan.",
+      created_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+      session_id: "session-orphan-expired-first",
+    });
+    await repository.createSession({
+      continue_prompt: "Recover after orphan cleanup.",
+      session_id: "session-after-orphan-cleanup",
+    });
+    repository.referenceSession("session-after-orphan-cleanup");
+    const abort = vi.fn().mockResolvedValue({});
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        abort,
+        create: vi.fn(),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager, withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(abort).toHaveBeenCalledWith({
+      path: { id: "session-orphan-expired-first" },
+      throwOnError: true,
+    });
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-orphan-expired-first",
+    );
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [
+          {
+            text: withContinuation("Recover after orphan cleanup."),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: "session-after-orphan-cleanup" },
+      throwOnError: true,
+    });
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("waits before processing the next pending session after dangling cleanup", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Clean up dangling session.",
+      session_id: "session-dangling-first",
+    });
+    repository.referenceSession("session-dangling-first");
+    await repository.createSession({
+      continue_prompt: "Recover after dangling cleanup.",
+      session_id: "session-after-dangling-cleanup",
+    });
+    repository.referenceSession("session-after-dangling-cleanup");
+    const messages = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager, withContinuation } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(messages).toHaveBeenCalledTimes(1);
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-dangling-first",
+    );
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(promptAsync).toHaveBeenCalledWith({
+      body: {
+        model: undefined,
+        parts: [
+          {
+            text: withContinuation("Recover after dangling cleanup."),
+            type: "text",
+          },
+        ],
+      },
+      path: { id: "session-after-dangling-cleanup" },
+      throwOnError: true,
+    });
 
     await manager[Symbol.asyncDispose]();
   });
