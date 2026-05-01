@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCreateOpencodeClient = vi.fn();
+const successfulRuntimeResponse = { response: { ok: true, status: 200 } };
 
 vi.mock("@opencode-ai/sdk", () => ({
   createOpencodeClient: mockCreateOpencodeClient,
@@ -174,6 +175,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({
           data: [
             {
@@ -234,6 +236,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({
           data: [
             {
@@ -310,6 +313,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages,
         promptAsync,
       },
@@ -381,6 +385,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages,
         promptAsync,
       },
@@ -417,19 +422,68 @@ describe("createOpenCodeSessionManager", () => {
     await manager[Symbol.asyncDispose]();
   });
 
-  it("deletes a referenced pending AIM session when OpenCode reports its messages are not found", async () => {
+  it("deletes a referenced pending AIM session when the runtime session lookup returns 404 before reading messages", async () => {
     const repository = createRepository();
     await repository.createSession({
       continue_prompt: "Do not recover dangling session.",
       session_id: "session-dangling",
     });
     repository.referenceSession("session-dangling");
-    const messages = vi.fn().mockRejectedValue({ response: { status: 404 } });
+    const get = vi
+      .fn()
+      .mockResolvedValue({ response: { ok: false, status: 404 } });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get,
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(get).toHaveBeenCalledWith({
+      path: { id: "session-dangling" },
+      throwOnError: false,
+    });
+    expect(messages).not.toHaveBeenCalled();
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-dangling",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("keeps a referenced pending AIM session when message retrieval fails after runtime lookup succeeds", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover dangling session.",
+      session_id: "session-dangling",
+    });
+    repository.referenceSession("session-dangling");
+    const messagesError = { response: { status: 404 } };
+    const messages = vi.fn().mockRejectedValue(messagesError);
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages,
         promptAsync,
       },
@@ -449,28 +503,39 @@ describe("createOpenCodeSessionManager", () => {
       path: { id: "session-dangling" },
       throwOnError: true,
     });
-    expect(repository.deleteSessionById).toHaveBeenCalledWith(
-      "session-dangling",
-    );
-    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(repository.deleteSessionById).not.toHaveBeenCalled();
+    expect(repository.listSessions({ state: "pending" })).toMatchObject([
+      { session_id: "session-dangling", state: "pending" },
+    ]);
     expect(promptAsync).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "OpenCode pending session recovery failed",
+      {
+        error: messagesError,
+        session_id: "session-dangling",
+      },
+    );
 
     await manager[Symbol.asyncDispose]();
   });
 
-  it("deletes a referenced pending AIM session with no continuation prompt when OpenCode reports its messages are not found", async () => {
+  it("deletes a referenced pending AIM session with no continuation prompt when runtime lookup returns 404", async () => {
     const repository = createRepository();
     await repository.createSession({
       continue_prompt: null,
       session_id: "session-dangling-without-prompt",
     });
     repository.referenceSession("session-dangling-without-prompt");
-    const messages = vi.fn().mockRejectedValue({ response: { status: 404 } });
+    const get = vi
+      .fn()
+      .mockResolvedValue({ response: { ok: false, status: 404 } });
+    const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get,
         messages,
         promptAsync,
       },
@@ -486,10 +551,11 @@ describe("createOpenCodeSessionManager", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(messages).toHaveBeenCalledWith({
+    expect(get).toHaveBeenCalledWith({
       path: { id: "session-dangling-without-prompt" },
-      throwOnError: true,
+      throwOnError: false,
     });
+    expect(messages).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-dangling-without-prompt",
     );
@@ -514,6 +580,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages,
         promptAsync,
       },
@@ -560,16 +627,18 @@ describe("createOpenCodeSessionManager", () => {
     repository.deleteSessionById.mockImplementationOnce(() => {
       throw new Error("temporary delete failure");
     });
-    const messages = vi
+    const get = vi
       .fn()
-      .mockRejectedValueOnce({ response: { status: 404 } })
-      .mockResolvedValue({ data: [] });
+      .mockResolvedValueOnce({ response: { ok: false, status: 404 } })
+      .mockResolvedValue(successfulRuntimeResponse);
+    const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get,
         messages,
         promptAsync,
       },
@@ -628,6 +697,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -689,6 +759,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -743,6 +814,7 @@ describe("createOpenCodeSessionManager", () => {
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -848,6 +920,7 @@ describe("createOpenCodeSessionManager", () => {
       session: {
         abort: vi.fn().mockResolvedValue({}),
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -897,7 +970,7 @@ describe("createOpenCodeSessionManager", () => {
     const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
     const abort = vi.fn().mockResolvedValue({});
-    const deleteSession = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue(successfulRuntimeResponse);
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
@@ -921,7 +994,7 @@ describe("createOpenCodeSessionManager", () => {
 
     expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-expired" },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(abort).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
@@ -945,7 +1018,7 @@ describe("createOpenCodeSessionManager", () => {
     const promptAsync = vi.fn().mockResolvedValue({});
     const deleteSession = vi
       .fn()
-      .mockRejectedValue({ response: { status: 404 } });
+      .mockResolvedValue({ response: { ok: false, status: 404 } });
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
@@ -969,7 +1042,7 @@ describe("createOpenCodeSessionManager", () => {
 
     expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-runtime-absent" },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-orphan-runtime-absent",
@@ -990,7 +1063,9 @@ describe("createOpenCodeSessionManager", () => {
     });
     const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
-    const deleteSession = vi.fn().mockRejectedValue(new Error("runtime busy"));
+    const deleteSession = vi
+      .fn()
+      .mockResolvedValue({ response: { ok: false, status: 503 } });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     mockCreateOpencodeClient.mockReturnValue({
@@ -1015,7 +1090,7 @@ describe("createOpenCodeSessionManager", () => {
 
     expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-delete-temporary-failure" },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(repository.deleteSessionById).not.toHaveBeenCalled();
     expect(repository.listSessions({ state: "pending" })).toMatchObject([
@@ -1029,7 +1104,7 @@ describe("createOpenCodeSessionManager", () => {
     expect(warn).toHaveBeenCalledWith(
       "OpenCode orphan runtime cleanup failed",
       {
-        error: "runtime busy",
+        error: "OpenCode session delete failed with status 503",
         session_id: "session-orphan-delete-temporary-failure",
       },
     );
@@ -1050,7 +1125,7 @@ describe("createOpenCodeSessionManager", () => {
     });
     repository.referenceSession("session-after-orphan-cleanup");
     const abort = vi.fn().mockResolvedValue({});
-    const deleteSession = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue(successfulRuntimeResponse);
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
@@ -1058,6 +1133,7 @@ describe("createOpenCodeSessionManager", () => {
         abort,
         create: vi.fn(),
         delete: deleteSession,
+        get: vi.fn().mockResolvedValue(successfulRuntimeResponse),
         messages: vi.fn().mockResolvedValue({ data: [] }),
         promptAsync,
       },
@@ -1075,7 +1151,7 @@ describe("createOpenCodeSessionManager", () => {
 
     expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-expired-first" },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(abort).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
@@ -1117,15 +1193,17 @@ describe("createOpenCodeSessionManager", () => {
       session_id: "session-after-dangling-cleanup",
     });
     repository.referenceSession("session-after-dangling-cleanup");
-    const messages = vi
+    const get = vi
       .fn()
-      .mockRejectedValueOnce({ response: { status: 404 } })
-      .mockResolvedValue({ data: [] });
+      .mockResolvedValueOnce({ response: { ok: false, status: 404 } })
+      .mockResolvedValue(successfulRuntimeResponse);
+    const messages = vi.fn().mockResolvedValue({ data: [] });
     const promptAsync = vi.fn().mockResolvedValue({});
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
         create: vi.fn(),
+        get,
         messages,
         promptAsync,
       },
@@ -1141,7 +1219,7 @@ describe("createOpenCodeSessionManager", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(messages).toHaveBeenCalledTimes(1);
+    expect(messages).not.toHaveBeenCalled();
     expect(repository.deleteSessionById).toHaveBeenCalledWith(
       "session-dangling-first",
     );
@@ -1187,7 +1265,7 @@ describe("createOpenCodeSessionManager", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const abort = vi.fn().mockResolvedValue({});
-    const deleteSession = vi.fn().mockResolvedValue({});
+    const deleteSession = vi.fn().mockResolvedValue(successfulRuntimeResponse);
 
     mockCreateOpencodeClient.mockReturnValue({
       session: {
@@ -1221,7 +1299,7 @@ describe("createOpenCodeSessionManager", () => {
     );
     expect(deleteSession).toHaveBeenCalledWith({
       path: { id: "session-orphan-delete-continues" },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(abort).not.toHaveBeenCalled();
 

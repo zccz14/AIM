@@ -127,33 +127,6 @@ export const withContinuation = (
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const getErrorStatus = (error: unknown) => {
-  if (!error || typeof error !== "object") {
-    return undefined;
-  }
-
-  if ("status" in error && typeof error.status === "number") {
-    return error.status;
-  }
-
-  const response = "response" in error ? error.response : undefined;
-  if (
-    response &&
-    typeof response === "object" &&
-    "status" in response &&
-    typeof response.status === "number"
-  ) {
-    return response.status;
-  }
-
-  return undefined;
-};
-
-const isOpenCodeSessionNotFoundError = (error: unknown) =>
-  getErrorStatus(error) === 404 ||
-  (error instanceof Error &&
-    /session .*not found|not found/i.test(error.message));
-
 const getLatestMessageTime = async (
   client: ReturnType<typeof createOpencodeClient>,
   sessionId: string,
@@ -223,19 +196,18 @@ export const createOpenCodeSessionManager = ({
       return;
     }
 
-    try {
-      await client.session.delete({
-        path: { id: session.session_id },
-        throwOnError: true,
-      });
-    } catch (error) {
-      if (isOpenCodeSessionNotFoundError(error)) {
-        await repository.deleteSessionById(session.session_id);
-        return;
-      }
+    const deleteResponse = await client.session.delete({
+      path: { id: session.session_id },
+      throwOnError: false,
+    });
+    if (deleteResponse.response.status === 404) {
+      await repository.deleteSessionById(session.session_id);
+      return;
+    }
 
+    if (!deleteResponse.response.ok) {
       console.warn("OpenCode orphan runtime cleanup failed", {
-        error: summarizeError(error),
+        error: `OpenCode session delete failed with status ${deleteResponse.response.status}`,
         session_id: session.session_id,
       });
 
@@ -243,27 +215,6 @@ export const createOpenCodeSessionManager = ({
     }
 
     await repository.deleteSessionById(session.session_id);
-  };
-
-  const getLatestMessageTimeOrDeleteDangling = async (sessionId: string) => {
-    try {
-      return await getLatestMessageTime(client, sessionId);
-    } catch (error) {
-      if (!isOpenCodeSessionNotFoundError(error)) {
-        throw error;
-      }
-
-      try {
-        await repository.deleteSessionById(sessionId);
-      } catch (deleteError) {
-        console.warn("OpenCode dangling session cleanup failed", {
-          error: summarizeError(deleteError),
-          session_id: sessionId,
-        });
-      }
-
-      return undefined;
-    }
   };
 
   const pushContinuation = async (
@@ -305,12 +256,33 @@ export const createOpenCodeSessionManager = ({
       return;
     }
 
-    const latestMessageTime = await getLatestMessageTimeOrDeleteDangling(
-      session.session_id,
-    );
-    if (latestMessageTime === undefined) {
+    const runtimeSession = await client.session.get({
+      path: { id: session.session_id },
+      throwOnError: false,
+    });
+    if (runtimeSession.response.status === 404) {
+      try {
+        await repository.deleteSessionById(session.session_id);
+      } catch (deleteError) {
+        console.warn("OpenCode dangling session cleanup failed", {
+          error: summarizeError(deleteError),
+          session_id: session.session_id,
+        });
+      }
+
       return;
     }
+
+    if (!runtimeSession.response.ok) {
+      throw new Error(
+        `OpenCode session lookup failed with status ${runtimeSession.response.status}`,
+      );
+    }
+
+    const latestMessageTime = await getLatestMessageTime(
+      client,
+      session.session_id,
+    );
 
     const prompt = session.continue_prompt?.trim();
     if (!prompt) {
