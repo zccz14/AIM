@@ -236,6 +236,12 @@ const messages = {
       "Refresh projects before opening project-scoped observability.",
     projectBudgetWarning: "Budget warning",
     projectBudgetWarnings: "Budget warnings",
+    projectBudgetNotConfigured: "Budget thresholds not configured",
+    projectBudgetNotConfiguredDescription:
+      "Configure token or cost warning thresholds in Project Register to track project budget state.",
+    projectBudgetWithinBudget: "Within budget",
+    projectBudgetWithinBudgetDescription:
+      "Current usage is within the configured warning thresholds.",
     projectCostWarningThreshold: "Cost threshold",
     projectCostWarningThresholdDescription:
       "Optional project cost warning threshold in USD. Leave empty for no cost warning.",
@@ -610,6 +616,11 @@ const messages = {
     projectNotAvailableDescription: "打开项目级可观测性前请刷新项目。",
     projectBudgetWarning: "预算告警",
     projectBudgetWarnings: "预算告警",
+    projectBudgetNotConfigured: "预算阈值未配置",
+    projectBudgetNotConfiguredDescription:
+      "请在项目注册表中配置 token 或成本告警阈值，以跟踪项目预算状态。",
+    projectBudgetWithinBudget: "预算内",
+    projectBudgetWithinBudgetDescription: "当前 usage 位于已配置的告警阈值内。",
     projectCostWarningThreshold: "成本阈值",
     projectCostWarningThresholdDescription:
       "可选的项目成本告警阈值（美元）。留空表示不设置成本告警。",
