@@ -1938,9 +1938,13 @@ export const openApiDocument = {
         properties: {
           value: {
             type: "string",
+            minLength: 1,
+            description: "Required non-empty result when resolving a session.",
           },
           reason: {
             type: "string",
+            minLength: 1,
+            description: "Required non-empty reason when rejecting a session.",
           },
         },
       },

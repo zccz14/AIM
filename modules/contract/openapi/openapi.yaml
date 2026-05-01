@@ -1265,8 +1265,12 @@ components:
       properties:
         value:
           type: string
+          minLength: 1
+          description: Required non-empty result when resolving a session.
         reason:
           type: string
+          minLength: 1
+          description: Required non-empty reason when rejecting a session.
     ProjectOptimizerStatusResponse:
       type: object
       additionalProperties: false

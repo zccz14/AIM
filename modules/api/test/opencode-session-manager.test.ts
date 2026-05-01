@@ -1,7 +1,15 @@
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCreateOpencodeClient = vi.fn();
-const successfulRuntimeResponse = { response: { ok: true, status: 200 } };
+const testProjectId = "00000000-0000-4000-8000-000000000101";
+const aimHome = join(process.cwd(), ".tmp", "opencode-session-manager-home");
+const expectedRuntimeDirectory = join(aimHome, "projects", testProjectId);
+const successfulRuntimeResponse = {
+  data: { directory: expectedRuntimeDirectory },
+  response: { ok: true, status: 200 },
+};
 
 vi.mock("@opencode-ai/sdk", () => ({
   createOpencodeClient: mockCreateOpencodeClient,
@@ -44,7 +52,7 @@ const createRepository = () => {
         continue_prompt: input.continue_prompt ?? null,
         created_at: input.created_at ?? new Date().toISOString(),
         model_id: input.model_id ?? null,
-        project_id: input.project_id ?? null,
+        project_id: input.project_id ?? testProjectId,
         provider_id: input.provider_id ?? null,
         session_id: input.session_id,
         state: "pending",
@@ -91,9 +99,11 @@ describe("createOpenCodeSessionManager", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-28T12:00:00.000Z"));
     vi.clearAllMocks();
+    process.env.AIM_HOME = aimHome;
   });
 
   afterEach(() => {
+    delete process.env.AIM_HOME;
     vi.useRealTimers();
     vi.resetModules();
     vi.restoreAllMocks();
@@ -126,7 +136,7 @@ describe("createOpenCodeSessionManager", () => {
       directory: "/repo/.worktrees/task-1",
       model: { modelID: "claude-sonnet-4-5", providerID: "anthropic" },
       prompt: "Continue the task.",
-      projectId: "00000000-0000-4000-8000-000000000101",
+      projectId: testProjectId,
       title: "AIM Developer: Task 1",
     });
 
@@ -141,7 +151,7 @@ describe("createOpenCodeSessionManager", () => {
       {
         continue_prompt: "Continue the task.",
         model_id: "claude-sonnet-4-5",
-        project_id: "00000000-0000-4000-8000-000000000101",
+        project_id: testProjectId,
         provider_id: "anthropic",
         session_id: "session-1",
         state: "pending",
@@ -463,6 +473,49 @@ describe("createOpenCodeSessionManager", () => {
       "session-dangling",
     );
     expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(promptAsync).not.toHaveBeenCalled();
+
+    await manager[Symbol.asyncDispose]();
+  });
+
+  it("deletes a referenced pending AIM session when the runtime directory does not match the project workspace", async () => {
+    const repository = createRepository();
+    await repository.createSession({
+      continue_prompt: "Do not recover wrong workspace.",
+      project_id: testProjectId,
+      session_id: "session-wrong-directory",
+    });
+    repository.referenceSession("session-wrong-directory");
+    const messages = vi.fn().mockResolvedValue({ data: [] });
+    const promptAsync = vi.fn().mockResolvedValue({});
+
+    mockCreateOpencodeClient.mockReturnValue({
+      session: {
+        create: vi.fn(),
+        get: vi.fn().mockResolvedValue({
+          data: { directory: "/tmp/not-the-project-workspace" },
+          response: { ok: true, status: 200 },
+        }),
+        messages,
+        promptAsync,
+      },
+    });
+
+    const { createOpenCodeSessionManager } = await import(
+      "../src/opencode-session-manager.js"
+    );
+    const manager = createOpenCodeSessionManager({
+      baseUrl: "http://127.0.0.1:54321",
+      repository,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(repository.deleteSessionById).toHaveBeenCalledWith(
+      "session-wrong-directory",
+    );
+    expect(repository.listSessions({ state: "pending" })).toEqual([]);
+    expect(messages).not.toHaveBeenCalled();
     expect(promptAsync).not.toHaveBeenCalled();
 
     await manager[Symbol.asyncDispose]();

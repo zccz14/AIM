@@ -6,7 +6,6 @@ const srcRoot = new URL("../src", import.meta.url);
 
 const allowedSessionLifecycleBoundaries = new Set([
   "opencode-session-manager.ts",
-  "opencode/create-bare-session.ts",
 ]);
 
 const sessionLifecycleCallPattern =
@@ -25,6 +24,14 @@ const readSourceFiles = (directory: string): string[] =>
   });
 
 describe("OpenCode session lifecycle architecture", () => {
+  it("does not keep the legacy bare OpenCode session helper", () => {
+    const sourceFiles = readSourceFiles(srcRoot.pathname).map((file) =>
+      relative(srcRoot.pathname, file),
+    );
+
+    expect(sourceFiles).not.toContain("opencode/create-bare-session.ts");
+  });
+
   it("keeps direct OpenCode session lifecycle API calls inside the manager boundary", () => {
     const violations = readSourceFiles(srcRoot.pathname)
       .flatMap((file) => {

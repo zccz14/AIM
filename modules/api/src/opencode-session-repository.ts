@@ -49,7 +49,7 @@ export type OpenCodeSessionTokenUsageInput = {
 };
 
 const tableName = "opencode_sessions";
-const defaultStaleAfterMilliseconds = 30 * 60 * 1000;
+const defaultStaleAfterMilliseconds = 5 * 60 * 1000;
 
 const getStaleAfterMilliseconds = () => {
   const rawValue = process.env.AIM_OPENCODE_SESSION_STALE_AFTER_MS;
