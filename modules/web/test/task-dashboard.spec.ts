@@ -947,6 +947,14 @@ test("shows project token totals, heaviest task attribution, and partial failure
   await expect(usage.getByText("$3.75", { exact: true })).toBeVisible();
   await expect(usage.getByText("Input 300 / Output 450")).toBeVisible();
   await expect(usage.getByText("3 messages", { exact: true })).toBeVisible();
+  await expect(
+    usage.getByText("Budget thresholds not configured"),
+  ).toBeVisible();
+  await expect(
+    usage.getByText(
+      "Configure token or cost warning thresholds in Project Register to track project budget state.",
+    ),
+  ).toBeVisible();
   await expect(usage.getByText("Heaviest task")).toBeVisible();
   await expect(
     usage.getByText("Active main task", { exact: true }),
@@ -961,6 +969,39 @@ test("shows project token totals, heaviest task attribution, and partial failure
       "OpenCode messages are temporarily unavailable; retry after the session store recovers.",
     ),
   ).toBeVisible();
+});
+
+test("shows project token budget state when configured thresholds are within budget", async ({
+  page,
+}) => {
+  await page.route("**/api/projects/*/token-usage", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        buildProjectTokenUsage({
+          budgetWarning: {
+            status: "within_budget",
+            token_warning_threshold: 1000,
+            cost_warning_threshold: 10,
+            message: null,
+          },
+        }),
+      ),
+    });
+  });
+
+  await page.goto("/#/projects/00000000-0000-4000-8000-000000000010");
+
+  const usage = page.getByRole("region", { name: "Project token usage" });
+
+  await expect(usage.getByText("Within budget")).toBeVisible();
+  await expect(
+    usage.getByText(
+      "Current usage is within the configured warning thresholds.",
+    ),
+  ).toBeVisible();
+  await expect(usage.getByText("Token threshold 1,000 tokens")).toBeVisible();
+  await expect(usage.getByText("Cost threshold $10.00")).toBeVisible();
 });
 
 test("shows project token budget warning when configured thresholds are exceeded", async ({

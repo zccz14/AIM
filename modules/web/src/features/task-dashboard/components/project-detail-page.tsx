@@ -407,6 +407,25 @@ const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
   const costThreshold = budgetWarning
     ? formatOptionalCostThreshold(budgetWarning.cost_warning_threshold)
     : null;
+  const budgetStatusCopy = budgetWarning
+    ? budgetWarning.status === "not_configured"
+      ? {
+          badge: t("projectBudgetNotConfigured"),
+          message: t("projectBudgetNotConfiguredDescription"),
+          variant: "secondary" as const,
+        }
+      : budgetWarning.status === "within_budget"
+        ? {
+            badge: t("projectBudgetWithinBudget"),
+            message: t("projectBudgetWithinBudgetDescription"),
+            variant: "secondary" as const,
+          }
+        : {
+            badge: t("projectBudgetWarning"),
+            message: budgetWarning.message,
+            variant: "destructive" as const,
+          }
+    : null;
 
   return (
     <section aria-label={t("projectTokenUsageRegion")} className={pageStack}>
@@ -451,22 +470,24 @@ const ProjectTokenUsageSummary = ({ projectId }: { projectId: string }) => {
                   <strong>{`${usage.totals.messages} ${t("projectTokenUsageMessageUnit")}`}</strong>
                 </div>
               </div>
-              {budgetWarning?.status === "exceeded" ? (
+              {budgetWarning && budgetStatusCopy ? (
                 <div className={panelStack}>
-                  <Badge variant="destructive">
-                    {t("projectBudgetWarning")}
+                  <Badge variant={budgetStatusCopy.variant}>
+                    {budgetStatusCopy.badge}
                   </Badge>
-                  {budgetWarning.message ? (
-                    <p className={sectionCopy}>{budgetWarning.message}</p>
+                  {budgetStatusCopy.message ? (
+                    <p className={sectionCopy}>{budgetStatusCopy.message}</p>
                   ) : null}
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {tokenThreshold ? (
-                      <span>{`${t("projectTokenWarningThreshold")} ${tokenThreshold}`}</span>
-                    ) : null}
-                    {costThreshold ? (
-                      <span>{`${t("projectCostWarningThreshold")} ${costThreshold}`}</span>
-                    ) : null}
-                  </div>
+                  {tokenThreshold || costThreshold ? (
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {tokenThreshold ? (
+                        <span>{`${t("projectTokenWarningThreshold")} ${tokenThreshold}`}</span>
+                      ) : null}
+                      {costThreshold ? (
+                        <span>{`${t("projectCostWarningThreshold")} ${costThreshold}`}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               <div className={panelStack}>
