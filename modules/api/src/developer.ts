@@ -3,18 +3,10 @@ import type { Task } from "@aim-ai/contract";
 import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import type { ApiLogger } from "./api-logger.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
-import { execGh, execGit } from "./exec-file.js";
+import { execGh } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
-import { ensureProjectWorkspace } from "./project-workspace.js";
-import {
-  type BaselineFacts,
-  buildTaskSessionPrompt,
-} from "./task-continue-prompt.js";
-
-type BaselineRepository = {
-  getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
-};
+import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 
 type DeveloperSessionManager = Pick<OpenCodeSessionManager, "createSession">;
 
@@ -49,7 +41,6 @@ type DeveloperTaskRepository = {
     sessionId: string,
   ): Promise<null | Task>;
   getTaskById?(taskId: string): Promise<null | Task> | null | Task;
-  listRejectedTasksByProject(projectId: string): Promise<Task[]>;
   listUnfinishedTasks(): Promise<Task[]>;
   updateTask?(
     taskId: string,
@@ -58,7 +49,6 @@ type DeveloperTaskRepository = {
 };
 
 type CreateDeveloperOptions = {
-  baselineRepository?: BaselineRepository;
   canStartTask?: (
     task: Task,
   ) =>
@@ -74,9 +64,6 @@ type CreateDeveloperOptions = {
 };
 
 const heartbeatMs = 1000;
-
-const git = async (projectDirectory: string, args: string[]) =>
-  (await execGit(projectDirectory, args, { target: projectDirectory })).trim();
 
 const getPullRequestFollowupOutput = (pullRequestUrl: string) =>
   execGh(
@@ -172,23 +159,6 @@ const categorizePullRequest = (pullRequest: PullRequestFollowupView) => {
   return "ready_to_merge";
 };
 
-const defaultBaselineRepository: BaselineRepository = {
-  async getLatestBaselineFacts(projectDirectory) {
-    await git(projectDirectory, ["fetch", "origin", "main"]);
-
-    return {
-      commitSha: await git(projectDirectory, ["rev-parse", "origin/main"]),
-      fetchedAt: new Date().toISOString(),
-      summary: await git(projectDirectory, [
-        "log",
-        "-1",
-        "--format=%s",
-        "origin/main",
-      ]),
-    };
-  },
-};
-
 const defaultPullRequestStatusProvider: PullRequestStatusProvider = {
   async getTaskPullRequestStatus(task) {
     if (!task.pull_request_url) {
@@ -212,23 +182,9 @@ const defaultPullRequestStatusProvider: PullRequestStatusProvider = {
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const withExplicitSourceBaselineFreshness = (task: Task): Task =>
-  task.source_baseline_freshness
-    ? task
-    : {
-        ...task,
-        source_baseline_freshness: {
-          current_commit: null,
-          source_commit: null,
-          status: "unknown",
-          summary: "not set",
-        },
-      };
-
 const buildMergedPullRequestSettlementPrompt = (
   task: Task,
-  context: Parameters<typeof buildTaskSessionPrompt>[1],
-) => `${buildTaskSessionPrompt(task, context)}
+) => `${buildTaskSessionPrompt(task)}
 
 Merged PR settlement objective:
 - This is settlement-only work for a PR-backed AIM Task whose pull_request_status is merged_but_not_resolved.
@@ -240,7 +196,6 @@ Merged PR settlement objective:
 `;
 
 export const createDeveloper = ({
-  baselineRepository = defaultBaselineRepository,
   canStartTask = () => ({ ok: true }),
   logger,
   onLaneEvent,
@@ -316,57 +271,8 @@ export const createDeveloper = ({
     return unmetDependencyIds;
   };
 
-  const buildSettlementPromptContext = async (
-    task: Task,
-    unfinishedTasks: Task[],
-  ) => {
-    const directory = await ensureProjectWorkspace(task);
-    const [baselineFacts, rejectedTasks] = await Promise.all([
-      baselineRepository.getLatestBaselineFacts(directory),
-      taskRepository.listRejectedTasksByProject(task.project_id),
-    ]);
-    const activeTasks = unfinishedTasks
-      .filter((activeTask) => activeTask.project_id === task.project_id)
-      .map(withExplicitSourceBaselineFreshness);
-
-    return {
-      directory,
-      prompt: buildMergedPullRequestSettlementPrompt(task, {
-        activeTasks,
-        baselineFacts,
-        rejectedTasks,
-      }),
-    };
-  };
-
-  const buildContinuationPrompt = async (
-    task: Task,
-    unfinishedTasks: Task[],
-  ) => {
-    const directory = await ensureProjectWorkspace(task);
-    const [baselineFacts, rejectedTasks] = await Promise.all([
-      baselineRepository.getLatestBaselineFacts(directory),
-      taskRepository.listRejectedTasksByProject(task.project_id),
-    ]);
-    const activeTasks = unfinishedTasks
-      .filter((activeTask) => activeTask.project_id === task.project_id)
-      .map(withExplicitSourceBaselineFreshness);
-
-    return buildTaskSessionPrompt(withExplicitSourceBaselineFreshness(task), {
-      activeTasks,
-      baselineFacts,
-      rejectedTasks,
-    });
-  };
-
-  const continueMergedPullRequestSettlement = async (
-    task: Task,
-    unfinishedTasks: Task[],
-  ) => {
-    const { prompt } = await buildSettlementPromptContext(
-      task,
-      unfinishedTasks,
-    );
+  const continueMergedPullRequestSettlement = async (task: Task) => {
+    const prompt = buildMergedPullRequestSettlementPrompt(task);
 
     if (task.session_id) {
       onLaneEvent?.({
@@ -412,7 +318,6 @@ export const createDeveloper = ({
   const continueAssignedPendingSession = async (
     task: Task,
     tasksById: Map<string, Task>,
-    unfinishedTasks: Task[],
   ) => {
     if (!task.session_id) {
       return;
@@ -559,7 +464,7 @@ export const createDeveloper = ({
     }
 
     await rebindAssignedTaskToNewSession({
-      prompt: await buildContinuationPrompt(task, unfinishedTasks),
+      prompt: buildTaskSessionPrompt(task),
       successSummary: (sessionId) =>
         `Developer lane rebound assigned pending task ${task.task_id} from session ${task.session_id} to session ${sessionId}.`,
       title: `AIM Developer: ${task.title}`,
@@ -596,7 +501,7 @@ export const createDeveloper = ({
         }
 
         try {
-          await continueMergedPullRequestSettlement(task, tasks);
+          await continueMergedPullRequestSettlement(task);
         } catch (error) {
           logger?.error(
             {
@@ -699,7 +604,7 @@ export const createDeveloper = ({
         }
 
         try {
-          await continueAssignedPendingSession(task, tasksById, tasks);
+          await continueAssignedPendingSession(task, tasksById);
         } catch (error) {
           logger?.error(
             {

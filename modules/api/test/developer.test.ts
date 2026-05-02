@@ -55,16 +55,6 @@ const createOpenCodeSession = (
   ...overrides,
 });
 
-const baselineFacts = {
-  commitSha: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
-  fetchedAt: "2026-04-28T17:13:03.000Z",
-  summary: "Refactor optimizer system startup lifecycle (#258)",
-};
-
-const createBaselineRepository = () => ({
-  getLatestBaselineFacts: vi.fn().mockResolvedValue(baselineFacts),
-});
-
 const unknownSourceBaselineFreshness: Task["source_baseline_freshness"] = {
   current_commit: null,
   source_commit: null,
@@ -122,10 +112,8 @@ describe("developer", () => {
         .mockResolvedValue([initialTaskWithoutFreshness]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -169,7 +157,6 @@ describe("developer", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([newTask, mergedTask]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
     const pullRequestStatusProvider = {
       getTaskPullRequestStatus: vi.fn().mockResolvedValue({
         category: "merged_but_not_resolved",
@@ -177,7 +164,6 @@ describe("developer", () => {
     };
 
     const developer = createTestDeveloper({
-      baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
       taskRepository: repository,
@@ -220,7 +206,6 @@ describe("developer", () => {
         .mockResolvedValue([failedChecksTask, reviewBlockedTask, newTask]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
     const pullRequestStatusProvider = {
       getTaskPullRequestStatus: vi
         .fn()
@@ -229,7 +214,6 @@ describe("developer", () => {
     };
 
     const developer = createTestDeveloper({
-      baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
       taskRepository: repository,
@@ -261,7 +245,6 @@ describe("developer", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([mergedTask]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
     const pullRequestStatusProvider = {
       getTaskPullRequestStatus: vi.fn().mockResolvedValue({
         category: "merged_but_not_resolved",
@@ -269,7 +252,6 @@ describe("developer", () => {
     };
 
     const developer = createTestDeveloper({
-      baselineRepository,
       pullRequestStatusProvider,
       sessionManager,
       taskRepository: repository,
@@ -306,8 +288,14 @@ describe("developer", () => {
     const settlementPrompt = sessionManager.createSession.mock.calls.find(
       ([input]) => input.prompt.includes("Merged PR settlement objective"),
     )?.[0].prompt;
+    expect(settlementPrompt?.length).toBeLessThan(2_300);
+    expect(settlementPrompt).not.toContain("Current baseline facts");
+    expect(settlementPrompt).not.toContain("Current Active Task Pool");
+    expect(settlementPrompt).not.toContain("Rejected Task feedback");
+    expect(settlementPrompt).not.toContain("task_spec");
     expect(settlementPrompt).not.toContain("aim_session_resolve");
     expect(settlementPrompt).not.toContain("aim_session_reject");
+    expect(repository.listRejectedTasksByProject).not.toHaveBeenCalled();
     expect(sessionManager.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining("actionable rejected reason"),
@@ -342,11 +330,9 @@ describe("developer", () => {
     sessionManager.createSession.mockResolvedValue(
       createSessionHandle("session-rebound"),
     );
-    const baselineRepository = createBaselineRepository();
     const onLaneEvent = vi.fn();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -358,15 +344,15 @@ describe("developer", () => {
       });
     });
     expect(sessionManager.createSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining("Current baseline facts"),
+      prompt: buildTaskSessionPrompt(assignedTask),
       projectId: assignedTask.project_id,
       title: `AIM Developer: ${assignedTask.title}`,
     });
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toContain(baselineFacts.commitSha);
-    expect(prompt).toContain("Current Active Task Pool");
-    expect(prompt).toContain("Rejected Task feedback");
-    expect(prompt).toContain("source_baseline_freshness guardrails");
+    expect(prompt).not.toContain("Current baseline facts");
+    expect(prompt).not.toContain("Current Active Task Pool");
+    expect(prompt).not.toContain("Rejected Task feedback");
+    expect(prompt).not.toContain("source_baseline_freshness guardrails");
     expect(onLaneEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "success",
@@ -409,10 +395,8 @@ describe("developer", () => {
     sessionManager.createSession.mockResolvedValue(
       createSessionHandle("session-rebound"),
     );
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       sessionRepository,
       taskRepository: repository,
@@ -427,7 +411,7 @@ describe("developer", () => {
       "session-existing",
     );
     expect(sessionManager.createSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining("Current baseline facts"),
+      prompt: buildTaskSessionPrompt(assignedTask),
       projectId: assignedTask.project_id,
       title: `AIM Developer: ${assignedTask.title}`,
     });
@@ -436,7 +420,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("includes same-project active pool and rejected feedback in assigned pending rebind prompts", async () => {
+  it("keeps assigned pending rebind prompts stable with many active and rejected tasks", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -450,7 +434,7 @@ describe("developer", () => {
     const activeTask = createTask({
       session_id: "session-active",
       source_baseline_freshness: {
-        current_commit: baselineFacts.commitSha,
+        current_commit: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
         source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         status: "stale",
         summary: "Task source baseline differs from current origin/main",
@@ -488,10 +472,8 @@ describe("developer", () => {
     sessionManager.createSession.mockResolvedValue(
       createSessionHandle("session-rebound"),
     );
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -502,14 +484,16 @@ describe("developer", () => {
       });
     });
     const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
-    expect(prompt).toContain(baselineFacts.commitSha);
+    expect(prompt.length).toBeLessThan(1_800);
     expect(prompt).toContain("task-assigned");
-    expect(prompt).toContain("task-active");
-    expect(prompt).toContain("Active overlapping work");
+    expect(prompt).not.toContain("a9979ba9487edf2d822e10ae7b651c98be3d175d");
+    expect(prompt).not.toContain("task-active");
+    expect(prompt).not.toContain("Active overlapping work");
     expect(prompt).not.toContain("task-other-project");
-    expect(prompt).toContain("task-rejected");
-    expect(prompt).toContain("Rejected because origin/main moved.");
-    expect(prompt).toContain("source_baseline_freshness guardrails");
+    expect(prompt).not.toContain("task-rejected");
+    expect(prompt).not.toContain("Rejected because origin/main moved.");
+    expect(prompt).not.toContain("source_baseline_freshness guardrails");
+    expect(repository.listRejectedTasksByProject).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });
@@ -530,11 +514,9 @@ describe("developer", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
     const onLaneEvent = vi.fn();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       onLaneEvent,
       sessionManager,
       taskRepository: repository,
@@ -1059,10 +1041,8 @@ describe("developer", () => {
     };
     const sessionManager = createSessionManager();
     sessionManager.createSession.mockResolvedValue(activeSession);
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -1091,10 +1071,8 @@ describe("developer", () => {
     };
     const sessionManager = createSessionManager();
     sessionManager.createSession.mockResolvedValue(lostRaceSession);
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -1112,38 +1090,42 @@ describe("developer", () => {
   it("builds a lightweight bootstrap prompt without preloading baseline, active pool, or rejected feedback", async () => {
     vi.useFakeTimers();
     const initialTask = createTask();
-    const activeTask = createTask({
-      session_id: "session-active",
-      source_baseline_freshness: {
-        current_commit: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
-        source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        status: "stale",
-        summary:
-          "Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d",
-      },
-      task_id: "task-active",
-      title: "Active overlapping work",
-      worktree_path: "/repo/.worktrees/task-active",
-    });
-    const rejectedTask = createTask({
-      done: true,
-      result: "Rejected because origin/main moved.",
-      status: "rejected",
-      task_id: "task-rejected",
-      title: "Rejected stale work",
-    });
+    const activeTasks = Array.from({ length: 60 }, (_, index) =>
+      createTask({
+        session_id: `session-active-${index}`,
+        source_baseline_freshness: {
+          current_commit: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
+          source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          status: "stale",
+          summary:
+            "Task source baseline bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb differs from current origin/main a9979ba9487edf2d822e10ae7b651c98be3d175d",
+        },
+        task_id: `task-active-${index}`,
+        title: `Active overlapping work ${index}`,
+        worktree_path: `/repo/.worktrees/task-active-${index}`,
+      }),
+    );
+    const rejectedTasks = Array.from({ length: 60 }, (_, index) =>
+      createTask({
+        done: true,
+        result: `Rejected because origin/main moved ${index}.`,
+        status: "rejected",
+        task_id: `task-rejected-${index}`,
+        title: `Rejected stale work ${index}`,
+      }),
+    );
     const repository = {
       assignSessionIfUnassigned: vi
         .fn()
         .mockResolvedValue(createTask({ session_id: "session-1" })),
-      listRejectedTasksByProject: vi.fn().mockResolvedValue([rejectedTask]),
-      listUnfinishedTasks: vi.fn().mockResolvedValue([initialTask, activeTask]),
+      listRejectedTasksByProject: vi.fn().mockResolvedValue(rejectedTasks),
+      listUnfinishedTasks: vi
+        .fn()
+        .mockResolvedValue([initialTask, ...activeTasks]),
     };
     const sessionManager = createSessionManager();
-    const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
-      baselineRepository,
       sessionManager,
       taskRepository: repository,
     });
@@ -1155,7 +1137,6 @@ describe("developer", () => {
       );
     });
 
-    expect(baselineRepository.getLatestBaselineFacts).not.toHaveBeenCalled();
     expect(repository.listRejectedTasksByProject).not.toHaveBeenCalled();
     expect(sessionManager.createSession).toHaveBeenCalledBefore(
       repository.assignSessionIfUnassigned,
@@ -1166,11 +1147,12 @@ describe("developer", () => {
     expect(prompt).toContain(`project_id: ${initialTask.project_id}`);
     expect(prompt).toContain(`GET /tasks/${initialTask.task_id}`);
     expect(prompt).toContain(`GET /tasks/${initialTask.task_id}/spec`);
+    expect(prompt.length).toBeLessThan(1_800);
     expect(prompt).not.toContain("Current baseline facts");
     expect(prompt).not.toContain("Current Active Task Pool");
     expect(prompt).not.toContain("Rejected Task feedback");
-    expect(prompt).not.toContain("task-active");
-    expect(prompt).not.toContain("task-rejected");
+    expect(prompt).not.toContain("task-active-59");
+    expect(prompt).not.toContain("task-rejected-59");
 
     await developer[Symbol.asyncDispose]();
   });
