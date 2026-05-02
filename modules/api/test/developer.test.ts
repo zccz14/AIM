@@ -15,7 +15,6 @@ const createSessionHandle = (sessionId: string) => ({
 });
 
 const createSessionManager = () => ({
-  continueSession: vi.fn().mockResolvedValue(undefined),
   createSession: vi.fn().mockResolvedValue(createSessionHandle("session-1")),
 });
 
@@ -318,7 +317,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("continues an assigned pending session when no unassigned task is available", async () => {
+  it("rebinds an assigned pending task to a new session when no unassigned task is available", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -332,8 +331,17 @@ describe("developer", () => {
       assignSessionIfUnassigned: vi.fn(),
       listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
+      updateTask: vi.fn().mockResolvedValue(
+        createTask({
+          ...assignedTask,
+          session_id: "session-rebound",
+        }),
+      ),
     };
     const sessionManager = createSessionManager();
+    sessionManager.createSession.mockResolvedValue(
+      createSessionHandle("session-rebound"),
+    );
     const baselineRepository = createBaselineRepository();
     const onLaneEvent = vi.fn();
 
@@ -345,42 +353,34 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.continueSession).toHaveBeenCalledWith({
-        prompt: expect.stringContaining("Current baseline facts"),
-        sessionId: "session-existing",
+      expect(repository.updateTask).toHaveBeenCalledWith(assignedTask.task_id, {
+        session_id: "session-rebound",
       });
     });
-    expect(sessionManager.continueSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining(baselineFacts.commitSha),
-      sessionId: "session-existing",
+    expect(sessionManager.createSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("Current baseline facts"),
+      projectId: assignedTask.project_id,
+      title: `AIM Developer: ${assignedTask.title}`,
     });
-    expect(sessionManager.continueSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining("Current Active Task Pool"),
-      sessionId: "session-existing",
-    });
-    expect(sessionManager.continueSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining("Rejected Task feedback"),
-      sessionId: "session-existing",
-    });
-    expect(sessionManager.continueSession).toHaveBeenCalledWith({
-      prompt: expect.stringContaining("source_baseline_freshness guardrails"),
-      sessionId: "session-existing",
-    });
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain(baselineFacts.commitSha);
+    expect(prompt).toContain("Current Active Task Pool");
+    expect(prompt).toContain("Rejected Task feedback");
+    expect(prompt).toContain("source_baseline_freshness guardrails");
     expect(onLaneEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "success",
         project_id: assignedTask.project_id,
-        session_id: "session-existing",
+        session_id: "session-rebound",
         task_id: assignedTask.task_id,
       }),
     );
-    expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });
 
-  it("continues an assigned pending session found by explicit session lookup", async () => {
+  it("rebinds an assigned pending task found by explicit session lookup", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       session_id: "session-existing",
@@ -390,7 +390,12 @@ describe("developer", () => {
       assignSessionIfUnassigned: vi.fn(),
       listRejectedTasksByProject: vi.fn().mockResolvedValue([]),
       listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
-      updateTask: vi.fn(),
+      updateTask: vi.fn().mockResolvedValue(
+        createTask({
+          ...assignedTask,
+          session_id: "session-rebound",
+        }),
+      ),
     };
     const sessionRepository = {
       getSessionById: vi.fn().mockResolvedValue(
@@ -401,6 +406,9 @@ describe("developer", () => {
       ),
     };
     const sessionManager = createSessionManager();
+    sessionManager.createSession.mockResolvedValue(
+      createSessionHandle("session-rebound"),
+    );
     const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
@@ -411,22 +419,24 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.continueSession).toHaveBeenCalledWith({
-        prompt: expect.stringContaining("Current baseline facts"),
-        sessionId: "session-existing",
+      expect(repository.updateTask).toHaveBeenCalledWith(assignedTask.task_id, {
+        session_id: "session-rebound",
       });
     });
     expect(sessionRepository.getSessionById).toHaveBeenCalledWith(
       "session-existing",
     );
-    expect(sessionManager.createSession).not.toHaveBeenCalled();
-    expect(repository.updateTask).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("Current baseline facts"),
+      projectId: assignedTask.project_id,
+      title: `AIM Developer: ${assignedTask.title}`,
+    });
     expect(repository.assignSessionIfUnassigned).not.toHaveBeenCalled();
 
     await developer[Symbol.asyncDispose]();
   });
 
-  it("includes same-project active pool and rejected feedback in assigned pending continuation prompts", async () => {
+  it("includes same-project active pool and rejected feedback in assigned pending rebind prompts", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -467,8 +477,17 @@ describe("developer", () => {
       listUnfinishedTasks: vi
         .fn()
         .mockResolvedValue([assignedTask, activeTask, otherProjectTask]),
+      updateTask: vi.fn().mockResolvedValue(
+        createTask({
+          ...assignedTask,
+          session_id: "session-rebound",
+        }),
+      ),
     };
     const sessionManager = createSessionManager();
+    sessionManager.createSession.mockResolvedValue(
+      createSessionHandle("session-rebound"),
+    );
     const baselineRepository = createBaselineRepository();
 
     const developer = createTestDeveloper({
@@ -478,9 +497,11 @@ describe("developer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(sessionManager.continueSession).toHaveBeenCalled();
+      expect(repository.updateTask).toHaveBeenCalledWith(assignedTask.task_id, {
+        session_id: "session-rebound",
+      });
     });
-    const prompt = sessionManager.continueSession.mock.calls[0]?.[0].prompt;
+    const prompt = sessionManager.createSession.mock.calls[0]?.[0].prompt;
     expect(prompt).toContain(baselineFacts.commitSha);
     expect(prompt).toContain("task-assigned");
     expect(prompt).toContain("task-active");
@@ -493,7 +514,7 @@ describe("developer", () => {
     await developer[Symbol.asyncDispose]();
   });
 
-  it("emits a failure event when assigned pending session continuation fails", async () => {
+  it("emits a failure event when assigned pending session rebind is unsupported", async () => {
     vi.useFakeTimers();
     const assignedTask = createTask({
       opencode_session: createOpenCodeSession({
@@ -509,7 +530,6 @@ describe("developer", () => {
       listUnfinishedTasks: vi.fn().mockResolvedValue([assignedTask]),
     };
     const sessionManager = createSessionManager();
-    sessionManager.continueSession.mockRejectedValue(new Error("boom"));
     const baselineRepository = createBaselineRepository();
     const onLaneEvent = vi.fn();
 
@@ -533,7 +553,9 @@ describe("developer", () => {
     const event = onLaneEvent.mock.calls.find(
       ([laneEvent]) => laneEvent.event === "failure",
     )?.[0];
-    expect(event?.summary).toContain("boom");
+    expect(event?.summary).toContain(
+      "Task repository does not support rebinding unavailable assigned sessions",
+    );
 
     await developer[Symbol.asyncDispose]();
   });

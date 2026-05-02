@@ -16,10 +16,7 @@ type BaselineRepository = {
   getLatestBaselineFacts(projectDirectory: string): Promise<BaselineFacts>;
 };
 
-type DeveloperSessionManager = Pick<
-  OpenCodeSessionManager,
-  "continueSession" | "createSession"
->;
+type DeveloperSessionManager = Pick<OpenCodeSessionManager, "createSession">;
 
 type PullRequestFollowupView = {
   autoMergeRequest?: unknown;
@@ -421,6 +418,57 @@ export const createDeveloper = ({
       return;
     }
 
+    const rebindAssignedTaskToNewSession = async ({
+      prompt,
+      successSummary,
+      title,
+    }: {
+      prompt: string;
+      successSummary: (sessionId: string) => string;
+      title: string;
+    }) => {
+      if (!taskRepository.updateTask) {
+        throw new Error(
+          "Task repository does not support rebinding unavailable assigned sessions",
+        );
+      }
+
+      const createdSession = await sessionManager.createSession({
+        prompt,
+        projectId: task.project_id,
+        title,
+      });
+
+      const reboundTask = await taskRepository.updateTask(task.task_id, {
+        session_id: createdSession.session_id,
+      });
+
+      if (
+        reboundTask?.session_id === createdSession.session_id &&
+        !reboundTask.done
+      ) {
+        onLaneEvent?.({
+          event: "success",
+          lane_name: "developer",
+          project_id: task.project_id,
+          session_id: createdSession.session_id,
+          summary: successSummary(createdSession.session_id),
+          task_id: task.task_id,
+        });
+
+        return;
+      }
+
+      onLaneEvent?.({
+        event: "noop",
+        lane_name: "developer",
+        project_id: task.project_id,
+        session_id: createdSession.session_id,
+        summary: `Developer lane skipped assigned session rebind for task ${task.task_id}: another session claimed it or the task finished.`,
+        task_id: task.task_id,
+      });
+    };
+
     const recoverUnavailableAssignedSession = async () => {
       if (task.pull_request_url) {
         const { category } =
@@ -451,45 +499,11 @@ export const createDeveloper = ({
         return;
       }
 
-      if (!taskRepository.updateTask) {
-        throw new Error(
-          "Task repository does not support rebinding unavailable assigned sessions",
-        );
-      }
-
-      const createdSession = await sessionManager.createSession({
+      await rebindAssignedTaskToNewSession({
         prompt: buildTaskSessionPrompt(task),
-        projectId: task.project_id,
+        successSummary: (sessionId) =>
+          `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${sessionId}.`,
         title: `AIM Developer Recovery: ${task.title}`,
-      });
-
-      const recoveredTask = await taskRepository.updateTask(task.task_id, {
-        session_id: createdSession.session_id,
-      });
-
-      if (
-        recoveredTask?.session_id === createdSession.session_id &&
-        !recoveredTask.done
-      ) {
-        onLaneEvent?.({
-          event: "success",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: createdSession.session_id,
-          summary: `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${createdSession.session_id}.`,
-          task_id: task.task_id,
-        });
-
-        return;
-      }
-
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: createdSession.session_id,
-        summary: `Developer lane skipped unavailable session recovery for task ${task.task_id}: another session claimed it or the task finished.`,
-        task_id: task.task_id,
       });
     };
 
@@ -544,18 +558,11 @@ export const createDeveloper = ({
       return;
     }
 
-    const prompt = await buildContinuationPrompt(task, unfinishedTasks);
-    await sessionManager.continueSession({
-      prompt,
-      sessionId: task.session_id,
-    });
-    onLaneEvent?.({
-      event: "success",
-      lane_name: "developer",
-      project_id: task.project_id,
-      session_id: task.session_id,
-      summary: `Developer lane continued assigned pending session ${task.session_id} for task ${task.task_id}.`,
-      task_id: task.task_id,
+    await rebindAssignedTaskToNewSession({
+      prompt: await buildContinuationPrompt(task, unfinishedTasks),
+      successSummary: (sessionId) =>
+        `Developer lane rebound assigned pending task ${task.task_id} from session ${task.session_id} to session ${sessionId}.`,
+      title: `AIM Developer: ${task.title}`,
     });
   };
 
@@ -701,14 +708,14 @@ export const createDeveloper = ({
               project_id: task.project_id,
               task_id: task.task_id,
             },
-            `Developer failed while continuing assigned pending session for task ${task.task_id}`,
+            `Developer failed while rebinding assigned pending session for task ${task.task_id}`,
           );
           onLaneEvent?.({
             event: "failure",
             lane_name: "developer",
             project_id: task.project_id,
             session_id: task.session_id ?? undefined,
-            summary: `Developer lane failed assigned pending session continuation for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry continuation.`,
+            summary: `Developer lane failed assigned pending session rebind for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry rebind.`,
             task_id: task.task_id,
           });
         }

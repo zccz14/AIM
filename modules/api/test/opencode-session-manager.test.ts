@@ -144,6 +144,7 @@ describe("createOpenCodeSessionManager", () => {
       baseUrl: "http://127.0.0.1:54321",
       repository,
     });
+    expect(manager).not.toHaveProperty("continueSession");
 
     const session = await manager.createSession({
       prompt: "Continue the task.",
