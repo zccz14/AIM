@@ -1,29 +1,12 @@
 import type { Task } from "@aim-ai/contract";
 
-import { AIM_SESSION_SETTLEMENT_PROTOCOL } from "./aim-session-settlement-protocol.js";
 import type { ApiLogger } from "./api-logger.js";
 import { cancelableSleep } from "./cancelable-sleep.js";
-import { execGh } from "./exec-file.js";
 import type { OpenCodeSessionManager } from "./opencode-session-manager.js";
 import type { OptimizerLaneEventInput } from "./optimizer-lane-events.js";
 import { buildTaskSessionPrompt } from "./task-continue-prompt.js";
 
 type DeveloperSessionManager = Pick<OpenCodeSessionManager, "createSession">;
-
-type PullRequestFollowupView = {
-  autoMergeRequest?: unknown;
-  mergeable?: unknown;
-  mergedAt?: unknown;
-  reviewDecision?: unknown;
-  state?: unknown;
-  statusCheckRollup?: unknown;
-};
-
-type PullRequestStatusProvider = {
-  getTaskPullRequestStatus(task: Task): Promise<{
-    category: string;
-  }>;
-};
 
 type DeveloperSessionRepository = {
   getSessionById(sessionId: string):
@@ -40,7 +23,6 @@ type DeveloperTaskRepository = {
     taskId: string,
     sessionId: string,
   ): Promise<null | Task>;
-  getTaskById?(taskId: string): Promise<null | Task> | null | Task;
   listUnfinishedTasks(): Promise<Task[]>;
   updateTask?(
     taskId: string,
@@ -49,15 +31,8 @@ type DeveloperTaskRepository = {
 };
 
 type CreateDeveloperOptions = {
-  canStartTask?: (
-    task: Task,
-  ) =>
-    | { ok: true }
-    | { ok: false; reason: string }
-    | Promise<{ ok: true } | { ok: false; reason: string }>;
   logger?: ApiLogger;
   onLaneEvent?: (event: OptimizerLaneEventInput) => void;
-  pullRequestStatusProvider?: PullRequestStatusProvider;
   sessionManager: DeveloperSessionManager;
   sessionRepository: DeveloperSessionRepository;
   taskRepository: DeveloperTaskRepository;
@@ -65,141 +40,12 @@ type CreateDeveloperOptions = {
 
 const heartbeatMs = 1000;
 
-const getPullRequestFollowupOutput = (pullRequestUrl: string) =>
-  execGh(
-    [
-      "pr",
-      "view",
-      pullRequestUrl,
-      "--json",
-      "state,mergedAt,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest",
-    ],
-    { target: pullRequestUrl },
-  );
-
-const readCheckState = (check: unknown) => {
-  if (!check || typeof check !== "object") {
-    return { conclusion: "", status: "" };
-  }
-
-  const candidate = check as { conclusion?: unknown; status?: unknown };
-
-  return {
-    conclusion:
-      typeof candidate.conclusion === "string"
-        ? candidate.conclusion.toUpperCase()
-        : "",
-    status:
-      typeof candidate.status === "string"
-        ? candidate.status.toUpperCase()
-        : "",
-  };
-};
-
-const categorizePullRequest = (pullRequest: PullRequestFollowupView) => {
-  const state = typeof pullRequest.state === "string" ? pullRequest.state : "";
-  const mergedAt =
-    typeof pullRequest.mergedAt === "string" ? pullRequest.mergedAt.trim() : "";
-  const checks = Array.isArray(pullRequest.statusCheckRollup)
-    ? pullRequest.statusCheckRollup
-    : [];
-  const failedChecks = checks.some((check) => {
-    const { conclusion } = readCheckState(check);
-
-    return ["ACTION_REQUIRED", "CANCELLED", "FAILURE", "TIMED_OUT"].includes(
-      conclusion,
-    );
-  });
-  const waitingChecks = checks.some((check) => {
-    const { status } = readCheckState(check);
-
-    return [
-      "EXPECTED",
-      "IN_PROGRESS",
-      "PENDING",
-      "QUEUED",
-      "REQUESTED",
-    ].includes(status);
-  });
-  const reviewDecision =
-    typeof pullRequest.reviewDecision === "string"
-      ? pullRequest.reviewDecision
-      : "";
-  const mergeable =
-    typeof pullRequest.mergeable === "string" ? pullRequest.mergeable : "";
-
-  if (state === "MERGED" || mergedAt.length > 0) {
-    return "merged_but_not_resolved";
-  }
-
-  if (state === "CLOSED") {
-    return "closed_abandoned";
-  }
-
-  if (failedChecks) {
-    return "failed_checks";
-  }
-
-  if (waitingChecks) {
-    return "waiting_checks";
-  }
-
-  if (["CHANGES_REQUESTED", "REVIEW_REQUIRED"].includes(reviewDecision)) {
-    return "review_blocked";
-  }
-
-  if (["CONFLICTING", "UNKNOWN"].includes(mergeable)) {
-    return "merge_conflict";
-  }
-
-  if (pullRequest.autoMergeRequest == null) {
-    return "auto_merge_unavailable";
-  }
-
-  return "ready_to_merge";
-};
-
-const defaultPullRequestStatusProvider: PullRequestStatusProvider = {
-  async getTaskPullRequestStatus(task) {
-    if (!task.pull_request_url) {
-      return { category: "no_pull_request" };
-    }
-
-    try {
-      return {
-        category: categorizePullRequest(
-          JSON.parse(
-            await getPullRequestFollowupOutput(task.pull_request_url),
-          ) as PullRequestFollowupView,
-        ),
-      };
-    } catch {
-      return { category: "pull_request_unavailable" };
-    }
-  },
-};
-
 const summarizeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const buildMergedPullRequestSettlementPrompt = (
-  task: Task,
-) => `${buildTaskSessionPrompt(task)}
-
-Merged PR settlement objective:
-- This is settlement-only work for a PR-backed AIM Task whose pull_request_status is merged_but_not_resolved.
-- Confirm the GitHub PR is merged before resolving the AIM Task.
-- clean up the task worktree after the PR terminal state is confirmed.
-- refresh the main workspace to origin/main with git fetch origin && git checkout origin/main.
-- Then settle the current AIM-managed session using ${AIM_SESSION_SETTLEMENT_PROTOCOL} with a concise final result.
-- If settlement cannot proceed, settle the current AIM-managed session using ${AIM_SESSION_SETTLEMENT_PROTOCOL} with an actionable rejected reason that names the blocker and next recovery step.
-`;
-
 export const createDeveloper = ({
-  canStartTask = () => ({ ok: true }),
   logger,
   onLaneEvent,
-  pullRequestStatusProvider = defaultPullRequestStatusProvider,
   sessionManager,
   sessionRepository,
   taskRepository,
@@ -207,7 +53,14 @@ export const createDeveloper = ({
   const stack = new AsyncDisposableStack();
   const abortController = new AbortController();
 
-  const bindTask = async (task: Task) => {
+  const createTaskSession = async (task: Task, titlePrefix = "AIM Developer") =>
+    sessionManager.createSession({
+      prompt: buildTaskSessionPrompt(task),
+      projectId: task.project_id,
+      title: `${titlePrefix}: ${task.title}`,
+    });
+
+  const bindUnassignedTask = async (task: Task) => {
     onLaneEvent?.({
       event: "start",
       lane_name: "developer",
@@ -215,12 +68,8 @@ export const createDeveloper = ({
       summary: `Developer lane started session assignment for task ${task.task_id}.`,
       task_id: task.task_id,
     });
-    const createdSession = await sessionManager.createSession({
-      prompt: buildTaskSessionPrompt(task),
-      projectId: task.project_id,
-      title: `AIM Developer: ${task.title}`,
-    });
 
+    const createdSession = await createTaskSession(task);
     const assignedTask = await taskRepository.assignSessionIfUnassigned(
       task.task_id,
       createdSession.session_id,
@@ -251,317 +100,88 @@ export const createDeveloper = ({
     });
   };
 
-  const getUnmetDependencyIds = async (
-    task: Task,
-    listedTasksById: Map<string, Task>,
-  ) => {
-    const unmetDependencyIds: string[] = [];
-
-    for (const dependencyId of task.dependencies ?? []) {
-      const dependencyTask =
-        listedTasksById.get(dependencyId) ??
-        (await taskRepository.getTaskById?.(dependencyId)) ??
-        null;
-
-      if (dependencyTask?.status !== "resolved") {
-        unmetDependencyIds.push(dependencyId);
-      }
+  const recoverMissingAssignedSession = async (task: Task) => {
+    if (!taskRepository.updateTask) {
+      throw new Error(
+        "Task repository does not support rebinding unavailable assigned sessions",
+      );
     }
 
-    return unmetDependencyIds;
-  };
-
-  const continueMergedPullRequestSettlement = async (task: Task) => {
-    const prompt = buildMergedPullRequestSettlementPrompt(task);
-
-    if (task.session_id) {
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: task.session_id,
-        summary: `Developer lane skipped merged PR settlement for task ${task.task_id}: external session continuation is disabled.`,
-        task_id: task.task_id,
-      });
-
-      return;
-    }
-
-    const createdSession = await sessionManager.createSession({
-      prompt,
-      projectId: task.project_id,
-      title: `AIM Developer Settlement: ${task.title}`,
+    const createdSession = await createTaskSession(
+      task,
+      "AIM Developer Recovery",
+    );
+    const reboundTask = await taskRepository.updateTask(task.task_id, {
+      session_id: createdSession.session_id,
     });
 
-    const assignedTask = await taskRepository.assignSessionIfUnassigned(
-      task.task_id,
-      createdSession.session_id,
-    );
-
     if (
-      assignedTask?.session_id === createdSession.session_id &&
-      !assignedTask.done
+      reboundTask?.session_id === createdSession.session_id &&
+      !reboundTask.done
     ) {
       onLaneEvent?.({
         event: "success",
         lane_name: "developer",
         project_id: task.project_id,
         session_id: createdSession.session_id,
-        summary: `Developer lane assigned merged PR settlement task ${task.task_id} to session ${createdSession.session_id}.`,
+        summary: `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${createdSession.session_id}.`,
         task_id: task.task_id,
       });
 
       return;
     }
+
+    onLaneEvent?.({
+      event: "noop",
+      lane_name: "developer",
+      project_id: task.project_id,
+      session_id: createdSession.session_id,
+      summary: `Developer lane skipped assigned session rebind for task ${task.task_id}: another session claimed it or the task finished.`,
+      task_id: task.task_id,
+    });
   };
 
-  const continueAssignedPendingSession = async (
-    task: Task,
-    tasksById: Map<string, Task>,
-  ) => {
+  const ensureAssignedTaskSession = async (task: Task) => {
     if (!task.session_id) {
       return;
     }
 
-    const rebindAssignedTaskToNewSession = async ({
-      prompt,
-      successSummary,
-      title,
-    }: {
-      prompt: string;
-      successSummary: (sessionId: string) => string;
-      title: string;
-    }) => {
-      if (!taskRepository.updateTask) {
-        throw new Error(
-          "Task repository does not support rebinding unavailable assigned sessions",
-        );
-      }
-
-      const createdSession = await sessionManager.createSession({
-        prompt,
-        projectId: task.project_id,
-        title,
-      });
-
-      const reboundTask = await taskRepository.updateTask(task.task_id, {
-        session_id: createdSession.session_id,
-      });
-
-      if (
-        reboundTask?.session_id === createdSession.session_id &&
-        !reboundTask.done
-      ) {
-        onLaneEvent?.({
-          event: "success",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: createdSession.session_id,
-          summary: successSummary(createdSession.session_id),
-          task_id: task.task_id,
-        });
-
-        return;
-      }
-
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: createdSession.session_id,
-        summary: `Developer lane skipped assigned session rebind for task ${task.task_id}: another session claimed it or the task finished.`,
-        task_id: task.task_id,
-      });
-    };
-
-    const recoverUnavailableAssignedSession = async () => {
-      if (task.pull_request_url) {
-        const { category } =
-          await pullRequestStatusProvider.getTaskPullRequestStatus(task);
-        onLaneEvent?.({
-          event: "noop",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: task.session_id ?? undefined,
-          summary: `Developer lane skipped assigned task ${task.task_id}: pull request follow-up category ${category} is not unavailable session recovery scope.`,
-          task_id: task.task_id,
-        });
-
-        return;
-      }
-
-      const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
-      if (unmetDependencyIds.length > 0) {
-        onLaneEvent?.({
-          event: "noop",
-          lane_name: "developer",
-          project_id: task.project_id,
-          session_id: task.session_id ?? undefined,
-          summary: `Developer lane skipped assigned task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
-          task_id: task.task_id,
-        });
-
-        return;
-      }
-
-      await rebindAssignedTaskToNewSession({
-        prompt: buildTaskSessionPrompt(task),
-        successSummary: (sessionId) =>
-          `Developer lane recovered unavailable session ${task.session_id} for task ${task.task_id} with session ${sessionId}.`,
-        title: `AIM Developer Recovery: ${task.title}`,
-      });
-    };
-
     const session = await sessionRepository.getSessionById(task.session_id);
+
     if (!session) {
-      await recoverUnavailableAssignedSession();
-
+      await recoverMissingAssignedSession(task);
       return;
     }
 
-    const sessionState = session.state;
-
-    if (sessionState !== "pending") {
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: task.session_id,
-        summary: `Developer lane skipped assigned task ${task.task_id}: OpenCode session ${task.session_id} is ${sessionState ?? "unavailable"}.`,
-        task_id: task.task_id,
-      });
-
-      return;
-    }
-
-    if (task.pull_request_url) {
-      const { category } =
-        await pullRequestStatusProvider.getTaskPullRequestStatus(task);
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: task.session_id,
-        summary: `Developer lane skipped assigned task ${task.task_id}: pull request follow-up category ${category} is not pending session continuation scope.`,
-        task_id: task.task_id,
-      });
-
-      return;
-    }
-
-    const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
-    if (unmetDependencyIds.length > 0) {
-      onLaneEvent?.({
-        event: "noop",
-        lane_name: "developer",
-        project_id: task.project_id,
-        session_id: task.session_id,
-        summary: `Developer lane skipped assigned task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
-        task_id: task.task_id,
-      });
-
-      return;
-    }
-
-    await rebindAssignedTaskToNewSession({
-      prompt: buildTaskSessionPrompt(task),
-      successSummary: (sessionId) =>
-        `Developer lane rebound assigned pending task ${task.task_id} from session ${task.session_id} to session ${sessionId}.`,
-      title: `AIM Developer: ${task.title}`,
+    onLaneEvent?.({
+      event: "noop",
+      lane_name: "developer",
+      project_id: task.project_id,
+      session_id: task.session_id,
+      summary: `Developer lane kept task ${task.task_id} bound to existing OpenCode session ${task.session_id}.`,
+      task_id: task.task_id,
     });
-  };
-
-  const findMergedPullRequestSettlementTasks = async (tasks: Task[]) => {
-    const settlementTasks: Task[] = [];
-
-    for (const task of tasks) {
-      if (task.done || task.status !== "pending" || !task.pull_request_url) {
-        continue;
-      }
-
-      const { category } =
-        await pullRequestStatusProvider.getTaskPullRequestStatus(task);
-
-      if (category === "merged_but_not_resolved") {
-        settlementTasks.push(task);
-      }
-    }
-
-    return settlementTasks;
   };
 
   const heartbeat = async () => {
     const tasks = await taskRepository.listUnfinishedTasks();
-    const tasksById = new Map(tasks.map((task) => [task.task_id, task]));
-    const settlementTasks = await findMergedPullRequestSettlementTasks(tasks);
-    if (settlementTasks.length > 0) {
-      for (const task of settlementTasks) {
-        if (abortController.signal.aborted) {
-          return;
-        }
-
-        try {
-          await continueMergedPullRequestSettlement(task);
-        } catch (error) {
-          logger?.error(
-            {
-              err: error,
-              event: "developer_task_failed",
-              project_id: task.project_id,
-              task_id: task.task_id,
-            },
-            `Developer failed while continuing merged PR settlement for task ${task.task_id}`,
-          );
-          onLaneEvent?.({
-            event: "failure",
-            lane_name: "developer",
-            project_id: task.project_id,
-            summary: `Developer lane failed merged PR settlement for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry assignment.`,
-            task_id: task.task_id,
-          });
-        }
-      }
-
-      return;
-    }
-
-    const unassignedTasks = tasks.filter(
-      (task) => !task.done && task.session_id === null,
-    );
     const activeProjectIds = [...new Set(tasks.map((task) => task.project_id))];
 
-    for (const task of unassignedTasks) {
+    for (const task of tasks) {
       if (abortController.signal.aborted) {
         return;
       }
 
+      if (task.done) {
+        continue;
+      }
+
       try {
-        const unmetDependencyIds = await getUnmetDependencyIds(task, tasksById);
-
-        if (unmetDependencyIds.length > 0) {
-          onLaneEvent?.({
-            event: "noop",
-            lane_name: "developer",
-            project_id: task.project_id,
-            summary: `Developer lane skipped task ${task.task_id} in project ${task.project_id}: unresolved dependencies ${unmetDependencyIds.join(", ")}.`,
-            task_id: task.task_id,
-          });
-          continue;
+        if (task.session_id === null) {
+          await bindUnassignedTask(task);
+        } else {
+          await ensureAssignedTaskSession(task);
         }
-
-        const startEligibility = await canStartTask(task);
-        if (!startEligibility.ok) {
-          onLaneEvent?.({
-            event: "idle",
-            lane_name: "developer",
-            project_id: task.project_id,
-            summary: startEligibility.reason,
-            task_id: task.task_id,
-          });
-          continue;
-        }
-
-        await bindTask(task);
       } catch (error) {
         logger?.error(
           {
@@ -570,60 +190,27 @@ export const createDeveloper = ({
             project_id: task.project_id,
             task_id: task.task_id,
           },
-          `Developer failed while assigning task ${task.task_id}`,
+          `Developer failed while ensuring task session binding for task ${task.task_id}`,
         );
         onLaneEvent?.({
           event: "failure",
           lane_name: "developer",
           project_id: task.project_id,
+          session_id: task.session_id ?? undefined,
           summary: `Developer lane failed for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry assignment.`,
           task_id: task.task_id,
         });
       }
     }
 
-    if (unassignedTasks.length === 0) {
-      const assignedTasks = tasks.filter(
-        (task) => !task.done && task.session_id !== null,
-      );
-
-      if (assignedTasks.length === 0) {
-        for (const projectId of activeProjectIds) {
-          onLaneEvent?.({
-            event: "idle",
-            lane_name: "developer",
-            project_id: projectId,
-            summary: "Developer lane idle: no unassigned unfinished tasks.",
-          });
-        }
-      }
-
-      for (const task of assignedTasks) {
-        if (abortController.signal.aborted) {
-          return;
-        }
-
-        try {
-          await continueAssignedPendingSession(task, tasksById);
-        } catch (error) {
-          logger?.error(
-            {
-              err: error,
-              event: "developer_task_failed",
-              project_id: task.project_id,
-              task_id: task.task_id,
-            },
-            `Developer failed while rebinding assigned pending session for task ${task.task_id}`,
-          );
-          onLaneEvent?.({
-            event: "failure",
-            lane_name: "developer",
-            project_id: task.project_id,
-            session_id: task.session_id ?? undefined,
-            summary: `Developer lane failed assigned pending session rebind for task ${task.task_id}: ${summarizeError(error)}. Fix the task session blocker and retry rebind.`,
-            task_id: task.task_id,
-          });
-        }
+    if (tasks.length === 0) {
+      for (const projectId of activeProjectIds) {
+        onLaneEvent?.({
+          event: "idle",
+          lane_name: "developer",
+          project_id: projectId,
+          summary: "Developer lane idle: no unfinished tasks.",
+        });
       }
     }
   };
