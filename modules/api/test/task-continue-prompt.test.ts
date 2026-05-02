@@ -75,30 +75,30 @@ describe("buildTaskSessionPrompt", () => {
     expect(prompt).toMatch(/continue the existing lifecycle/i);
   });
 
-  it("serializes provided baseline, active pool, and rejected feedback into the developer prompt", () => {
-    const prompt = buildTaskSessionPrompt(createTask(), {
-      activeTasks: [
-        createTask({ task_id: "task-active", title: "Active work" }),
-      ],
-      baselineFacts: {
-        commitSha: "a9979ba9487edf2d822e10ae7b651c98be3d175d",
-        fetchedAt: "2026-04-28T17:13:03.000Z",
-        summary: "Refactor optimizer system startup lifecycle (#258)",
-      },
-      rejectedTasks: [
-        createTask({ task_id: "task-rejected", title: "Rejected work" }),
-      ],
-    });
+  it("does not serialize task spec or bulky task fields into the bootstrap prompt", () => {
+    const prompt = buildTaskSessionPrompt(
+      createTask({
+        result: "Rejected because origin/main moved.",
+        source_metadata: {
+          generated_tasks: Array.from({ length: 100 }, (_, index) => ({
+            task_id: `generated-${index}`,
+            title: `Generated task ${index}`,
+          })),
+        },
+        task_spec:
+          "Implement a large private task spec that must be fetched separately.",
+        title: "Large task title that should not be preloaded",
+      }),
+    );
 
-    expect(prompt).toContain("Current baseline facts");
-    expect(prompt).toContain("a9979ba9487edf2d822e10ae7b651c98be3d175d");
-    expect(prompt).toContain("Refactor optimizer system startup lifecycle");
-    expect(prompt).toContain("Current Active Task Pool");
-    expect(prompt).toContain("task-active");
-    expect(prompt).toContain("Active work");
-    expect(prompt).toContain("Rejected Task feedback");
-    expect(prompt).toContain("task-rejected");
-    expect(prompt).toContain("Rejected work");
-    expect(prompt).toContain("source_baseline_freshness guardrails");
+    expect(prompt.length).toBeLessThan(1_800);
+    expect(prompt).not.toContain("Implement a large private task spec");
+    expect(prompt).not.toContain("Large task title");
+    expect(prompt).not.toContain("Rejected because origin/main moved");
+    expect(prompt).not.toContain("generated-99");
+    expect(prompt).not.toContain("Current baseline facts");
+    expect(prompt).not.toContain("Current Active Task Pool");
+    expect(prompt).not.toContain("Rejected Task feedback");
+    expect(prompt).not.toContain("source_baseline_freshness guardrails");
   });
 });
