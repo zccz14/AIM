@@ -58,7 +58,7 @@ const resolveRealGitOrigin = async (gitOriginUrl: string) => {
   }
 };
 
-const repairWorkspaceOrigin = async (
+const assertWorkspaceOrigin = async (
   workspacePath: string,
   gitOriginUrl: string,
 ) => {
@@ -73,7 +73,9 @@ const repairWorkspaceOrigin = async (
   }
 
   if (currentOrigin !== gitOriginUrl) {
-    await runGit(["remote", "set-url", "origin", gitOriginUrl], workspacePath);
+    throw new Error(
+      `Project workspace origin mismatch at ${workspacePath}: expected ${gitOriginUrl}, actual ${currentOrigin}`,
+    );
   }
 };
 
@@ -84,7 +86,7 @@ export const ensureProjectWorkspace = async (
   const gitOriginUrl = await resolveRealGitOrigin(task.git_origin_url);
 
   if (existsSync(workspacePath)) {
-    await repairWorkspaceOrigin(workspacePath, gitOriginUrl);
+    await assertWorkspaceOrigin(workspacePath, gitOriginUrl);
     return workspacePath;
   }
 
