@@ -135,24 +135,32 @@ describe("project workspace", () => {
     );
   });
 
-  it("repairs existing project workspaces whose origin points at a local repository", async () => {
+  it("rejects existing project workspaces whose origin differs from the expected origin", async () => {
     const { ensureProjectWorkspace, resolveProjectWorkspacePath } =
       await import("../src/project-workspace.js");
     const workspacePath = resolveProjectWorkspacePath("project-1");
     await mkdir(workspacePath, { recursive: true });
     mockGit(sourceRepoPath);
 
-    await ensureProjectWorkspace({
-      git_origin_url: sourceRepoPath,
-      project_id: "project-1",
-    });
-
-    expect(execFileMock).toHaveBeenCalledWith(
-      "git",
-      ["remote", "set-url", "origin", realRemoteUrl],
-      expect.objectContaining({ cwd: workspacePath, timeout: 60_000 }),
-      expect.any(Function),
+    await expect(
+      ensureProjectWorkspace({
+        git_origin_url: sourceRepoPath,
+        project_id: "project-1",
+      }),
+    ).rejects.toThrow(
+      `Project workspace origin mismatch at ${workspacePath}: expected ${realRemoteUrl}, actual ${sourceRepoPath}`,
     );
+
+    expect(
+      execFileMock.mock.calls.some(
+        ([command, args]) =>
+          command === "git" &&
+          Array.isArray(args) &&
+          args[0] === "remote" &&
+          args[1] === "set-url" &&
+          args[2] === "origin",
+      ),
+    ).toBe(false);
   });
 
   it("preserves configured non-local remote origins", async () => {

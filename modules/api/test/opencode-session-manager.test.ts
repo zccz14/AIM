@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -10,6 +11,16 @@ const expectedRuntimeDirectory = join(aimHome, "projects", testProjectId);
 const successfulRuntimeResponse = {
   data: { directory: expectedRuntimeDirectory },
   response: { ok: true, status: 200 },
+};
+
+const initializeProjectWorkspace = async () => {
+  await mkdir(expectedRuntimeDirectory, { recursive: true });
+  execFileSync("git", ["init", "--quiet"], { cwd: expectedRuntimeDirectory });
+  execFileSync(
+    "git",
+    ["remote", "add", "origin", "https://github.com/example/repo.git"],
+    { cwd: expectedRuntimeDirectory },
+  );
 };
 
 vi.mock("@opencode-ai/sdk", () => ({
@@ -122,7 +133,7 @@ describe("createOpenCodeSessionManager", () => {
   });
 
   it("creates an OpenCode session from the project workspace and model and returns only the stored session id without sending the prompt", async () => {
-    await mkdir(expectedRuntimeDirectory, { recursive: true });
+    await initializeProjectWorkspace();
     const repository = createRepository();
     const create = vi.fn().mockResolvedValue({ data: { id: "session-1" } });
     const promptAsync = vi.fn().mockResolvedValue({});
