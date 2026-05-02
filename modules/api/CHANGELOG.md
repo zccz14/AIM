@@ -1,0 +1,244 @@
+# @aim-ai/api
+
+## 1.0.0
+
+### Major Changes
+
+- bd329a7: 移除 `@aim-ai/api` 内置的 `/docs` 文档页面，仅保留 `/openapi.json` 作为协议导出入口，并同步收紧测试与仓库文档边界。
+
+### Minor Changes
+
+- 5403e23: 为 Task 增加持久化 `result` 字段与 `/tasks/{taskId}/resolve`、`/tasks/{taskId}/reject` 终态接口，并同步更新打包生命周期技能文档以匹配新的终态上报方式。
+- bd329a7: 建立 CZ-Stack 首版 contract、API、Web 与 CLI 模块基线，并补齐统一测试、CI 与 release-aware workflow 入口。
+- 7eb3210: Add Project CRUD API contract, routes, and GUI management flow.
+- e9a9fd2: Add persisted project-level optimizer enablement.
+- ab6b95a: Add project-scoped task creation with global provider/model configuration.
+
+### Patch Changes
+
+- f7b90e2: Add an OpenCode session abort helper that only requires the API base URL and session ID.
+- d80e2b6: 新增 Task 字段级更新接口，支持单独更新 worktree_path、pull_request_url 和 dependencies，并同步 Developer Guide 示例。
+- 64bafbb: Align dimension CRUD and evaluation APIs with README dimension semantics.
+- 8ab305d: Standardize AIM-managed OpenCode session settlement prompts on AIM Session Settlement Protocol.
+- 3b9ef64: Complete API resource ownership migration to AsyncDisposableStack and expose startServer as an AsyncDisposable lifecycle contract.
+- c674ff5: Add Explicit Resource Management support for API server runtime resources.
+- 2f78e2c: Add Explicit Resource Management support for optimizer lane loop resources.
+- acdc3f1: Add Explicit Resource Management support for SQLite-backed API repositories.
+- ff51590: Add Explicit Resource Management cleanup for app-owned route resources.
+- a9979ba: Make optimizer system and server startup await async disposable ownership transfer.
+- 09766d9: Add a bare OpenCode session helper for promptless session creation.
+- ab64f8c: Harden `POST /tasks/batch` guardrails for duplicate Task Pool coverage and invalid delete planning.
+- f9f7655: Extract shared cancelable sleep handling for API background loops.
+- 3ea0ec6: Centralize sqlite schema DDL in the API package schema artifact.
+- d246e4c: Clean up dangling pending OpenCode session rows when runtime messages report the session is missing.
+- e293f7f: Feed project-scoped rejected Task feedback and baseline guardrails into Coordinator planning prompts.
+- 9c08125: Type continuation session creation as an awaitable API contract.
+- 9ae1da5: Add coordinate CRUD and append-only coordinate evaluation APIs.
+- b2d5f6e: Enhance the coordinator active task pool prompt with baseline freshness and delivery state details.
+- e348886: Clear Coordinator active sessions after terminal OpenCode settlement and retry transient lifecycle failures.
+- b92451d: Gate Coordinator task-pool planning on exceeded project budget warnings.
+- 4ef88cf: Clarify the optimizer coordinator prompt to treat Manager dimensions and evaluations as structured Task Pool planning signals.
+- c1741cd: Return a dedicated project-not-found error for Coordinator proposal dry-run requests that reference an unknown project.
+- 32355c2: Mark Coordinator dimension evaluation prompt entries as current or stale against the latest origin/main baseline.
+- 293a2ad: Persist Coordinator task-pool lane session state and hand continuation to the OpenCode session plugin queue.
+- 7cdc5a1: Expose a read-only Coordinator proposal dry-run API and contract so Coordinators can preflight task batch proposals without writing tasks.
+- ffc1096: 新增 Coordinator 候选 batch dry-run 提案辅助入口，用于在写入 Task Pool 前区分 create、delete 与 keep/noop 候选决策。
+- 5d870e9: Prioritize current-baseline Coordinator priority summary evidence before stale historical evaluation candidates.
+- f2eda45: Persist Coordinator lane state so each project has one planning session lock across process restarts.
+- e7c0ae9: Add a project-scoped coordinator heartbeat that starts an OpenCode task-pool session when unfinished work falls below the active threshold.
+- 79ebef9: Read Coordinator active-task freshness from validated task spec baselines.
+- e0dd371: Enforce Coordinator Task Spec validation orchestration before task batch create writes.
+- 78547f7: Add a `GET /db/sqlite` endpoint that downloads the current AIM SQLite database file and publish its OpenAPI contract.
+- 57c7c84: Derive Task lifecycle state from bound OpenCode session state and replace Task pending vocabulary across API, contract, CLI, and web surfaces.
+- d32b98c: Continue pending assigned Developer sessions when no unassigned task is available, while skipping settled sessions, PR follow-up work, and unresolved dependencies.
+- e3830a7: Add current baseline, active task pool, and rejected feedback context to Developer prompts.
+- 8fa364c: Gate Developer task assignment on resolved dependencies before creating OpenCode sessions.
+- 8a6812a: Replace the optimizer Developer responsibility with an auto-starting heartbeat that binds unassigned unfinished tasks to OpenCode sessions.
+- 35a781b: 让 Developer lane 优先续推或创建已合并 PR 的 AIM Task 结算 session，避免新任务抢占未 resolve 的合并收尾。
+- 869751f: Continue assigned pending Developer OpenCode sessions with fresh baseline, active task pool, rejected feedback, and source freshness context.
+- fe73266: Migrate Developer task follow-up to persisted OpenCode session continuations.
+- ce31aea: Fix Developer lane continuation to resolve OpenCode session state by session_id instead of requiring tasks to carry preloaded session entities.
+- 7e31b7b: Rebind Developer assigned pending tasks to new OpenCode sessions instead of pushing continuation prompts into existing sessions.
+- c62bda0: Recover assigned Developer tasks whose recorded OpenCode session is unavailable by rebinding a new guarded session.
+- 814a1a5: Surface current baseline freshness for AIM Dimension evaluations in the Director dashboard.
+- 7c0e93c: Return a stable actionable API error when duplicate dimension evaluations are written for the same baseline and dimension.
+- 55102bd: Add the director clarification API contract and persistence route so projects can record clarification questions and answers.
+- ea8e2f8: Filter Director clarification lists by dimension_id when a dimension-scoped panel requests clarification context.
+- b204707: Add GUI controls for resolving and reopening Director clarification requests.
+- 79fb3e9: Add a Director clarification status patch endpoint and typed contract client helper.
+- 89175f0: Allow Coordinator dry-run task pool inputs to carry top-level worktree and pull request artifact fields.
+- 4f92cd1: 在 Coordinator proposal dry-run 中提前拦截 stale 或未知 baseline 的 create 候选，并避免把已知 stale 的 unfinished Task 当作当前覆盖证据。
+- 90b0ddd: Use top-level Task worktree and pull request fields when classifying Coordinator dry-run keep/delete rationale.
+- 8a89211: 让 Coordinator dry-run 只为仍未完成的 stale feedback Task 输出 delete 候选，同时保留终态 rejected feedback 对重复 create 的阻断作用。
+- a717a62: Improve critical error recovery guidance with sensitive-detail redaction for task and optimizer failure paths.
+- ae299dc: Export the shared OpenCode session manager type for API consumers and internal scheduler wiring.
+- 89ce96a: Add project_id filtering to task list APIs and CLI query mapping.
+- a6d6a60: Check OpenCode session existence through explicit runtime lookup responses before recovering pending AIM sessions.
+- b11dc28: Fix OpenCode session manager pending prompt recovery to read message freshness from the SDK messages response contract.
+- a377754: Normalize legacy SQLite datetime strings before API contract parsing.
+- bd329a7: 将 contract 包切换为 OpenAPI-first 单一事实源，生成并稳定导出类型、客户端与运行时校验能力，同时同步更新 API、Web 与 CLI 对新的 contract 边界的接入方式。
+- d53cc90: Add timeout and sanitized error boundaries around API git and gh commands.
+- 65381f3: Add Developer active-task freshness context to session prompts.
+- f8efa68: Update Hono to 4.12.14 to use the patched security release.
+- 775cf44: Refactor OpenCode pending session patrol control flow without changing recovery behavior.
+- c66f972: Clear Manager and Coordinator lane session ownership after rejected terminal OpenCode sessions so later scans can start fresh while preserving the rejection reason.
+- 977447c: Add a standalone OpenCode supported models helper.
+- 0c01303: Add read-only GitHub CI gate evidence to Manager evaluation prompts.
+- 2c699fa: Strengthen Manager guidance so dimension evaluation appends use a README claim-to-evidence protocol with evidence, confidence, and Coordinator handoff limits.
+- 03a298c: Add a Manager-specific optimizer flow with a live heartbeat resource.
+- 94e80c5: Add read-only dependency evidence to Manager evaluation prompts so dependency-health findings can cite manifests, lockfile state, audit summaries, or bounded evidence limits.
+- 49df486: Validate Manager dimension evaluation handoff sections on create.
+- 29d97d2: Gate Manager lane OpenCode interaction on unevaluated dimensions for the current baseline commit.
+- 4bfb098: Persist Manager optimizer lane session state and hand continuation to the OpenCode session plugin queue.
+- ce5e2a6: Include bounded latest commit name-status evidence in Manager evaluation prompts so recent-commit complexity dimensions can focus on touched files.
+- 7b9d303: 移除 SQLite-backed manager_reports 服务端资源方向；Manager 评估信号改由 dimensions 与 dimension_evaluations 表达。
+- b6c3fc8: Prevent the Manager from creating duplicate OpenCode evaluation sessions for unchanged missing baseline evaluations across heartbeats.
+- 1d765f8: Persist Manager evaluation claims per project so restarts do not create duplicate Manager sessions for unchanged missing evaluations.
+- a9273a6: Preserve manager lane state when deleting linked OpenCode sessions.
+- 28a652a: Task Resolve 现在会要求存在 pull_request_url，并通过 gh 确认对应 PR 已合并后才允许成功。
+- 399a5df: Harden the Coordinator lane prompt to require concrete `POST /tasks/batch` operations instead of generic optimizer-loop placeholder Tasks.
+- 745fe7a: 补齐无 PR pending Task 的恢复分类，区分待分配、stale session、已建 worktree 和需继续开发状态。
+- fae7176: Centralize remaining cancelable sleep usage in API background loops.
+- 922b28b: Append OpenCode session settlement instructions to API-managed continuation prompts.
+- e672d95: Add explicit OpenCode session continuation endpoints for startup recovery pushes.
+- 09c764c: Delete expired orphan OpenCode runtime sessions instead of aborting them, while retaining AIM rows for retry when runtime cleanup fails.
+- 78e261e: Abort active OpenCode sessions when optimizer runtime resources are disposed.
+- 89e8a8c: Add OpenCode session promise persistence, API routes, and plugin continuation/settlement hooks.
+- d15be06: Use child OpenCode session message activity when deciding whether a managed session is stale enough to continue.
+- 2fb2583: Align OpenCode session manager boundaries and settlement validation.
+- 361b931: Prefer AIM API curl settlement instructions in OpenCode session continuation prompts while keeping stored prompts raw.
+- f02db10: Clean up orphan pending AIM OpenCode sessions from the session manager patrol after a 5-minute grace window without prompting unowned sessions.
+- 8a5689c: Route task, agent, and continuation OpenCode sessions through the AsyncDisposable OpenCode session manager, replacing thin coordinator and SDK adapter layers while preserving promptless creation, model-aware recovery, continuation push, and abort disposal.
+- 2c37232: Align OpenCode pending session continuation with message timestamps, including 5-minute stale recovery and dangling cleanup without requiring a continuation prompt.
+- 6ddc26d: Persist OpenCode session title and project ownership metadata.
+- dd4a4c2: Add OpenCode session list, prompt recovery, and task session observability API surfaces.
+- 2a17f88: Pace OpenCode pending session patrol handling so cleanup, skip, retry, prompt, and error paths wait before the next session.
+- d72320e: Require OpenCode sessions to reference an existing project.
+- 2c6d4d7: Add OpenCode session runtime safety guards for duplicate idle continuations, idempotent settlement, and stale pending visibility.
+- cfdcdb7: Add the documented OpenCode session schema fields and migration coverage.
+- 2e5e3b1: Add an OpenCode session token usage refresh endpoint that recomputes and overwrites stored token summaries for one session.
+- 4557978: Persist OpenCode session token usage summaries on terminal settlement.
+- 2870335: Add the AIM optimizer control plane API and dashboard header switch for starting, stopping, and observing the scheduler-backed optimizer runtime.
+
+  Extend optimizer status with event orchestration telemetry and gate task-resolved scheduler scans behind the running optimizer runtime.
+
+- dba8b42: Persist optimizer lane recent events so diagnostics survive API restarts.
+- f0566cf: Surface bounded recent project optimizer lane events in status API and Project detail UI.
+- b729af7: Start optimizer manager and coordinator lanes for every configured project instead of only the first project.
+- 0fe223a: Improve optimizer startup failure diagnostics for API server logs and CLI stderr.
+- 482ad0f: Restore project optimizer status lane signals from the active optimizer system.
+- 1ec3517: Add an async-disposable optimizer system boundary that owns optimizer lane composition and startup.
+- b9b961c: Run the optimizer as default-on Manager, Coordinator, and Developer lanes with per-lane status instead of a static task producer.
+- 8efbfd4: Expose a conservative project optimizer token usage summary through the status contract and CLI.
+- 23de9fc: Require Coordinator planning evidence for task batch creates and delete rationale for batch deletes.
+- 4241f99: 澄清任务继续提示中的最终状态上报要求，明确需要向 AIM API Server 报告 resolved 或 rejected 结果。
+- 2d3bbf3: 新增 Task PR 跟进状态分类接口，返回常见 checks、review、mergeability、auto-merge 与 merged-but-unresolved 状态的恢复建议。
+- 147a737: Add a read-only project detail endpoint and contract client method.
+- df550b7: Persist projects by git origin URL and derive AIM-managed workspaces by project id.
+- 7a77f51: Normalize SQLite project path storage behind project_id foreign keys.
+- ee6ee43: Treat project ids as UUID values across API persistence, contract validation, CLI fixtures, and web contract fixtures while keeping project paths as path lookup keys.
+- e9526b9: Add project-scoped optimizer runtime observability so clients can read config enablement separately from runtime activity.
+- df0a212: Finish project origin identity migration follow-up gaps across API lane startup, packaged skills, and web dashboard copy.
+- 1bd0a63: Enforce cumulative Director-granted project token budgets before starting optimizer or developer work.
+- ff819fd: Add optional project token and cost warning thresholds with stable project usage budget warning status.
+- 317f988: Add a read-only project token usage API and contract endpoint for aggregating OpenCode session token and cost usage by project, task, and session.
+- 25f5ab9: Run project workspace git commands from explicit working directories.
+- 8ef6bb7: Normalize optimizer project workspaces to the source repository's real remote when project origins point at local checkouts.
+- a538629: 将 AIM CLI 调整为可发布的全局安装包边界，使用稳定的 `aim` bin 入口，并补充打包安装验证与安装文档。
+- 02b6187: Refactor API server resource cleanup to use the standard async disposable stack.
+- 77dfd8d: Refill an empty AIM Task Pool from the running optimizer loop so the optimizer keeps producing follow-up tasks.
+- 45eeecb: Remove the obsolete shared agent session lane runtime after optimizer roles split into dedicated Manager, Coordinator, and Developer schedulers.
+- b4a029c: Remove public `stop()` lifecycle methods from API runtime resources in favor of async disposal, while preserving optimizer stop endpoint behavior through a control-plane disable API.
+- bb32a1a: Stop implicitly rewriting existing project workspace origin remotes; mismatched origins now fail with a diagnostic error instead.
+- ffd800f: Remove externally callable OpenCode session continuation routes and contract exports.
+- bc578cc: Remove the global optimizer start/status/stop API contract and dashboard header controls so optimizer enablement remains project-scoped.
+- d6d0f64: Remove obsolete optimizer lane state repository wiring after lane runtime cleanup.
+- 874537e: Remove externally callable OpenCode session creation routes and contract exports.
+- fc284b9: Remove the obsolete optimizer runtime event shell so task resolution only updates task state while heartbeat components drive Manager, Coordinator, and Developer work.
+- e4aa432: Remove task-level developer model fields and derive task session model metadata from the project global model configuration.
+- 6dfee2f: Remove the obsolete task scheduler module now that Developer owns task session binding.
+- 4278b38: Remove the legacy `/tasks/{taskId}/resolve` and `/tasks/{taskId}/reject` API routes from the server and public contract so terminal completion flows through OpenCode session resolve/reject only.
+- 5c92ab1: Require `sendPromptText` callers to provide an OpenCode model and pass it through to prompt sends.
+- 38847e4: Restore manager optimizer lane registration and route optimizer sessions through the managed OpenCode session manager.
+- 8013d42: Include active branch ruleset required-check evidence in Manager CI gate prompts.
+- 9e431d4: Disable optimizer scheduler auto-start during API server startup.
+- 4e0cb33: Sort resolve-triggered scheduler scans by task dependency hints within existing session priority groups.
+- 32cfc4d: Improve optimizer, scheduler, and lane observability with structured lifecycle, tick, skip, context, and failure logs.
+- 989370a: Add an OpenCode helper for sending text prompts to existing sessions.
+- 48b8d35: Harden OpenCode pending session recovery against transient watch-loop failures and repeated stale continuation prompts.
+- e2db6fc: Prioritize unfinished tasks with continuable task sessions during scheduler scans.
+- d515ec8: Align AIM Developer terminal completion guidance with OpenCode session tools.
+- f0f9a7f: Simplify the project optimizer status contract to omit obsolete runtime event fields.
+- a0cb6bc: 精简 Task status contract，仅保留 pending、resolved 和 rejected 三种状态。
+- 94ff360: Slim AIM Developer session prompts to avoid preloading task pool and baseline context.
+- 420c5bc: Slim optimizer Developer and Coordinator session prompts to lightweight bootstrap context.
+- d8b38d7: Scope API server resource cleanup through Explicit Resource Management.
+- e229df2: Use standard AsyncDisposable types for disposable API contracts.
+- 6878d0f: Add OpenCode session token statistics helpers that aggregate message token usage and recursively include task sub-sessions.
+- 2e74cc4: Stop creating the legacy optimizer lane states table for new API sqlite databases.
+- d4b7667: 收敛包级 `test` 与 `build` 的职责边界，让默认测试不再隐式执行本包产物构建，并将依赖已构建产物的校验前置到对应测试准备阶段。
+- 265963f: Use current baseline facts when reporting Task source baseline freshness.
+- 1f578d4: Keep ordinary TaskRepository reads narrow by requiring explicit task-pool status filters or API enrichment to derive OpenCode session state.
+- 04de701: Add a managed OpenCode session foreign key for task session bindings.
+- eee70e8: 展示 Task 源基线新鲜度，帮助 Director 区分当前、陈旧和未知来源基线。
+- 48dfaec: Require Coordinator-created Tasks to carry independent Task Spec validation evidence before `POST /tasks/batch` writes.
+- cf7235c: Fix optimizer system resource cleanup.
+- 94025b4: Trigger an in-process scheduler scan opportunity after successful task resolve.
+- 763abd8: Wire optimizer-system Coordinator lanes through the project-scoped createCoordinator component instead of the legacy agent session lane.
+- Updated dependencies [d80e2b6]
+- Updated dependencies [64bafbb]
+- Updated dependencies [5403e23]
+- Updated dependencies [539e171]
+- Updated dependencies [5369829]
+- Updated dependencies [9ae1da5]
+- Updated dependencies [e58090b]
+- Updated dependencies [7cdc5a1]
+- Updated dependencies [78547f7]
+- Updated dependencies [57c7c84]
+- Updated dependencies [814a1a5]
+- Updated dependencies [55102bd]
+- Updated dependencies [ea8e2f8]
+- Updated dependencies [b204707]
+- Updated dependencies [79fb3e9]
+- Updated dependencies [89175f0]
+- Updated dependencies [89ce96a]
+- Updated dependencies [bd329a7]
+- Updated dependencies [bd329a7]
+- Updated dependencies [7b9d303]
+- Updated dependencies [745fe7a]
+- Updated dependencies [e672d95]
+- Updated dependencies [89e8a8c]
+- Updated dependencies [2fb2583]
+- Updated dependencies [6ddc26d]
+- Updated dependencies [dd4a4c2]
+- Updated dependencies [d72320e]
+- Updated dependencies [2c6d4d7]
+- Updated dependencies [2e5e3b1]
+- Updated dependencies [4557978]
+- Updated dependencies [2870335]
+- Updated dependencies [f0566cf]
+- Updated dependencies [b9b961c]
+- Updated dependencies [8efbfd4]
+- Updated dependencies [23de9fc]
+- Updated dependencies [2d3bbf3]
+- Updated dependencies [7eb3210]
+- Updated dependencies [147a737]
+- Updated dependencies [df550b7]
+- Updated dependencies [ee6ee43]
+- Updated dependencies [e9a9fd2]
+- Updated dependencies [e9526b9]
+- Updated dependencies [ab6b95a]
+- Updated dependencies [1bd0a63]
+- Updated dependencies [ff819fd]
+- Updated dependencies [317f988]
+- Updated dependencies [a538629]
+- Updated dependencies [ffd800f]
+- Updated dependencies [bc578cc]
+- Updated dependencies [874537e]
+- Updated dependencies [e4aa432]
+- Updated dependencies [4278b38]
+- Updated dependencies [f0f9a7f]
+- Updated dependencies [a0cb6bc]
+- Updated dependencies [d4b7667]
+- Updated dependencies [eee70e8]
+  - @aim-ai/contract@0.1.0
