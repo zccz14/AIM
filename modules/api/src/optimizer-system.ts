@@ -313,36 +313,6 @@ export const createOptimizerSystem = async ({
         onLaneEvent: laneEvents.record,
         sessionManager: openCodeSessionManager,
         sessionRepository: continuationSessionRepository,
-        canStartTask: async (task) => {
-          const project = await taskRepository.getProjectById(task.project_id);
-
-          if (!project) {
-            return { ok: true };
-          }
-
-          if (
-            project.token_budget_limit === null ||
-            project.token_budget_limit === undefined
-          ) {
-            return { ok: true };
-          }
-
-          const totals = await collectProjectTokenUsageTotals({
-            baseUrl: coordinatorConfig.baseUrl,
-            projectId: task.project_id,
-            taskRepository,
-          });
-          const budgetStatus = buildProjectTokenBudgetStatus(project, totals);
-
-          return budgetStatus.exhausted
-            ? {
-                ok: false,
-                reason:
-                  summarizeTokenBudgetExhaustion(budgetStatus) ??
-                  "Project token budget exhausted.",
-              }
-            : { ok: true };
-        },
         taskRepository,
       }),
     );
