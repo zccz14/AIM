@@ -1,6 +1,6 @@
 {
   "name": "@aim-ai/api",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "./dist/app.cjs",
   "module": "./dist/app.mjs",
