@@ -19,7 +19,12 @@ export const openTaskDatabase = (projectRoot?: string) => {
 
   const database = new DatabaseSync(databasePath);
 
-  database.exec("PRAGMA foreign_keys = ON");
+  database.exec(`
+    PRAGMA busy_timeout = 5000;
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA foreign_keys = ON;
+  `);
 
   return database;
 };
