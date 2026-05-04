@@ -48,7 +48,6 @@ const tableName = "optimizer_lane_events";
 const bootstrapOptimizerLaneEventsSchema = (
   database: ReturnType<typeof openTaskDatabase>,
 ) => {
-  database.exec("PRAGMA busy_timeout = 5000");
   database.exec(`
     CREATE TABLE IF NOT EXISTS ${tableName} (
       id TEXT PRIMARY KEY,
