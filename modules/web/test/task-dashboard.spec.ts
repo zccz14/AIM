@@ -2803,7 +2803,7 @@ test("highlights the latest dimension evaluation and links GitHub commit evidenc
   ).toHaveAttribute("href", "https://github.com/example/main/commit/1111111");
 });
 
-test("renders latest dimension evaluation Markdown with prose styling", async ({
+test("renders latest dimension evaluation Markdown through the shared renderer", async ({
   page,
 }) => {
   const dimension = buildDimension();
@@ -2834,9 +2834,9 @@ test("renders latest dimension evaluation Markdown with prose styling", async ({
   await page.goto(`/#/dimensions/${dimension.id}`);
 
   const latest = page.getByRole("region", { name: "Latest evaluation" });
-  const renderedEvaluation = latest.locator(".prose");
+  const renderedEvaluation = latest.locator(".ux-markdown");
 
-  await expect(renderedEvaluation).toHaveClass(/(^|\s)prose(\s|$)/);
+  await expect(renderedEvaluation).toHaveClass(/(^|\s)ux-markdown(\s|$)/);
   await expect(renderedEvaluation.locator("strong")).toHaveText("evidence");
   await expect(renderedEvaluation.locator("li")).toHaveText(
     "Preserve Director focus",

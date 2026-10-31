@@ -1,5 +1,4 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@zccz14/ux";
 
 import { Badge } from "../../../components/ui/badge.js";
 import { Card } from "../../../components/ui/card.js";
@@ -82,7 +81,7 @@ export const Checkmark = ({
 );
 
 export const MarkdownContent = ({ children }: { children: string }) => (
-  <div className="prose prose-neutral max-w-none text-sm/relaxed text-card-foreground dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_pre]:overflow-x-auto [&_pre]:bg-muted [&_pre]:p-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:bg-muted [&_th]:p-2 [&_th]:text-left">
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+  <div className="text-sm">
+    <Markdown content={children} />
   </div>
 );
